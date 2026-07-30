@@ -31,6 +31,83 @@ the design rationale in [`docs/design/`](docs/design/).
    Java `isServiceUnhealthy` semantics); `type=health` still runs on every probe and the
    `/health` result itself is never cached.
 
+3. **Workflow suspension for the Active Knowledge Graph (suspend/resume), in lock-step
+   with the Java engine.** A graph run can suspend at a human checkpoint — approval,
+   intervention, inbox notification — and resume later with the same business
+   correlation ID, without re-executing completed steps. A long-running business process
+   becomes a sequence of short runs; nothing stays in memory between them.
+   - New skills **`graph.suspend`** / **`graph.resume`** (supersets of `graph.task`: the
+     `task` property names a pluggable state-store function; envelope assembly and
+     restoration are fully encapsulated — no node data mapping). The node alias
+     **`suspend`** is reserved (the `root`/`end` pattern — traversal jumps to it by
+     name); a skilled node marked with the new reserved property **`suspend=true`**
+     routes there after executing. `graph.resume` records the run condition in
+     **`model.run`** (`resume` | `fresh`) so the graph's own logic decides how a
+     fresh-or-expired request is handled — the engine deliberately does not distinguish
+     absent from expired. `model.run` joins the read-only flow-metadata family
+     (`model.cid`/`instance`/`flow`/`ttl`/`trace`): the flow compiler and the runtime
+     dynamic-target guard reject any data mapping that overwrites it. The suspend node's
+     **`ttl`** is mandatory with no default (duration syntax, e.g. `2d`).
+   - Traversal bookkeeping is persisted and restored, so a `graph.join` after resume
+     still sees branches completed before suspension. Reserved model keys never persist
+     — nor restore: a forged store record cannot overwrite the current run's identity.
+   - New optional extension crate **`extensions/minigraph-state-redis`**:
+     `v1.redis.persist.model` (SETEX, native expiry) and `v1.redis.retrieve.model`
+     (atomic GETDEL consume, Redis 6.2+) register automatically when an application
+     links the crate (the minigraph-playground example app now does); lazy connection
+     (`redis` crate `ConnectionManager` — the Lettuce analog), `redis.*` config keys
+     shared with the Java sync-over-async family. Any composable function honoring the
+     documented store contract can replace it.
+   - New tutorial **`tutorial-14`** (a purchase workflow with THREE human checkpoints —
+     order, approval, delivery release — as four short runs, copied verbatim from the
+     Java engine) with an end-to-end test driving the real Redis client wire path —
+     including input validation: a later-stage request without a suspended record is
+     rejected with HTTP 404 (a null-safe presence check via `{var}` substitution inside
+     a `text()` constant) — and every stage reply carries the `run` flag. The
+     **Workflow Suspension** guide chapter (incl. the state-store contract),
+     skills-reference entries, `help.md` + `help tutorial 14.md` Playground pages.
+   - **Business correlation-id fidelity in graph telemetry and logs**: the graph walkers
+     stamp the engine's business-cid tag from the graph's `model.cid` on every skill
+     invocation (walkers are event interceptors, so PostOffice does not auto-propagate
+     it), and the suspend/resume skills annotate their trace spans with `cid` — the
+     application log context's `cid` on a traced store/skill line is always the business
+     ID, never internal routing metadata.
+   - **Declarative response status**: a graph can stage its HTTP status
+     (e.g. `int(404) -> output.status`); `graph.executor` applies it to the graph's
+     reply at completion.
+
+### Changed
+
+1. **CompileGraph is now the deployment gate for graph models (CompileFlows parity).**
+   A deployed graph model is executable at `POST /api/graph/{graph-id}` only when it is
+   listed in the graph manifest (`graph.model.automation`, e.g. `classpath:/graphs.yaml`)
+   AND passes the CompileGraph quality gate at startup. A graph that fails the gate, or
+   is not listed, answers **HTTP-404** as if the model does not exist — the lazy,
+   per-request loading of deployed models is removed, so an unvalidated JSON file in the
+   deployed folder can no longer be executed. This mirrors CompileFlows, where an invalid
+   flow never becomes executable. The playground dry-run workspace
+   (`location.graph.temp`) is a separate surface and is unaffected. Completing the
+   CompileFlows symmetry, the manifest now carries the location of its own models:
+   the optional **`location`** entry in `graphs.yaml` (default `classpath:/graph`)
+   replaces the `location.graph.deployed` application property, exactly like the
+   `location` entry in `flows.yaml` — the default preserves existing deployed-folder
+   layouts, and a leftover `location.graph.deployed` property logs an obsolete-key
+   warning at startup.
+   With the gate mandatory, the graph executor no longer re-validates gate-guaranteed
+   rules per request (root/end existence, the suspend-node contract) — data-driven
+   runtime guards (store-record contents, dynamic jump targets, loop detection) remain.
+   The two lanes are now explicit: production = models → CompileGraph → deployed graphs
+   → graph executor; dry-run = drafts in the temp workspace → UI CLI validation at node
+   create/update → graph traveler with full runtime validation. The gate's whole-graph
+   rules are modularized (`model_validator`) and reused by the playground's `run`
+   command as a pre-run quality check: draft authoring still allows partial models,
+   but the moment the author asks to run, the suspend/resume contract must hold —
+   a violation reports `Unable to run - <reason>` before traversal starts.
+   **Migration:** applications that relied on lazy loading must set
+   `graph.model.automation` and list their deployed graph IDs in the manifest — the
+   shipped example already does; set the manifest's `location` only if your deployed
+   folder is not `classpath:/graph`.
+
 ### Fixed
 
 1. **WS duplicate-command suppression window is now ANCHORED like Java's** (knowledge

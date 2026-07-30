@@ -20,6 +20,10 @@ graphs:
   - 'tutorial-10'
   - 'tutorial-11'
   - 'tutorial-12'
+  # tutorial-14: the suspend/resume purchase workflow (three checkpoints, four
+  # runs, one business correlation id) - see 'help tutorial 14' and the
+  # workflow-suspension guide
+  - 'tutorial-14'
 
 # like flows.yaml, the manifest carries the location of its own models
 # (the tutorials travel with the knowledge-graph engine's resources)

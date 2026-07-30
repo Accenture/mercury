@@ -872,6 +872,7 @@ to log additional information.
 | Trace ID         | `model.trace`    | Optional traceId when tracing is turned on |
 | Correlation ID   | `model.cid`      | Correlation ID of the inbound request      |
 | Time to live     | `model.ttl`      | TTL for a flow instance in milliseconds    |
+| Run condition    | `model.run`      | Set by the knowledge graph's `graph.resume` skill: `resume` or `fresh`; absent outside suspend/resume graphs |
 
 ### Special handling for header
 

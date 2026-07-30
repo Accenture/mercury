@@ -56,6 +56,8 @@ Built-in skills
 6. graph.island - marks the knowledge layer; the node leads to isolated nodes and traversal pauses there
 7. graph.join - wait for completion of all nodes that connect to it (parallel-branch barrier)
 8. graph.task - invoke a composable function through its route name
+9. graph.suspend - persist workflow state at a suspension point (the reserved 'suspend' node)
+10. graph.resume - restore workflow state and continue past the suspension point
 
 For skill details, use the hyphenated help topics, e.g. 'help graph-math',
 'help graph-api-fetcher', or 'describe skill {route}'.
@@ -75,3 +77,4 @@ Tutorials
 - help tutorial 11 (flow extension)
 - help tutorial 12 (custom error handling)
 - help tutorial 13 (invoking a composable function with the graph.task skill)
+- help tutorial 14 (workflow suspension - a purchase workflow with three human checkpoints)

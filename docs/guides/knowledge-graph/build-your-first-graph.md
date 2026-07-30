@@ -178,20 +178,38 @@ Export fails if any node is an orphan — every node must connect to at least on
 
 ## Step 6 — deploy it and call it over REST
 
-Deployment is a file copy: move the exported JSON into your application's deployed-graph
-folder and restart the app (deployed models are compiled at startup). The two locations come
-from application configuration:
+Deployment is a file copy plus a manifest entry. The relevant configuration keys:
 
 ```yaml
 # temp working location (must be file:/ — read/write)
 location.graph.temp: file:/tmp/graph
-# deployed model location (file:/ or classpath:/ — read-only)
-location.graph.deployed: classpath:/graph
+# the graph manifest - the quality gate and the only door to deployed execution
+graph.model.automation: classpath:/graphs.yaml
 ```
+
+Copy the model into the deployed-graph folder **and list its ID in the manifest**
+(`graphs.yaml`), then restart the app:
 
 ```bash
 cp /tmp/graph/my-first-graph.json resources/graph/
 ```
+
+```yaml
+graphs:
+  - 'my-first-graph'
+
+location: 'classpath:/graph'
+```
+
+Like `flows.yaml`, the manifest carries the location of its own models: the optional
+`location` entry points at the deployed-graph folder (`file:/` or `classpath:/` — it is
+read-only) and defaults to `classpath:/graph`, so most projects can omit it.
+
+At startup, `CompileGraph` validates every manifest graph once — structure, the root node's
+`purpose`, data-mapping syntax, and the suspend/resume contract — and only graphs that pass
+become executable. A graph that fails the gate, or is not listed, answers **HTTP-404** as if
+it does not exist, exactly like an invalid flow under `CompileFlows`. The startup log tells
+you why a graph was rejected (`Rejected graph <id> - <reason>`).
 
 A deployed graph is reachable at the generic endpoint `POST /api/graph/{graph-id}`, where the
 id is the name you exported:

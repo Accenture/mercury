@@ -122,6 +122,7 @@ nav:
   - "Layer 3 — Knowledge Graph":
       - Overview: guides/knowledge-graph/index.md
       - Build Your First Graph: guides/knowledge-graph/build-your-first-graph.md
+      - Workflow Suspension: guides/knowledge-graph/workflow-suspension.md
       - Playground & AI Companion: guides/knowledge-graph/playground-and-companion.md
       - Composing the Layers: guides/knowledge-graph/composing-the-layers.md
       - Graph AI Agent Guide: guides/knowledge-graph/ai-agent-guide.md

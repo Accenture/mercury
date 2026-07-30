@@ -17,3 +17,8 @@ knowledge-graph = { path = "../../crates/knowledge-graph" }
 minigraph-state-redis = { path = "../../extensions/minigraph-state-redis" }
 async-trait = "0.1"
 log = "0.4"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util"] }
+rmpv = { version = "1", features = ["with-serde"] }
+uuid = { version = "1", features = ["v4"] }

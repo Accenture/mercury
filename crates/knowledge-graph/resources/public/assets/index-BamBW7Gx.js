@@ -1114,6 +1114,126 @@ Notes
 - The bounded-retry pattern (RESET the failing node and itself first, count
   attempts with f:defaultValue + f:add, exit at the bound via a taken IF
   jump, NEXT: back, DELAY: to pace) is shown under 'help graph-api-fetcher'.
+`,"../../../resources/help/help graph-resume.md":`Skill: Graph Resume
+-------------------
+When a graph run starts with the same business correlation ID as a previously suspended
+transaction, the node with this skill restores the persisted workflow state and continues
+traversal from the recorded suspension point - without re-executing it.
+
+This skill is a superset of "graph.task": the "task" property names the pluggable store
+function, but restoration is encapsulated by the skill, so the node needs no input or
+output data mapping.
+
+Place the resume node early in the traversal - conventionally named "resume" and connected
+right after "root", or after nodes that perform setup and initialization. When the store
+has a record for the business correlation ID (model.cid), the skill merges the persisted
+model key-values into the state machine (the current run's reserved keys such as model.cid
+and model.instance always win), restores the traversal bookkeeping so downstream join
+barriers still see branches completed before suspension, and jumps past the suspension
+point onto its normal forward path.
+
+When there is no record - a fresh transaction, which is the normal first-run case, or an
+expired record - traversal simply continues along the resume node's own forward path.
+
+Either way, the skill records the outcome in "model.run" - "resume" when a record was
+restored, "fresh" when there was none. The engine does not distinguish an absent record
+from an expired one; with several checkpoints in one graph, no single fallback could be
+right for all of them. Handling the fresh-or-expired condition is application logic:
+gate the resume node's forward path with a graph.math IF-THEN-ELSE (on model.run or on
+the request shape - see "help tutorial 14") to reject the request, advise the UI, or
+jump to a recovery node.
+
+The default store behavior consumes the record on retrieval, so a duplicate resume request
+cannot execute the continuation twice.
+
+Route name
+----------
+"graph.resume"
+
+Setup
+-----
+To enable this skill, set "skill=graph.resume" as a property in a node.
+
+The following parameter is required in the properties of the node:
+
+1. task - the route name of the state-store function (e.g. "v1.redis.retrieve.model")
+
+The store function receives headers "type=get" and a body of {"cid": "..."} and returns
+the persisted record, or nothing (null or an empty map) when absent or expired.
+
+Example
+-------
+create node resume
+with type Resume
+with properties
+purpose=Restore workflow state from the external state store
+skill=graph.resume
+task=v1.redis.retrieve.model
+`,"../../../resources/help/help graph-suspend.md":`Skill: Graph Suspend
+--------------------
+When a graph reaches the node with this skill, the workflow state of the graph instance is
+persisted to an external state store and the graph run completes normally - the transaction
+can resume later through the "graph.resume" skill using the same business correlation ID.
+
+This skill is a superset of "graph.task": the "task" property names the pluggable store
+function, but the persistence envelope is assembled by the skill itself, so the node needs
+no input or output data mapping.
+
+The node carrying this skill MUST be named "suspend" - a reserved alias like "root" and
+"end" - because graph traversal jumps to it by name: when a node with the "suspend=true"
+property completes normally, the walker routes to the "suspend" node instead of the node's
+normal forward path. A plain connection into the "suspend" node is an unconditional
+suspension point. There is exactly one suspend node per graph.
+
+A suspension point must be the sole active branch - do not suspend between a fan-out and
+its join; suspend after the join instead. Anything a later step needs must be mapped into
+the "model" namespace before the suspension point, because a node's transient "result"
+properties do not survive suspension - the model is the workflow's durable memory.
+
+Unless the graph staged its own output before suspension, the skill stages a default
+response body so the caller of the suspended run receives a meaningful reply:
+
+{
+  "type": "suspended",
+  "cid": "<business correlation ID>"
+}
+
+Route name
+----------
+"graph.suspend"
+
+Setup
+-----
+To enable this skill, create a node named "suspend" with "skill=graph.suspend".
+
+The following parameters are required in the properties of the node:
+
+1. task - the route name of the state-store function (e.g. "v1.redis.persist.model")
+2. ttl - the record's time-to-live using duration syntax, e.g. 20s, 5m, 2h, 2d
+
+The store function receives headers "type=put" and a body of:
+
+{
+  "cid":   "<business correlation ID - the retrieval key>",
+  "node":  "<the suspension point - the node that routed here>",
+  "ttl":   <seconds>,
+  "model": { the model namespace minus the per-run reserved keys },
+  "seen":  { traversal bookkeeping },
+  "run":   { traversal bookkeeping }
+}
+
+The store must acknowledge with a 2xx reply before the graph completes - a failed store
+call fails the node (the optional "exception" property routes it to a handler node).
+
+Example
+-------
+create node suspend
+with type Suspend
+with properties
+purpose=Persist workflow state to the external state store
+skill=graph.suspend
+task=v1.redis.persist.model
+ttl=2d
 `,"../../../resources/help/help graph-task.md":`Skill: Graph Task
 -----------------
 Invokes a composable function through its route name and collects the
@@ -1368,6 +1488,11 @@ run
 Notes
 -----
 - Requires a graph instance (see 'help instantiate').
+- Before traversal begins, the graph is checked against the same whole-graph
+  rules that the CompileGraph deployment gate enforces (the suspend/resume
+  contract). Draft authoring allows partial models, but a runnable graph must
+  honor these rules - a violation is reported as "Unable to run - <reason>"
+  and the run is aborted.
 - Traversal starts at the root node. Multiple outgoing connections fork into
   parallel branches (synchronize them with graph.join); each node executes
   at most once per run (loop guard).
@@ -2522,6 +2647,369 @@ Summary
 -------
 In this tutorial, you have used the "graph.task" skill to invoke a composable function through its
 route name, with Event Script style input and output data mapping.
+`,"../../../resources/help/help tutorial 14.md":`Tutorial 14
+-----------
+In this session, you will build a purchase workflow with THREE human checkpoints - a customer
+orders, the store manager approves, the delivery department releases the shipment, and the
+parcel ships to the customer. One graph model, four short runs, one correlation ID.
+
+Pre-requisite
+-------------
+Workflow suspension persists state to an external store through two composable functions. This
+tutorial uses the Redis store from the "minigraph-state-redis" extension - the playground
+application already includes it, so "v1.redis.persist.model" and "v1.redis.retrieve.model" are
+registered automatically. Start a Redis before you run the graph (the "redis-standalone" helper
+application works out of the box).
+
+What is workflow suspension?
+----------------------------
+An approval may take minutes or days. Instead of parking a live graph instance, the graph
+persists its workflow state - the "model" namespace - under the business correlation ID and the
+run completes normally. A later request with the same correlation ID restores that state and
+continues past the checkpoint without re-executing it. Three vocabulary pieces make this work:
+
+1. the "suspend" node - a reserved node name (like root and end) with the "graph.suspend" skill;
+   traversal jumps to it by name. ONE suspend node serves every checkpoint in the graph.
+2. a suspensible node - any skilled node with the "suspend=true" property; it routes to the
+   suspend node after its skill completes
+3. the resume node - the "graph.resume" skill placed right after root; it restores a persisted
+   record and jumps past the LAST checkpoint, or lets a fresh transaction flow through - either
+   way it sets "model.run" to "resume" or "fresh" so the graph's own logic can react
+
+The graph navigation is:
+
+\`\`\`
+root -> resume -> order (suspend=true) -> approval (suspend=true) -> delivery (suspend=true) -> ship -> end
+\`\`\`
+
+Each suspensible node captures its actor's input into the model and suspends; each following
+run resumes one checkpoint further. The model is the workflow's durable memory - anything a
+later step needs must be mapped into "model.*" before the checkpoint.
+
+Create the graph model
+----------------------
+Create the root node:
+
+\`\`\`
+create node root
+with properties
+purpose=Purchase workflow with three human checkpoints
+name=tutorial-14
+\`\`\`
+
+Create the resume node. A resumed run jumps past its last checkpoint; a fresh transaction
+(no record - never suspended, or expired) continues along the forward path into the
+"check-fresh" validation gate with "model.run" set to "fresh":
+
+\`\`\`
+create node resume
+with type Resume
+with properties
+purpose=Restore workflow state if this transaction was suspended earlier
+skill=graph.resume
+task=v1.redis.retrieve.model
+\`\`\`
+
+Create the input validation gate. The variable substitution inside the text() constant is
+null-safe: when the request has no "item" field it is not an order submission, so a later-stage
+request without a suspended record is rejected:
+
+\`\`\`
+create node check-fresh
+with type Decision
+with properties
+purpose=A fresh transaction must be an order submission
+skill=graph.math
+statement[]=MAPPING: text(={input.body.item}) -> model.order_probe
+statement[]=IF: {model.order_probe} == '=null'
+THEN: reject
+ELSE: order
+\`\`\`
+
+Create the three checkpoint nodes. Each captures its actor's input into the model, stages a
+stage-specific reply for the caller (overriding the default suspended response), and carries
+"suspend=true" so traversal routes to the suspend node when it completes:
+
+\`\`\`
+create node order
+with type Suspensible
+with properties
+purpose=Capture the customer order, then suspend for the store manager
+skill=graph.data.mapper
+suspend=true
+mapping[]=input.body -> model.order
+mapping[]=text(order-submitted; waiting for store manager approval) -> output.body.stage
+mapping[]=model.run -> output.body.run
+mapping[]=model.cid -> output.body.cid
+\`\`\`
+
+\`\`\`
+create node approval
+with type Suspensible
+with properties
+purpose=Capture the store manager approval, then suspend for the delivery department
+skill=graph.data.mapper
+suspend=true
+mapping[]=input.body -> model.approval
+mapping[]=text(approved; waiting for the delivery department to release the shipment) -> output.body.stage
+mapping[]=model.run -> output.body.run
+mapping[]=model.cid -> output.body.cid
+\`\`\`
+
+\`\`\`
+create node delivery
+with type Suspensible
+with properties
+purpose=Capture the shipment release, then suspend for shipment confirmation
+skill=graph.data.mapper
+suspend=true
+mapping[]=input.body -> model.delivery
+mapping[]=text(released; waiting for shipment confirmation) -> output.body.stage
+mapping[]=model.run -> output.body.run
+mapping[]=model.cid -> output.body.cid
+\`\`\`
+
+Create the completion, rejection, suspend and end nodes:
+
+\`\`\`
+create node ship
+with type mapper
+with properties
+purpose=Ship to the customer with the full order history
+skill=graph.data.mapper
+mapping[]=text(shipped) -> output.body.stage
+mapping[]=model.run -> output.body.run
+mapping[]=model.order -> output.body.order
+mapping[]=model.approval -> output.body.approval
+mapping[]=model.delivery -> output.body.delivery
+mapping[]=input.body -> output.body.shipment
+mapping[]=model.cid -> output.body.cid
+\`\`\`
+
+\`\`\`
+create node reject
+with type mapper
+with properties
+purpose=Reject a request that has no suspended transaction and is not an order
+skill=graph.data.mapper
+mapping[]=int(404) -> output.status
+mapping[]=text(rejected) -> output.body.type
+mapping[]=text(Transaction not found. Submit the order first) -> output.body.message
+mapping[]=model.run -> output.body.run
+\`\`\`
+
+\`\`\`
+create node suspend
+with type Suspend
+with properties
+purpose=Persist workflow state to Redis and wait for the next actor
+skill=graph.suspend
+task=v1.redis.persist.model
+ttl=1h
+\`\`\`
+
+\`\`\`
+create node end
+\`\`\`
+
+Connect the nodes. Every suspensible node draws BOTH edges - the checkpoint edge to "suspend"
+and the continuation edge to the next step - so the diagram tells the whole story:
+
+\`\`\`
+connect root to resume with then
+connect resume to check-fresh with fresh
+connect check-fresh to order with submission
+connect check-fresh to reject with no-transaction
+connect order to suspend with checkpoint
+connect order to approval with next
+connect approval to suspend with checkpoint
+connect approval to delivery with next
+connect delivery to suspend with checkpoint
+connect delivery to ship with next
+connect ship to end with then
+connect reject to end with then
+connect suspend to end with then
+\`\`\`
+
+For your convenience, this graph model is preloaded as "tutorial-14".
+
+Dry-run the workflow interactively
+----------------------------------
+You can exercise all three checkpoints without leaving the playground. Two things to
+remember: each graph instance runs once, so instantiate before every run; and the SAME
+model.cid must be supplied each time - it is the resume key. Redis must be running.
+
+Import the deployed model as a draft:
+
+\`\`\`
+import graph from tutorial-14
+\`\`\`
+
+Run 1 - the customer orders a laptop:
+
+\`\`\`
+instantiate graph
+text(order-1001) -> model.cid
+text(laptop) -> input.body.item
+int(2000) -> input.body.amount
+\`\`\`
+
+\`\`\`
+run
+\`\`\`
+
+The traversal walks root -> resume -> check-fresh -> order -> suspend -> end and the run
+completes normally - the workflow state now lives in Redis, not in memory. Inspect the
+staged reply:
+
+\`\`\`
+inspect output.body
+\`\`\`
+
+It shows stage=order-submitted..., run=fresh (a new transaction) and cid=order-1001.
+
+Run 2 - the store manager approves. Instantiate again with the same correlation ID and
+the manager's input:
+
+\`\`\`
+instantiate graph
+text(order-1001) -> model.cid
+text(approved) -> input.body.decision
+text(store-88) -> input.body.manager
+\`\`\`
+
+\`\`\`
+run
+\`\`\`
+
+Watch the console: the resume node restores the persisted state and the traversal
+continues at the approval node - the order checkpoint is NOT re-executed. Now
+"inspect output.body" shows stage=approved... and run=resume, and the "seen" command
+lists the order node as visited even though this run never executed it - that is the
+restored traversal bookkeeping.
+
+Run 3 - the delivery department releases the shipment:
+
+\`\`\`
+instantiate graph
+text(order-1001) -> model.cid
+boolean(true) -> input.body.release
+text(express) -> input.body.courier
+\`\`\`
+
+\`\`\`
+run
+\`\`\`
+
+Run 4 - shipment confirmation completes the workflow:
+
+\`\`\`
+instantiate graph
+text(order-1001) -> model.cid
+text(TRK-12345) -> input.body.tracking
+\`\`\`
+
+\`\`\`
+run
+\`\`\`
+
+Inspect the final reply - the model accumulated state across all four short runs:
+
+\`\`\`
+inspect output.body
+\`\`\`
+
+It shows stage=shipped, run=resume, and the full history: order (laptop/2000), approval
+(approved/store-88), delivery (release/express) and shipment (TRK-12345).
+
+To see the input validation, start over with a correlation ID that never ordered:
+
+\`\`\`
+instantiate graph
+text(order-9999) -> model.cid
+text(approved) -> input.body.decision
+\`\`\`
+
+\`\`\`
+run
+\`\`\`
+
+"inspect output" shows status=404 with type=rejected and run=fresh - the order must come
+first, and the run flag tells the caller why. Each record is consumed on resume, so
+repeating any middle run behaves the same way: no record means a fresh transaction.
+
+Test the workflow over REST
+---------------------------
+Run 1 - the customer orders a laptop:
+
+\`\`\`
+curl -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \\
+  -H "Content-Type: application/json" \\
+  -H "X-Correlation-Id: order-1001" \\
+  -d '{"item": "laptop", "amount": 2000}'
+\`\`\`
+
+The reply is {"stage": "order-submitted; waiting for store manager approval", "run": "fresh",
+"cid": "order-1001"} and the run is over - nothing stays in memory. Every stage reply carries
+the "run" flag ("fresh" on run 1, "resume" on runs 2 to 4) so the caller always knows whether
+it is looking at a new transaction or a resumed continuation. Run 2 - the store manager approves:
+
+\`\`\`
+curl -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \\
+  -H "Content-Type: application/json" \\
+  -H "X-Correlation-Id: order-1001" \\
+  -d '{"decision": "approved", "manager": "store-88"}'
+\`\`\`
+
+Run 3 - the delivery department releases the shipment:
+
+\`\`\`
+curl -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \\
+  -H "Content-Type: application/json" \\
+  -H "X-Correlation-Id: order-1001" \\
+  -d '{"release": true, "courier": "express"}'
+\`\`\`
+
+Run 4 - shipment confirmation completes the workflow:
+
+\`\`\`
+curl -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \\
+  -H "Content-Type: application/json" \\
+  -H "X-Correlation-Id: order-1001" \\
+  -d '{"tracking": "TRK-12345"}'
+\`\`\`
+
+The final reply carries the whole history - the order from run 1, the approval from run 2, the
+release from run 3 and the shipment from run 4 - proof that the workflow state crossed every
+suspension. Now try a decision with a correlation ID that never ordered:
+
+\`\`\`
+curl -X POST http://127.0.0.1:8100/api/graph/tutorial-14 \\
+  -H "Content-Type: application/json" \\
+  -H "X-Correlation-Id: order-9999" \\
+  -d '{"decision": "approved"}'
+\`\`\`
+
+The workflow rejects it with HTTP-404 - the order must come first - and the reply's
+"run": "fresh" tells the UI why: the record expired or never existed. Each record is consumed on
+resume, so a duplicated request at any stage behaves like a fresh transaction instead of
+executing that stage twice.
+
+Summary
+-------
+In this session, we expressed a purchase workflow with three human checkpoints as four short
+graph runs keyed by one business correlation ID: one reserved "suspend" node served every
+checkpoint, each suspensible node captured its actor's input into the model and staged its own
+stage response, input validation enforced the order-before-decision sequence, and the
+engine-managed "model.run" flag told every reply whether the run was fresh or resumed.
+
+Why suspend and resume?
+-----------------------
+Real business processes wait on people - repeatedly. Suspension turns each wait into a durable
+record instead of a parked runtime: any application instance sharing the state store can resume
+the workflow, restarts lose nothing, and each run stays short and observable. The state store is
+pluggable - Redis is the packaged implementation, and any composable function honoring the
+documented store contract can replace it.
 `,"../../../resources/help/help tutorial 2.md":`Tutorial 2
 ----------
 In this tutorial, you will deploy the 'hello world' graph model that you created in
@@ -2536,8 +3024,8 @@ exported earlier into your application's resources/graph folder.
 cp /tmp/graph/tutorial-1.json ~/sandbox/{your_project}/resources/graph
 \`\`\`
 
-The default locations of the temp graph folder and the deployed graph folder are set
-in the application configuration file (application.properties or application.yml):
+The temp graph folder and the graph manifest are set in the application configuration
+file (application.properties or application.yml):
 
 \`\`\`properties
 #
@@ -2546,11 +3034,24 @@ in the application configuration file (application.properties or application.yml
 #
 location.graph.temp=file:/tmp/graph
 #
-# deployed graph model location
-# (deployed graph location may use "file:/" or "classpath:/" because it is READ only)
+# the graph manifest - the quality gate and the only door to deployed execution
 #
-location.graph.deployed=classpath:/graph
+graph.model.automation=classpath:/graphs.yaml
 \`\`\`
+
+The deployed graph folder is declared in the graph manifest itself - like flows.yaml, the
+manifest carries the location of its own models. Add your graph ID to the manifest so the
+CompileGraph quality gate validates it at startup; only graphs that pass become executable:
+
+\`\`\`yaml
+graphs:
+  - 'tutorial-1'
+
+location: 'classpath:/graph'
+\`\`\`
+
+The 'location' entry is optional (default 'classpath:/graph'; a read-only folder, so
+'file:/' or 'classpath:/' both work).
 
 Invoke the graph API REST endpoint
 ----------------------------------
@@ -5045,6 +5546,8 @@ Built-in skills
 6. graph.island - marks the knowledge layer; the node leads to isolated nodes and traversal pauses there
 7. graph.join - wait for completion of all nodes that connect to it (parallel-branch barrier)
 8. graph.task - invoke a composable function through its route name
+9. graph.suspend - persist workflow state at a suspension point (the reserved 'suspend' node)
+10. graph.resume - restore workflow state and continue past the suspension point
 
 For skill details, use the hyphenated help topics, e.g. 'help graph-math',
 'help graph-api-fetcher', or 'describe skill {route}'.
@@ -5064,6 +5567,7 @@ Tutorials
 - help tutorial 11 (flow extension)
 - help tutorial 12 (custom error handling)
 - help tutorial 13 (invoking a composable function with the graph.task skill)
+- help tutorial 14 (workflow suspension - a purchase workflow with three human checkpoints)
 `});function ni(e){let t=e.split(`/`);return(t[t.length-1]??e).replace(/\.md$/,``)}var ri=Object.fromEntries(Object.entries(ti).map(([e,t])=>[ni(e),t]));function ii(e){return ri[e===``?`help`:`help ${e}`]??null}var ai=Object.keys(ri).filter(e=>e!==`help`).map(e=>e.replace(/^help\s+/,``)).sort(),oi=[{id:`overview`,label:`Overview`},{id:`graph-model`,label:`Graph Model`},{id:`graph-skills`,label:`Graph Skills`},{id:`instance-model`,label:`Instance Model`},{id:`tutorials`,label:`Tutorials`,chipStripLabel:`Chapters`}],si=new Set([`execute`,`inspect`,`instantiate`,`run`,`seen`,`upload`]);function ci(e){return e===``?`overview`:e.startsWith(`tutorial `)?`tutorials`:e.startsWith(`graph-`)?`graph-skills`:si.has(e)?`instance-model`:`graph-model`}function li(e){if(e===`overview`)return[``];let t=ai.filter(t=>ci(t)===e);return e===`tutorials`?[...t].sort((e,t)=>parseInt(e.replace(/^tutorial\s+/,``),10)-parseInt(t.replace(/^tutorial\s+/,``),10)):t}function ui(e,t){return e===``?`Overview`:t===`tutorials`?e.replace(/^tutorial\s+/,``):e}var di=oi.flatMap(e=>li(e.id));function fi(e){return e.replace(/^help\s*/i,``).trim().toLowerCase()}function pi({bus:e,setHelpTopic:t,onTabSwitch:n}){let r=(0,M.useRef)(n);(0,M.useEffect)(()=>{r.current=n}),(0,M.useEffect)(()=>e.on(`command.helpOrDescribe`,e=>{if(!e.commandText.trim().toLowerCase().startsWith(`help`))return;let n=fi(e.commandText);ii(n)!==null&&(t(n),r.current())}),[e,t])}function mi({ctx:e,navigate:t,addToast:n,wsPath:r}){let i=vr.find(e=>e.tabs.includes(`payload`)&&e.supportsUpload),a=(0,M.useRef)(null),o=i?.wsPath;(0,M.useEffect)(()=>{if(!(!o||!a.current)&&e.getSlot(o).phase===`connected`){let{wsPath:r,json:o}=a.current;a.current=null,e.setPendingPayload(r,o),t(i.path),n(`JSON loaded into JSON-Path editor ✓`,`success`)}},[o,e,t,n,i]);let s=(0,M.useCallback)(r=>{if(!i)return;let o=e.getSlot(i.wsPath);o.phase===`connected`?(e.setPendingPayload(i.wsPath,r),t(i.path),n(`JSON loaded into JSON-Path editor ✓`,`success`)):o.phase===`connecting`?(a.current={wsPath:i.wsPath,json:r},n(`Updated pending JSON transfer — latest payload will open when connected`,`info`)):(a.current={wsPath:i.wsPath,json:r},e.connect(i.wsPath,n),n(`Connecting to JSON-Path Playground…`,`info`))},[e,t,n,i]);return{handleSendToJsonPath:i&&r!==i.wsPath?s:void 0}}function hi({bus:e,onOpenModal:t,modalOpen:n}){let r=(0,M.useRef)(!1);(0,M.useEffect)(()=>{n||(r.current=!1)},[n]),(0,M.useEffect)(()=>e.on(`upload.invitation`,e=>{r.current||(r.current=!0,t(e.uploadPath))}),[e,t])}function gi({bus:e,addToast:t}){let[n,r]=(0,M.useState)(null),i=(0,M.useRef)(null),[a,o]=(0,M.useState)(new Set),s=(0,M.useCallback)(e=>{i.current=document.activeElement,r(e)},[]),c=(0,M.useCallback)(()=>{r(null),setTimeout(()=>i.current?.focus(),0)},[]),l=(0,M.useCallback)(e=>{o(e=>new Set([...e,n])),r(null),setTimeout(()=>i.current?.focus(),0),t(`Mock data uploaded successfully ✓`,`success`)},[n,t]),u=(0,M.useCallback)(e=>{t(`Upload failed: ${e}`,`error`)},[t]),d=(0,M.useCallback)(()=>{o(new Set)},[]);return hi({bus:e,onOpenModal:s,modalOpen:n!==null}),{modalUploadPath:n,successfulUploadPaths:a,handleOpenUploadModal:s,handleCloseUploadModal:c,handleUploadSuccess:l,handleUploadError:u,resetSuccessfulPaths:d}}function _i({bus:e,connected:t,appendMessage:n,addToast:r}){let i=(0,M.useRef)(null),a=(0,M.useRef)(!1),o=(0,M.useRef)(n);(0,M.useEffect)(()=>{o.current=n},[n]);let s=(0,M.useRef)(r);(0,M.useEffect)(()=>{s.current=r},[r]),(0,M.useEffect)(()=>{t||(i.current?.abort(),i.current=null,a.current=!1)},[t]),(0,M.useEffect)(()=>()=>{i.current?.abort()},[]),(0,M.useEffect)(()=>e.on(`payload.large`,e=>{if(a.current)return;let{apiPath:t,byteSize:n}=e;i.current?.abort();let r=new AbortController;i.current=r;let c=(n/(1024*1024)).toFixed(2);s.current(`Fetching large payload (${c} MB)…`,`info`),a.current=!0,fetch(t,{signal:r.signal}).then(e=>{if(!e.ok)throw Error(`HTTP ${e.status}`);return e.text()}).then(e=>{if(!e.trim())throw Error(`empty response body`);let t=e;try{t=JSON.stringify(JSON.parse(e),null,2)}catch{}o.current(t),a.current=!1,i.current=null}).catch(e=>{e.name!==`AbortError`&&(a.current=!1,i.current=null,o.current(`ERROR: payload fetch failed — ${e.message}`),s.current(`Payload fetch failed: ${e.message}`,`error`))})}),[e])}function vi(e){let[t,n]=gr(e,{}),r=(0,M.useCallback)(e=>{n(t=>({...t,[e]:{name:e,savedAt:new Date().toISOString()}}))},[n]),i=(0,M.useCallback)(e=>{n(t=>{let n={...t};return delete n[e],n})},[n]),a=(0,M.useCallback)(e=>Object.prototype.hasOwnProperty.call(t,e),[t]);return{savedGraphs:(0,M.useMemo)(()=>Object.values(t).sort((e,t)=>new Date(t.savedAt).getTime()-new Date(e.savedAt).getTime()),[t]),saveGraph:r,deleteGraph:i,hasGraph:a}}function yi(e,t){let[n,r]=gr(e,1),i=(0,M.useRef)(!1),[a,o]=(0,M.useState)(null),[s,c]=(0,M.useState)(null);(0,M.useEffect)(()=>t.on(`command.importGraph`,e=>{o(e.graphName),c(null)}),[t]);let l=(0,M.useCallback)(e=>{c(e),e===`untitled-${n}`&&(i.current=!0)},[n]),u=(0,M.useCallback)(()=>{o(null),c(null),i.current&&r(e=>e+1),i.current=!1},[r]);return{defaultName:s??a??`untitled-${n}`,setLastSavedName:l,resetName:u}}function bi({bus:e,connected:t,sendRawText:n,saveGraph:r,setLastSavedName:i,addToast:a}){let o=(0,M.useRef)(null),s=(0,M.useCallback)(e=>{if(!t){a(`Save failed: connection required to export graph`,`error`);return}let r=setTimeout(()=>{o.current!==null&&(o.current=null,a(`Save failed: export confirmation timed out`,`error`))},1e4);o.current={graphName:e,timeoutId:r},n(`export graph as ${e}`)},[t,n,a]);return(0,M.useEffect)(()=>e.on(`graph.exported`,e=>{if(o.current===null||e.graphName!==o.current.graphName)return;clearTimeout(o.current.timeoutId);let t=o.current.graphName;o.current=null,r(t),i(t),a(`Graph saved as "${t}"`,`success`)}),[e,r,i,a]),(0,M.useEffect)(()=>e.on(`graph.export.failed`,e=>{o.current!==null&&(clearTimeout(o.current.timeoutId),o.current=null,e.reason===`invalid-name`?a(`Save failed: invalid filename (a–z, A–Z, 0–9, hyphen only)`,`error`):a(`Save failed: root node name does not match existing graph`,`error`))}),[e,a]),(0,M.useEffect)(()=>{!t&&o.current!==null&&(clearTimeout(o.current.timeoutId),o.current=null,a(`Save failed: connection closed before export confirmation`,`error`))},[t,a]),(0,M.useEffect)(()=>()=>{o.current!==null&&clearTimeout(o.current.timeoutId)},[]),{handleSaveGraph:s,handleLoadGraph:(0,M.useCallback)(e=>{t&&(n(`import graph from ${e}`),a(`Importing graph "${e}"…`,`info`))},[t,n,a])}}var xi=new Map;function Si(e){let[t,n]=(0,M.useState)(()=>xi.get(e)??null);return[t,(0,M.useCallback)(t=>{n(t),t===null?xi.delete(e):xi.set(e,t)},[e])]}function Ci(e){if(e==null)return``;let t=typeof e==`string`?e:JSON.stringify(e);return t.includes(`'''`)&&console.warn(`[commandBuilder] Property value contains "'''" which cannot be escaped in the backend grammar. The value may be truncated on paste.`),t.includes(`
 `)?`'''\n${t}\n'''`:t}function wi(e,t){let n=[`${e} node ${t.alias}`];t.types.length>0&&n.push(`with type ${t.types[0]}`);let r=Object.entries(t.properties).filter(([,e])=>e!=null);if(r.length>0){n.push(`with properties`);for(let[e,t]of r)if(Array.isArray(t))for(let r of t)n.push(`${e}[]=${Ci(r)}`);else n.push(`${e}[]=${Ci(t)}`)}return n.join(`
 `)}function Ti(e,t){let n=t?.nodes.some(t=>t.alias===e.node.alias)?`update`:`create`;return{verb:n,command:wi(n,e.node)}}function Ei(e){return{execute(t){return e(t)}}}var Di={toastContainer:`_toastContainer_hhy5k_1`,toast:`_toast_hhy5k_1`,slideIn:`_slideIn_hhy5k_1`,success:`_success_hhy5k_36`,error:`_error_hhy5k_40`,info:`_info_hhy5k_44`,toastIcon:`_toastIcon_hhy5k_48`,toastMessage:`_toastMessage_hhy5k_53`},Oi=({toasts:e,onRemove:t})=>e.length===0?null:(0,N.jsx)(`div`,{className:Di.toastContainer,children:e.map(e=>(0,N.jsxs)(`div`,{className:`${Di.toast} ${Di[e.type]}`,onClick:()=>t(e.id),children:[(0,N.jsxs)(`span`,{className:Di.toastIcon,children:[e.type===`success`&&`✅`,e.type===`error`&&`❌`,e.type===`info`&&`ℹ️`]}),(0,N.jsx)(`span`,{className:Di.toastMessage,children:e.message})]},e.id))}),ki={container:`_container_9dbh2_3`,trigger:`_trigger_9dbh2_7`,chevron:`_chevron_9dbh2_37`,chevronOpen:`_chevronOpen_9dbh2_43`,dot:`_dot_9dbh2_49`,dotIdle:`_dotIdle_9dbh2_56`,dotConnecting:`_dotConnecting_9dbh2_57`,pulse:`_pulse_9dbh2_1`,dotConnected:`_dotConnected_9dbh2_58`,dotPartial:`_dotPartial_9dbh2_59`,dropdown:`_dropdown_9dbh2_65`,fadeIn:`_fadeIn_9dbh2_1`};function Ai({label:e,dotStatus:t,children:n}){let[r,i]=(0,M.useState)(!1),a=(0,M.useRef)(null);(0,M.useEffect)(()=>{if(!r)return;let e=e=>{a.current&&!a.current.contains(e.target)&&i(!1)};return document.addEventListener(`mousedown`,e),()=>document.removeEventListener(`mousedown`,e)},[r]);let o=e=>{e.key===`Escape`&&(i(!1),a.current?.querySelector(`button[aria-haspopup]`)?.focus())},s=t===`connected`?ki.dotConnected:t===`connecting`?ki.dotConnecting:t===`partial`?ki.dotPartial:t===`idle`?ki.dotIdle:void 0;return(0,N.jsxs)(`div`,{className:ki.container,ref:a,onKeyDown:o,children:[(0,N.jsxs)(`button`,{className:ki.trigger,onClick:()=>i(e=>!e),"aria-haspopup":`true`,"aria-expanded":r,children:[t!==void 0&&(0,N.jsx)(`span`,{className:`${ki.dot} ${s??``}`,"aria-hidden":`true`}),(0,N.jsx)(`span`,{children:e}),(0,N.jsx)(`span`,{className:`${ki.chevron} ${r?ki.chevronOpen:``}`,"aria-hidden":`true`,children:`▾`})]}),r&&(0,N.jsx)(`div`,{className:ki.dropdown,role:`menu`,children:n})]})}var P={nav:`_nav_1hfby_3`,menuList:`_menuList_1hfby_11`,menuItem:`_menuItem_1hfby_19`,toolRow:`_toolRow_1hfby_56`,toolLink:`_toolLink_1hfby_67`,toolLinkActive:`_toolLinkActive_1hfby_92`,toolDot:`_toolDot_1hfby_99`,toolDotIdle:`_toolDotIdle_1hfby_106`,toolDotConnecting:`_toolDotConnecting_1hfby_107`,pulse:`_pulse_1hfby_1`,toolDotConnected:`_toolDotConnected_1hfby_108`,connectAllRow:`_connectAllRow_1hfby_112`,connectAllBtn:`_connectAllBtn_1hfby_118`,connectAllBtnStop:`_connectAllBtnStop_1hfby_142`,toolConnectBtn:`_toolConnectBtn_1hfby_154`,toolConnectBtnStop:`_toolConnectBtnStop_1hfby_180`,externalIcon:`_externalIcon_1hfby_192`};function ji(e){return e.every(e=>e===`connected`)?`connected`:e.every(e=>e===`idle`)?`idle`:e.some(e=>e===`connecting`)?`connecting`:`partial`}function Mi(e){return e===`connected`?`connected`:e===`connecting`?`connecting`:`idle`}var Ni=[{href:`/info`,label:`Info`},{href:`/info/lib`,label:`Libraries`},{href:`/info/routes`,label:`Services`},{href:`/health`,label:`Health`},{href:`/env`,label:`Environment`},{href:`http://localhost:8085/api/ws/json`,label:`Legacy JSON`},{href:`http://localhost:8085/api/ws/graph`,label:`Legacy Graph`}];function Pi({addToast:e}){let t=Tr(),n=vr.map(e=>t.getSlot(e.wsPath).phase),r=ji(n),i=n.every(e=>e===`connected`),a=n.some(e=>e===`connecting`);function o(){vr.forEach(n=>{t.getSlot(n.wsPath).phase===`idle`&&t.connect(n.wsPath,e)})}function s(){vr.forEach(e=>{let{phase:n}=t.getSlot(e.wsPath);(n===`connected`||n===`connecting`)&&t.disconnect(e.wsPath)})}return(0,N.jsxs)(`nav`,{className:P.nav,"aria-label":`Main navigation`,children:[(0,N.jsxs)(Ai,{label:`Tools`,dotStatus:r,children:[(0,N.jsx)(`div`,{className:P.connectAllRow,children:(0,N.jsx)(`button`,{className:`${P.connectAllBtn} ${i?P.connectAllBtnStop:``}`,onClick:i?s:o,disabled:a,"aria-label":a?`Connecting…`:i?`Disconnect all WebSockets`:`Connect all WebSockets`,children:a?`Connecting…`:i?`Disconnect All`:`Connect All`})}),(0,N.jsx)(`ul`,{className:P.menuList,role:`none`,children:vr.map(n=>{let{phase:r}=t.getSlot(n.wsPath),i=Mi(r),a=r===`connected`,o=r===`connecting`,s=i===`connected`?P.toolDotConnected:i===`connecting`?P.toolDotConnecting:P.toolDotIdle;return(0,N.jsxs)(`li`,{role:`none`,className:P.toolRow,children:[(0,N.jsxs)(Kn,{to:n.path,role:`menuitem`,className:({isActive:e})=>`${P.toolLink} ${e?P.toolLinkActive:``}`,children:[(0,N.jsx)(`span`,{className:`${P.toolDot} ${s}`,"aria-hidden":`true`}),(0,N.jsx)(`span`,{className:P.toolLabel,children:n.label})]}),(0,N.jsx)(`button`,{className:`${P.toolConnectBtn} ${a?P.toolConnectBtnStop:``}`,onClick:()=>a||o?t.disconnect(n.wsPath):t.connect(n.wsPath,e),disabled:o,"aria-label":o?`Connecting…`:a?`Disconnect ${n.label}`:`Connect ${n.label}`,title:o?`Connecting…`:br(n.wsPath),children:o?`…`:a?`Stop`:`Start`})]},n.path)})})]}),(0,N.jsx)(Ai,{label:`Quick Links`,children:(0,N.jsx)(`ul`,{className:P.menuList,role:`none`,children:Ni.map(e=>(0,N.jsx)(`li`,{role:`none`,children:(0,N.jsxs)(`a`,{href:e.href,role:`menuitem`,className:P.menuItem,target:`_blank`,rel:`noopener noreferrer`,children:[e.label,(0,N.jsx)(`span`,{className:P.externalIcon,"aria-hidden":`true`,children:`↗`})]})},e.href))})})]})}var Fi={saveBtn:`_saveBtn_1xd2l_3`,saveForm:`_saveForm_1xd2l_33`,saveInput:`_saveInput_1xd2l_39`,saveInputWarn:`_saveInputWarn_1xd2l_55`,saveWarnLabel:`_saveWarnLabel_1xd2l_59`,saveActionBtn:`_saveActionBtn_1xd2l_65`};function Ii({disabled:e,defaultName:t,onSave:n,nameExists:r,connected:i=!1}){let[a,o]=(0,M.useState)(!1),[s,c]=(0,M.useState)(``),l=(0,M.useRef)(null),u=(0,M.useCallback)(()=>{c(t),o(!0)},[t]),d=(0,M.useCallback)(()=>{o(!1),c(``)},[]),f=(0,M.useCallback)(()=>{let e=s.trim();e&&(n(e),o(!1),c(``))},[s,n]),p=(0,M.useCallback)(e=>{e.key===`Enter`&&(e.preventDefault(),f()),e.key===`Escape`&&(e.preventDefault(),d())},[f,d]);return(0,M.useEffect)(()=>{a&&l.current?.focus()},[a]),a?(0,N.jsxs)(`div`,{className:Fi.saveForm,children:[(0,N.jsx)(`input`,{ref:l,className:`${Fi.saveInput}${r?.(s.trim())?` ${Fi.saveInputWarn}`:``}`,type:`text`,value:s,onChange:e=>c(e.target.value),onKeyDown:p,placeholder:`Enter a name…`,"aria-label":`Graph save name`,maxLength:80}),r?.(s.trim())&&(0,N.jsx)(`span`,{className:Fi.saveWarnLabel,role:`status`,children:`Overwrite?`}),(0,N.jsx)(`button`,{className:Fi.saveActionBtn,onClick:f,disabled:!s.trim(),"aria-label":`Confirm save`,children:`✅`}),(0,N.jsx)(`button`,{className:Fi.saveActionBtn,onClick:d,"aria-label":`Cancel save`,children:`❌`})]}):(0,N.jsx)(`button`,{className:Fi.saveBtn,onClick:u,disabled:e||!i,title:e?`No graph loaded`:i?`Export graph snapshot to server and save bookmark`:`Connect first to save`,"aria-label":`Save graph snapshot`,children:`💾 Save Graph`})}var F={empty:`_empty_tpeii_3`,hint:`_hint_tpeii_12`,list:`_list_tpeii_21`,row:`_row_tpeii_31`,rowInfo:`_rowInfo_tpeii_50`,rowName:`_rowName_tpeii_58`,rowMeta:`_rowMeta_tpeii_67`,rowActions:`_rowActions_tpeii_78`,loadBtn:`_loadBtn_tpeii_84`,deleteBtn:`_deleteBtn_tpeii_85`};function I({savedGraphs:e,onLoad:t,onDelete:n,connected:r}){return(0,N.jsx)(Ai,{label:e.length>0?`Load Graph (${e.length})`:`Load Graph`,children:e.length===0?(0,N.jsx)(`p`,{className:F.empty,children:`No saved graphs yet.`}):(0,N.jsxs)(N.Fragment,{children:[!r&&(0,N.jsx)(`p`,{className:F.hint,children:`Connect to load a graph`}),(0,N.jsx)(`ul`,{className:F.list,role:`list`,children:e.map(e=>(0,N.jsxs)(`li`,{className:F.row,children:[(0,N.jsxs)(`div`,{className:F.rowInfo,children:[(0,N.jsx)(`span`,{className:F.rowName,title:e.name,children:e.name}),(0,N.jsx)(`span`,{className:F.rowMeta,children:new Date(e.savedAt).toLocaleString()})]}),(0,N.jsxs)(`div`,{className:F.rowActions,children:[(0,N.jsx)(`button`,{className:F.loadBtn,onClick:()=>t(e.name),disabled:!r,title:r?`Run: import graph from ${e.name}`:`Connect to the playground first`,"aria-label":`Load graph ${e.name}`,children:`Load`}),(0,N.jsx)(`button`,{className:F.deleteBtn,onClick:()=>n(e.name),title:`Remove "${e.name}" from local storage`,"aria-label":`Delete saved graph ${e.name}`,children:`Delete`})]})]},e.name))})]})})}var L={payloadRoot:`_payloadRoot_6u47x_2`,labelRow:`_labelRow_6u47x_10`,label:`_label_6u47x_10`,payloadControls:`_payloadControls_6u47x_26`,charCounter:`_charCounter_6u47x_32`,typeIndicator:`_typeIndicator_6u47x_38`,validationIcon:`_validationIcon_6u47x_49`,formatButton:`_formatButton_6u47x_53`,uploadButton:`_uploadButton_6u47x_67`,textarea:`_textarea_6u47x_82`,textareaError:`_textareaError_6u47x_107`,errorMessage:`_errorMessage_6u47x_109`,sampleButtonsRow:`_sampleButtonsRow_6u47x_117`,sampleButtons:`_sampleButtons_6u47x_117`,sampleLabel:`_sampleLabel_6u47x_130`,sampleGroup:`_sampleGroup_6u47x_136`,sampleGroupLabel:`_sampleGroupLabel_6u47x_143`,sampleButton:`_sampleButton_6u47x_117`};function Li({onLoad:e}){let t=Object.keys(yr).filter(e=>e.startsWith(`json_`)),n=Object.keys(yr).filter(e=>e.startsWith(`xml_`)),r=e=>e.replace(/^(json|xml)_/,``).replace(/_/g,` `);return(0,N.jsxs)(`div`,{className:L.sampleButtons,children:[(0,N.jsx)(`span`,{className:L.sampleLabel,children:`Quick load:`}),(0,N.jsxs)(`div`,{className:L.sampleGroup,children:[(0,N.jsx)(`span`,{className:L.sampleGroupLabel,children:`JSON:`}),t.map(t=>(0,N.jsx)(`button`,{className:L.sampleButton,onClick:()=>e(yr[t]),children:r(t)},t))]}),(0,N.jsxs)(`div`,{className:L.sampleGroup,children:[(0,N.jsx)(`span`,{className:L.sampleGroupLabel,children:`XML:`}),n.map(t=>(0,N.jsx)(`button`,{className:L.sampleButton,onClick:()=>e(yr[t]),children:r(t)},t))]})]})}function Ri({payload:e,onChange:t,validation:n,onFormat:r,onUpload:i}){return(0,N.jsxs)(`div`,{className:L.payloadRoot,children:[(0,N.jsxs)(`div`,{className:L.labelRow,children:[(0,N.jsx)(`label`,{htmlFor:`payload`,className:L.label,children:`JSON/XML Payload`}),(0,N.jsxs)(`div`,{className:L.payloadControls,children:[(0,N.jsxs)(`span`,{className:L.charCounter,children:[`size: `,e.length]}),e&&n.type&&(0,N.jsx)(`span`,{className:L.typeIndicator,children:n.type.toUpperCase()}),e&&(0,N.jsx)(`span`,{className:L.validationIcon,children:n.valid?`✅`:`❌`}),(0,N.jsx)(`button`,{className:L.formatButton,onClick:r,disabled:!e||n.type!==`json`,title:n.type===`xml`?`Format only available for JSON`:`Format JSON`,children:`Format`}),i!==void 0&&(0,N.jsx)(`button`,{className:L.uploadButton,onClick:i,disabled:!e||!n.valid||n.type!==`json`,title:`Upload JSON payload to current session via REST`,children:`Upload`})]})]}),(0,N.jsx)(`textarea`,{id:`payload`,className:`${L.textarea} ${n.valid?``:L.textareaError}`,placeholder:`Paste your JSON/XML payload here`,value:e,onChange:e=>t(e.target.value)}),!n.valid&&(0,N.jsx)(`div`,{className:L.errorMessage,children:n.error}),(0,N.jsx)(`div`,{className:L.sampleButtonsRow,children:(0,N.jsx)(Li,{onLoad:t})})]})}var zi={Root:{icon:`🚀`,label:`Root`},End:{icon:`🏁`,label:`End`},Fetcher:{icon:`🌐`,label:`Fetcher`},mapper:{icon:`🗺️`,label:`Mapper`},Math:{icon:`🔢`,label:`Math`},JavaScript:{icon:`📜`,label:`JavaScript`},Provider:{icon:`🔌`,label:`Provider`},Dictionary:{icon:`📖`,label:`Dictionary`},Join:{icon:`🔀`,label:`Join`},Extension:{icon:`🧩`,label:`Extension`},Island:{icon:`🏝️`,label:`Island`},Decision:{icon:`❓`,label:`Decision`}},Bi={boxSizing:`border-box`,borderRadius:`8px`,borderWidth:`1.5px`,borderStyle:`solid`,background:`var(--bg-secondary, #1e1e2e)`,color:`var(--text-primary, #cdd6f4)`,fontSize:`0.75rem`,boxShadow:`0 2px 8px rgba(0,0,0,0.45)`,overflow:`visible`,padding:0},Vi={Root:`#15803d`,End:`#dc2626`,Fetcher:`#2563eb`,mapper:`#ea580c`,Math:`#a16207`,JavaScript:`#7e22ce`,Provider:`#be185d`,Dictionary:`#0e7490`,Join:`#65a30d`,Extension:`#4338ca`,Island:`#475569`,Decision:`#b45309`},Hi=`#6c7086`;function Ui(e){return zi[e]??{icon:`📦`,label:e}}function Wi(e){let t=Vi[e]??Hi;return{...Bi,borderColor:t,"--node-accent":t}}var Gi={content:`_content_138ap_8`,header:`_header_138ap_22`,icon:`_icon_138ap_42`,alias:`_alias_138ap_47`,badge:`_badge_138ap_53`,body:`_body_138ap_65`,row:`_row_138ap_70`,label:`_label_138ap_83`,value:`_value_138ap_89`,edgeHandle:`_edgeHandle_138ap_103`};function Ki({label:e,value:t}){return(0,N.jsxs)(`div`,{className:Gi.row,children:[(0,N.jsx)(`span`,{className:Gi.label,children:e}),(0,N.jsx)(`span`,{className:Gi.value,title:t,children:t})]})}function qi({properties:e}){let t=Object.entries(e).filter(([,e])=>e!=null);return t.length===0?null:(0,N.jsx)(N.Fragment,{children:t.map(([e,t])=>Array.isArray(t)?t.map((t,n)=>{let r=typeof t==`string`?t:JSON.stringify(t);return(0,N.jsx)(Ki,{label:n===0?e:``,value:r},`${e}-${n}`)}):(0,N.jsx)(Ki,{label:e,value:typeof t==`string`?t:JSON.stringify(t)},e))})}function Ji({alias:e,nodeType:t,properties:n}){let r=Ui(t);return(0,N.jsx)(M.Fragment,{children:(0,N.jsxs)(`div`,{className:Gi.content,children:[(0,N.jsxs)(`div`,{className:Gi.header,children:[(0,N.jsx)(`span`,{className:Gi.icon,children:r.icon}),(0,N.jsx)(`span`,{className:Gi.alias,children:e}),(0,N.jsx)(`span`,{className:Gi.badge,children:r.label})]}),(0,N.jsx)(`div`,{className:Gi.body,children:(0,N.jsx)(qi,{properties:n})})]})})}function Yi({data:e,isConnectable:t,selected:n}){return(0,N.jsxs)(N.Fragment,{children:[(0,N.jsx)(m,{minWidth:180,minHeight:e.minHeight,isVisible:n}),e.targetHandles.map(({id:e,offset:n})=>(0,N.jsx)(d,{id:e,type:`target`,position:l.Left,isConnectable:t,className:Gi.edgeHandle,style:{top:`calc(50% + ${n}px)`}},e)),e.backSourceHandles.map(({id:e,offset:n})=>(0,N.jsx)(d,{id:e,type:`source`,position:l.Left,isConnectable:t,className:Gi.edgeHandle,style:{top:`calc(50% + ${n}px)`}},e)),(0,N.jsx)(Ji,{alias:e.alias,nodeType:e.nodeType,properties:e.properties}),e.sourceHandles.map(({id:e,offset:n})=>(0,N.jsx)(d,{id:e,type:`source`,position:l.Right,isConnectable:t,className:Gi.edgeHandle,style:{top:`calc(50% + ${n}px)`}},e)),e.backTargetHandles.map(({id:e,offset:n})=>(0,N.jsx)(d,{id:e,type:`target`,position:l.Right,isConnectable:t,className:Gi.edgeHandle,style:{top:`calc(50% + ${n}px)`}},e))]})}var Xi={Root:Yi,End:Yi,Fetcher:Yi,mapper:Yi,Math:Yi,JavaScript:Yi,Provider:Yi,Dictionary:Yi,Join:Yi,Extension:Yi,Island:Yi,Decision:Yi,default:Yi},Zi={graphWrapper:`_graphWrapper_zglpq_15`,graphSurface:`_graphSurface_zglpq_24`,empty:`_empty_zglpq_30`,emptyIcon:`_emptyIcon_zglpq_43`,emptyCreateButton:`_emptyCreateButton_zglpq_48`,emptyHint:`_emptyHint_zglpq_70`,refreshingOverlay:`_refreshingOverlay_zglpq_104`,clipboardDropOverlay:`_clipboardDropOverlay_zglpq_116`,clipboardDropMessage:`_clipboardDropMessage_zglpq_129`,refreshingSpinner:`_refreshingSpinner_zglpq_144`,graphRefreshSpin:`_graphRefreshSpin_zglpq_1`},Qi=class extends M.Component{constructor(...e){super(...e),this.state={caughtError:null}}static getDerivedStateFromError(e){return{caughtError:e instanceof Error?e.message:String(e)}}componentDidCatch(e,t){let n=e instanceof Error?e.message:String(e);console.error(`[GraphView] Render error:`,n,t.componentStack),this.props.onRenderError?.(`Graph render failed: ${n}`)}render(){return this.state.caughtError?(0,N.jsxs)(`div`,{className:Zi.empty,children:[(0,N.jsx)(`span`,{className:Zi.emptyIcon,children:`⚠️`}),(0,N.jsx)(`span`,{children:`Graph could not be rendered.`}),(0,N.jsx)(`span`,{children:this.state.caughtError})]}):this.props.children}},$i=240,ea=100,ta=60,na=360,ra=120,ia=80,aa=`rgba(148, 163, 184, 0.42)`,oa=`var(--bg-secondary)`,sa=24,ca=32,la=[`#0369a1`,`#15803d`,`#b45309`,`#7e22ce`,`#b91c1c`,`#0f766e`,`#c2410c`,`#a16207`],ua={fetch:`#0369a1`,details:`#0369a1`,"ext-call":`#0369a1`,mapping:`#b45309`,compute:`#b45309`,calculate:`#b45309`,evaluate:`#b45309`,fork:`#7e22ce`,join:`#7e22ce`,one:`#7e22ce`,two:`#6d28d9`,three:`#5b21b6`,more:`#4c1d95`,done:`#15803d`,complete:`#15803d`,finish:`#15803d`,positive:`#15803d`,negative:`#b91c1c`};function da(e){let t=0;for(let n=0;n<e.length;n++)t=(t<<5)-t+e.charCodeAt(n),t|=0;return Math.abs(t)}function fa(e){if(e.length===0)return aa;let t=e[0].trim().toLowerCase();return ua[t]||la[da(t)%la.length]}function pa(e){return`source-${e}`}function ma(e){return`target-${e}`}function ha(e){return`back-source-${e}`}function ga(e){return`back-target-${e}`}function _a(e,t){return t<=1?0:t===2?e===0?-24:sa:(e-(t-1)/2)*sa}function va(e){return e<=1?ea:Math.max(ea,(e-1)*sa+ca*2)}var ya=new Set([`graph.math`,`graph.js`]),ba=[`Dictionary`,`Provider`,`Module`,`Entity`],xa={ROOT_TREE:0,DEFAULT_TREE:1,END_TREE:2};function Sa(e){return e.alias.toLowerCase()===`root`||e.types.includes(`Root`)||e.types.includes(`entry_point`)}function Ca(e){return e.alias.toLowerCase()===`end`||e.types.includes(`End`)}function wa(e){return e.hasRoot?xa.ROOT_TREE:e.hasEnd?xa.END_TREE:xa.DEFAULT_TREE}function Ta(e,t){let n=wa(e)-wa(t);return n===0?e.sortKey.localeCompare(t.sortKey):n}function Ea(e,t){if(t.has(e.alias))return`flow`;let n=e.types[0]??``,r=typeof e.properties.skill==`string`?e.properties.skill:void 0;return n===`Dictionary`?`Dictionary`:n===`Provider`?`Provider`:r&&ya.has(r)?`Module`:r?`__unknown__`:`Entity`}function Da(e,t,n){let r=new Set;for(let e of t??[])r.add(e.source),r.add(e.target);let i=[],a=[],o=new Map;for(let t of e){let e=Ea(t,r);o.set(t.alias,e),e===`flow`?i.push(t):a.push(t)}let s=new Set(i.map(e=>e.alias)),c=new Map(i.map(e=>[e.alias,e])),l=new Map,u=new Map,d=new Map;for(let e of i)l.set(e.alias,[]),u.set(e.alias,new Set),d.set(e.alias,0);for(let e of t??[])!s.has(e.source)||!s.has(e.target)||(l.get(e.source)?.push(e.target),u.get(e.source)?.add(e.target),u.get(e.target)?.add(e.source),d.set(e.target,(d.get(e.target)??0)+1));let f=i.filter(e=>d.get(e.alias)===0||e.types.includes(`entry_point`)||Sa(e)).map(e=>e.alias),p=new Set;{let e=new Map;for(let t of i)e.set(t.alias,0);function t(t){if(e.get(t)!==0)return;e.set(t,1);let n=[{node:t,childIdx:0}];for(;n.length>0;){let t=n[n.length-1],r=l.get(t.node)??[];if(t.childIdx>=r.length){e.set(t.node,2),n.pop();continue}let i=r[t.childIdx++],a=e.get(i);a===1?p.add(`${t.node}\t${i}`):a===0&&(e.set(i,1),n.push({node:i,childIdx:0}))}}for(let e of f)t(e);for(let e of i)t(e.alias)}let m=[],h=new Set;for(let e of Array.from(s).sort()){if(h.has(e))continue;let t=[],n=[e];for(h.add(e);n.length>0;){let e=n.pop();t.push(e);for(let t of u.get(e)??[])h.has(t)||(h.add(t),n.push(t))}t.sort();let r=t.map(e=>c.get(e)).filter(e=>!!e);m.push({aliases:t,nodes:r,hasRoot:r.some(Sa),hasEnd:r.some(Ca),sortKey:t[0]??``})}m.sort(Ta);let g=new Map,_=new Map,v=0,y=0;for(let e of m){let t=new Set(e.aliases),r=e.nodes.filter(e=>d.get(e.alias)===0||e.types.includes(`entry_point`)||Sa(e)).map(e=>e.alias).sort();r.length===0&&e.aliases.length>0&&r.push(e.aliases[0]);let i=new Map,a=[...r];for(r.forEach(e=>i.set(e,0));a.length>0;){let e=a.shift(),n=i.get(e)??0;for(let r of l.get(e)??[])t.has(r)&&(p.has(`${e}\t${r}`)||(!i.has(r)||i.get(r)<=n)&&(i.set(r,n+1),a.push(r)))}let o=i.size>0?Math.max(...i.values()):0;for(let t of e.aliases)i.has(t)||i.set(t,o+1);let s=new Map;for(let[e,t]of i)s.has(t)||s.set(t,[]),s.get(t).push(e);let c=y;for(let[e,t]of[...s].sort(([e],[t])=>e-t)){let r=t.slice().sort(),i=-(r.reduce((e,t)=>e+(n.get(t)??ea),0)+Math.max(0,r.length-1)*ta)/2,a=v+e,o=y+e*360;c=Math.max(c,o),r.forEach(e=>{let t=n.get(e)??ea;g.set(e,a),_.set(e,{x:o,y:i}),i+=t+ta})}let u=i.size>0?Math.max(...i.values()):0;v+=u+1,y=c+$i+na}let b=0;for(let[e,t]of _)b=Math.max(b,t.y+(n.get(e)??ea));let x=b+(_.size>0?ra:0),S=new Map;for(let e of ba)S.set(e,[]);S.set(`__unknown__`,[]);for(let e of a){let t=o.get(e.alias);S.get(t).push(e.alias)}for(let e of[...ba,`__unknown__`]){let t=(S.get(e)??[]).slice().sort();if(t.length===0)continue;let r=t.reduce((e,t)=>Math.max(e,n.get(t)??ea),0);t.forEach((e,t)=>{_.set(e,{x:0+t*360,y:x})}),x+=r+ia}return{positions:_,levelOf:g}}function Oa(e){let t=e.connections??[],n=new Map,r=new Map;for(let e of t)n.set(e.source,(n.get(e.source)??0)+1),r.set(e.target,(r.get(e.target)??0)+1);let i=new Map(e.nodes.map(e=>[e.alias,va(Math.max(n.get(e.alias)??0,r.get(e.alias)??0))])),{positions:a,levelOf:o}=Da(e.nodes,t,i),s=new Set;for(let[e,n]of t.entries()){let t=o.get(n.source),r=o.get(n.target);t!==void 0&&r!==void 0&&t>=r&&s.add(e)}let c=new Map,l=new Map;for(let t of e.nodes)c.set(t.alias,[]),l.set(t.alias,[]);for(let[e,n]of t.entries())s.has(e)?(l.get(n.source).push({connIndex:e,peerAlias:n.target,isBack:!0}),c.get(n.target).push({connIndex:e,peerAlias:n.source,isBack:!0})):(c.get(n.source).push({connIndex:e,peerAlias:n.target,isBack:!1}),l.get(n.target).push({connIndex:e,peerAlias:n.source,isBack:!1}));let u=e=>a.get(e)?.y??0;for(let e of c.values())e.sort((e,t)=>u(e.peerAlias)-u(t.peerAlias));for(let e of l.values())e.sort((e,t)=>u(e.peerAlias)-u(t.peerAlias));let d=new Map,f=new Map,p=e.nodes.map(e=>{let t=c.get(e.alias)??[],n=l.get(e.alias)??[],r=va(Math.max(t.length,n.length)),i=[],o=[],s=0,u=0;for(let e=0;e<t.length;e++){let n=t[e],r=_a(e,t.length);if(n.isBack){let e=ga(u++);o.push({id:e,offset:r}),f.set(n.connIndex,e)}else{let e=pa(s++);i.push({id:e,offset:r}),d.set(n.connIndex,e)}}let p=[],m=[],h=0,g=0;for(let e=0;e<n.length;e++){let t=n[e],r=_a(e,n.length);if(t.isBack){let e=ha(g++);m.push({id:e,offset:r}),d.set(t.connIndex,e)}else{let e=ma(h++);p.push({id:e,offset:r}),f.set(t.connIndex,e)}}return{id:e.alias,type:e.types[0]??`default`,position:a.get(e.alias)??{x:0,y:0},width:$i,height:r,style:Wi(e.types[0]??`unknown`),data:{alias:e.alias,nodeType:e.types[0]??`unknown`,properties:e.properties,sourceHandles:i,targetHandles:p,backSourceHandles:m,backTargetHandles:o,minHeight:r}}}),m=[];for(let[e,n]of t.entries()){let t=n.relations.map(e=>e.type),r=`${n.source}__${n.target}__${e}`,i=fa(t);m.push({id:r,source:n.source,target:n.target,sourceHandle:d.get(e),targetHandle:f.get(e),label:t.join(`, `),type:`bezier`,markerEnd:{type:v.ArrowClosed,width:16,height:16,color:aa},style:{stroke:aa,strokeWidth:2},labelStyle:{fill:i,fontSize:10,fontWeight:700},labelBgStyle:{fill:oa,fillOpacity:.94,stroke:`rgba(15, 23, 42, 0.16)`,strokeWidth:1},labelBgPadding:[5,2],labelBgBorderRadius:6,data:{relationTypes:t}})}return{nodes:p,edges:m}}var ka=`application/x-minigraph-clipboard-item`;function Aa(e){return e.includes(ka)}function ja(e,t){e.effectAllowed=`copy`,e.setData(ka,t)}function Ma(e){let t=e?.getData(`application/x-minigraph-clipboard-item`)??``;return t.trim()?t:null}function Na(e,t){return e.nodes.find(e=>e.alias===t)}function Pa(e,t){return(e.connections??[]).filter(e=>e.source!==e.target&&(e.source===t||e.target===t))}var Fa={toolbar:`_toolbar_117v8_2`,nameGroup:`_nameGroup_117v8_13`,graphName:`_graphName_117v8_20`,stats:`_stats_117v8_29`,toolbarActions:`_toolbarActions_117v8_49`,toolbarButton:`_toolbarButton_117v8_55`};function Ia({graphData:e,graphName:t,onCopySuccess:n,onCopyError:r,extraActions:i}){let a=(0,M.useCallback)(()=>{e&&navigator.clipboard.writeText(JSON.stringify(e,null,2)).then(()=>n?.()).catch(()=>r?.())},[e,n,r]),o=e?.nodes.length??0,s=(e?.connections??[]).length;return(0,N.jsxs)(`div`,{className:Fa.toolbar,children:[(0,N.jsxs)(`div`,{className:Fa.nameGroup,children:[(0,N.jsx)(`span`,{className:Fa.graphName,children:t??`Untitled`}),(0,N.jsxs)(`span`,{className:Fa.stats,children:[o,` node`,o===1?``:`s`,` · `,s,` connection`,s===1?``:`s`]})]}),(0,N.jsxs)(`div`,{className:Fa.toolbarActions,children:[i,(0,N.jsx)(`button`,{className:Fa.toolbarButton,onClick:a,title:`Copy raw graph JSON to clipboard`,"aria-label":`Copy raw graph JSON to clipboard`,children:`📑`})]})]})}var La={menu:`_menu_13qxg_1`,menuItem:`_menuItem_13qxg_12`};function Ra({open:e,x:t,y:n,canCreateNode:r,onCreateNode:i,onClose:a}){let o=(0,M.useRef)(null),s=(0,M.useRef)(null);return(0,M.useEffect)(()=>{if(!e)return;s.current?.focus();let t=e=>{o.current&&!o.current.contains(e.target)&&a()},n=e=>{e.key===`Escape`&&(e.preventDefault(),a())};return document.addEventListener(`pointerdown`,t),document.addEventListener(`keydown`,n),()=>{document.removeEventListener(`pointerdown`,t),document.removeEventListener(`keydown`,n)}},[e,a]),e?(0,N.jsx)(`div`,{ref:o,className:La.menu,style:{left:t,top:n},role:`menu`,"aria-label":`Graph actions`,children:(0,N.jsx)(`button`,{ref:s,role:`menuitem`,type:`button`,className:La.menuItem,disabled:!r,onClick:()=>{r&&(i(),a())},children:`Create Node`})}):null}var za={menu:`_menu_1trgd_1`,menuItem:`_menuItem_1trgd_12`,dangerItem:`_dangerItem_1trgd_38`,confirmation:`_confirmation_1trgd_51`,confirmationText:`_confirmationText_1trgd_57`,confirmationActions:`_confirmationActions_1trgd_65`},Ba=8;function Va({open:e,x:t,y:n,nodeAlias:r,canClipNode:i,canEditNode:a,canDeleteNode:o,onClipNode:s,onEditNode:c,onDeleteNode:l,onClose:u}){let[d,f]=(0,M.useState)(!1),[p,m]=(0,M.useState)({left:t,top:n}),h=(0,M.useRef)(null),g=(0,M.useRef)(null),_=(0,M.useRef)(null),v=i||a||o;return(0,M.useLayoutEffect)(()=>{e&&f(!1)},[r,e,t,n]),(0,M.useLayoutEffect)(()=>{if(!e)return;let r=h.current;if(!r){m({left:t,top:n});return}let i=r.getBoundingClientRect(),a=Math.max(Ba,window.innerWidth-i.width-Ba),o=Math.max(Ba,window.innerHeight-i.height-Ba);m({left:Math.min(Math.max(t,Ba),a),top:Math.min(Math.max(n,Ba),o)})},[i,o,a,d,r,e,t,n]),(0,M.useEffect)(()=>{if(!e){f(!1);return}d?_.current?.focus():g.current?.focus()},[d,e]),(0,M.useEffect)(()=>{if(!e)return;let t=e=>{h.current&&!h.current.contains(e.target)&&u()},n=e=>{e.key===`Escape`&&(e.preventDefault(),u())},r=()=>u();return document.addEventListener(`pointerdown`,t),document.addEventListener(`keydown`,n),window.addEventListener(`scroll`,r,!0),window.addEventListener(`resize`,r),()=>{document.removeEventListener(`pointerdown`,t),document.removeEventListener(`keydown`,n),window.removeEventListener(`scroll`,r,!0),window.removeEventListener(`resize`,r)}},[u,e]),!e||!v?null:(0,N.jsx)(`div`,{ref:h,className:za.menu,style:{left:p.left,top:p.top},role:`menu`,"aria-label":`Node actions for ${r}`,children:d?(0,N.jsxs)(`div`,{className:za.confirmation,role:`group`,"aria-label":`Confirm delete ${r}`,children:[(0,N.jsxs)(`div`,{className:za.confirmationText,children:[`Delete "`,r,`"?`]}),(0,N.jsxs)(`div`,{className:za.confirmationActions,children:[(0,N.jsx)(`button`,{ref:_,type:`button`,className:`${za.menuItem} ${za.dangerItem}`,onClick:()=>{l(),u()},children:`Delete`}),(0,N.jsx)(`button`,{type:`button`,className:za.menuItem,onClick:()=>f(!1),children:`Cancel`})]})]}):(0,N.jsxs)(N.Fragment,{children:[i&&(0,N.jsx)(`button`,{ref:g,role:`menuitem`,type:`button`,className:za.menuItem,onClick:()=>{s(),u()},children:`Clip to Workspace`}),a&&(0,N.jsx)(`button`,{ref:i?void 0:g,role:`menuitem`,type:`button`,className:za.menuItem,onClick:()=>{c(),u()},children:`Edit Node`}),o&&(0,N.jsx)(`button`,{ref:!i&&!a?g:void 0,role:`menuitem`,type:`button`,className:`${za.menuItem} ${za.dangerItem}`,onClick:()=>f(!0),children:`Delete Node`})]})})}var Ha=[],Ua=[];function Wa({graphData:e,graphName:t,onCopySuccess:n,onCopyError:r,onRenderError:i,isRefreshing:a=!1,onClipNode:o,onClipboardDrop:l,isConnected:u,supportsAuthoring:d=!1,onCreateNode:m,onEditNode:v,onDeleteNode:y}){let[b,x]=(0,M.useState)(null),[S,C]=(0,M.useState)(null),[ee,te]=(0,M.useState)(!1),ne=(0,M.useRef)(0),w=!!(d&&m&&u),T=!!o,E=!!(d&&v&&u),D=!!(d&&y&&u),re=T||E||D,ie=!!(l&&u),ae=(0,M.useCallback)(()=>{ne.current=0,te(!1)},[]);(0,M.useEffect)(()=>{if(!S)return;let e=e=>{e.key===`Escape`&&C(null)},t=()=>C(null);return document.addEventListener(`keydown`,e),window.addEventListener(`scroll`,t,!0),window.addEventListener(`resize`,t),()=>{document.removeEventListener(`keydown`,e),window.removeEventListener(`scroll`,t,!0),window.removeEventListener(`resize`,t)}},[S]),(0,M.useEffect)(()=>{let e=()=>ae();return window.addEventListener(`dragend`,e),window.addEventListener(`drop`,e),()=>{window.removeEventListener(`dragend`,e),window.removeEventListener(`drop`,e),ae()}},[ae]);let oe=(0,M.useRef)(i);(0,M.useEffect)(()=>{oe.current=i},[i]);let{nodes:se,edges:O,transformError:k}=(0,M.useMemo)(()=>{if(!e)return{nodes:Ha,edges:Ua,transformError:null};try{return{...Oa(e),transformError:null}}catch(e){return{nodes:Ha,edges:Ua,transformError:e instanceof Error?e.message:String(e)}}},[e]);(0,M.useEffect)(()=>{k&&oe.current?.(`Graph render failed: ${k}`)},[k]);let ce=(0,M.useMemo)(()=>e?JSON.stringify(e.nodes.map(e=>e.alias)):`empty`,[e]),[le,ue,de]=f(se),[A,j,fe]=c(O);(0,M.useEffect)(()=>{ue(se),j(O)},[se,O,ue,j]);let pe=e=>{ie&&Aa(Array.from(e.dataTransfer.types))&&(e.preventDefault(),ne.current+=1,te(!0))},me=e=>{ie&&Aa(Array.from(e.dataTransfer.types))&&(e.preventDefault(),e.dataTransfer.dropEffect=`copy`,te(!0))},he=e=>{Aa(Array.from(e.dataTransfer.types))&&(ne.current=Math.max(0,ne.current-1),ne.current===0&&te(!1))},ge=e=>{if(!ie||!Aa(Array.from(e.dataTransfer.types)))return;e.preventDefault();let t=Ma(e.dataTransfer);ae(),t&&l?.(t)},_e=!!(e&&e.nodes.length>0),ve=b&&e?Na(e,b.nodeAlias):null;return k?(0,N.jsxs)(`div`,{className:Zi.empty,children:[(0,N.jsx)(`span`,{className:Zi.emptyIcon,children:`⚠️`}),(0,N.jsx)(`span`,{children:`Graph could not be rendered.`}),(0,N.jsx)(`span`,{children:k})]}):(0,N.jsx)(Qi,{onRenderError:i,children:(0,N.jsxs)(`div`,{className:Zi.graphWrapper,"aria-busy":a,children:[_e&&e&&(0,N.jsx)(Ia,{graphData:e,graphName:t,onCopySuccess:n,onCopyError:r}),(0,N.jsxs)(`div`,{className:Zi.graphSurface,onDragEnter:pe,onDragOver:me,onDragLeave:he,onDrop:ge,children:[_e?(0,N.jsxs)(g,{nodes:le,edges:A,onNodesChange:de,onEdgesChange:fe,nodeTypes:Xi,fitView:!0,fitViewOptions:{padding:.25},minZoom:.2,maxZoom:2.5,proOptions:{hideAttribution:!1},onNodeContextMenu:(e,t)=>{e.preventDefault(),e.stopPropagation(),C(null),re&&x({x:e.clientX,y:e.clientY,nodeAlias:t.data.alias})},onPaneContextMenu:e=>{e.preventDefault(),w&&(x(null),C({x:e.clientX,y:e.clientY}))},onPaneClick:()=>{x(null),C(null)},children:[(0,N.jsx)(_,{variant:p.Dots,gap:18,size:1,color:`rgba(255,255,255,0.07)`}),(0,N.jsx)(h,{showInteractive:!1}),(0,N.jsx)(s,{nodeColor:e=>({Root:`#15803d`,End:`#dc2626`,Fetcher:`#2563eb`,mapper:`#ea580c`,Math:`#a16207`,JavaScript:`#7e22ce`,Provider:`#be185d`,Dictionary:`#0e7490`,Join:`#65a30d`,Extension:`#4338ca`,Island:`#475569`,Decision:`#b45309`})[e.type??``]??`#6c7086`,maskColor:`rgba(0,0,0,0.3)`,style:{background:`#fff`}})]}):(0,N.jsxs)(`div`,{className:Zi.empty,children:[(0,N.jsx)(`span`,{className:Zi.emptyIcon,children:`🕸️`}),(0,N.jsx)(`span`,{children:`No graph data yet.`}),(0,N.jsxs)(`span`,{children:[`Run `,(0,N.jsx)(`strong`,{children:`describe graph`}),` or `,(0,N.jsx)(`strong`,{children:`export graph`}),` in the playground.`]}),d&&m&&(0,N.jsxs)(N.Fragment,{children:[(0,N.jsx)(`button`,{type:`button`,className:Zi.emptyCreateButton,disabled:!u,onClick:()=>m(`empty-graph`),children:`Create Node`}),!u&&(0,N.jsx)(`span`,{className:Zi.emptyHint,children:`Connect WebSocket to create a node.`})]})]}),a&&(0,N.jsx)(`div`,{className:Zi.refreshingOverlay,children:(0,N.jsx)(`div`,{className:Zi.refreshingSpinner,role:`status`,"aria-label":`Graph refreshing`})}),ee&&(0,N.jsx)(`div`,{className:Zi.clipboardDropOverlay,children:(0,N.jsx)(`div`,{className:Zi.clipboardDropMessage,children:`Drop to paste workspace node`})}),(0,N.jsx)(Ra,{open:S!==null,x:S?.x??0,y:S?.y??0,canCreateNode:w,onCreateNode:()=>m?.(`pane-context-menu`),onClose:()=>C(null)}),(0,N.jsx)(Va,{open:b!==null&&ve!==null&&re,x:b?.x??0,y:b?.y??0,nodeAlias:b?.nodeAlias??``,canClipNode:T&&ve!==null,canEditNode:E&&ve!==null,canDeleteNode:D&&ve!==null,onClipNode:()=>{if(!ve||!e)return;let t=Pa(e,ve.alias);o?.(ve,t)},onEditNode:()=>{ve&&v?.(ve)},onDeleteNode:()=>{ve&&y?.(ve)},onClose:()=>x(null)})]})]})},ce)}var Ga={root:`_root_1yhjs_2`,empty:`_empty_1yhjs_10`,emptyIcon:`_emptyIcon_1yhjs_23`,toolbarButton:`_toolbarButton_1yhjs_29 _toolbarButton_117v8_55`,scrollBody:`_scrollBody_1yhjs_34`,jsonContainer:`_jsonContainer_1yhjs_45`,jsonLabel:`_jsonLabel_1yhjs_46`,jsonString:`_jsonString_1yhjs_47`,jsonNumber:`_jsonNumber_1yhjs_48`,jsonBoolean:`_jsonBoolean_1yhjs_49`,jsonNull:`_jsonNull_1yhjs_50`},Ka={default:e=>e<3,all:i,none:a};function qa({graphData:e,graphName:t,onCopySuccess:n,onCopyError:i}){let[a,s]=(0,M.useState)(`all`);return e?(0,N.jsxs)(`div`,{className:Ga.root,children:[(0,N.jsx)(Ia,{graphData:e,graphName:t,onCopySuccess:n,onCopyError:i,extraActions:(0,N.jsxs)(N.Fragment,{children:[(0,N.jsx)(`button`,{className:Ga.toolbarButton,onClick:()=>s(`all`),title:`Expand all nodes`,"aria-label":`Expand all JSON nodes`,"aria-pressed":a===`all`,children:`➖`}),(0,N.jsx)(`button`,{className:Ga.toolbarButton,onClick:()=>s(`none`),title:`Collapse all nodes`,"aria-label":`Collapse all JSON nodes`,"aria-pressed":a===`none`,children:`➕`})]})}),(0,N.jsx)(`div`,{className:Ga.scrollBody,children:(0,N.jsx)(o,{data:e,shouldExpandNode:Ka[a],style:{...r,container:`${r.container} ${Ga.jsonContainer}`,label:Ga.jsonLabel,stringValue:Ga.jsonString,numberValue:Ga.jsonNumber,booleanValue:Ga.jsonBoolean,nullValue:Ga.jsonNull}})})]}):(0,N.jsx)(`div`,{className:Ga.root,children:(0,N.jsxs)(`div`,{className:Ga.empty,children:[(0,N.jsx)(`span`,{className:Ga.emptyIcon,children:`🕸️`}),(0,N.jsx)(`span`,{children:`No graph data yet.`}),(0,N.jsx)(`span`,{children:`Pin a graph-link message in the Console to load the raw data here.`})]})})}var Ja={rightPanel:`_rightPanel_1xiht_2`,tabStrip:`_tabStrip_1xiht_10`,tab:`_tab_1xiht_10`,tabActive:`_tabActive_1xiht_38`,tabBadge:`_tabBadge_1xiht_42`,tabBody:`_tabBody_1xiht_48`,tabBodyHidden:`_tabBodyHidden_1xiht_57`,graphContent:`_graphContent_1xiht_61`,rightPanelGroup:`_rightPanelGroup_1xiht_68`,verticalResizeHandle:`_verticalResizeHandle_1xiht_76`},Ya=`help-split-percent`,Xa=`help-split-maximized`,Za=45,Qa=98;function $a({tabs:e,payload:t,onChange:n,validation:r,onFormat:i,onUpload:a,graphData:o,graphName:s,activeTab:c,onTabChange:l,onGraphRenderError:u,onGraphDataCopySuccess:d,onGraphDataCopyError:f,isGraphRefreshing:p,onClipNode:m,onClipboardDrop:h,isConnected:g,supportsAuthoring:_,onCreateNode:v,onEditNode:y,onDeleteNode:b,helpPanel:x}){let ee=(0,M.useId)(),ne=`${ee}-tab-payload`,w=`${ee}-tab-graph`,T=`${ee}-tab-graph-data`,E=(0,N.jsxs)(`div`,{className:Ja.rightPanel,children:[(0,N.jsxs)(`div`,{className:Ja.tabStrip,role:`tablist`,"aria-label":`Right panel tabs`,children:[e.includes(`payload`)&&(0,N.jsx)(`button`,{role:`tab`,"aria-selected":c===`payload`,"aria-controls":ne,className:`${Ja.tab}${c===`payload`?` ${Ja.tabActive}`:``}`,onClick:()=>l(`payload`),children:`Payload Editor`}),e.includes(`graph`)&&(0,N.jsxs)(`button`,{role:`tab`,"aria-selected":c===`graph`,"aria-controls":w,className:`${Ja.tab}${c===`graph`?` ${Ja.tabActive}`:``}`,onClick:()=>l(`graph`),children:[`Graph`,o!==null&&(0,N.jsx)(`span`,{className:Ja.tabBadge,"aria-label":`Graph data available`,children:`🕸️`})]}),e.includes(`graph-data`)&&(0,N.jsx)(`button`,{role:`tab`,"aria-selected":c===`graph-data`,"aria-controls":T,className:`${Ja.tab}${c===`graph-data`?` ${Ja.tabActive}`:``}`,onClick:()=>l(`graph-data`),children:`Graph Data (Raw)`})]}),e.includes(`payload`)&&(0,N.jsx)(`div`,{role:`tabpanel`,id:ne,tabIndex:c===`payload`?0:-1,className:`${Ja.tabBody}${c===`payload`?``:` ${Ja.tabBodyHidden}`}`,children:(0,N.jsx)(Ri,{payload:t,onChange:n,validation:r,onFormat:i,onUpload:a})}),e.includes(`graph`)&&(0,N.jsx)(`div`,{role:`tabpanel`,id:w,tabIndex:c===`graph`?0:-1,className:`${Ja.tabBody}${c===`graph`?``:` ${Ja.tabBodyHidden}`}`,children:(0,N.jsx)(`div`,{className:Ja.graphContent,children:(0,N.jsx)(Wa,{graphData:o,graphName:s,onRenderError:u,isRefreshing:p,onCopySuccess:d,onCopyError:f,onClipNode:m,onClipboardDrop:h,isConnected:g,supportsAuthoring:_,onCreateNode:v,onEditNode:y,onDeleteNode:b})})}),e.includes(`graph-data`)&&(0,N.jsx)(`div`,{role:`tabpanel`,id:T,tabIndex:c===`graph-data`?0:-1,className:`${Ja.tabBody}${c===`graph-data`?``:` ${Ja.tabBodyHidden}`}`,children:(0,N.jsx)(qa,{graphData:o,graphName:s,onCopySuccess:d,onCopyError:f})})]}),D=(0,M.useRef)(Number(sessionStorage.getItem(Ya))||Za),re=(0,M.useRef)(null),ie=(0,M.useRef)(null),[ae,oe]=(0,M.useState)(()=>sessionStorage.getItem(Xa)===`1`),se=(0,M.useRef)(ae),O=(0,M.useCallback)(e=>{let t=e[`help-split-help`];if(t===void 0)return;let n=t>=Qa;n!==se.current&&(se.current=n,oe(n),sessionStorage.setItem(Xa,n?`1`:`0`)),n||(D.current=t,sessionStorage.setItem(Ya,String(t)))},[]),k=(0,M.useCallback)(()=>{let e=!se.current;if(se.current=e,oe(e),sessionStorage.setItem(Xa,e?`1`:`0`),e)ie.current?.resize(`0%`),re.current?.resize(`100%`);else{let e=D.current;re.current?.resize(`${e}%`),ie.current?.resize(`${100-e}%`)}},[]),ce=!!x;if((0,M.useEffect)(()=>{ce&&se.current&&requestAnimationFrame(()=>{ie.current?.resize(`0%`),re.current?.resize(`100%`)})},[ce]),!x)return E;let le=typeof x==`function`?x(k,ae):x,ue=se.current?100:D.current,de=100-ue;return(0,N.jsxs)(te,{orientation:`vertical`,className:Ja.rightPanelGroup,onLayoutChanged:O,children:[(0,N.jsx)(C,{panelRef:ie,defaultSize:`${de}%`,minSize:`0%`,children:E}),(0,N.jsx)(S,{className:Ja.verticalResizeHandle,"aria-label":`Resize help panel`}),(0,N.jsx)(C,{id:`help-split-help`,panelRef:re,defaultSize:`${ue}%`,minSize:`15%`,children:le})]})}var eo=class extends M.Component{constructor(...e){super(...e),this.state={hasError:!1}}static getDerivedStateFromError(){return{hasError:!0}}componentDidCatch(e,t){console.error(`[ConsoleErrorBoundary] Failed to render message:`,e,t.componentStack)}render(){return this.state.hasError?(0,N.jsx)(`span`,{children:this.props.fallback}):this.props.children}},to=2e3,no=(e={})=>{let{onSuccess:t,onError:n}=e,[r,i]=(0,M.useState)(!1),a=(0,M.useRef)(null);return(0,M.useEffect)(()=>()=>{a.current!==null&&clearTimeout(a.current)},[]),{copy:(0,M.useCallback)(async e=>{if(!navigator.clipboard)return console.warn(`useCopyToClipboard: Clipboard API not available in this browser.`),n?.(),!1;try{return await navigator.clipboard.writeText(e),i(!0),a.current!==null&&clearTimeout(a.current),a.current=setTimeout(()=>{a.current=null,i(!1)},to),t?.(),!0}catch(e){return console.error(`useCopyToClipboard: Failed to write to clipboard.`,e),n?.(),!1}},[t,n]),copied:r}},R={consoleRoot:`_consoleRoot_1lgp1_2`,consoleHeader:`_consoleHeader_1lgp1_10`,consoleTitle:`_consoleTitle_1lgp1_20`,consoleControls:`_consoleControls_1lgp1_25`,controlButton:`_controlButton_1lgp1_30`,console:`_console_1lgp1_2`,emptyConsole:`_emptyConsole_1lgp1_67`,consoleMessage:`_consoleMessage_1lgp1_80`,consoleMessageActivatable:`_consoleMessageActivatable_1lgp1_94`,consoleMessageGraphLink:`_consoleMessageGraphLink_1lgp1_104`,consoleMessageLargePayload:`_consoleMessageLargePayload_1lgp1_115`,consoleMessageMockUpload:`_consoleMessageMockUpload_1lgp1_122`,uploadMockButton:`_uploadMockButton_1lgp1_131`,copyButton:`_copyButton_1lgp1_172`,copyButtonCopied:`_copyButtonCopied_1lgp1_225`,sendToJsonPathButton:`_sendToJsonPathButton_1lgp1_234`,messageIcon:`_messageIcon_1lgp1_268`,messageContent:`_messageContent_1lgp1_272`,messageText:`_messageText_1lgp1_278`,messageTime:`_messageTime_1lgp1_283`,"messageType-error":`_messageType-error_1lgp1_290`,"messageType-info":`_messageType-info_1lgp1_291`,"messageType-welcome":`_messageType-welcome_1lgp1_292`,jsonViewWrapper:`_jsonViewWrapper_1lgp1_295`,jsonContainer:`_jsonContainer_1lgp1_301`,jsonLabel:`_jsonLabel_1lgp1_302`,jsonString:`_jsonString_1lgp1_303`,jsonNumber:`_jsonNumber_1lgp1_304`,jsonBoolean:`_jsonBoolean_1lgp1_305`,jsonNull:`_jsonNull_1lgp1_306`};function ro({message:e,msgId:t,classificationMap:n,onGraphLink:i,onCopyMessage:a,onSendToJsonPath:s,onUploadMockData:c,successfulUploadPaths:l}){let u=Er(e),d=Dr(u.type),f=Or(u.message),p=(t===void 0?void 0:n?.get(t))??[],m=p.some(e=>e.kind===`graph.link`),h=p.some(e=>e.kind===`payload.large`),g=p.some(e=>e.kind===`upload.invitation`),_=p.find(e=>e.kind===`upload.invitation`)?.uploadPath??null,v=!!c&&g&&_!==null,y=v&&!!l?.has(_),b=!!i&&m&&!g&&!h,x=!!s&&f.isJSON,{copy:S,copied:C}=no({onSuccess:a}),ee=t=>{t.stopPropagation(),S(e)},te=t=>{(t.key===`Enter`||t.key===` `)&&(t.preventDefault(),t.stopPropagation(),S(e))},ne=e=>{e.stopPropagation(),!(!s||!f.isJSON)&&s(JSON.stringify(f.data,null,2))},w=e=>{e.stopPropagation(),!(!c||!_)&&c(_)};return(0,N.jsxs)(`div`,{className:[R.consoleMessage,R[`messageType-${u.type}`],b?R.consoleMessageActivatable:``,m?R.consoleMessageGraphLink:``,h?R.consoleMessageLargePayload:``,g?R.consoleMessageMockUpload:``].filter(Boolean).join(` `),onClick:b?()=>i():void 0,title:b?`Click to load graph in Graph View`:void 0,role:b?`button`:void 0,tabIndex:b?0:void 0,onKeyDown:b?e=>{(e.key===`Enter`||e.key===` `)&&(e.preventDefault(),i())}:void 0,"aria-label":b?`Load graph in Graph View`:void 0,children:[(0,N.jsx)(`span`,{className:R.messageIcon,children:g?`⬆️`:h?`⬇️`:m?`🕸️`:d}),(0,N.jsx)(`div`,{className:R.messageContent,children:f.isJSON?(0,N.jsx)(`div`,{className:R.jsonViewWrapper,children:(0,N.jsx)(o,{data:f.data,shouldExpandNode:e=>e<1,style:{...r,container:`${r.container} ${R.jsonContainer}`,label:R.jsonLabel,stringValue:R.jsonString,numberValue:R.jsonNumber,booleanValue:R.jsonBoolean,nullValue:R.jsonNull}})}):(0,N.jsxs)(`span`,{className:R.messageText,children:[u.message,y&&(0,N.jsx)(`span`,{title:`Upload succeeded`,children:` ✅`})]})}),(0,N.jsx)(`button`,{className:`${R.copyButton} ${C?R.copyButtonCopied:``}`,onClick:ee,onKeyDown:te,title:C?`Copied!`:`Copy message`,"aria-label":C?`Copied to clipboard`:`Copy message to clipboard`,tabIndex:0,children:C?`✅`:`📄`}),x&&(0,N.jsx)(`button`,{className:R.sendToJsonPathButton,onClick:ne,onKeyDown:e=>{(e.key===`Enter`||e.key===` `)&&ne(e)},title:`Open in JSON-Path Playground`,"aria-label":`Open this JSON in the JSON-Path Playground`,tabIndex:0,children:`➡️`}),v&&(0,N.jsx)(`button`,{className:R.uploadMockButton,onClick:w,onKeyDown:e=>{(e.key===`Enter`||e.key===` `)&&w(e)},title:`Re-open upload dialog`,"aria-label":`Re-open mock data upload dialog`,tabIndex:0,children:`⬆️ Upload JSON…`}),u.time&&(0,N.jsx)(`span`,{className:R.messageTime,children:u.time})]})}function io({messages:e,classificationMap:t,onCopy:n,onClear:r,consoleRef:i,onGraphLinkMessage:a,onCopyMessage:o,onSendToJsonPath:s,onUploadMockData:c,successfulUploadPaths:l}){return(0,N.jsxs)(`div`,{className:R.consoleRoot,children:[(0,N.jsxs)(`div`,{className:R.consoleHeader,children:[(0,N.jsx)(`span`,{className:R.consoleTitle,children:`Console Output`}),(0,N.jsxs)(`div`,{className:R.consoleControls,children:[(0,N.jsx)(`button`,{className:R.controlButton,onClick:n,title:`Copy console output`,"aria-label":`Copy console output to clipboard`,children:`📑`}),(0,N.jsx)(`button`,{className:R.controlButton,onClick:r,title:`Clear console`,"aria-label":`Clear console`,children:`🗑️`})]})]}),(0,N.jsxs)(`div`,{className:R.console,ref:i,role:`log`,"aria-live":`polite`,children:[e.map(e=>(0,N.jsx)(eo,{fallback:e.raw,children:(0,N.jsx)(ro,{message:e.raw,msgId:e.id,classificationMap:t,onGraphLink:a?()=>a(e):void 0,onCopyMessage:o,onSendToJsonPath:s,onUploadMockData:c,successfulUploadPaths:l})},e.id)),e.length===0&&(0,N.jsxs)(`div`,{className:R.emptyConsole,children:[`No messages yet. Use the `,(0,N.jsx)(`strong`,{children:`Start`}),` button in the header to connect.`]})]})]})}var z={commandInput:`_commandInput_j85f1_2`,labelRow:`_labelRow_j85f1_8`,labelGroup:`_labelGroup_j85f1_16`,label:`_label_j85f1_8`,infoWrapper:`_infoWrapper_j85f1_28`,paletteToggle:`_paletteToggle_j85f1_34`,paletteToggleActive:`_paletteToggleActive_j85f1_66`,popover:`_popover_j85f1_73`,popoverOpen:`_popoverOpen_j85f1_95`,popoverTitle:`_popoverTitle_j85f1_121`,popoverRow:`_popoverRow_j85f1_135`,popoverKeyword:`_popoverKeyword_j85f1_156`,popoverDesc:`_popoverDesc_j85f1_168`,popoverAlias:`_popoverAlias_j85f1_174`,inputRow:`_inputRow_j85f1_181`,inputWrapper:`_inputWrapper_j85f1_187`,textarea:`_textarea_j85f1_197`,sendButton:`_sendButton_j85f1_226`,hint:`_hint_j85f1_243`,dropup:`_dropup_j85f1_251`,dropupHeader:`_dropupHeader_j85f1_266`,dropupItem:`_dropupItem_j85f1_282`,dropupItemText:`_dropupItemText_j85f1_305`,matchHighlight:`_matchHighlight_j85f1_313`,multilineIndicator:`_multilineIndicator_j85f1_319`},ao=[`graph.data.mapper`,`graph.math`,`graph.js`,`graph.api.fetcher`,`graph.extension`,`graph.island`,`graph.join`],oo=[{keyword:`help`,description:`List all help topics, or get help for a specific command`,template:`help`},{keyword:`create`,description:`Create a new graph node`,template:`create node {name}
@@ -5086,4 +5590,4 @@ with properties
 `)){e.push(`${t}='''`),e.push(n),e.push(`'''`);return}e.push(`${t}=${n}`)}function Uo(e){let t=So(e);if(!t.valid)throw Error(Object.values(t.errors)[0]??`Invalid node form state.`);let n=e.alias.trim(),r=e.nodeType.trim(),i=Bo(e),a=[`create node ${n}`];if(r&&a.push(`with type ${r}`),i.length>0){a.push(`with properties`);for(let e of i)Ho(a,e.key,e.value)}let o=a.join(`
 `);return Vo(o),o}function Wo(e,t){let n=t.trim(),r=So(e,{mode:`edit`,originalAlias:n});if(!r.valid)throw Error(Object.values(r.errors)[0]??`Invalid node form state.`);let i=e.nodeType.trim(),a=Bo(e,!0),o=[`update node ${n}`];if(i&&o.push(`with type ${i}`),a.length>0){o.push(`with properties`);for(let e of a)Ho(o,e.key,e.value)}let s=o.join(`
 `);return Vo(s),s}function Go(e,t={}){let n=e.trim(),r=Co(n,t);if(!r.valid)throw Error(Object.values(r.errors)[0]??`Invalid node alias.`);let i=`delete node ${n}`;return Vo(i),i}var Ko=1e4,qo=`A node action is already pending. Wait for it to finish before starting another.`,Jo=`Could not send the create-node command because the WebSocket is not open. The form values remain in this dialog.`,Yo=`Could not send the edit-node command because the WebSocket is not open. Your changes remain in this dialog.`,Xo=`Could not send the delete-node command because the WebSocket is not open.`,Zo=`This node is no longer available in the current graph.`,Qo=`Connection disconnected. Refresh the page and create the node again after the app reconnects.`,$o=`Connection disconnected. Refresh the page and edit the node again after the app reconnects.`,es=`Connection disconnected while the node action was pending. The outcome is unknown. Refresh the page and check the graph before trying again.`,ts={status:`closed`,pendingSubmit:null,serverMessage:null};function ns(e){return e.pendingSubmit}function rs(e){return e===`edit-node`?Yo:e===`delete-node`?Xo:Jo}function is(e){return`The ${e} command was sent, but no backend result was observed yet. The outcome is unknown.`}function as(e){return e===`edit-node`?$o:Qo}function os(e,t){return e?.trim().toLowerCase()===t.trim().toLowerCase()}function ss(e,t){return e?.nodes.find(e=>e.alias.toLowerCase()===t.toLowerCase())??null}function cs(e,t){return e.status===`error`?!0:os(e.alias,t.alias)?e.action===null||e.action===t.action:!1}function ls({bus:e,connected:t,graphData:n,executor:r,timeoutMs:i=Ko,onAccepted:a,onUserMessage:o}){let[s,c]=(0,M.useState)(ts),[l,u]=(0,M.useState)({}),d=(0,M.useRef)(s),f=(0,M.useRef)(null),p=(0,M.useRef)(t),m=(0,M.useRef)(n),h=(0,M.useRef)(a),g=(0,M.useRef)(o);(0,M.useEffect)(()=>{d.current=s},[s]),(0,M.useEffect)(()=>{m.current=n},[n]),(0,M.useEffect)(()=>{h.current=a},[a]),(0,M.useEffect)(()=>{g.current=o},[o]);let _=(0,M.useCallback)((e,t=`error`)=>{g.current?.(e,t)},[]),v=(0,M.useCallback)(e=>{d.current=e,c(e)},[]),y=(0,M.useCallback)(()=>{f.current!==null&&(clearTimeout(f.current),f.current=null)},[]),b=(0,M.useCallback)(()=>{y(),f.current=setTimeout(()=>{let e=d.current,t=ns(e);t&&(e.status===`open`?v({...e,phase:`editing`,pendingSubmit:null,serverMessage:is(t.action)}):(v(ts),_(is(t.action),`error`)),f.current=null)},i)},[y,_,v,i]),x=(0,M.useCallback)(e=>{if(!t)return;if(ns(d.current)){_(qo,`error`);return}let n=Do(e);u({}),v({status:`open`,action:`create-node`,phase:`editing`,formState:n,originalAlias:null,pendingSubmit:null,serverMessage:null,connectionLost:!1})},[t,_,v]),S=(0,M.useCallback)(e=>{if(!t){_($o,`error`);return}if(ns(d.current)){_(qo,`error`);return}let n=ss(m.current,e.alias);if(!n){_(Zo,`error`);return}let r=Mo(n);if(!r.valid||!r.formState){_(r.message??`This node cannot be edited in the UI.`,`error`);return}u({}),v({status:`open`,action:`edit-node`,phase:`editing`,formState:r.formState,originalAlias:n.alias,pendingSubmit:null,serverMessage:null,connectionLost:!1})},[t,_,v]),C=(0,M.useCallback)(e=>{if(!t){_(Xo,`error`);return}if(ns(d.current)){_(qo,`error`);return}let n=Co(e.alias,{graphData:m.current});if(!n.valid){_(Object.values(n.errors)[0]??`Invalid node alias.`,`error`);return}let i;try{i=Go(e.alias,{graphData:m.current})}catch(e){_(e instanceof Error?e.message:String(e),`error`);return}if(!r.execute(i)){_(Xo,`error`);return}let a={action:`delete-node`,alias:e.alias.trim(),command:i,sentAt:new Date().toISOString()};u({}),v({status:`closed`,pendingSubmit:a,serverMessage:null}),b()},[t,r,_,v,b]),ee=(0,M.useCallback)(e=>{let t=d.current;t.status===`open`&&(t.phase===`sending`||t.connectionLost||(u({}),v({...t,formState:e,pendingSubmit:null,serverMessage:null,connectionLost:!1})))},[v]),te=(0,M.useCallback)(()=>{let e=d.current;if(e.status!==`open`||e.phase===`sending`||e.connectionLost)return;let n=e.action;if(!t){v({...e,serverMessage:rs(n)});return}let i=So(e.formState,n===`edit-node`?{mode:`edit`,originalAlias:e.originalAlias}:{graphData:m.current});if(!i.valid){u(i.errors);return}let a,o;try{n===`edit-node`?(o=e.originalAlias?.trim()??``,a=Wo(e.formState,o)):(o=e.formState.alias.trim(),a=Uo(e.formState))}catch(e){u({command:e instanceof Error?e.message:String(e)});return}if(!r.execute(a)){v({...e,phase:`editing`,pendingSubmit:null,serverMessage:rs(n)});return}let s={action:n,alias:o,command:a,sentAt:new Date().toISOString()};u({}),v({...e,phase:`sending`,pendingSubmit:s,serverMessage:null,connectionLost:!1}),b()},[t,r,v,b]),ne=(0,M.useCallback)(()=>{let e=d.current;e.status===`open`&&e.phase!==`sending`&&(y(),u({}),v(ts))},[y,v]);return(0,M.useEffect)(()=>e.on(`minigraph.nodeAction.textResult`,e=>{let t=d.current,n=ns(t);if(!(!n||!cs(e,n))){if(y(),e.status===`accepted`){u({}),v(ts),h.current?.({status:e.status,action:e.action,alias:e.alias,message:e.message});return}t.status===`open`?v({...t,phase:`editing`,pendingSubmit:null,serverMessage:e.status===`error`?`Backend returned an error while this submit was pending: ${e.message}`:e.message}):(v(ts),_(e.message,`error`))}}),[e,y,_,v]),(0,M.useEffect)(()=>{if(p.current&&!t){let e=d.current,t=ns(e);if(e.status===`open`){y();let n=t?es:as(e.action);v({...e,phase:`editing`,pendingSubmit:null,serverMessage:n,connectionLost:!0})}else t&&(y(),v(ts),_(es,`error`))}p.current=t},[y,t,_,v]),(0,M.useEffect)(()=>()=>{y()},[y]),{state:s,validationErrors:l,openCreateNode:x,openEditNode:S,deleteNode:C,updateFormState:ee,submit:te,close:ne}}var us=(e,t)=>t.some(t=>e instanceof t),ds,fs;function ps(){return ds||=[IDBDatabase,IDBObjectStore,IDBIndex,IDBCursor,IDBTransaction]}function ms(){return fs||=[IDBCursor.prototype.advance,IDBCursor.prototype.continue,IDBCursor.prototype.continuePrimaryKey]}var hs=new WeakMap,gs=new WeakMap,_s=new WeakMap;function vs(e){let t=new Promise((t,n)=>{let r=()=>{e.removeEventListener(`success`,i),e.removeEventListener(`error`,a)},i=()=>{t(ws(e.result)),r()},a=()=>{n(e.error),r()};e.addEventListener(`success`,i),e.addEventListener(`error`,a)});return _s.set(t,e),t}function ys(e){if(hs.has(e))return;let t=new Promise((t,n)=>{let r=()=>{e.removeEventListener(`complete`,i),e.removeEventListener(`error`,a),e.removeEventListener(`abort`,a)},i=()=>{t(),r()},a=()=>{n(e.error||new DOMException(`AbortError`,`AbortError`)),r()};e.addEventListener(`complete`,i),e.addEventListener(`error`,a),e.addEventListener(`abort`,a)});hs.set(e,t)}var bs={get(e,t,n){if(e instanceof IDBTransaction){if(t===`done`)return hs.get(e);if(t===`store`)return n.objectStoreNames[1]?void 0:n.objectStore(n.objectStoreNames[0])}return ws(e[t])},set(e,t,n){return e[t]=n,!0},has(e,t){return e instanceof IDBTransaction&&(t===`done`||t===`store`)||t in e}};function xs(e){bs=e(bs)}function Ss(e){return ms().includes(e)?function(...t){return e.apply(Ts(this),t),ws(this.request)}:function(...t){return ws(e.apply(Ts(this),t))}}function Cs(e){return typeof e==`function`?Ss(e):(e instanceof IDBTransaction&&ys(e),us(e,ps())?new Proxy(e,bs):e)}function ws(e){if(e instanceof IDBRequest)return vs(e);if(gs.has(e))return gs.get(e);let t=Cs(e);return t!==e&&(gs.set(e,t),_s.set(t,e)),t}var Ts=e=>_s.get(e);function Es(e,t,{blocked:n,upgrade:r,blocking:i,terminated:a}={}){let o=indexedDB.open(e,t),s=ws(o);return r&&o.addEventListener(`upgradeneeded`,e=>{r(ws(o.result),e.oldVersion,e.newVersion,ws(o.transaction),e)}),n&&o.addEventListener(`blocked`,e=>n(e.oldVersion,e.newVersion,e)),s.then(e=>{a&&e.addEventListener(`close`,()=>a()),i&&e.addEventListener(`versionchange`,e=>i(e.oldVersion,e.newVersion,e))}).catch(()=>{}),s}function Ds(e,{blocked:t}={}){let n=indexedDB.deleteDatabase(e);return t&&n.addEventListener(`blocked`,e=>t(e.oldVersion,e)),ws(n).then(()=>void 0)}var Os=[`get`,`getKey`,`getAll`,`getAllKeys`,`count`],ks=[`put`,`add`,`delete`,`clear`],As=new Map;function js(e,t){if(!(e instanceof IDBDatabase&&!(t in e)&&typeof t==`string`))return;if(As.get(t))return As.get(t);let n=t.replace(/FromIndex$/,``),r=t!==n,i=ks.includes(n);if(!(n in(r?IDBIndex:IDBObjectStore).prototype)||!(i||Os.includes(n)))return;let a=async function(e,...t){let a=this.transaction(e,i?`readwrite`:`readonly`),o=a.store;return r&&(o=o.index(t.shift())),(await Promise.all([o[n](...t),i&&a.done]))[0]};return As.set(t,a),a}xs(e=>({...e,get:(t,n,r)=>js(t,n)||e.get(t,n,r),has:(t,n)=>!!js(t,n)||e.has(t,n)}));var Ms=[`continue`,`continuePrimaryKey`,`advance`],Ns={},Ps=new WeakMap,Fs=new WeakMap,Is={get(e,t){if(!Ms.includes(t))return e[t];let n=Ns[t];return n||=Ns[t]=function(...e){Ps.set(this,Fs.get(this)[t](...e))},n}};async function*Ls(...e){let t=this;if(t instanceof IDBCursor||(t=await t.openCursor(...e)),!t)return;t=t;let n=new Proxy(t,Is);for(Fs.set(n,t),_s.set(n,Ts(t));t;)yield n,t=await(Ps.get(n)||t.continue()),Ps.delete(n)}function Rs(e,t){return t===Symbol.asyncIterator&&us(e,[IDBIndex,IDBObjectStore,IDBCursor])||t===`iterate`&&us(e,[IDBIndex,IDBObjectStore])}xs(e=>({...e,get(t,n,r){return Rs(t,n)?Ls:e.get(t,n,r)},has(t,n){return Rs(t,n)||e.has(t,n)}}));var zs=`minigraph-clipboard`,Bs=1,Vs=`items`,Hs=null;function Us(){return Es(zs,Bs,{upgrade(e){e.objectStoreNames.contains(Vs)&&e.deleteObjectStore(Vs);let t=e.createObjectStore(Vs,{keyPath:`id`});t.createIndex(`by-alias`,`node.alias`,{unique:!0}),t.createIndex(`by-clippedAt`,`clippedAt`)}})}function Ws(){return Hs||=Us().catch(async e=>(console.warn(`[clipboard/db] openDB failed, deleting and recreating:`,e),Hs=null,await Ds(zs),Us())),Hs}async function Gs(){return(await(await Ws()).getAllFromIndex(Vs,`by-clippedAt`)).reverse()}async function Ks(e){return(await Ws()).getFromIndex(Vs,`by-alias`,e)}async function qs(e){await(await Ws()).add(Vs,e)}async function Js(e,t){let n=(await Ws()).transaction(Vs,`readwrite`);await n.store.delete(e),await n.store.add(t),await n.done}async function Ys(e){await(await Ws()).delete(Vs,e)}async function Xs(){await(await Ws()).clear(Vs)}var Zs=`minigraph-clipboard-sync`;function Qs(){return new BroadcastChannel(Zs)}function $s(e,t){switch(t.type){case`HYDRATE`:return{items:t.items,isLoading:!1};case`ITEM_ADDED`:return{...e,items:[t.item,...e.items]};case`ITEM_REPLACED`:{let n=e.items.filter(e=>e.id!==t.previousId);return{...e,items:[t.item,...n]}}case`ITEM_REMOVED`:return{...e,items:e.items.filter(e=>e.id!==t.id)};case`ITEMS_CLEARED`:return{...e,items:[]};default:return e}}var ec=(0,M.createContext)(null);function tc({children:e}){let[t,n]=(0,M.useReducer)($s,{items:[],isLoading:!0}),r=(0,M.useRef)(null);(0,M.useEffect)(()=>{Gs().then(e=>n({type:`HYDRATE`,items:e}))},[]),(0,M.useEffect)(()=>{let e;try{e=Qs()}catch{return}return r.current=e,e.onmessage=e=>{let t=e.data;switch(t.type){case`item-added`:n({type:`ITEM_ADDED`,item:t.item});break;case`item-replaced`:n({type:`ITEM_REPLACED`,item:t.item,previousId:t.previousId});break;case`item-removed`:n({type:`ITEM_REMOVED`,id:t.id});break;case`items-cleared`:n({type:`ITEMS_CLEARED`});break}},()=>{e.close(),r.current=null}},[]);let i=(0,M.useCallback)(e=>{r.current?.postMessage(e)},[]),a=(0,M.useCallback)(async(e,t,r)=>{try{let a={id:crypto.randomUUID(),clippedAt:new Date().toISOString(),sourceWsPath:r.sourceWsPath,sourceLabel:r.sourceLabel,node:e,connections:t},o=await Ks(e.alias);if(o)return{status:`duplicate`,existingItem:o,pendingItem:a};try{await qs(a)}catch(t){if(t instanceof DOMException&&t.name===`ConstraintError`){let t=await Ks(e.alias);if(t)return{status:`duplicate`,existingItem:t,pendingItem:a}}throw t}return n({type:`ITEM_ADDED`,item:a}),i({type:`item-added`,item:a}),{status:`added`}}catch(e){return{status:`error`,message:e instanceof Error?e.message:String(e)}}},[i]),o=(0,M.useCallback)(async(e,t)=>{await Js(t,e),n({type:`ITEM_REPLACED`,item:e,previousId:t}),i({type:`item-replaced`,item:e,previousId:t})},[i]),s=(0,M.useCallback)(async e=>{await Ys(e),n({type:`ITEM_REMOVED`,id:e}),i({type:`item-removed`,id:e})},[i]),c=(0,M.useCallback)(async()=>{await Xs(),n({type:`ITEMS_CLEARED`}),i({type:`items-cleared`})},[i]);return(0,N.jsx)(ec.Provider,{value:{items:t.items,isLoading:t.isLoading,clipNode:a,confirmReplace:o,removeItem:s,clearAll:c},children:e})}function nc(){let e=(0,M.useContext)(ec);if(!e)throw Error(`useClipboardContext must be used inside <ClipboardProvider>`);return e}function rc(e){let t=Date.now()-new Date(e).getTime();if(t<0)return`just now`;let n=Math.floor(t/1e3);if(n<60)return`just now`;let r=Math.floor(n/60);if(r<60)return`${r} min ago`;let i=Math.floor(r/60);if(i<24)return`${i} hour${i>1?`s`:``} ago`;let a=Math.floor(i/24);return a===1?`yesterday`:a<30?`${a} days ago`:new Date(e).toLocaleDateString()}var W={item:`_item_1rbm8_1`,previewFrame:`_previewFrame_1rbm8_13`,preview:`_preview_1rbm8_13`,previewShell:`_previewShell_1rbm8_25`,metaBlock:`_metaBlock_1rbm8_29`,timestamp:`_timestamp_1rbm8_35`,removeChrome:`_removeChrome_1rbm8_40`,removeIcon:`_removeIcon_1rbm8_68`};function ic({item:e,onRemove:t,onOpenMenu:n,onCloseMenu:r}){let{node:i,clippedAt:a,sourceLabel:o}=e;return(0,N.jsxs)(`div`,{className:W.item,children:[(0,N.jsxs)(`div`,{className:W.previewFrame,children:[(0,N.jsx)(`button`,{type:`button`,className:W.removeChrome,draggable:!1,"aria-label":`Remove node ${i.alias} from clipboard`,onClick:n=>{n.stopPropagation(),r(),t(e.id)},children:(0,N.jsx)(No,{className:W.removeIcon,"aria-hidden":`true`,focusable:`false`})}),(0,N.jsx)(`div`,{className:W.preview,role:`group`,draggable:!0,onDragStart:t=>{r(),ja(t.dataTransfer,e.id)},onContextMenu:t=>{t.preventDefault(),n(e.id,t.clientX,t.clientY)},onKeyDown:t=>{if(t.key===`ContextMenu`||t.key===`F10`&&t.shiftKey){t.preventDefault();let r=t.currentTarget.getBoundingClientRect();n(e.id,Math.round(r.left+8),Math.round(r.top+8))}},tabIndex:0,"aria-label":`Drag node ${i.alias} into the graph to paste`,children:(0,N.jsx)(`div`,{className:W.previewShell,style:Wi(i.types[0]??`unknown`),children:(0,N.jsx)(Ji,{alias:i.alias,nodeType:i.types[0]??`unknown`,properties:i.properties})})})]}),(0,N.jsx)(`div`,{className:W.metaBlock,children:(0,N.jsxs)(`div`,{className:W.timestamp,children:[`Clipped `,rc(a),` from `,o]})})]})}var ac={menu:`_menu_164vh_1`,menuItem:`_menuItem_164vh_12`},oc=16;function sc(e,t,n){let r=oc,i=Math.max(oc,n-t-oc);return Math.min(Math.max(e,r),i)}function cc({open:e,x:t,y:n,canPasteToInput:r,onPasteToInput:i,onInspect:a,onClose:o}){let s=(0,M.useRef)(null),c=(0,M.useRef)(null),l=(0,M.useRef)(null),[u,d]=(0,M.useState)({left:t,top:n});return(0,M.useLayoutEffect)(()=>{if(!e||!s.current)return;let r=s.current.getBoundingClientRect();d({left:sc(t,r.width,window.innerWidth),top:sc(n,r.height,window.innerHeight)})},[e,t,n]),(0,M.useEffect)(()=>{if(!e)return;r?c.current?.focus():l.current?.focus();let t=e=>{s.current&&!s.current.contains(e.target)&&o()},n=e=>{e.key===`Escape`&&(e.preventDefault(),o())},i=()=>o();return document.addEventListener(`pointerdown`,t),document.addEventListener(`keydown`,n),window.addEventListener(`scroll`,i,!0),window.addEventListener(`resize`,i),()=>{document.removeEventListener(`pointerdown`,t),document.removeEventListener(`keydown`,n),window.removeEventListener(`scroll`,i,!0),window.removeEventListener(`resize`,i)}},[e,r,o]),e?(0,N.jsxs)(`div`,{ref:s,className:ac.menu,style:{left:u.left,top:u.top},role:`menu`,"aria-label":`Clipboard item actions`,children:[(0,N.jsx)(`button`,{ref:c,role:`menuitem`,type:`button`,className:ac.menuItem,disabled:!r,onClick:()=>{r&&i()},children:`Paste to Input`}),(0,N.jsx)(`button`,{ref:l,role:`menuitem`,type:`button`,className:ac.menuItem,onClick:a,children:`Inspect`})]}):null}var lc={sidebar:`_sidebar_nf394_2`,header:`_header_nf394_12`,headerTitle:`_headerTitle_nf394_22`,clearBtn:`_clearBtn_nf394_29`,itemList:`_itemList_nf394_45`,loading:`_loading_nf394_55`,emptyState:`_emptyState_nf394_65`,emptyIcon:`_emptyIcon_nf394_78`,emptyTitle:`_emptyTitle_nf394_83`,emptyHint:`_emptyHint_nf394_87`,inspectPanel:`_inspectPanel_nf394_93`,inspectHeader:`_inspectHeader_nf394_101`,inspectClose:`_inspectClose_nf394_115`,inspectBody:`_inspectBody_nf394_129`,dialog:`_dialog_nf394_135`,dialogTitle:`_dialogTitle_nf394_150`,dialogBody:`_dialogBody_nf394_157`,dialogActions:`_dialogActions_nf394_164`,cancelBtn:`_cancelBtn_nf394_171`,replaceBtn:`_replaceBtn_nf394_185`};function uc(){return(0,N.jsxs)(`div`,{className:lc.emptyState,children:[(0,N.jsx)(`span`,{className:lc.emptyIcon,children:`📋`}),(0,N.jsx)(`span`,{className:lc.emptyTitle,children:`No items clipped yet.`}),(0,N.jsx)(`span`,{className:lc.emptyHint,children:`Right-click a node in the Graph view to get started.`})]})}function dc({connected:e,onPasteToInput:t}){let n=nc(),[i,a]=(0,M.useState)(null),[s,c]=(0,M.useState)(null),l=(e,t,n)=>{c({itemId:e,x:t,y:n})},u=()=>{c(null)},d=e=>{u(),t(e)},f=e=>{u(),a(t=>t?.id===e.id?null:e)},p=e=>{u(),a(t=>t?.id===e?null:t),n.removeItem(e)},m=()=>{u(),a(null),n.clearAll()};(0,M.useEffect)(()=>{let e=new Set(n.items.map(e=>e.id));s&&!e.has(s.itemId)&&c(null),i&&!e.has(i.id)&&a(null)},[n.items,s,i]);let h=(0,M.useMemo)(()=>s?n.items.find(e=>e.id===s.itemId)??null:null,[s,n.items]);return(0,N.jsxs)(`div`,{className:lc.sidebar,children:[(0,N.jsxs)(`div`,{className:lc.header,children:[(0,N.jsx)(`span`,{className:lc.headerTitle,children:`Workspace`}),n.items.length>0&&(0,N.jsx)(`button`,{className:lc.clearBtn,onClick:m,"aria-label":`Clear all workspace items`,children:`Clear`})]}),(0,N.jsx)(`div`,{className:lc.itemList,children:n.isLoading?(0,N.jsx)(`div`,{className:lc.loading,children:`Loading…`}):n.items.length===0?(0,N.jsx)(uc,{}):n.items.map(e=>(0,N.jsx)(ic,{item:e,onRemove:p,onOpenMenu:l,onCloseMenu:u},e.id))}),i&&(0,N.jsxs)(`div`,{className:lc.inspectPanel,children:[(0,N.jsxs)(`div`,{className:lc.inspectHeader,children:[(0,N.jsxs)(`span`,{children:[`Inspect node `,i.node.alias]}),(0,N.jsx)(`button`,{className:lc.inspectClose,onClick:()=>a(null),"aria-label":`Close inspect panel`,children:`✕`})]}),(0,N.jsx)(`div`,{className:lc.inspectBody,children:(0,N.jsx)(o,{data:{node:i.node,connections:i.connections},style:r})})]}),s&&h&&(0,N.jsx)(cc,{open:!0,x:s.x,y:s.y,canPasteToInput:e,onPasteToInput:()=>d(h),onInspect:()=>f(h),onClose:u})]})}function fc(e){let{wheelTargetRef:t,scrollRef:n,contentWrapperRef:r,currentIndex:i,totalPages:a,onNavigatePrev:o,onNavigateNext:s}=e,c=(0,M.useRef)(0),l=(0,M.useRef)(null),u=(0,M.useRef)(!1),d=(0,M.useRef)(null),f=(0,M.useRef)(o),p=(0,M.useRef)(s),m=(0,M.useRef)(i),h=(0,M.useRef)(a);(0,M.useEffect)(()=>{f.current=o}),(0,M.useEffect)(()=>{p.current=s}),(0,M.useEffect)(()=>{m.current=i}),(0,M.useEffect)(()=>{h.current=a}),(0,M.useEffect)(()=>{d.current!==null&&(clearTimeout(d.current),d.current=null),r.current&&(r.current.style.transition=`none`,r.current.style.transform=`translateY(0)`),c.current=0,l.current=null},[i]),(0,M.useEffect)(()=>{let e=t.current;if(!e)return;function i(){c.current=0,l.current=null,r.current&&(r.current.style.transition=`transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94)`,r.current.style.transform=`translateY(0)`)}function a(e){if(e.deltaY===0)return;let t=n.current;if(!t)return;let a=t.scrollTop<=0,o=t.scrollTop+t.clientHeight>=t.scrollHeight-1,s=e.deltaY<0,g=e.deltaY>0,_=a&&s,v=o&&g;if(!_&&!v){i();return}if(u.current)return;let y=m.current,b=h.current;if(_&&y===0||v&&y===b-1)return;let x=_?`prev`:`next`;if(l.current!==null&&l.current!==x&&i(),l.current=x,c.current+=Math.abs(e.deltaY),r.current){let e=x===`prev`?-1:1,t=c.current*(18/120),n=Math.min(t,18)*e;r.current.style.transition=`none`,r.current.style.transform=`translateY(${n}px)`}if(d.current!==null&&clearTimeout(d.current),d.current=setTimeout(i,180),c.current>=120){d.current!==null&&clearTimeout(d.current);let e=l.current;i(),u.current=!0,e===`prev`?f.current():p.current(),setTimeout(()=>{u.current=!1},650)}}return e.addEventListener(`wheel`,a,{passive:!0}),()=>{d.current!==null&&clearTimeout(d.current),e.removeEventListener(`wheel`,a)}},[])}var pc={helpRoot:`_helpRoot_18tja_2`,categoryNav:`_categoryNav_18tja_11`,categoryTabScroller:`_categoryTabScroller_18tja_21`,categoryTab:`_categoryTab_18tja_21`,categoryTabActive:`_categoryTabActive_18tja_71`,maximizeButton:`_maximizeButton_18tja_78`,closeButton:`_closeButton_18tja_100`,helpBody:`_helpBody_18tja_122`,emptyFallback:`_emptyFallback_18tja_130`,helpContent:`_helpContent_18tja_147`,topicLink:`_topicLink_18tja_226`,helpBodyContent:`_helpBodyContent_18tja_271`,chipStrip:`_chipStrip_18tja_276`,chipStripLabel:`_chipStripLabel_18tja_294`,topicChip:`_topicChip_18tja_310`,topicChipActive:`_topicChipActive_18tja_338`};function mc(e){return typeof e==`string`?e:typeof e==`number`?String(e):Array.isArray(e)?e.map(mc).join(``):M.isValidElement(e)?mc(e.props.children):``}function hc(e){if(!e.trim().toLowerCase().startsWith(`help `))return null;let t=e.trim().slice(5).replace(/\s*\(.*\)\s*$/,``).trim().toLowerCase();return t.length>0?t:null}function gc({activeTopic:e,onNavigate:t,onClose:n,onToggleMaximize:r,isMaximized:i}){let a=(0,M.useRef)(null),o=(0,M.useRef)(null),s=(0,M.useRef)(null),c=(0,M.useRef)(null);(0,M.useEffect)(()=>{a.current&&(a.current.scrollTop=0)},[e]),(0,M.useEffect)(()=>{let e=c.current;if(!e)return;let t=e.querySelector(`[aria-current="step"]`);t&&t.scrollIntoView({block:`nearest`,inline:`nearest`,behavior:`smooth`})},[e]);let l=ci(e),u=(0,M.useMemo)(()=>li(l),[l]),d=u.length,f=(0,M.useMemo)(()=>oi.find(e=>e.id===l)?.chipStripLabel??null,[l]),p=di.indexOf(e),m=p<0?0:p,h=di.length;fc({wheelTargetRef:o,scrollRef:a,contentWrapperRef:s,currentIndex:m,totalPages:h,onNavigatePrev:()=>t(di[m-1]??``),onNavigateNext:()=>t(di[m+1]??di[di.length-1])});let g=ii(e);return(0,N.jsxs)(`div`,{className:pc.helpRoot,role:`region`,"aria-label":`Help browser`,ref:o,children:[(0,N.jsxs)(`nav`,{className:pc.categoryNav,"aria-label":`Help categories`,children:[(0,N.jsx)(`div`,{className:pc.categoryTabScroller,children:oi.map(e=>(0,N.jsx)(`button`,{className:[pc.categoryTab,e.id===l?pc.categoryTabActive:``].join(` `).trim(),"aria-current":e.id===l?`true`:void 0,onClick:()=>{t(li(e.id)[0]??``)},children:e.label},e.id))}),r&&(0,N.jsx)(`button`,{className:pc.maximizeButton,onClick:r,"aria-label":i?`Restore help panel`:`Maximize help panel`,children:i?`⊞`:`⛶`}),n&&(0,N.jsx)(`button`,{className:pc.closeButton,onClick:n,"aria-label":`Close help panel`,children:`×`})]}),d>1&&(0,N.jsxs)(`div`,{className:pc.chipStrip,ref:c,children:[f!==null&&(0,N.jsx)(`span`,{className:pc.chipStripLabel,children:f}),u.map(n=>{let r=n===e,i=ui(n,l);return(0,N.jsx)(`button`,{className:[pc.topicChip,r?pc.topicChipActive:``].join(` `).trim(),"aria-current":r?`step`:void 0,onClick:()=>t(n),children:i},n)})]}),(0,N.jsx)(`div`,{className:pc.helpBody,ref:a,children:(0,N.jsx)(`div`,{className:pc.helpBodyContent,ref:s,children:g===null?(0,N.jsxs)(`div`,{className:pc.emptyFallback,children:[(0,N.jsxs)(`code`,{children:[`help `,e||``]}),`\xA0 not found in the local bundle.`]}):(0,N.jsx)(`div`,{className:pc.helpContent,children:(0,N.jsx)(y,{remarkPlugins:[x],components:e===``?{li:({children:e,...n})=>{let r=hc(mc(e).trim());return r!==null&&ii(r)!==null?(0,N.jsx)(`li`,{...n,children:(0,N.jsx)(`button`,{className:pc.topicLink,"aria-label":`Open help topic: ${r}`,onClick:()=>t(r),children:e})}):(0,N.jsx)(`li`,{...n,children:e})}}:void 0,children:g})})})})]})}function _c({existingItem:e,pendingItem:t,onReplace:n,onCancel:r}){let i=(0,M.useRef)(null);return(0,M.useEffect)(()=>{let e=i.current;e&&!e.open&&e.showModal()},[]),(0,N.jsxs)(`dialog`,{ref:i,className:lc.dialog,onClose:r,"aria-labelledby":`duplicate-dialog-title`,children:[(0,N.jsx)(`h2`,{id:`duplicate-dialog-title`,className:lc.dialogTitle,children:`Duplicate Node`}),(0,N.jsxs)(`p`,{className:lc.dialogBody,children:[`A clipboard item with alias `,(0,N.jsxs)(`strong`,{children:[`"`,t.node.alias,`"`]}),` already exists (clipped `,rc(e.clippedAt),`).`]}),(0,N.jsx)(`p`,{className:lc.dialogBody,children:`Replace it with the new snapshot?`}),(0,N.jsxs)(`div`,{className:lc.dialogActions,children:[(0,N.jsx)(`button`,{className:lc.cancelBtn,onClick:r,children:`Cancel`}),(0,N.jsx)(`button`,{className:lc.replaceBtn,onClick:n,children:`Replace`})]})]})}function vc(e,t){if(!t)return null;let n=e.trim().toLowerCase();if(n!==`help`&&!n.startsWith(`help `))return null;let r=fi(e);return ii(r)===null?null:r}var yc=class{constructor(){this.listeners=new Map}on(e,t){let n=e;return this.listeners.has(n)||this.listeners.set(n,new Set),this.listeners.get(n).add(t),()=>{this.listeners.get(n)?.delete(t)}}emit(e){let t=this.listeners.get(e.kind);t&&t.forEach(t=>{try{t(e)}catch(t){console.error(`[ProtocolBus] listener for '${e.kind}' threw:`,t)}})}clear(){this.listeners.clear()}},bc=new Set([`info`,`error`,`ping`,`welcome`]);function xc(e,t){let n=[],r={msgId:e,raw:t},i=!1,a=!1,o=!1,s=!1,c=!1,l=Or(t);if(l.isJSON){let e=l.data;if(typeof e.type==`string`){let i=e.type;return n.push({...r,kind:`lifecycle`,type:i,knownType:bc.has(i),message:typeof e.message==`string`?e.message:t,time:e.time??null}),n.length>0?n:[{...r,kind:`unclassified`}]}return n.push({...r,kind:`json.response`,data:l.data}),n.length>0?n:[{...r,kind:`unclassified`}]}let u=Fr(t);u&&(c=!0,n.push({...r,kind:`payload.large`,apiPath:u.apiPath,byteSize:u.byteSize,filename:u.filename}));let d=Ir(t);d&&(o=!0,n.push({...r,kind:`upload.invitation`,uploadPath:d}));let f=Pr(t);if(f&&(s=!0,n.push({...r,kind:`upload.contentPath`,uploadPath:f})),Nr(t)){a=!0;let e=Mr(t);e&&n.push({...r,kind:`graph.link`,apiPath:e})}if(a){let e=kr(t);e&&n.push({...r,kind:`graph.exported`,graphName:e.graphName,apiPath:e.apiPath})}let p=Kr(t);p&&n.push({...r,kind:`graph.mutation`,mutationType:p});let m=Gr(t);m&&n.push({...r,kind:`minigraph.nodeAction.textResult`,status:m.status,action:m.action,alias:m.alias,message:m.message}),m&&(m.action===`create-node`||m.status===`error`)&&n.push({...r,kind:`minigraph.createNode.textResult`,status:m.status,alias:m.alias,message:m.message}),t===`Session restarted`&&n.push({...r,kind:`session.reset`}),t.startsWith(`> `)&&(i=!0,n.push({...r,kind:`command.echo`,commandText:t.slice(2)})),Lr(t)&&n.push({...r,kind:`command.helpOrDescribe`,commandText:t.slice(2)});let h=Rr(t);h&&n.push({...r,kind:`command.importGraph`,graphName:h});let g=Ar(t);return g&&n.push({...r,kind:`graph.export.failed`,reason:g.reason}),!i&&!a&&!o&&!s&&!c&&jr(t)&&n.push({...r,kind:`docs.response`,isMarkdown:!0}),n.length===0&&n.push({...r,kind:`unclassified`}),n}function Sc({messages:e,bus:t}){let n=(0,M.useRef)(-1);(0,M.useEffect)(()=>{e.length>0&&(n.current=e[e.length-1].id)},[]);let r=(0,M.useMemo)(()=>{let t=new Map;for(let n of e)t.set(n.id,xc(n.id,n.raw));return t},[e]);return(0,M.useEffect)(()=>{if(e.length===0)return;let i=e.filter(e=>e.id>n.current);if(i.length!==0){n.current=e[e.length-1].id;for(let e of i){let n=r.get(e.id);if(n)for(let e of n)t.emit(e)}}},[e,t,r]),{classificationMap:r}}function Cc({config:e}){let{title:t,wsPath:n,storageKeyPayload:r,storageKeyHistory:i,storageKeyTab:a,storageKeySavedGraphs:o,supportsUpload:s,supportsClipboard:c,supportsHelp:l,supportsAuthoring:u,tabs:d}=e,f=wt(),[p,m]=gr(r,``),h=Tr(),[g,_]=(0,M.useState)(()=>h.peekPendingPayload(n)),{takePendingPayload:v}=h;(0,M.useEffect)(()=>{let e=v(n);e!==null&&_(e)},[v,n]);let y=g??p,b=(0,M.useCallback)(e=>{_(null),m(e)},[m]),x=(0,M.useMemo)(()=>y?pr(y):{valid:!0,error:null,type:null},[y]),{toasts:ne,addToast:w,removeToast:T}=hr(),E=(0,M.useRef)(new yc).current,D=Yr({wsPath:n,storageKeyHistory:i,payload:y,addToast:w,bus:E,handleLocalCommand:(0,M.useCallback)(e=>vc(e,l===!0)!==null,[l])}),{classificationMap:re}=Sc({messages:D.messages,bus:E}),[ie,ae]=Si(n),{graphData:oe,setGraphData:se,rightTab:O,setRightTab:k,isRefreshing:ce}=$r(ie,w,d[0],d,a),{modalUploadPath:le,successfulUploadPaths:ue,handleOpenUploadModal:de,handleCloseUploadModal:A,handleUploadSuccess:j,handleUploadError:fe,resetSuccessfulPaths:pe}=gi({bus:E,addToast:w});ei({bus:E,pinnedGraphPath:ie,setPinnedGraphPath:ae,connected:D.connected,sendRawText:D.sendRawText,addToast:w});let me=(0,M.useRef)(!1);(0,M.useEffect)(()=>{me.current&&!D.connected&&(ae(null),se(null)),me.current=D.connected},[D.connected,ae,se]);let[he,ge]=gr(e.storageKeyHelpTopic??`help-topic-fallback`,``),[_e,ve]=gr(`help-panel-open`,!1),[ye,be]=(0,M.useState)(()=>!!l&&!_e),[xe,Se]=(0,M.useState)(!1),Ce=(0,M.useRef)(null),we=(0,M.useCallback)(()=>{ye&&(Se(!0),Ce.current=setTimeout(()=>be(!1),400))},[ye]);(0,M.useEffect)(()=>{if(!ye||xe)return;let e=setTimeout(we,3e3);return()=>clearTimeout(e)},[ye,xe,we]),(0,M.useEffect)(()=>{_e&&ye&&we()},[_e,ye,we]),(0,M.useEffect)(()=>()=>{Ce.current&&clearTimeout(Ce.current)},[]),(0,M.useEffect)(()=>{if(!l)return;let e=e=>{e.ctrlKey&&e.key==="`"&&(e.preventDefault(),ve(e=>!e))};return window.addEventListener(`keydown`,e),()=>window.removeEventListener(`keydown`,e)},[l,ve]),pi({bus:E,setHelpTopic:ge,onTabSwitch:l?()=>ve(!0):()=>{}}),_i({bus:E,connected:D.connected,appendMessage:D.appendMessage,addToast:w});let Te=nc(),[Ee,De]=gr(`clipboard-sidebar-open`,!1),[Oe,ke]=(0,M.useState)(null),Ae=(0,M.useCallback)(e=>{let t=Ti(e,oe);D.setCommand(t.command),w(`${t.verb===`create`?`Create`:`Update`} command for "${e.node.alias}" pasted to input`,`info`)},[oe,D.setCommand,w]),je=(0,M.useCallback)(e=>{let t=Te.items.find(t=>t.id===e);if(!t){w(`Clipboard item is no longer available. It may have been removed in another tab.`,`error`);return}let n=Ti(t,oe);if(!D.sendRawText(n.command)){w(`Could not send clipboard paste command because the WebSocket is not open.`,`error`);return}w(`Clipboard node "${t.node.alias}" sent as ${n.verb}. Waiting for backend response.`,`info`)},[Te.items,oe,D.sendRawText,w]),Me=(0,M.useCallback)(async(t,r)=>{try{let i=await Te.clipNode(t,r,{sourceWsPath:n,sourceLabel:e.label});switch(i.status){case`added`:w(`Node "${t.alias}" clipped to workspace`,`success`);break;case`duplicate`:ke({pendingItem:i.pendingItem,existingItem:i.existingItem});break;case`error`:w(`Clip failed: ${i.message}`,`error`);break}}catch(e){w(`Clip failed: ${e instanceof Error?e.message:String(e)}`,`error`)}},[Te,n,e.label,w]),Ne=vi(o??``),{defaultName:Pe,setLastSavedName:Fe,resetName:Ie}=yi(o?`${o}-untitled-counter`:`untitled-counter`,E),Le=(0,M.useMemo)(()=>{let e=oe?.nodes.find(e=>e.types.includes(`Root`)),t=typeof e?.properties?.name==`string`?e.properties.name:void 0;return t?.trim()?t:null},[oe])??Pe,Re=(0,M.useMemo)(()=>Ei(D.sendRawText),[D.sendRawText]),ze=ls({bus:E,connected:D.connected,graphData:oe,executor:Re,onUserMessage:w}),{handleSaveGraph:Be,handleLoadGraph:Ve}=bi({bus:E,connected:D.connected,sendRawText:D.sendRawText,saveGraph:Ne.saveGraph,setLastSavedName:Fe,addToast:w}),He=(0,M.useCallback)(e=>{let t=re.get(e.id)?.find(e=>e.kind===`graph.link`);t&&ae(t.apiPath)},[re]),{handleSendToJsonPath:Ue}=mi({ctx:h,navigate:f,addToast:w,wsPath:n}),We=Xr(`(max-width: 768px)`),{defaultLayout:Ge,onLayoutChanged:Ke}=ee({id:e.path+`-panel-split`,storage:localStorage}),qe=(0,M.useCallback)(()=>b(mr(y)),[y]),Je=(0,M.useCallback)(()=>{D.clearMessages(),ae(null),se(null),pe(),Ie()},[D.clearMessages,se,pe,Ie]);return(0,N.jsxs)(`div`,{className:ur.wrapper,children:[(0,N.jsx)(Oi,{toasts:ne,onRemove:T}),le&&(0,N.jsx)(ho,{uploadPath:le,onSuccess:j,onClose:A,onError:fe}),u&&(0,N.jsx)(zo,{state:ze.state,validationErrors:ze.validationErrors,onFormStateChange:ze.updateFormState,onSubmit:ze.submit,onClose:ze.close}),(0,N.jsxs)(`header`,{className:ur.header,children:[(0,N.jsx)(`h1`,{className:ur.title,children:t}),(0,N.jsxs)(`div`,{className:ur.headerActions,children:[o&&(0,N.jsx)(Ii,{disabled:!oe,defaultName:Pe,onSave:Be,nameExists:Ne.hasGraph,connected:D.connected}),o&&Ne.savedGraphs.length>0&&(0,N.jsx)(I,{savedGraphs:Ne.savedGraphs,onLoad:Ve,onDelete:Ne.deleteGraph,connected:D.connected}),c&&(0,N.jsxs)(`button`,{className:ur.clipboardToggle,onClick:()=>De(e=>!e),"aria-label":Ee?`Close workspace sidebar`:`Open workspace sidebar`,"aria-pressed":Ee,children:[`Workspace`,Te.items.length>0?` (${Te.items.length})`:``]}),(0,N.jsx)(Pi,{addToast:w}),l&&(0,N.jsxs)(`div`,{className:ur.helpButtonWrapper,children:[(0,N.jsx)(`button`,{className:`${ur.helpToggle}${ye&&!xe?` ${ur.helpTogglePulsing}`:``}`,onClick:()=>ve(e=>!e),"aria-label":_e?`Close help panel`:`Open help panel`,"aria-pressed":_e,children:`?`}),ye&&(0,N.jsxs)(`div`,{className:`${ur.helpHint}${xe?` ${ur.helpHintFading}`:``}`,onClick:we,role:`status`,children:[(0,N.jsx)(`kbd`,{className:ur.helpHintKbd,children:"Ctrl + `"}),` to toggle help`]})]})]})]}),Oe&&(0,N.jsx)(_c,{existingItem:Oe.existingItem,pendingItem:Oe.pendingItem,onReplace:async()=>{try{await Te.confirmReplace(Oe.pendingItem,Oe.existingItem.id),ke(null),w(`Clipboard item "${Oe.pendingItem.node.alias}" replaced`,`success`)}catch(e){w(`Replace failed: ${e instanceof Error?e.message:String(e)}`,`error`)}},onCancel:()=>{ke(null),w(`Clip cancelled`,`info`)}}),(0,N.jsxs)(te,{className:ur.panelGroup,orientation:We?`vertical`:`horizontal`,defaultLayout:Ge,onLayoutChanged:Ke,children:[(0,N.jsx)(C,{defaultSize:_e||Ee?`50%`:`60%`,minSize:`25%`,children:(0,N.jsx)(fo,{messages:D.messages,classificationMap:re,onCopy:D.copyMessages,onClear:Je,consoleRef:D.consoleRef,command:D.command,onCommandChange:D.setCommand,onCommandKeyDown:D.handleKeyDown,onSend:D.sendCommand,sendDisabled:!D.connected||!D.command.trim(),inputDisabled:!D.connected,commandHistory:D.history,onGraphLinkMessage:He,onCopyMessage:()=>w(`Copied to clipboard`,`success`),onSendToJsonPath:Ue,onUploadMockData:de,successfulUploadPaths:ue})}),(0,N.jsx)(S,{className:ur.resizeHandle,"aria-label":`Resize panels`}),(0,N.jsx)(C,{defaultSize:_e?`50%`:Ee?`30%`:`40%`,minSize:`20%`,children:(0,N.jsx)($a,{tabs:d,payload:y,onChange:b,validation:x,onFormat:qe,onUpload:s?D.uploadPayload:void 0,graphData:oe,graphName:Le,activeTab:O,onTabChange:k,onGraphRenderError:e=>w(e,`error`),onGraphDataCopySuccess:()=>w(`Graph JSON copied to clipboard!`,`success`),onGraphDataCopyError:()=>w(`Copy failed`,`error`),isGraphRefreshing:ce,onClipNode:c?Me:void 0,onClipboardDrop:c?je:void 0,isConnected:D.connected,supportsAuthoring:u,onCreateNode:u?ze.openCreateNode:void 0,onEditNode:u?ze.openEditNode:void 0,onDeleteNode:u?ze.deleteNode:void 0,helpPanel:l&&_e?((e,t)=>(0,N.jsx)(gc,{activeTopic:he,onNavigate:ge,onClose:()=>ve(!1),onToggleMaximize:e,isMaximized:t})):void 0})}),c&&Ee&&(0,N.jsxs)(N.Fragment,{children:[(0,N.jsx)(S,{className:ur.resizeHandle,"aria-label":`Resize clipboard`}),(0,N.jsx)(C,{defaultSize:`20%`,minSize:`10%`,maxSize:`40%`,children:(0,N.jsx)(dc,{connected:D.connected,onPasteToInput:Ae})})]})]})]})}function wc(){let e=vr[0].path;return(0,N.jsx)(wr,{children:(0,N.jsx)(tc,{children:(0,N.jsx)(Un,{children:(0,N.jsxs)(Qt,{children:[vr.map(e=>(0,N.jsx)(Xt,{path:e.path,element:(0,N.jsx)(Cc,{config:e},e.path)},e.path)),(0,N.jsx)(Xt,{path:`*`,element:(0,N.jsx)(Yt,{to:e,replace:!0})})]})})})})}(0,lr.createRoot)(document.getElementById(`root`)).render((0,N.jsx)(M.StrictMode,{children:(0,N.jsx)(wc,{})}));
-//# sourceMappingURL=index-9wYqrtdQ.js.map
+//# sourceMappingURL=index-BamBW7Gx.js.map

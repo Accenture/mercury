@@ -806,6 +806,9 @@ dependencies = [
  "log",
  "minigraph-state-redis",
  "platform-core",
+ "rmpv",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

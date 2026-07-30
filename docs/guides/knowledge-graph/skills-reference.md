@@ -1,11 +1,11 @@
 ---
 title: Built-in skills reference
-summary: The eight graph.* skills that make graph nodes active — data mapping, math and
+summary: The ten graph.* skills that make graph nodes active — data mapping, math and
   JavaScript evaluation, API fetching, composable-function tasks, sub-graph/flow extension,
-  join, and island — with syntax, worked examples, and gotchas.
+  workflow suspend/resume, join, and island — with syntax, worked examples, and gotchas.
 layer: knowledge-graph
 audience: [developer, reference]
-keywords: [graph.data.mapper, graph.math, graph.js, graph.api.fetcher, graph.task, graph.extension, graph.join, graph.island, skill]
+keywords: [graph.data.mapper, graph.math, graph.js, graph.api.fetcher, graph.task, graph.extension, graph.suspend, graph.resume, graph.join, graph.island, skill]
 related:
   - guides/knowledge-graph/command-reference.md
   - guides/knowledge-graph/ai-agent-guide.md
@@ -16,7 +16,7 @@ related:
 
 > **At a glance**
 >
-> - **What** — the eight skills shipped with the engine. Attach one to a node (`skill=<route>`)
+> - **What** — the ten skills shipped with the engine. Attach one to a node (`skill=<route>`)
 >   to make it *active*: it runs when traversal reaches the node.
 > - **They share** — the `source -> target` mapping syntax with its
 >   [constant set](command-reference.md#constants), and the same state-machine
@@ -33,6 +33,8 @@ related:
 | [`graph.api.fetcher`](#api-fetcher) | call external HTTP APIs declaratively |
 | [`graph.task`](#task) | invoke a composable function through its route name |
 | [`graph.extension`](#extension) | delegate to a sub-graph or an Event Script flow |
+| [`graph.suspend`](#suspend) | persist workflow state at a human checkpoint and complete the run |
+| [`graph.resume`](#resume) | restore persisted state and continue past the checkpoint without re-executing it |
 | [`graph.join`](#join) | synchronize parallel paths |
 | [`graph.island`](#island) | link the knowledge layer (dictionaries, providers, data entities) — isolated from traversal |
 
@@ -262,6 +264,58 @@ and the body auto-converts when the function declares a PoJo input. The result l
 `model.ttl` (default 30 s). For multi-step orchestration, prefer [`graph.extension`](#extension) —
 `graph.task` is for a single function call. Writing the function itself:
 [function AI agent guide](../event-driven/ai-agent-guide.md) (`#[preload]` + `ComposableFunction`).
+
+## graph.suspend {#suspend}
+
+Persists the workflow state of the running graph to an external state store and lets the run
+complete — the transaction resumes later through [`graph.resume`](#resume) with the same business
+correlation ID. A **superset of `graph.task`**: the `task` property names the pluggable store
+function, but the persistence envelope (`{cid, node, ttl, model, seen, run}`) is assembled by the
+skill itself — **no input/output mapping on the node**.
+
+```
+skill=graph.suspend
+task=v1.redis.persist.model
+ttl=2d
+```
+
+The node carrying this skill **must be named `suspend`** — a reserved alias like `root`/`end`,
+because traversal jumps to it by name: a node with the `suspend=true` property routes here after
+its skill completes, and a plain edge into `suspend` is an unconditional suspension point. `ttl`
+is **mandatory with no default** (duration syntax `20s/5m/2h/2d`) — it becomes the store record's
+expiry. Unless the graph staged its own `output.*`, the caller of the suspended run receives
+`{"type": "suspended", "cid": ...}`.
+
+**Gotchas:** the store must acknowledge (2xx) before the graph completes — a failed persist fails
+the node (`exception=` routes it); a suspension point must be the sole active branch (never
+between a fan-out and its join); only `model.*` survives — map what later steps need into the
+model **before** the checkpoint. Full story: [Workflow Suspension](workflow-suspension.md).
+
+## graph.resume {#resume}
+
+Restores the workflow state persisted by [`graph.suspend`](#suspend) and continues traversal from
+the recorded suspension point **without re-executing it**. Also a superset of `graph.task` — the
+`task` property names the store function (`type=get`, body `{cid}`), restoration is encapsulated,
+no mapping on the node.
+
+```
+skill=graph.resume
+task=v1.redis.retrieve.model
+```
+
+Place it early — conventionally named `resume`, right after `root` or after setup nodes. Found:
+the persisted model merges into the state machine (the current run's reserved keys always win),
+traversal bookkeeping is restored (downstream joins still see pre-suspension branches), and the
+walker jumps past the checkpoint onto its normal path. Not found — a **fresh transaction (the
+normal first-run case)** or an expired record: traversal continues along the node's own forward
+path. Either way the skill sets **`model.run`** to `resume` or `fresh`; the engine does not
+distinguish absent from expired, so handling that condition is application logic — gate the
+forward path with a `graph.math` IF-THEN-ELSE on `model.run` (or a `graph.task`) to reject,
+advise the UI, or jump to a recovery node.
+
+**Gotchas:** the record is consumed on retrieval (a duplicate resume behaves as a fresh run, never
+a double execution); `model.cid` is the retrieval key, so resume-bearing endpoints deserve
+rest.yaml `authentication`. Full story: [Workflow Suspension](workflow-suspension.md).
 
 ## graph.join {#join}
 

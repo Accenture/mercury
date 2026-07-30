@@ -15,8 +15,8 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-011111)
-- **last_review:** 2026-07-27 | through 2026-07-27-220108.md
+- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-015038)
+- **last_review:** 2026-07-30 | through 2026-07-30-011111.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -111,10 +111,21 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-28 | uses: 95 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-29 | uses: 96 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
+
+- **The Java repo's helper servers are the standard local test servers for Rust ports
+  (Eric, 2026-07-30).** `helpers/redis-standalone` for the suspend/resume arc;
+  `kafka-standalone` + the schema-registry-mock when minimalist-kafka is ported. WHY:
+  the helpers embed REAL redis/kafka servers behind a plain `java -jar`, motivated by
+  field reality — many developer machines are Windows, especially VDI environments with
+  no virtualization system, so Docker is unavailable; a jar works everywhere. Tier: unit
+  tests may use fast hermetic in-process doubles (e.g. the RESP2 test double — the
+  double stands in for the SERVER, never the client); the helper is the
+  integration/live-drive tier.
+  <!-- id: conv-java-helper-servers-for-rust-tests | created: 2026-07-30 | last_used: 2026-07-30 | uses: 1 | tier: working | origin: 2026-07-30-015038.md -->
 
 - **`cargo fmt` + `cargo clippy --all-targets` clean** is part of "done" for every change
   (default settings, no custom rustfmt.toml yet).
@@ -139,7 +150,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-26: "ok with the tests/ui without license headers"): a header shifts every
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-28 | uses: 97 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-30 | uses: 100 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -228,8 +239,28 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   binary and no Docker daemon, so the double stands in for the server, never the client
   (the Java suite uses embedded redis-server). README adapted from the Java module.
   Gate: workspace 294 / clippy 0 / fmt. INCREMENTS.md rows for the P5 arc ride the P5-4
-  docs pass. **Remaining: P5-4 tutorial-14 + docs + ADR
-  twins + live four-run drive.** → serves vision-mercury (the suspension blueprint).
+  docs pass. **P5-4 DONE — THE ARC IS CODE- AND DOCS-COMPLETE (pending the Java-side
+  consistency review + Eric's push gate):** tutorial-14.json VERBATIM (byte-identical
+  shasum) + playground manifest entry; app-level `SuspendResumeTutorialTest` twin
+  (4 runs + fresh + 404-rejection over real HTTP and the real Redis client vs the RESP2
+  double); LIVE four-run drive against the Java repo's redis-standalone helper (Eric's
+  direction — see [[conv-java-helper-servers-for-rust-tests]]) with FULL §10.5 parity
+  evidence: reply shape per run (stage/run/cid; full history run 4; 404+run=fresh),
+  log-context cid = business id on every traced store line, span topology (store calls
+  parented on graph.suspend/graph.resume spans annotated task+cid; NO re-executed
+  checkpoint spans on resume — run 2 shows resume→mapper→suspend, no order/math spans).
+  Docs: workflow-suspension guide, ten-skill tables (skills-reference + index + help.md),
+  help tutorial 14 (incl. interactive dry-run section) + graph-suspend/graph-resume +
+  run pre-run note + tutorial 2 manifest recipe, minigraph-commands.json (2 skills,
+  model.run namespace, run note, suspend invariants — surgical edits, no reformat),
+  syntax.md model.run row, flow-schema reserved list, reserved-names additions, redis.*
+  config family, CHANGELOG (feature + BREAKING gate entry with migration), mkdocs nav,
+  webapp bundle REBUILT (help pages bake at build time). ADR-0009 (suspend/resume) +
+  ADR-0010 (gate) PROPOSED as twins of Java ADR-0010/0011; design-record "session
+  persistence out of scope" line superseded for workflow state. INCREMENTS.md rows
+  72-75. Memory review run at this seam (size-triggered). Gate: workspace 295 /
+  clippy 0 / fmt. **Remaining: Java-side consistency review, then Eric gates the
+  push/PR.** → serves vision-mercury (the suspension blueprint).
   <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-30 | uses: 3 | tier: working | origin: 2026-07-29-235442.md -->
 
 - [x] (release — 2026-07-27; **PUBLISHED 2026-07-26 (Eric confirmed) — CLOSED.
@@ -251,7 +282,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   presentation fix reached EVERY JSON surface — functions, actuators, flows, AND the
   MiniGraph graph endpoint (live proof: POST /api/graph/tutorial-2 returns pretty JSON) —
   with zero additional code.
-  <!-- id: thread-release-4-10-6 | created: 2026-07-27 | last_used: 2026-07-27 | uses: 1 | tier: working | origin: 2026-07-27-011116.md -->
+  <!-- id: thread-release-4-10-6 | created: 2026-07-27 | last_used: 2026-07-27 | uses: 1 | tier: active | origin: 2026-07-27-011116.md -->
 
 - [x] (2026-07-26; **MERGED same day as PR
   [#183](https://github.com/Accenture/mercury/pull/183), merge commit `1c8fa91b` — the arc
@@ -537,20 +568,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   grammar, reserved-names, HTTP-client guide, CHANGELOG Unreleased, increment 68. Close when
   merged (+ released in the next lock-step patch). Relates [[inv-telemetry-presentation-parity]].
   <!-- id: thread-configurable-traceparent | created: 2026-07-24 | last_used: 2026-07-24 | uses: 3 | tier: archive-candidate | origin: 2026-07-24-160634.md -->
-
-- [x] (release — 2026-07-24; CLOSED same day) **v4.10.3 SHIPPED via the normal flow, in
-  lock-step with the Java engine** — tag `v4.10.3` on merge commit `b3804a67`
-  (PR [#176](https://github.com/Accenture/mercury/pull/176), CI green, 252 tests),
-  release published; the Java v4.10.3 (the field-deployment artifact) published the
-  same day (tag on squash `bd7e909d`). Field-deployment roll-up — no engine behavior
-  changes; consolidates the 4.10 line for the field: wire format, presentation parity,
-  metadata contract, temporary.inbox, collection plugins. Branch `chore/release-4.10.3`
-  from main `d2048eea` (PR #175 merge): bump 4.10.2→4.10.3 (root Cargo.toml only; lock
-  regenerated), fresh CHANGELOG `## Version 4.10.3, 7/23/2026` — demo hygiene (clean
-  envelope-header echo = live proof my_* never rides the wire; hello-flow
-  log.format=json, PR #175) + playground webapp npm refresh (incl. dependabot #173;
-  audit clean, PR #174). Gate: workspace 252 / clippy 0 / fmt.
-  <!-- id: thread-release-4-10-3 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: archive-candidate | origin: 2026-07-24-025820.md -->
 
 ### Blueprint — gaps from Current State (three layers shipped + graduated) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a

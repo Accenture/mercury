@@ -88,6 +88,10 @@
 | 69 | Interop header hygiene (lock-step with Java): clean delivered-envelope view (5 engine keys scrubbed for non-interceptors; interceptors keep raw transport), /api/event wire alignment (insert-semantics stamps, Java header set, no x-correlation-id), endpoint timeout rides x-ttl | 2026-07-24 | — | 260 |
 | 70 | Annotation→macro consistency P1: all 46 built-in plugins + both fetch features dogfood `#[simple_plugin]`/`#[fetch_feature]`, one conflict policy (WARN + last-wins), positional grammar, order-free marker stacking, trybuild compile-fail suites | 2026-07-25 | — | 265 |
 | 71 | ManagedCache — the self-expiring in-memory cache (design `managed-cache-port.md`, maintainer-gated): moka engine with deterministic LRU eviction, `Arc<dyn Any>` value carrier, named registry + lifecycle housekeeper; adopters: WS dedup (anchored window fix), actuator `health.info` info-lookup cache, ext-state-machine fixture | 2026-07-27 | — | 287 |
+| 72 | Graph suspend/resume engine core (lock-step, FINAL Java surface): `graph.suspend`/`graph.resume` skills (graph.task supersets, encapsulated store contract, overflow-guarded ttl parser), both walkers gain `resume:<alias>` + suspensible routing + after-resume dead-end guard + atomic seen-marking, `model.run` engine flag, reserved-key strip on restore, business-cid stamping | 2026-07-30 | — | 288 |
+| 73 | CompileGraph is the mandatory deployment gate (compiled-or-404, ADR-0010): manifest-carried `location` (flows.yaml convention; `location.graph.deployed` retired), property-aware mapping rejection (bare `input` = fetcher vocabulary), `model_validator` reused by the playground `run` pre-run check, executor lazy load deleted, `model.run` reserved at compile + runtime | 2026-07-30 | — | 293 |
+| 74 | Redis state store crate `extensions/minigraph-state-redis` (app-only, never the engine): `v1.redis.persist.model` SETEX / `v1.redis.retrieve.model` GETDEL, lazy `ConnectionManager` (redis-rs, the Lettuce analog), `redis.*` config family, contract tests through the real client vs an in-process RESP2 double | 2026-07-30 | — | 294 |
+| 75 | tutorial-14 (verbatim) + suspension docs + ADR twins: the three-checkpoint purchase workflow e2e over the real client wire path, live four-run drive vs redis-standalone (reply shape, log-context business cid, store-under-skill span topology), workflow-suspension guide + ten-skill tables + help/catalog surfaces + CHANGELOG migration note, ADR-0009/0010 proposed | 2026-07-30 | — | 295 |
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -2216,6 +2220,86 @@ with a refactoring note filed for the Java team).
   Workspace 287 (273+14) / clippy 0 / fmt.
 
 ---
+
+## Increment 72 — Graph workflow suspension: engine core (2026-07-30)
+
+P5-1 of the suspend/resume lock-step arc (Java reference: mercury-composable PRs
+#238–#241, ADR-0010/0011 accepted; this port implements the FINAL surface only — no
+`missing=<node>`, no rejected-graph registry). New `knowledge-graph/src/suspend.rs`:
+`graph.suspend` / `graph.resume` as supersets of `graph.task` — shared context ladder,
+mandatory business correlation id, ONE overflow-guarded ttl parser (64-bit math, `<1` or
+`>i32::MAX` rejected, NO default), persistence envelope `{cid, node, ttl, model −
+reserved, seen, run}` with a synchronous 2xx durability ack, default
+`{"type":"suspended","cid"}` reply, reserved-key strip on restore (a forged store record
+cannot overwrite `model.cid`), merge-then-set `model.run = resume|fresh`. Both walkers
+(executor + traveler) gain the `resume:<alias>` directive, suspensible-node routing, the
+after-resume walk that excludes `suspend` with a dead-end guard, atomic
+insert-if-absent seen-marking (fixing a genuine two-lock race the port surfaced), and
+business-cid stamping on every skill invocation (interceptor walkers don't
+auto-propagate). Porting note: Java's Mono-wrapped eager store request (worker-thread
+trace context) maps to a plain `await` — task-scoped trace context gives the same
+store-call-under-skill-span topology. Fixtures verbatim from Java
+(unit-test-suspend-1..5, err1-7, no-end); the six-scenario `GraphSuspendResumeTest` twin
+runs against a temp-file mock store. Workspace 288 / clippy 0 / fmt.
+
+## Increment 73 — CompileGraph: the mandatory deployment gate (2026-07-30)
+
+P5-2 (ADR-0010 proposed — the twin of Java ADR-0011). Compiled or 404: a deployed graph
+executes at `POST /api/graph/{graph-id}` only when manifest-listed AND gate-passing;
+lazy per-request loading DELETED (registry-or-404, identical presentation for failed and
+unlisted). The manifest carries its own `location` (default `classpath:/graph`, the
+flows.yaml convention; `location.graph.deployed` retired with an obsolete-key warning).
+Gate rules: structural import → root purpose → mandatory `end` node → the suspend/resume
+contract (`model_validator`, exact Java error strings) → property-aware mapping-entry
+rejection (a bare `input` entry is skill vocabulary — fetcher dictionary params — and
+passes). Two-lane validation: the executor trusts the gate (per-request end-node check
+and empty-model re-check dropped; data-driven guards stay); the traveler keeps full
+guards for the dry-run lane, and the playground `run` command reuses the validator as a
+pre-run check ("Unable to run - <reason>" + the uniform aborted terminal). `model.run`
+joined event-script's reserved model keys (compile + runtime dynamic-target guards;
+parser-test-32 fixture twin). Corollary: the manifest is deployment intent — every graph
+a runtime test executes must be listed; the playground example app gained its first
+`graphs.yaml`. Workspace 293 / clippy 0 / fmt.
+
+## Increment 74 — minigraph-state-redis: the Redis state store crate (2026-07-30)
+
+P5-3. New workspace member `extensions/minigraph-state-redis` (imported by the example
+application ONLY — never the engine, both repos' rule): `v1.redis.persist.model`
+(`type=put`; SETEX `graph:state:<cid>`, opaque MsgPack bytes, native expiry; 2xx = the
+durability ack) and `v1.redis.retrieve.model` (`type=get`; GETDEL atomic consume, Redis
+6.2+; absent-or-expired = empty map = the fresh path); instances 50 each with Java-named
+`worker.instances.v1.redis.*.model` env keys; exact Java error strings and log lines.
+Crate decision: `redis` (redis-rs) v1.5.0 — the official client; `ConnectionManager` =
+the Lettuce analog (one shared multiplexed connection, auto-reconnect), lazily created
+via `tokio::sync::OnceCell` (a failed first connect is not cached), explicit
+`cmd("SETEX")`/`cmd("GETDEL")` for command parity, `tokio-rustls-comp` for `redis.ssl`,
+every round-trip bounded by `redis.timeout.ms`. The 7-scenario Java `RedisStateStoreTest`
+twin drives the REAL client over TCP against an in-process RESP2 test double (~150 lines;
+this environment has no redis-server binary and no Docker daemon — the double stands in
+for the server, never the client). Workspace 294 / clippy 0 / fmt.
+
+## Increment 75 — tutorial-14, the suspension docs, and the ADR twins (2026-07-30)
+
+P5-4, closing the arc. `tutorial-14.json` copied VERBATIM from the Java engine
+(byte-identical; the three-checkpoint purchase workflow) and listed in the playground app
+manifest; the `SuspendResumeTutorialTest` twin drives it end-to-end over real HTTP and
+the real Redis client (4 runs + fresh-cid + 404-rejection asserts). Live four-run drive
+against the Java repo's `redis-standalone` helper (maintainer direction: the Java
+helpers are the standard local test servers for Rust ports — real servers, no Docker
+required): reply shape per run (`stage`/`run`/`cid`; full history on run 4; 404 +
+`run=fresh` rejection), log-context `cid` = the business id on every traced store line,
+and span topology — store calls parented on `graph.suspend`/`graph.resume` skill spans,
+skill spans annotated task+cid, NO re-executed checkpoint spans on resume. Docs:
+the Workflow Suspension guide chapter, ten-skill at-a-glance tables (skills-reference +
+index), `help tutorial 14` incl. the interactive dry-run section, `help
+graph-suspend`/`graph-resume`, `help run` pre-run note, `help tutorial 2` manifest
+deployment recipe, minigraph-commands.json entries (skills, `model.run` namespace, run
+pre-run note, suspend invariants), flow-metadata `model.run` rows, reserved-names
+additions, `redis.*` configuration-reference family, CHANGELOG feature + breaking-change
+migration entries, webapp bundle rebuilt (help pages are baked at build time).
+ADR-0009 (suspend/resume) + ADR-0010 (mandatory gate) proposed as twins of Java
+ADR-0010/0011; the knowledge-graph port design record's "session persistence out of
+scope" line superseded for workflow state. Workspace 295 / clippy 0 / fmt.
 
 ## Deferred backlog (as of increment 10)
 

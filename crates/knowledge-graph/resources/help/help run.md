@@ -12,6 +12,11 @@ run
 Notes
 -----
 - Requires a graph instance (see 'help instantiate').
+- Before traversal begins, the graph is checked against the same whole-graph
+  rules that the CompileGraph deployment gate enforces (the suspend/resume
+  contract). Draft authoring allows partial models, but a runnable graph must
+  honor these rules - a violation is reported as "Unable to run - <reason>"
+  and the run is aborted.
 - Traversal starts at the root node. Multiple outgoing connections fork into
   parallel branches (synchronize them with graph.join); each node executes
   at most once per run (loop guard).
