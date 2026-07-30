@@ -7,6 +7,7 @@ members = [
     "crates/event-script-macros",
     "crates/knowledge-graph",
     "crates/knowledge-graph-macros",
+    "extensions/minigraph-state-redis",
     "benchmark/benchmark-reporter",
     "examples/hello-world",
     "examples/hello-flow",

@@ -1,0 +1,6 @@
+# minigraph-state-redis contract tests (Java parity: the module's own
+# application.properties). redis.host/redis.port are supplied at runtime by
+# the test (overrides) once the in-process RESP test double has bound its
+# ephemeral port.
+application.name: minigraph-state-redis-test
+info.app.description: 'Redis state store extension tests'

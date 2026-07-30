@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-004451)
+- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-011111)
 - **last_review:** 2026-07-27 | through 2026-07-27-220108.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -202,9 +202,35 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   playground example app gained its graphs.yaml manifest (tutorials 1-12; 13 excluded
   like Java — it calls an engine-test fixture function; 14 arrives in P5-4) +
   `graph.model.automation` in application.yml. Gate: workspace 293 / clippy 0 / fmt.
-  **Remaining: P5-3 Redis crate; P5-4 tutorial-14 + docs + ADR
+  **P5-3 DONE (Redis store crate):** NEW workspace member
+  `extensions/minigraph-state-redis` (Java module twin) — `v1.redis.persist.model`
+  (type=put; SETEX graph:state:<cid>, MsgPack bytes, native expiry; 2xx = the durability
+  ack) + `v1.redis.retrieve.model` (type=get; GETDEL atomic consume, Redis 6.2+;
+  absent/expired = empty map = fresh), instances 50 each with the Java-named
+  `worker.instances.v1.redis.*.model` env keys; exact Java error strings (Type must be
+  put/get, Missing cid, Invalid ttl) + log lines. **Crate choice: `redis` (redis-rs)
+  v1.5.0** — the official Rust Redis client; `ConnectionManager` = the Lettuce analog
+  (one shared multiplexed connection, auto-reconnect, lazy first-use via
+  tokio OnceCell get_or_try_init — a failed first connect is NOT cached, retried);
+  explicit cmd("SETEX")/cmd("GETDEL") for exact command parity; features tokio-comp +
+  connection-manager + tokio-rustls-comp (redis.ssl without OpenSSL); every round-trip
+  bounded by redis.timeout.ms via tokio timeout (fred/deadpool rejected: pooling+cluster
+  weight this store doesn't need). `redis.*` config keys shared with the sync-over-async
+  family. **Engine independence held:** imported by examples/minigraph-playground ONLY
+  (Cargo dep + main.rs inventory reference + startup log); live boot proof — gate
+  compiles 12 tutorials, both functions register at 50 instances, no eager Redis
+  connection. **Tests:** the 7-scenario Java RedisStateStoreTest twin in ONE test fn
+  (register/round-trip-with-consume incl. binary fidelity + wire-visible TTL/forged-key
+  checks/absent-normal/1s-expiry/wrong-type/missing-cid/invalid-ttl) driven through the
+  real event system and the REAL redis client over TCP against an in-process **RESP2
+  test double** (~150 lines: SETEX/GETDEL/GET/TTL/DEL/PING + tolerant handshake;
+  ephemeral port + overrides::set for redis.host/port) — this env has no redis-server
+  binary and no Docker daemon, so the double stands in for the server, never the client
+  (the Java suite uses embedded redis-server). README adapted from the Java module.
+  Gate: workspace 294 / clippy 0 / fmt. INCREMENTS.md rows for the P5 arc ride the P5-4
+  docs pass. **Remaining: P5-4 tutorial-14 + docs + ADR
   twins + live four-run drive.** → serves vision-mercury (the suspension blueprint).
-  <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-29 | uses: 2 | tier: working | origin: 2026-07-29-235442.md -->
+  <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-30 | uses: 3 | tier: working | origin: 2026-07-29-235442.md -->
 
 - [x] (release — 2026-07-27; **PUBLISHED 2026-07-26 (Eric confirmed) — CLOSED.
   TAGGED: `v4.10.6` on merge commit `9732799e` (PR

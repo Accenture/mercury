@@ -1,0 +1,19 @@
+[package]
+name = "minigraph-state-redis"
+description = "Redis implementation of the graph suspend/resume state-store contract (import from the application, never the engine)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+platform-core = { path = "../../crates/platform-core" }
+async-trait = "0.1"
+log = "0.4"
+rmpv = { version = "1", features = ["with-serde"] }
+tokio = { version = "1", features = ["rt", "time", "macros", "sync"] }
+redis = { version = "1.5.0", features = ["tokio-comp", "connection-manager", "tokio-rustls-comp"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util", "sync"] }
+uuid = { version = "1", features = ["v4"] }

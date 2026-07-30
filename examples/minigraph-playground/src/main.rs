@@ -40,8 +40,10 @@ use platform_core::{main_application, AppError, EntryPoint};
 
 /// The main application: by the time it runs, the engine has compiled the
 /// deployed graphs (`CompileGraph`, sequence 6) and — under `app.env=dev` —
-/// loaded the Playground. Referencing the `knowledge_graph` crate here also
-/// guarantees the linker keeps its annotation inventory.
+/// loaded the Playground. Referencing the `knowledge_graph` and
+/// `minigraph_state_redis` crates here also guarantees the linker keeps
+/// their annotation inventories (the Redis suspend/resume state-store
+/// functions self-register the same way the engine's skills do).
 #[main_application]
 struct PlaygroundApp;
 
@@ -51,6 +53,11 @@ impl EntryPoint for PlaygroundApp {
         log::info!(
             "MiniGraph Playground ready: {} graph(s) compiled — open http://127.0.0.1:8100/ in a browser",
             knowledge_graph::graphs::get_all_graphs().len()
+        );
+        log::info!(
+            "Graph state store functions available: {} / {}",
+            minigraph_state_redis::PERSIST_ROUTE,
+            minigraph_state_redis::RETRIEVE_ROUTE
         );
         Ok(())
     }
