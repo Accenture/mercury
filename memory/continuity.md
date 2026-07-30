@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.0** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-180659)
+- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-181400)
 - **last_review:** 2026-07-30 | through 2026-07-30-011111.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -116,6 +116,16 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
 
+- **Suspend/resume is CORE functionality for a few field installations — this surface
+  is regression-critical on BOTH engines (Eric, 2026-07-30, at the v4.11.0 publication).**
+  Operating rule: behavior changes to the suspend/resume surface (the two skills, the
+  walkers' suspension routing, the store contract, the reserved keys/normalization, the
+  gate's suspend rules, reply shapes and presentation) get RELEASE-LEVEL care — regression
+  suites on both engines, cross-engine interop verification when the wire contract is
+  touched, and lock-step shipping. The permanent baseline is the interop report
+  (docs/test-reports/suspend-resume-interop.md) + the twin test suites.
+  <!-- id: conv-suspend-resume-regression-critical | created: 2026-07-30 | last_used: 2026-07-30 | uses: 1 | tier: working | origin: 2026-07-30-181400.md -->
+
 - **The Java repo's helper servers are the standard local test servers for Rust ports
   (Eric, 2026-07-30).** `helpers/redis-standalone` for the suspend/resume arc;
   `kafka-standalone` + the schema-registry-mock when minimalist-kafka is ported. WHY:
@@ -165,8 +175,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   was DELETED before publication and re-created — the commit VERIFIED both times
   (Cargo.toml 4.11.0 + the docs fix + both ancestor commits at `167484bd`); remote
   dereference confirmed → `167484bd`. The 4.10.2-round pre-publication tag-move
-  precedent applied; a tag NEVER moves after publication. Publication pending Eric,
-  who has the drafted release notes.**) **v4.11.0 release prep, lock-step with the Java
+  precedent applied; a tag NEVER moves after publication. **PUBLISHED 2026-07-30 (Eric
+  confirmed, BOTH repos in lock-step) — the suspend/resume feature release is live;
+  the arc is CLOSED end to end: design → P1-P5 → consistency review → interop evidence
+  → release. Next likely arcs: the minimalist-kafka port (helper servers per
+  [[conv-java-helper-servers-for-rust-tests]]) or field feedback on 4.11.0.**) **v4.11.0 release prep, lock-step with the Java
   repo (Eric's plan; the suspend/resume feature release).** Contents this side: the
   complete suspend/resume arc (PR #186), the interop report + cid trim + 8085 port sync
   (PR #187), the nav consolidation (PR #188), plus the ManagedCache port + health-info
