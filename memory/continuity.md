@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-030642)
+- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-040747)
 - **last_review:** 2026-07-30 | through 2026-07-30-011111.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -289,7 +289,12 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   dry-run wording matches THIS engine's documented repeat-run semantics (+ bundle
   rebuild); [#21] x-run asserted over the REAL HTTP stack (engine test rest.yaml gained
   the /api/graph/{graph_id} route, Java test-config parity). Gate: workspace 296 /
-  clippy 0 / fmt. **Pushed on Eric's gate 2026-07-30; PR #186 merged same day — ARC CLOSED.**
+  clippy 0 / fmt. **Pushed on Eric's gate 2026-07-30; PR #186 merged same day — ARC CLOSED.
+  Post-merge: the live cross-engine interop drive (Java session, shared
+  redis-standalone, two four-run interleavings + rejection probes) PASSED 50/50 — all
+  six record handoffs crossed the engine boundary; the permanent report is mirrored in
+  BOTH repos (docs/test-reports/suspend-resume-interop.md; Rust branch
+  docs/suspend-resume-interop-report, twin of Java fd812f3a — Eric gates both PRs).**
   → serves vision-mercury (the suspension blueprint).
   <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-30 | uses: 3 | tier: working | origin: 2026-07-29-235442.md -->
 
