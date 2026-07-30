@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.0** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-043508)
+- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-172823)
 - **last_review:** 2026-07-30 | through 2026-07-30-011111.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -156,6 +156,19 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [ ] (release in flight — 2026-07-30) **v4.11.0 release prep, lock-step with the Java
+  repo (Eric's plan; the suspend/resume feature release).** Contents this side: the
+  complete suspend/resume arc (PR #186), the interop report + cid trim + 8085 port sync
+  (PR #187), the nav consolidation (PR #188), plus the ManagedCache port + health-info
+  cache + WS-dedup/up_time fixes that rode Unreleased since 4.10.6. Sweep 4.10.6→4.11.0:
+  root Cargo.toml `[workspace.package]` (count-asserted single occurrence, no substring
+  hazards), lockfile regenerated (11 members at 4.11.0, zero at 4.10.6), continuity
+  status line; CHANGELOG Unreleased → `## Version 4.11.0, 7/30/2026`. Branch
+  `chore/release-4.11.0`, NOT pushed — Eric gates push/PR/tag (verify the tag lands on
+  the verified merge commit — the 4.10.2 tag-race lesson). Java side: 33 poms swept,
+  skipTests hardcode removed from 26 poms. Close when tagged + published both repos.
+  <!-- id: thread-release-4-11-0 | created: 2026-07-30 | last_used: 2026-07-30 | uses: 1 | tier: working | origin: 2026-07-30-172823.md -->
 
 - [x] (feature — 2026-07-29; **MERGED 2026-07-30 as
   [PR #186](https://github.com/Accenture/mercury/pull/186), merge commit `d2791b09`
