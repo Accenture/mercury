@@ -17,5 +17,6 @@ app.env: dev
 rest.server.port: 8090
 
 location.graph.temp: 'file:/tmp/graph'
-location.graph.deployed: 'classpath:/graph'
+# the manifest carries the location of its own models ('location' entry,
+# default classpath:/graph) - location.graph.deployed is obsolete
 graph.model.automation: 'classpath:/graphs.yaml'

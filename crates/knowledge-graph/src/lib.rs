@@ -40,6 +40,7 @@ pub mod graphs;
 pub mod math;
 pub mod mock;
 pub mod model;
+pub mod model_validator;
 pub mod rest;
 pub mod services;
 pub mod session;

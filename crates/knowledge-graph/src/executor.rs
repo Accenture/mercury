@@ -42,8 +42,8 @@ use crate::common::{
     self, get_error_map, initialize_with_node_properties, invalid, EXCEPTION, EXECUTE, IN, NODE,
     OUTPUT_BODY_NAMESPACE, OUTPUT_HEADER_NAMESPACE, SINK, SKILL, TYPE,
 };
+use crate::graphs;
 use crate::model::{self, GraphInstance};
-use crate::{compiler, graphs};
 
 pub const ROUTE: &str = "graph.executor";
 pub const HOUSEKEEPER_ROUTE: &str = "graph.housekeeper";
@@ -56,23 +56,6 @@ pub(crate) const RETIRED_JS_MESSAGE: &str =
 fn is_dev_env() -> bool {
     static DEV: OnceLock<bool> = OnceLock::new();
     *DEV.get_or_init(|| AppConfigReader::get_instance().get_property_or("app.env", "dev") == "dev")
-}
-
-fn deployed_graph_location() -> &'static str {
-    static LOCATION: OnceLock<String> = OnceLock::new();
-    LOCATION.get_or_init(|| {
-        let configured = AppConfigReader::get_instance()
-            .get_property_or("location.graph.deployed", "classpath:/graph");
-        if configured.starts_with("file:") || configured.starts_with("classpath:") {
-            configured
-        } else {
-            log::error!(
-                "location.graph.deployed must start with file:/ or classpath:/. \
-                 Fallback to classpath:/graph"
-            );
-            "classpath:/graph".to_string()
-        }
-    })
 }
 
 /// The interceptor body (Java `handleEvent`).
@@ -144,12 +127,8 @@ fn create_instance(
         .ok_or_else(|| invalid(format!("Invalid flow instance {flow_instance_id}")))?;
     // the housekeeper clears this graph instance when the flow ends
     flow_instance.set_end_flow_listeners(&[HOUSEKEEPER_ROUTE]);
+    // a registry hit is a validated, non-empty model - the gate guarantees it
     let model = get_graph_model(graph_id)?;
-    if !matches!(&model, Value::Map(entries) if !entries.is_empty()) {
-        return Err(invalid(format!(
-            "Unable to load graph model '{graph_id}' - missing or invalid"
-        )));
-    }
     let instance = Arc::new(GraphInstance::new(graph_id));
     instance.set_flow_instance_id(flow_instance_id);
     instance.set_correlation_id(cid);
@@ -179,14 +158,14 @@ async fn begin_traversal(
     instance: &Arc<GraphInstance>,
     parent_span: &Option<String>,
 ) -> Result<(), AppError> {
+    // a compiled model is guaranteed to have root and end nodes (the CompileGraph
+    // quality gate is the only door to deployed execution) - no per-request
+    // structural re-validation; the dry-run walker keeps its own checks because
+    // playground drafts never pass the gate
     let root = instance
         .graph
         .get_root_node()
         .ok_or_else(|| invalid("Root node does not exist"))?;
-    instance
-        .graph
-        .get_end_node()
-        .ok_or_else(|| invalid("End node does not exist"))?;
     walk(platform, po, instance, root, None, parent_span.clone()).await
 }
 
@@ -677,11 +656,14 @@ fn get_graph_model(graph_id: &str) -> Result<Value, AppError> {
     if graph_id.starts_with("tutorial") && !is_dev_env() {
         return Err(invalid("tutorial graph models not allowed"));
     }
-    // graphs validated and converted at startup are reused as-is
-    if let Some(compiled) = graphs::get_graph(graph_id) {
-        return Ok((*compiled).clone());
+    // deployed graph execution is served exclusively from the compiled registry:
+    // a model is executable only when it is listed in the graph manifest and
+    // passed the CompileGraph quality gate (the CompileFlows precedent) - a
+    // failed or unlisted graph answers 404 as if it does not exist
+    match graphs::get_graph(graph_id) {
+        Some(compiled) => Ok((*compiled).clone()),
+        None => Err(AppError::new(404, format!("{graph_id} not found"))),
     }
-    compiler::load_raw_graph(deployed_graph_location(), graph_id).map_err(invalid)
 }
 
 async fn handle_error_response(

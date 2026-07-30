@@ -25,11 +25,31 @@
 //!    (`model.someKey:type`) in `mapping`, `input`, `output` and `for_each`
 //!    node properties is converted once to the equivalent "simple plugin"
 //!    syntax (`f:type(model.someKey)`), instead of on every node execution.
+//!    A `mapping`/`output`/`for_each` entry without `->` rejects the graph
+//!    (it is guaranteed to fail at runtime); an `input` entry without `->`
+//!    is skill vocabulary (e.g. the fetcher's dictionary parameter names)
+//!    and passes through.
+//! 3. **Discovery contract and completeness** — every deployable graph must
+//!    document itself (the root node needs a non-empty 'purpose' property —
+//!    what "list graphs" shows as living documentation) and must have an
+//!    'end' node so every run can complete.
+//! 4. **Suspend/resume contract** — the static half of the workflow-suspension
+//!    rules ([`crate::model_validator`]); the runtime guards remain the
+//!    enforcement floor for the playground dry-run surface.
 //!
-//! Opt-in (Java parity): set `graph.model.automation` to a YAML file listing
-//! the graph ids to compile at startup. Graph ids not listed continue to be
-//! loaded lazily by the graph executor, so this is purely additive. Ad-hoc
-//! graphs created interactively through the dev playground are out of scope.
+//! CompileGraph is the deployment gate: set `graph.model.automation` to a
+//! YAML file listing the graph ids to compile at startup (mirroring
+//! `yaml.flow.automation` for event flows). Like flows.yaml, the manifest
+//! carries the location of its own models in an optional `location` entry
+//! (file:/ or classpath:/, default `classpath:/graph`) — there is no separate
+//! application.properties key. A deployed graph model is executable ONLY when
+//! it is listed in the manifest and passes this gate — a graph that fails, or
+//! is not listed, answers HTTP-404 as if it does not exist. This is the
+//! CompileFlows precedent: an invalid flow never becomes executable, and
+//! there is no lazy loading of unvalidated models. Ad-hoc graphs created
+//! interactively through the dev playground are intentionally out of scope
+//! since they are not known ahead of time (the playground dry-run runs from
+//! its own temp workspace).
 
 use event_script::converter;
 use event_script::mlm::MultiLevelMap;
@@ -38,24 +58,55 @@ use platform_core::{AppConfigReader, ConfigReader, ConfigValue};
 use rmpv::Value;
 
 use crate::graphs;
+use crate::model_validator;
 
-const MAPPING_PROPERTIES: &[&str] = &["mapping", "input", "output", "for_each"];
+const INPUT: &str = "input";
+const MAPPING_PROPERTIES: &[&str] = &["mapping", INPUT, "output", "for_each"];
 const MAP_TO: &str = "->";
+const LOCATION: &str = "location";
+const DEFAULT_DEPLOY_DIR: &str = "classpath:/graph";
+const FILE_PREFIX: &str = "file:/";
+const CLASSPATH_PREFIX: &str = "classpath:/";
 
 /// Compile and register every graph model listed by `graph.model.automation`.
 /// Returns the ids of all graphs in the registry (Java logs the same count).
 pub fn compile_graphs() -> Vec<String> {
     let config = AppConfigReader::get_instance();
+    if !config
+        .get_property_or("location.graph.deployed", "")
+        .trim()
+        .is_empty()
+    {
+        log::warn!(
+            "location.graph.deployed is obsolete - \
+             set 'location' in the graph manifest (graph.model.automation) instead"
+        );
+    }
     let manifest = config.get_property_or("graph.model.automation", "");
     if manifest.trim().is_empty() {
-        log::info!(
-            "No graph manifest configured (graph.model.automation) - skipping graph compilation"
+        log::warn!(
+            "No graph manifest configured (graph.model.automation) - \
+             no deployed graph models will be executable"
         );
         return graphs::get_all_graphs();
     }
-    let deploy_location = config.get_property_or("location.graph.deployed", "classpath:/graph");
     match ConfigReader::load(&manifest) {
         Ok(reader) => {
+            // like flows.yaml, the manifest carries the location of its own models
+            let mut deploy_location = reader
+                .get_property(LOCATION)
+                .unwrap_or_else(|| DEFAULT_DEPLOY_DIR.to_string());
+            if !deploy_location.starts_with(FILE_PREFIX)
+                && !deploy_location.starts_with(CLASSPATH_PREFIX)
+            {
+                log::warn!(
+                    "Graph manifest 'location' must start with file:/ or classpath:/. \
+                     Fallback to {DEFAULT_DEPLOY_DIR}"
+                );
+                deploy_location = DEFAULT_DEPLOY_DIR.to_string();
+            }
+            graphs::set_deployed_location(&deploy_location);
+            log::info!("Deployed graph model folder - {deploy_location}");
             if let Some(ConfigValue::List(list)) = reader.get("graphs") {
                 for i in 0..list.len() {
                     if let Some(graph_id) = reader.get_property(&format!("graphs[{i}]")) {
@@ -77,13 +128,15 @@ fn compile_one_graph(deploy_location: &str, graph_id: &str) {
             graphs::add_graph(graph_id, model);
             log::info!("Compiled graph {graph_id}");
         }
-        Err(e) => log::error!("Skip invalid graph {graph_id} - {e}"),
+        // a rejected graph is simply not registered: deployed execution is served
+        // exclusively from the compiled registry, so requests to it answer 404
+        Err(e) => log::error!("Rejected graph {graph_id} - {e}"),
     }
 }
 
 /// Load a graph JSON as an rmpv value with `${...}` references resolved —
-/// the raw form both the startup compiler and the executor's lazy
-/// per-request path share (Java uses `ConfigReader` in both places).
+/// the raw form the startup compiler shares with the playground's temp
+/// workspace import (Java uses `ConfigReader` in both places).
 pub(crate) fn load_raw_graph(deploy_location: &str, graph_id: &str) -> Result<Value, String> {
     let reader = ConfigReader::load(&normalized_path(deploy_location, graph_id)).map_err(|e| {
         if matches!(e, platform_core::ConfigError::NotFound(_)) {
@@ -100,9 +153,10 @@ fn load_and_validate(deploy_location: &str, graph_id: &str) -> Result<Value, Str
     // the ConfigReader load resolves ${...} references against the app
     // config, exactly like the Java loader
     let mut model = load_raw_graph(deploy_location, graph_id)?;
-    convert_data_mapping_entries(graph_id, &mut model);
-    // structural validation - a malformed graph is skipped with an error log
-    MiniGraph::new()
+    convert_data_mapping_entries(graph_id, &mut model)?;
+    // structural validation - a malformed graph is rejected with an error log
+    let graph = MiniGraph::new();
+    graph
         .import_graph(&model)
         .map_err(|e| e.message().to_string())?;
     // discovery contract: every deployable graph documents itself - the root
@@ -110,6 +164,11 @@ fn load_and_validate(deploy_location: &str, graph_id: &str) -> Result<Value, Str
     if !has_root_purpose(&model) {
         return Err("root node must define a non-empty 'purpose' property".to_string());
     }
+    // every run must be able to complete - the graph executor trusts this at runtime
+    if graph.get_end_node().is_none() {
+        return Err("graph must have an 'end' node".to_string());
+    }
+    model_validator::validate_suspend_resume(&graph)?;
     Ok(model)
 }
 
@@ -129,17 +188,17 @@ fn has_root_purpose(model: &Value) -> bool {
     false
 }
 
-fn convert_data_mapping_entries(graph_id: &str, model: &mut Value) {
+fn convert_data_mapping_entries(graph_id: &str, model: &mut Value) -> Result<(), String> {
     let mut mm = MultiLevelMap::from_value(model.clone());
     let node_count = match mm.get_element("nodes") {
         Some(Value::Array(nodes)) => nodes.len(),
-        _ => return,
+        _ => return Ok(()),
     };
     for i in 0..node_count {
         for key in MAPPING_PROPERTIES {
             let path = format!("nodes[{i}].properties.{key}");
             if let Some(Value::Array(entries)) = mm.get_element(&path) {
-                let converted = convert_entries(graph_id, i, key, &entries);
+                let converted = convert_entries(graph_id, i, key, &entries)?;
                 if mm.set_element(&path, Value::Array(converted)).is_err() {
                     log::error!("Unable to update {path} in graph {graph_id}");
                 }
@@ -147,6 +206,7 @@ fn convert_data_mapping_entries(graph_id: &str, model: &mut Value) {
         }
     }
     *model = mm.to_value();
+    Ok(())
 }
 
 fn convert_entries(
@@ -154,7 +214,7 @@ fn convert_entries(
     node_index: usize,
     property: &str,
     entries: &[Value],
-) -> Vec<Value> {
+) -> Result<Vec<Value>, String> {
     let mut converted = Vec::with_capacity(entries.len());
     for entry in entries {
         let line = event_script::conversions::display(entry);
@@ -167,15 +227,20 @@ fn convert_entries(
                 );
             }
             converted.push(Value::from(converted_line));
-        } else {
-            log::error!(
-                "Invalid data mapping in graph {graph_id} node[{node_index}].{property} - \
-                 missing '{MAP_TO}' in '{line}'"
-            );
+        } else if property == INPUT {
+            // an 'input' entry without '->' is skill vocabulary, not a data mapping -
+            // e.g. the fetcher's dictionary parameter names and feature flags
             converted.push(Value::from(line));
+        } else {
+            // a mapping/for_each/output entry is always a data mapping: a line
+            // without '->' is guaranteed to fail at runtime, so reject the graph
+            // (this module is a quality gate - a compiled graph must be runnable)
+            return Err(format!(
+                "node [{node_index}].{property} - missing '{MAP_TO}' in '{line}'"
+            ));
         }
     }
-    converted
+    Ok(converted)
 }
 
 /// Java `getNormalizedPath`: rejoin the folder on single slashes, keep the
@@ -183,4 +248,28 @@ fn convert_entries(
 fn normalized_path(folder: &str, graph_id: &str) -> String {
     let parts: Vec<&str> = folder.split('/').filter(|p| !p.is_empty()).collect();
     format!("{}/{graph_id}.json", parts.join("/"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Property-aware mapping-entry rejection (the fetcher-vocabulary nuance):
+    /// a bare `input` entry is skill vocabulary (e.g. dictionary parameter
+    /// names) and passes; the same shape in mapping/for_each/output is a
+    /// guaranteed runtime failure, so the gate rejects the graph.
+    #[test]
+    fn bare_input_entries_are_vocabulary_not_mappings() {
+        let entries = vec![Value::from("payload"), Value::from("dictionary")];
+        let passed = convert_entries("g", 0, "input", &entries).expect("input passes");
+        assert_eq!(entries, passed);
+        for property in ["mapping", "for_each", "output"] {
+            let err = convert_entries("g", 3, property, &entries)
+                .expect_err("a bare data-mapping entry must reject the graph");
+            assert_eq!(
+                format!("node [3].{property} - missing '->' in 'payload'"),
+                err
+            );
+        }
+    }
 }

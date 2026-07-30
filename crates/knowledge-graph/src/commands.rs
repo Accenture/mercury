@@ -44,7 +44,6 @@ use crate::session::{self, GraphSession};
 pub const ROUTE: &str = "graph.command.service";
 pub const SINGLETON_COMMAND_HANDLER: &str = "graph.command.singleton";
 const DEFAULT_TEMP_DIR: &str = "/tmp/graph";
-const DEFAULT_DEPLOY_DIR: &str = "classpath:/graph";
 const INVALID_GRAPH_NAME: &str = "Invalid filename - must be a-z, A-Z, 0-9 with optional hyphen";
 const TRY_HELP: &str = "Please try 'help' for details";
 const NODE_NAME: &str = "node ";
@@ -83,14 +82,11 @@ pub fn temp_dir() -> &'static PathBuf {
     })
 }
 
+/// The deployed graph model folder, resolved by the compiler from the graph
+/// manifest's `location` entry (`location.graph.deployed` is obsolete — the
+/// manifest carries the location of its own models, the flows.yaml convention).
 fn deployed_location() -> String {
-    let config = AppConfigReader::get_instance();
-    let location = config.get_property_or("location.graph.deployed", DEFAULT_DEPLOY_DIR);
-    if location.starts_with("file:") || location.starts_with("classpath:") {
-        location
-    } else {
-        DEFAULT_DEPLOY_DIR.to_string()
-    }
+    crate::graphs::deployed_location()
 }
 
 /// Start the temp-graph housekeeping sweep (Java: 10s periodic).
@@ -507,6 +503,25 @@ async fn handle_part_three(
     } else if words.len() > 1 && words[0].eq_ignore_ascii_case("execute") {
         handle_execute(platform, in_route, out_route, words).await
     } else if words.len() == 1 && words[0].eq_ignore_ascii_case("run") {
+        // the deployment gate's whole-graph rules re-checked at the moment the
+        // author asks to execute: draft authoring deliberately allows partial
+        // models, so these rules apply pre-run, not at node create/update
+        if let Ok(instance) = crate::common::get_graph_instance(in_route) {
+            if let Err(reason) = crate::model_validator::validate_suspend_resume(&instance.graph) {
+                say(po, out_route, format!("Unable to run - {reason}")).await;
+                // the uniform end-of-transmission line, matching the traveler's
+                // failure shape so the sync companion's drain stays deterministic
+                let _ = po
+                    .send(
+                        EventEnvelope::new()
+                            .set_to(out_route)
+                            .set_status(400)
+                            .set_raw_body(Value::from("Graph traversal aborted")),
+                    )
+                    .await;
+                return Ok(());
+            }
+        }
         // launch the traveler with the console as the reply path
         let cid = uuid::Uuid::new_v4().simple().to_string();
         let _ = po

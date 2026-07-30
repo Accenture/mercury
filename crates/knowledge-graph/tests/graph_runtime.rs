@@ -18,8 +18,9 @@
 //! (tutorials 1/2/4/7/8/9/13) and `GraphTaskTest` (unit-test-task-1..5),
 //! running the real `graph-executor` flow through the flow engine. Tutorials
 //! needing `graph.api.fetcher` / `graph.extension` join at K-5/K-6.
-//! Rust-supplement graphs (lazy-loaded, deliberately not in `graphs.yaml`)
-//! cover the join barrier, loop detection and the `graph.js` retirement.
+//! Rust-supplement graphs (listed in `graphs.yaml` like everything else —
+//! deployed execution is compiled-or-404) cover the join barrier, loop
+//! detection and the `graph.js` retirement.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -437,6 +438,7 @@ async fn graph_runtime_end_to_end() {
     graph_extension_matches_java_semantics(&platform).await;
     activated_hello_graphs_match_java_semantics(&platform).await;
     suspend_resume_matches_java_semantics(&platform).await;
+    rejected_deployed_graph_is_not_executable(&platform).await;
     // Run in this single test so the whole file shares one runtime + one booted
     // server: a second `#[tokio::test]` gets its own runtime, which drops (killing
     // the shared HTTP server task) when the first finishes — the harness flake.
@@ -444,6 +446,7 @@ async fn graph_runtime_end_to_end() {
     companion_sync_rejects_session_topology_commands(&platform).await;
     companion_sync_import_fallback_reports_ok(&platform).await;
     companion_sync_contract_gaps_closed(&platform).await;
+    companion_sync_pre_run_check_rejects_broken_suspend_contract(&platform).await;
     math_for_each_blocks_and_iteration(&platform).await;
     join_barrier_waits_for_a_retrying_branch(&platform).await;
     chained_join_counts_only_a_fired_upstream_join(&platform).await;
@@ -1363,7 +1366,7 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
 async fn join_loop_retirement_and_health(platform: &Platform) {
     let platform = platform.clone();
 
-    // --- rust-join (lazy-loaded): the join barrier waits for both branches
+    // --- rust-join: the join barrier waits for both branches
     let reply = run_graph(
         &platform,
         "rust-join",
@@ -1994,5 +1997,128 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
         Some(cid.to_string()),
         step_business_cid("two", cid),
         "the current run's identity must survive a forged record"
+    );
+}
+
+/// Java parity (`GraphSuspendResumeTest.rejectedDeployedGraphIsNotExecutable`):
+/// every suspend-err graph failed the CompileGraph quality gate, so a request
+/// answers 404 as if the model does not exist - deployed execution is served
+/// exclusively from the compiled registry (CompileFlows parity). Notably err6
+/// (suspend node without an outgoing connection) would otherwise persist the
+/// record and stall the run until the HTTP timeout; the runtime guards remain
+/// the enforcement floor for the playground dry-run surface only.
+async fn rejected_deployed_graph_is_not_executable(platform: &Platform) {
+    for id in [
+        "unit-test-suspend-err1",
+        "unit-test-suspend-err2",
+        "unit-test-suspend-err3",
+        "unit-test-suspend-err4",
+        "unit-test-suspend-err5",
+        "unit-test-suspend-err6",
+        "unit-test-suspend-err7",
+        "unit-test-no-end",
+    ] {
+        let cid = uuid::Uuid::new_v4().simple().to_string();
+        let response = run_graph_cid(platform, id, &cid, serde_json::json!({})).await;
+        assert_eq!(
+            404,
+            response.status(),
+            "{id} must be rejected as not found: {:?}",
+            response.body()
+        );
+        let text = event_script::conversions::display(response.body());
+        assert!(
+            text.contains("not found"),
+            "unexpected error response for {id}: {text}"
+        );
+    }
+}
+
+/// Java parity (`CompanionSyncTest.preRunCheckRejectsBrokenSuspendContract`):
+/// the playground's `run` command reuses the deployment gate's whole-graph
+/// rules just before dispatching the traveler: draft authoring allows partial
+/// models, but a runnable graph must honor the suspend/resume contract - here
+/// a suspend node without a ttl is rejected pre-run with the same message
+/// CompileGraph would log at deployment time, and the uniform terminal line
+/// keeps the sync drain deterministic.
+async fn companion_sync_pre_run_check_rejects_broken_suspend_contract(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let sid = "ws-770011-3";
+    let in_route = "ws.770011.3.in";
+
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+            ])),
+    )
+    .await
+    .expect("open dispatched");
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(knowledge_graph::commands::has_session(sid), "session open");
+
+    async fn sync_cmd(platform: &Platform, sid: &str, command: &str) -> serde_json::Value {
+        let event = EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (
+                rmpv::Value::from("parameters"),
+                rmpv::Value::Map(vec![(
+                    rmpv::Value::from("path"),
+                    rmpv::Value::Map(vec![(rmpv::Value::from("id"), rmpv::Value::from(sid))]),
+                )]),
+            ),
+            (rmpv::Value::from("body"), rmpv::Value::from(command)),
+            (rmpv::Value::from("method"), rmpv::Value::from("POST")),
+        ]));
+        let resp = knowledge_graph::rest::post_companion_command_sync(platform, event)
+            .await
+            .expect("sync endpoint returns Ok");
+        let json = event_script::conversions::to_json_string(resp.body());
+        serde_json::from_str(&json).expect("response body is JSON")
+    }
+
+    sync_cmd(platform, sid, "create node root\nwith type Root").await;
+    sync_cmd(platform, sid, "create node end\nwith type End").await;
+    sync_cmd(
+        platform,
+        sid,
+        "create node suspend\nwith type Suspend\nwith properties\nskill=graph.suspend\ntask=v1.file.state.store",
+    )
+    .await;
+    sync_cmd(platform, sid, "connect root to suspend with then").await;
+    sync_cmd(platform, sid, "connect suspend to end with then").await;
+    let instantiated = sync_cmd(platform, sid, "instantiate graph").await;
+    assert_eq!(
+        serde_json::json!(true),
+        instantiated["ok"],
+        "instantiate must succeed: {instantiated}"
+    );
+    let run = sync_cmd(platform, sid, "run").await;
+    assert_eq!(
+        serde_json::json!(false),
+        run["ok"],
+        "run must be rejected pre-run: {run}"
+    );
+    let output: Vec<String> = run["output"]
+        .as_array()
+        .expect("output list")
+        .iter()
+        .map(|v| v.as_str().unwrap_or_default().to_string())
+        .collect();
+    assert!(
+        output
+            .iter()
+            .any(|l| l.contains("Unable to run - node suspend does not have a 'ttl'")),
+        "the gate's rule message must reach the author: {output:?}"
+    );
+    assert!(
+        output.iter().any(|l| l == "Graph traversal aborted"),
+        "pre-run rejection must still emit the uniform terminal: {output:?}"
     );
 }

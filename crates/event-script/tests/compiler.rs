@@ -118,11 +118,12 @@ fn loaded_flow_set_matches_the_java_engine() {
         "parser-test-25",
         "parser-test-26",
         "parser-test-27",
-        // 28-31: reserved-key targets drop the task, the flow still loads
+        // 28-32: reserved-key targets drop the task, the flow still loads
         "parser-test-28",
         "parser-test-29",
         "parser-test-30",
         "parser-test-31",
+        "parser-test-32",
         // the 'ext.user' body key does not use the 'ext:' namespace, so no
         // external.state.machine is required (the Java code, not the fixture
         // comment, is authoritative)
@@ -223,6 +224,10 @@ fn reserved_model_keys_drop_the_offending_task() {
         "parser-test-29",
         "parser-test-30",
         "parser-test-31",
+        // 32: an output mapping overwriting the engine-managed model.run
+        // resumed-vs-fresh flag (written only by the knowledge graph's
+        // graph.resume skill) is dropped the same way
+        "parser-test-32",
     ] {
         let violation = flow(id);
         assert!(

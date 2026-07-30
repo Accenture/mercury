@@ -19,14 +19,21 @@
 //! `Flows` registry plays in event-script: a model registered here has been
 //! structurally validated (via `MiniGraph::import_graph`) and had its
 //! data-mapping entries converted from the deprecated "simple type matching"
-//! syntax to "simple plugin" syntax. The graph executor consults this
-//! registry first and falls back to lazy per-request loading for any graph
-//! id not declared in the manifest.
+//! syntax to "simple plugin" syntax. The graph executor serves deployed graph
+//! execution EXCLUSIVELY from this registry: a deployed graph model is
+//! executable only when it is listed in the graph manifest
+//! (`graph.model.automation`) AND passed the CompileGraph quality gate. A
+//! graph id that is not here answers HTTP-404 as if the model does not exist
+//! — the CompileFlows precedent, where an invalid flow never becomes
+//! executable. There is no lazy loading of deployed models. (The playground's
+//! dry-run workspace is a separate surface and is not affected.)
 
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
 
 use rmpv::Value;
+
+const DEFAULT_DEPLOY_DIR: &str = "classpath:/graph";
 
 fn registry() -> &'static RwLock<HashMap<String, Arc<Value>>> {
     static COMPILED_GRAPHS: OnceLock<RwLock<HashMap<String, Arc<Value>>>> = OnceLock::new();
@@ -66,4 +73,25 @@ pub fn get_all_graphs() -> Vec<String> {
         .keys()
         .cloned()
         .collect()
+}
+
+fn deployed_location_slot() -> &'static RwLock<String> {
+    static DEPLOYED_LOCATION: OnceLock<RwLock<String>> = OnceLock::new();
+    DEPLOYED_LOCATION.get_or_init(|| RwLock::new(DEFAULT_DEPLOY_DIR.to_string()))
+}
+
+/// Set by the compiler from the graph manifest's `location` entry
+/// (default `classpath:/graph` — the CompileFlows convention). System use.
+pub fn set_deployed_location(location: &str) {
+    *deployed_location_slot()
+        .write()
+        .expect("deployed location poisoned") = location.to_string();
+}
+
+/// The deployed graph model location (system use).
+pub fn deployed_location() -> String {
+    deployed_location_slot()
+        .read()
+        .expect("deployed location poisoned")
+        .clone()
 }

@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.10.6** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-29 | agent: Claude Code (2026-07-29-235442)
+- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-004451)
 - **last_review:** 2026-07-27 | through 2026-07-27-220108.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -173,10 +173,38 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   forged-record reserved-key strip with real-cid identity survival) + ttl parser unit
   tests (incl. overflow) + temp-file mock store (/tmp/suspend-resume, MsgPack
   {expires_at,data}, delete-on-read) + counting-step business-cid registry. Gate: 288 /
-  clippy 0 / fmt. **Remaining: P5-2 mandatory gate + GraphModelValidator + manifest
-  location + model.run reserved key; P5-3 Redis crate; P5-4 tutorial-14 + docs + ADR
+  clippy 0 / fmt. **P5-2 DONE (mandatory CompileGraph gate — compiled or 404):**
+  compiler.rs rewritten as the deployment gate (obsolete `location.graph.deployed`
+  startup warning; no-manifest WARN "no deployed graph models will be executable";
+  manifest-carried `location` with prefix validation + fallback, flows.yaml convention,
+  stored in the graphs registry — GraphCommandService reads it from there; per-graph:
+  convert → import → root purpose → mandatory `end` node → validate_suspend_resume →
+  register; rejection = `log::error!("Rejected graph {id} - {reason}")`, NOT registered);
+  **property-aware mapping rejection** (entries without `->` reject the graph for
+  mapping/for_each/output; bare `input` entries are skill vocabulary — fetcher
+  dictionary params — and pass silently; the old blanket error log is gone); NEW
+  `model_validator.rs` (GraphModelValidator twin, exact Java error strings, reuses the
+  shared ttl parser) called by BOTH the gate and the playground `run` command as a
+  pre-run check ("Unable to run - <reason>" + the uniform "Graph traversal aborted"
+  terminal so the sync companion drain stays deterministic; keyed off the INSTANTIATED
+  graph like Java); executor streamlined (deployed_graph_location + lazy per-request
+  loading DELETED — registry-or-404 `"{id} not found"`, no filesystem access; empty-map
+  re-check and per-request end-node check dropped — the gate guarantees); `model.run`
+  joined event-script's RESERVED_MODEL_KEYS (compile + runtime dynamic-target guards via
+  the one shared fn; parser-test-32 fixture twin copied verbatim). Tests: knowledge-graph
+  tests/compiler.rs flipped to the CompileGraphTest twin (7 tests: 39 compiled, err1-7 +
+  no-end rejected, location default, per-err static-validator asserts);
+  rejected_deployed_graph_is_not_executable (8×404 "not found");
+  companion_sync_pre_run_check_rejects_broken_suspend_contract (suspend node without a ttl rejected
+  pre-run + terminal); bare-input vocabulary unit test. **Porting note: the runtime test
+  manifest must now list EVERY graph a test executes** (5 rust-* fixtures had ridden the
+  lazy path; compiled-or-404 exposed them — graphs.yaml is deployment intent). The Rust
+  playground example app gained its graphs.yaml manifest (tutorials 1-12; 13 excluded
+  like Java — it calls an engine-test fixture function; 14 arrives in P5-4) +
+  `graph.model.automation` in application.yml. Gate: workspace 293 / clippy 0 / fmt.
+  **Remaining: P5-3 Redis crate; P5-4 tutorial-14 + docs + ADR
   twins + live four-run drive.** → serves vision-mercury (the suspension blueprint).
-  <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-29 | uses: 1 | tier: working | origin: 2026-07-29-235442.md -->
+  <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-29 | uses: 2 | tier: working | origin: 2026-07-29-235442.md -->
 
 - [x] (release — 2026-07-27; **PUBLISHED 2026-07-26 (Eric confirmed) — CLOSED.
   TAGGED: `v4.10.6` on merge commit `9732799e` (PR
