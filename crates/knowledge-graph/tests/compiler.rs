@@ -49,14 +49,15 @@ fn manifest_listed_graphs_are_compiled() {
     // the discovery contract is enforced at compile: a manifest graph whose
     // root node has no 'purpose' is rejected (rust-no-purpose fixture)
     assert!(!graphs::graph_exists("rust-no-purpose"));
-    // 13 tutorials + 21 original fixtures + the 5 valid suspend fixtures;
-    // the 8 deliberately-invalid fixtures (err1-7 + no-end) are rejected by
-    // the mandatory quality gate. Every graph a runtime test executes MUST
-    // be listed here - deployed execution is compiled-or-404 (no lazy load)
+    // 13 tutorials + 21 original fixtures + the 5 valid suspend fixtures +
+    // the valid node-ttl fixture; the 12 deliberately-invalid fixtures
+    // (suspend err1-7, no-end, ttl err1-4) are rejected by the mandatory
+    // quality gate. Every graph a runtime test executes MUST be listed
+    // here - deployed execution is compiled-or-404 (no lazy load)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        39,
+        40,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
@@ -70,6 +71,9 @@ fn valid_suspend_resume_graphs_are_compiled() {
     assert!(graphs::graph_exists("unit-test-suspend-3"));
     assert!(graphs::graph_exists("unit-test-suspend-4"));
     assert!(graphs::graph_exists("unit-test-suspend-5"));
+    // a graph.task node may declare a child-call deadline (ttl in the
+    // suspend grammar) - the gate accepts it
+    assert!(graphs::graph_exists("unit-test-ttl-ok"));
 }
 
 #[test]
@@ -89,12 +93,57 @@ fn invalid_manifest_graphs_are_not_compiled() {
         "unit-test-suspend-err6",
         "unit-test-suspend-err7",
         "unit-test-no-end",
+        // ttl placement/grammar + model-metadata immutability (Java parity):
+        // err1 ttl on a skill without deadline semantics (graph.math);
+        // err2 malformed duration on a deadline skill; err3 a data mapping
+        // writing to reserved model metadata (model.ttl); err4 the same
+        // write embedded as a MAPPING: line in a graph.math statement
+        "unit-test-ttl-err1",
+        "unit-test-ttl-err2",
+        "unit-test-ttl-err3",
+        "unit-test-ttl-err4",
     ] {
         assert!(
             !graphs::graph_exists(id),
             "{id} must be rejected by the quality gate"
         );
     }
+}
+
+/// Java parity (CompileGraphTest.nodeTtlPlacementAndMetadataImmutabilityAreValidated):
+/// direct coverage of the composite validate() rules, independent of the manifest.
+#[test]
+fn node_ttl_placement_and_metadata_immutability_are_validated() {
+    compile_once();
+    let import = |id: &str| {
+        let reader =
+            ConfigReader::load(&format!("classpath:/graph/{id}.json")).expect("fixture loads");
+        let json = ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
+        let model = event_script::conversions::from_json(&json);
+        let graph = MiniGraph::new();
+        graph.import_graph(&model).expect("fixture is importable");
+        graph
+    };
+    // valid: a graph.task node may declare a child-call deadline
+    assert!(model_validator::validate(&import("unit-test-ttl-ok")).is_ok());
+    for id in [
+        "unit-test-ttl-err1",
+        "unit-test-ttl-err2",
+        "unit-test-ttl-err3",
+        "unit-test-ttl-err4",
+    ] {
+        assert!(
+            model_validator::validate(&import(id)).is_err(),
+            "{id} must fail the static validator"
+        );
+    }
+    // the three-skill rejection message is this engine's deliberate divergence
+    // from Java's four (no graph.js in the Rust port)
+    let err = model_validator::validate(&import("unit-test-ttl-err1")).unwrap_err();
+    assert!(
+        err.contains("graph.extension, graph.api.fetcher or graph.task"),
+        "unexpected message: {err}"
+    );
 }
 
 #[test]

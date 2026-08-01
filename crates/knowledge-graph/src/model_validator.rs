@@ -39,12 +39,107 @@ use platform_core::graph::{MiniGraph, SimpleNode};
 use rmpv::Value;
 use std::sync::Arc;
 
-use crate::common::{NODE_NAME, SKILL};
+use crate::common::{assert_mutable_model_target, get_entries, NODE_NAME, SKILL};
 use crate::suspend::{get_valid_ttl_seconds, RESUME_ROUTE, SUSPEND_ALIAS, SUSPEND_ROUTE};
 
 const TASK: &str = "task";
 const TTL: &str = "ttl";
 const JS_ROUTE: &str = "graph.js";
+const MAP_TO: &str = "->";
+const MAPPING_TAG: &str = "mapping:";
+/// Skills whose `ttl` node parameter is the child-call DEADLINE override.
+/// Deliberate divergence from Java (maintainer-ruled): this engine does not
+/// carry graph.js, so the set — and the rejection message — names THREE
+/// skills where Java names four.
+const DEADLINE_TTL_SKILLS: [&str; 3] = [
+    crate::extension::ROUTE,
+    crate::fetcher::ROUTE,
+    crate::skills::TASK_ROUTE,
+];
+/// The mapping-list node properties a data mapping can appear in.
+const MAPPING_PROPERTIES: [&str; 4] = ["mapping", "input", "output", "for_each"];
+
+/// Validate the whole-graph contract of a complete graph model: the
+/// suspend/resume rules, per-node ttl placement and grammar, and model
+/// metadata immutability (Java `GraphModelValidator.validate`), returning
+/// the first violated rule.
+pub fn validate(graph: &MiniGraph) -> Result<(), String> {
+    validate_suspend_resume(graph)?;
+    validate_node_ttl(graph)?;
+    validate_model_metadata_immutability(graph)
+}
+
+/// The per-node `ttl` is grammar-validated on the deadline skills and
+/// rejected anywhere else — except the suspend node, whose mandatory ttl
+/// (the store-record expiry, a different meaning on the same grammar) is
+/// checked by the suspend/resume rules (Java
+/// `GraphModelValidator.validateNodeTtl`).
+fn validate_node_ttl(graph: &MiniGraph) -> Result<(), String> {
+    for node in graph.get_nodes() {
+        let alias = node.get_alias();
+        let skill = node.get_property(SKILL).map(|v| display(&v));
+        let ttl = node.get_property(TTL);
+        let (Some(skill), Some(ttl)) = (skill, ttl) else {
+            continue;
+        };
+        if alias == SUSPEND_ALIAS {
+            continue;
+        }
+        if DEADLINE_TTL_SKILLS.contains(&skill.as_str()) {
+            // fails for a blank, invalid or overflowing duration (long-math guard)
+            get_valid_ttl_seconds(Some(&ttl), alias).map_err(|e| e.message().to_string())?;
+        } else {
+            return Err(format!(
+                "{NODE_NAME}{alias} - 'ttl' is only applicable to the suspend node or a node \
+                 with skill {}, {} or {}",
+                crate::extension::ROUTE,
+                crate::fetcher::ROUTE,
+                crate::skills::TASK_ROUTE
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Model metadata (model.cid/instance/flow/ttl/trace/parent/root/none/run)
+/// is engine-managed and immutable: reject any data mapping whose right-hand
+/// side writes to it — in the four mapping-list properties AND in `MAPPING:`
+/// lines embedded in `statement` arrays (the same idiom the runtime guard
+/// sees). The runtime guard in `common` enforces the identical rule in both
+/// walker lanes; this compile-side twin fails the deployment gate and the
+/// playground pre-run check early, so a statically detectable violation can
+/// never abort a live traversal (Java
+/// `GraphModelValidator.validateModelMetadataImmutability`).
+fn validate_model_metadata_immutability(graph: &MiniGraph) -> Result<(), String> {
+    for node in graph.get_nodes() {
+        let alias = node.get_alias();
+        for property in MAPPING_PROPERTIES {
+            for entry in get_entries(node.get_property(property)) {
+                assert_not_metadata_write(alias, &entry)?;
+            }
+        }
+        for entry in get_entries(node.get_property("statement")) {
+            let trimmed = entry.trim();
+            if let Some(colon) = trimmed.find(':') {
+                if trimmed[..colon + 1].eq_ignore_ascii_case(MAPPING_TAG) {
+                    assert_not_metadata_write(alias, &trimmed[colon + 1..])?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Check the RHS (after the LAST `->`) of one mapping entry against the
+/// reserved model metadata; an entry without `->` is left for the shape
+/// checks that own that rule.
+fn assert_not_metadata_write(alias: &str, entry: &str) -> Result<(), String> {
+    if let Some(sep) = entry.rfind(MAP_TO) {
+        let rhs = entry[sep + MAP_TO.len()..].trim();
+        assert_mutable_model_target(alias, rhs).map_err(|e| e.message().to_string())?;
+    }
+    Ok(())
+}
 
 /// Validate the suspend/resume contract of a complete graph model,
 /// returning the first violated rule (Java throws IllegalArgumentException).

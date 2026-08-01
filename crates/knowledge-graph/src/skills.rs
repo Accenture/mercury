@@ -33,9 +33,9 @@ use platform_core::{AppError, EventEnvelope, Platform, PostOffice};
 use rmpv::Value;
 
 use crate::common::{
-    combine, count_execute_statements, get_else_statement, get_entries, get_first_word,
-    get_for_each_mapping, get_graph_instance, get_if_statement, get_model_array_size,
-    get_model_ttl, get_next_model_param_set, get_next_node, get_next_tag, get_node,
+    combine, count_execute_statements, get_effective_ttl, get_else_statement, get_entries,
+    get_first_word, get_for_each_mapping, get_graph_instance, get_if_statement,
+    get_model_array_size, get_next_model_param_set, get_next_node, get_next_tag, get_node,
     get_then_statement, handle_data_mapping_entry, invalid, perform_fetcher_output_mapping,
     reset_nodes, split_blocks, substitute_var_if_any, COMPUTE_TAG, DELAY_TAG, ERROR, EXCEPTION,
     EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO, NEXT, NODE, NODE_NAME, RESET_TAG, RESULT,
@@ -364,7 +364,7 @@ pub async fn task(
         for suffix in [RESULT, HEADER, STATUS, ERROR] {
             state.remove_element(&format!("{node_name}.{suffix}"));
         }
-        get_model_ttl(&mut state)
+        get_effective_ttl(&mut state, &node)?
     };
     if for_each.is_empty() {
         let request = {

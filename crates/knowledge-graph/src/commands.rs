@@ -507,7 +507,7 @@ async fn handle_part_three(
         // author asks to execute: draft authoring deliberately allows partial
         // models, so these rules apply pre-run, not at node create/update
         if let Ok(instance) = crate::common::get_graph_instance(in_route) {
-            if let Err(reason) = crate::model_validator::validate_suspend_resume(&instance.graph) {
+            if let Err(reason) = crate::model_validator::validate(&instance.graph) {
                 say(po, out_route, format!("Unable to run - {reason}")).await;
                 // the uniform end-of-transmission line, matching the traveler's
                 // failure shape so the sync companion's drain stays deterministic

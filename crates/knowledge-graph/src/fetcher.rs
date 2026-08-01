@@ -38,8 +38,8 @@ use platform_core::{AppError, EventEnvelope, Platform, PostOffice};
 use rmpv::Value;
 
 use crate::common::{
-    fill_fetcher_api_parameters, get_entries, get_for_each_mapping, get_model_array_size,
-    get_model_ttl, get_next_model_param_set, invalid, map_http_input,
+    fill_fetcher_api_parameters, get_effective_ttl, get_entries, get_for_each_mapping,
+    get_model_array_size, get_next_model_param_set, invalid, map_http_input,
     perform_fetcher_output_mapping, substitute_var_if_any, ERROR, EXCEPTION, HEADER, MAP_TO, NEXT,
     NODE_NAME, RESULT, SKILL, STATUS, TARGET,
 };
@@ -205,7 +205,7 @@ pub async fn handle(
         let mut state = instance.state.lock().expect("graph state machine");
         state.remove_element(&format!("{node_name}.{RESULT}"));
         state.remove_element(&format!("{node_name}.{HEADER}"));
-        let timeout = get_model_ttl(&mut state);
+        let timeout = get_effective_ttl(&mut state, &fetcher)?;
         if for_each.is_empty() {
             (timeout, None)
         } else {

@@ -94,8 +94,38 @@ pub const RESERVED_PARAMETERS: &[&str] = &[
     "suspend",
 ];
 
+/// Engine-managed model metadata — IMMUTABLE during a run: rejected as a
+/// data-mapping write target by the CompileGraph gate, the playground
+/// pre-run check, and the shared runtime guard in both walker lanes. The
+/// per-node `ttl` is the sanctioned deadline mechanism, not rewriting
+/// `model.ttl` (Java `GraphLambdaFunction.RESERVED_MODEL_METADATA`; the
+/// suspend/resume `NON_PERSISTED_MODEL_KEYS` aliases the same nine names).
+pub const RESERVED_MODEL_METADATA: [&str; 9] = [
+    "cid", "instance", "flow", "ttl", "trace", "parent", "root", "none", "run",
+];
+
 pub fn invalid(message: impl Into<String>) -> AppError {
     AppError::new(400, message)
+}
+
+/// Reject a data-mapping write target inside the reserved model metadata —
+/// the runtime half of the immutability rule, shared by ALL FOUR
+/// model-writing paths (data-mapping RHS, fetcher input, fetcher/task
+/// output, for_each expansion) in both walker lanes; the compile-side twin
+/// lives in the model validator (Java
+/// `GraphLambdaFunction.assertMutableModelTarget`). Splitting on `.[]`
+/// catches composite forms (`model.cid.x`, `model.ttl[0]`) without false
+/// positives on longer names (`model.ttlx` passes).
+pub fn assert_mutable_model_target(node_name: &str, rhs: &str) -> Result<(), AppError> {
+    if rhs.starts_with(MODEL_NAMESPACE) {
+        let segments = split(rhs, ".[]");
+        if segments.len() > 1 && RESERVED_MODEL_METADATA.contains(&segments[1].as_str()) {
+            return Err(invalid(format!(
+                "{NODE_NAME}{node_name} - invalid mapping target ({rhs}), model metadata is immutable"
+            )));
+        }
+    }
+    Ok(())
 }
 
 /// Java-exact `String.trim()`: strip only chars <= U+0020 from both ends.
@@ -277,11 +307,12 @@ pub fn handle_data_mapping_entry(
 }
 
 fn validate_rhs(node_name: &str, rhs: &str, graph: &MiniGraph) -> Result<(), AppError> {
-    if rhs.starts_with(OUTPUT_ARRAY)
-        || rhs.starts_with(OUTPUT_NAMESPACE)
-        || rhs.starts_with(MODEL_NAMESPACE)
-    {
+    if rhs.starts_with(OUTPUT_ARRAY) || rhs.starts_with(OUTPUT_NAMESPACE) {
         return Ok(());
+    }
+    if rhs.starts_with(MODEL_NAMESPACE) {
+        // a model.* target is valid EXCEPT inside the reserved metadata
+        return assert_mutable_model_target(node_name, rhs);
     }
     let parts = split(rhs, ".[]");
     if rhs.starts_with('.') || parts.len() < 2 {
@@ -379,6 +410,25 @@ pub fn get_model_ttl(state: &mut MultiLevelMap) -> i64 {
     str2long(&ttl).max(1000)
 }
 
+/// The deadline (ms) for a child call made by this node: the node's optional
+/// `ttl` property (duration syntax, e.g. `10s` — the suspend-node grammar)
+/// overrides the propagated `model.ttl`. A SHORTER child deadline lets a
+/// sub-flow, sub-graph or API call time out FIRST, so this graph's error
+/// path can catch the timeout and retry within its remaining budget — with
+/// plain propagation, parent and child carry the same value and the parent
+/// always expires first (Java `GraphLambdaFunction.getEffectiveTtl`).
+pub fn get_effective_ttl(state: &mut MultiLevelMap, node: &SimpleNode) -> Result<i64, AppError> {
+    match node.get_property("ttl") {
+        // grammar validated by the CompileGraph gate / playground pre-run
+        // check; this parse also fails on an invalid value, keeping dry-run
+        // drafts honest
+        Some(ttl) => {
+            Ok(crate::suspend::get_valid_ttl_seconds(Some(&ttl), node.get_alias())? * 1000)
+        }
+        None => Ok(get_model_ttl(state)),
+    }
+}
+
 /// A list property rendered as strings (Java `getEntries`).
 pub fn get_entries(entries: Option<Value>) -> Vec<String> {
     match entries {
@@ -412,6 +462,7 @@ pub fn get_for_each_mapping(
                  Actual: {entry}"
             )));
         }
+        assert_mutable_model_target(node_name, rhs)?;
         let value = get_lhs_or_constant(&lhs, state).map_err(invalid)?;
         match value {
             Some(Value::Array(list)) => {
@@ -503,6 +554,7 @@ fn set_fetcher_output_entry(
                  with 'model.' or 'output.' namespace"
             )));
         }
+        assert_mutable_model_target(node_name, rhs)?;
         state.set_element(rhs, v).map_err(invalid)?;
     }
     Ok(())
@@ -739,6 +791,7 @@ pub fn fill_fetcher_api_parameters(
     let lhs = substitute_var_if_any(command[..sep].trim(), state)?;
     let rhs = command[sep + MAP_TO.len()..].trim();
     let target = if rhs.starts_with(MODEL_NAMESPACE) {
+        assert_mutable_model_target(node_name, rhs)?;
         rhs.to_string()
     } else if is_array {
         format!("{node_name}.each.{rhs}[]")
@@ -826,4 +879,44 @@ pub fn map_http_input(
         Some(whole) => request.set_body(whole),
         None => request.set_body(body.to_value()),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{assert_mutable_model_target, RESERVED_MODEL_METADATA};
+
+    /// Java parity (GraphLambdaFunctionGuardTest): every reserved key is
+    /// rejected as a write target, including composite forms, without false
+    /// positives on longer names.
+    #[test]
+    fn reserved_model_metadata_is_immutable() {
+        for key in RESERVED_MODEL_METADATA {
+            let target = format!("model.{key}");
+            assert!(
+                assert_mutable_model_target("probe", &target).is_err(),
+                "{target} must be rejected"
+            );
+        }
+        // composite forms would replace the scalar with a map or list
+        assert!(assert_mutable_model_target("probe", "model.cid.x").is_err());
+        assert!(assert_mutable_model_target("probe", "model.ttl[0]").is_err());
+        // the error names the node and the immutability rule
+        let err = assert_mutable_model_target("probe", "model.ttl").unwrap_err();
+        assert!(err.message().contains("model metadata is immutable"));
+        assert!(err.message().contains("probe"));
+    }
+
+    #[test]
+    fn longer_names_and_other_namespaces_pass() {
+        // false-positive pins: longer names sharing a reserved prefix are fine
+        for target in ["model.ttlx", "model.cids", "model.parents.x"] {
+            assert!(
+                assert_mutable_model_target("probe", target).is_ok(),
+                "{target} must pass"
+            );
+        }
+        // non-model targets are outside this rule
+        assert!(assert_mutable_model_target("probe", "output.body.ttl").is_ok());
+        assert!(assert_mutable_model_target("probe", "result.cid").is_ok());
+    }
 }
