@@ -2301,6 +2301,28 @@ ADR-0009 (suspend/resume) + ADR-0010 (mandatory gate) proposed as twins of Java
 ADR-0010/0011; the knowledge-graph port design record's "session persistence out of
 scope" line superseded for workflow state. Workspace 295 / clippy 0 / fmt.
 
+
+## Increment 76 — Version-aware Redis consume: GETDEL or MULTI/EXEC (2026-08-01)
+
+Lock-step half of the Java v4.11.1 field fix. The retrieve function's atomic consume is
+now **version-aware**: `connect()` probes `INFO server` once when the shared manager is
+first built (the strategy is process-lifetime — a mid-run failover to a different-version
+server keeps it, the same exposure as Java until its connection closes), parses
+`redis_version`, and states the choice in the startup log ("(Redis {version}, consume via
+GETDEL|transactional GET+DEL)"). Servers below 6.2 — including the redis-standalone
+Windows binary at 5.0.14 — consume via `redis::pipe().atomic().get(key).del(key)`: the
+atomic pipeline is written as ONE contiguous MULTI/EXEC batch on the multiplexed
+connection, so no request can interleave between GET and DEL (Java serializes explicitly
+for the same guarantee); an undetectable version selects the fallback, which works
+everywhere. Version-parse twins (`redis_version` extraction + the `supports_getdel`
+table) are in-module unit tests. The RESP2 test double moved to a shared, parameterized
+`tests/common` module (INFO reply version + per-connection MULTI/EXEC/QUEUED state + a
+command journal); the existing contract suite pins the native path at "7.4.1", and a NEW
+separate-process suite (`redis_state_store_legacy.rs`, fresh once-per-process detection)
+drives the fallback for real at "5.0.14" — the journal proves MULTI/GET/DEL/EXEC went
+over the wire and GETDEL never did. README + workflow-suspension guide wording is now
+version-aware. Crate 4 tests / clippy 0 / fmt.
+
 ## Deferred backlog (as of increment 10)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,

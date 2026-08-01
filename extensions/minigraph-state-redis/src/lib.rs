@@ -30,8 +30,12 @@
 //! - **`v1.redis.retrieve.model`** (`type=get`) — returns the persisted
 //!   record, or an empty map when absent-or-expired (a fresh transaction is
 //!   the normal case, not an error). The record is CONSUMED atomically on
-//!   retrieval (Redis GETDEL — requires Redis 6.2+), so a duplicate resume
-//!   request cannot execute the continuation twice (at-most-once resume).
+//!   retrieval, so a duplicate resume request cannot execute the
+//!   continuation twice (at-most-once resume) — via native GETDEL on Redis
+//!   6.2+, or a MULTI/EXEC GET+DEL transaction on older servers (the
+//!   strategy is detected from `INFO server` and stated in the startup log,
+//!   since enterprise deployments rarely control their managed Redis
+//!   version and the redis-standalone Windows binary is 5.0.14).
 //!
 //! This crate is imported by the APPLICATION (e.g. the playground example),
 //! NEVER by the knowledge-graph engine — the store behind a checkpoint is an
@@ -127,12 +131,27 @@ impl ComposableFunction for RetrieveModel {
         }
         let cid = required_cid(input.body())?;
         let mut redis = connection::manager().await?;
-        let data: Option<Vec<u8>> = with_deadline(
-            redis::cmd("GETDEL")
-                .arg(format!("{KEY_PREFIX}{cid}"))
-                .query_async(&mut redis),
-        )
-        .await?;
+        let key = format!("{KEY_PREFIX}{cid}");
+        let data: Option<Vec<u8>> = if connection::native_getdel() {
+            with_deadline(redis::cmd("GETDEL").arg(&key).query_async(&mut redis)).await?
+        } else {
+            // servers older than 6.2: an equally atomic MULTI/EXEC GET+DEL -
+            // the at-most-once resume guarantee holds on both paths (a plain
+            // sequential GET then DEL would open a double-resume race). The
+            // atomic pipeline is written as ONE contiguous batch on the
+            // multiplexed connection, so another request cannot interleave
+            // between MULTI and EXEC (the Java port serializes explicitly
+            // for the same guarantee).
+            let (value, _deleted): (Option<Vec<u8>>, i64) = with_deadline(
+                redis::pipe()
+                    .atomic()
+                    .get(&key)
+                    .del(&key)
+                    .query_async(&mut redis),
+            )
+            .await?;
+            value
+        };
         match data {
             None => Ok(EventEnvelope::new().set_raw_body(Value::Map(vec![]))),
             Some(bytes) => {
