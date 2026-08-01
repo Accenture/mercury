@@ -1,0 +1,23 @@
+#
+# Proves the 'delay' parameter is honored on a sub-flow task: the launch of the sub-flow is
+# deferred by the given delay while the parent's own timer keeps running. The child's TTL
+# timer only starts on delivery, so delay + child ttl must stay under the parent's budget.
+#
+flow:
+  id: 'subflow-delay-test'
+  description: 'Parent flow that defers a sub-flow launch with the delay parameter'
+  ttl: 10s
+
+first.task: 'deferred-child'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> user'
+    name: 'deferred-child'
+    process: 'flow://echo-flow'
+    delay: '1200 ms'
+    output:
+      - 'result -> output.body'
+      - 'text(application/json) -> output.header.content-type'
+    description: 'Launch the echo sub-flow after a 1.2-second delay'
+    execution: end

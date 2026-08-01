@@ -1,0 +1,17 @@
+flow:
+  id: 'parser-test-ttl-0'
+  description: 'Valid task ttl - a sub-flow task may declare a deadline shorter than flow.ttl'
+  ttl: 10s
+
+first.task: 'sub'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+    name: 'sub'
+    process: 'flow://some-subflow'
+    ttl: 2s
+    output:
+      - 'result -> output.body'
+    description: 'Sub-flow with a 2s deadline override'
+    execution: end

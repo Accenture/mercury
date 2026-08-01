@@ -172,6 +172,10 @@ pub struct FlowInstance {
     error_reference: Mutex<Option<Value>>,
     /// The TTL watcher's timer id (cancelled on close).
     timeout_timer: Mutex<Option<String>>,
+    /// Timer ids of deferred task dispatches (a `delay` on a task) —
+    /// cancelled at teardown so a deferred launch (notably a sub-flow)
+    /// cannot fire after this flow has ended (Java `pendingFutureEvents`).
+    pending_future_events: Mutex<Vec<String>>,
     /// Fork/pipeline sequence source (Java `pipeCounter`).
     pipe_counter: AtomicI32,
     /// seq → barrier / pipeline state (Java `pipeMap`).
@@ -244,6 +248,7 @@ impl FlowInstance {
             end_flow_listeners: Mutex::new(Vec::new()),
             error_reference: Mutex::new(None),
             timeout_timer: Mutex::new(None),
+            pending_future_events: Mutex::new(Vec::new()),
             pipe_counter: AtomicI32::new(0),
             pipe_map: Mutex::new(HashMap::new()),
             shared: match &parent {
@@ -334,6 +339,19 @@ impl FlowInstance {
 
     pub fn take_timeout_timer(&self) -> Option<String> {
         self.timeout_timer.lock().expect("timer").take()
+    }
+
+    /// Track a deferred task dispatch so teardown can cancel it.
+    pub fn add_pending_future_event(&self, timer_id: String) {
+        self.pending_future_events
+            .lock()
+            .expect("pending timers")
+            .push(timer_id);
+    }
+
+    /// Drain the deferred-dispatch timer ids for cancellation at teardown.
+    pub fn take_pending_future_events(&self) -> Vec<String> {
+        std::mem::take(&mut *self.pending_future_events.lock().expect("pending timers"))
     }
 
     /// Mark the instance closed (idempotent); returns true on the first call.

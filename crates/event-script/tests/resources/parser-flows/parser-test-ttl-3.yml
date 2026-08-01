@@ -1,0 +1,17 @@
+flow:
+  id: 'parser-test-ttl-3'
+  description: 'Invalid - the task ttl must be a positive duration'
+  ttl: 10s
+
+first.task: 'sub'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+    name: 'sub'
+    process: 'flow://some-subflow'
+    ttl: 'abc'
+    output:
+      - 'result -> output.body'
+    description: 'Malformed duration string'
+    execution: end

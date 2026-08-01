@@ -2334,3 +2334,23 @@ a dedicated lightweight RPC inbox.
 
 **Next layer:** event-script (layer 2) — the YAML flow DSL, unlocking REST automation's
 `flow:` binding and the composable-application programming model.
+
+## Increment 77 — Task-level ttl override + honored sub-flow delay (2026-08-01)
+
+Lock-step half of the Java v4.11.1 Event Script features. Per-task `ttl` (duration
+syntax via `duration_in_seconds`, sub-flow tasks only — rejected on function tasks
+rather than silently ignored — positive, and less than `flow.ttl`; whole-flow rejection
+with Java-exact messages) stored on `Task.ttl` (−1 = unset); the sub-flow launch dataset
+ttl now comes from `resolve_child_ttl` — the task override when declared, else the
+parent's full effective ttl — with the delay-aware catchability WARN
+("delay {d} ms + ttl {n} ms is not less than the effective flow ttl {m} ms"). The
+`delay` parameter now DEFERS a flow:// launch via `send_later` (verified pre-fix as the
+same silent no-op Java had), and both deferred-dispatch branches track their timer ids
+in `FlowInstance.pending_future_events`, drained and cancelled at `end_flow` so a
+deferred launch cannot outlive its parent (orphaned-launch fix). Fixtures: the nine
+Java files copied verbatim (5 flows incl. the budgeted-retry idiom + 4 parser
+rejections); `retry.decision` ported; four e2e twins appended to the sequential runtime
+binary — the catch twin pins the CHILD's "Flow timeout for 1000 ms" through the
+parent's handler, the retry twin proves attempts=3/last_status=408/graceful give-up,
+and both delay forms (numeric + model-variable) assert the deferred elapsed time.
+Workspace suites green / clippy 0 / fmt.

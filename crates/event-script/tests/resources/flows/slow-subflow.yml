@@ -1,0 +1,17 @@
+flow:
+  id: 'slow-subflow'
+  description: 'Sub-flow that takes about 2.5 seconds - the parent catches its timeout via a task ttl override'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.body.user -> user'
+      - 'text(timeout) -> exception'
+      - 'model.instance -> header.instance'
+    process: 'greeting.test'
+    output:
+      - 'result -> output.body'
+    description: 'Simulate a slow backend - greeting.test sleeps 2.5s when exception=timeout'
+    execution: end

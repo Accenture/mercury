@@ -13,9 +13,28 @@ the design rationale in [`docs/design/`](docs/design/).
 ---
 ## Unreleased
 
+### Added
+
+1. **Task-level TTL override for catchable sub-flow timeouts.** A new optional `ttl` on
+   a sub-flow task (`process: 'flow://...'`, duration syntax, must be less than
+   `flow.ttl`, compile-validated with whole-flow rejection) overrides the default TTL
+   propagation at the invocation site: a SHORTER child deadline makes the sub-flow time
+   out FIRST, so its 408 is catchable by the task-level or flow-level exception handler —
+   enabling budgeted retries within the parent's remaining budget. A runtime WARN flags a
+   task ttl (plus any delay) that is not less than the effective flow ttl. Lock-step twin
+   of the Java v4.11.1 feature.
+
 ### Fixed
 
-1. **Graph state store works on Redis servers older than 6.2 (field report).** The
+1. **The `delay` task parameter now defers a sub-flow launch (previously a silent
+   no-op).** `delay` was accepted with full validation on a `flow://` task but discarded
+   at dispatch — the sub-flow always launched immediately. It now defers the launch
+   exactly as it defers a function task; the child's TTL timer starts on delivery, and a
+   pending deferred dispatch (sub-flow or function) is cancelled at flow teardown so it
+   cannot fire after the flow has ended. *Migration note: a flow that carried a
+   (hitherto ignored) `delay` on a sub-flow task will now actually delay.*
+
+2. **Graph state store works on Redis servers older than 6.2 (field report).** The
    suspend/resume Redis store consumed records with `GETDEL`, a Redis 6.2+ command —
    unavailable on older managed enterprise servers and on the community Windows binary
    (5.0.14) bundled by the Java repo's `redis-standalone` helper, where a resume failed

@@ -95,9 +95,14 @@ fn loaded_flow_set_matches_the_java_engine() {
         "pipeline-test",
         "resilience-demo",
         "response-test",
+        "retry-subflow-test",
         "sequential-test",
         "simple-circuit-breaker",
+        "slow-subflow",
         "string-util",
+        "subflow-delay-test",
+        "subflow-delay-var-test",
+        "subflow-ttl-catch-test",
         "timeout-test",
         "type-conversion",
         "type-matching",
@@ -128,6 +133,8 @@ fn loaded_flow_set_matches_the_java_engine() {
         // external.state.machine is required (the Java code, not the fixture
         // comment, is authoritative)
         "parser-test-missing-external-state-machine",
+        // ttl-0: a valid per-task ttl on a sub-flow task compiles (1..3 reject)
+        "parser-test-ttl-0",
     ];
     let mut expected: Vec<&str> = expected;
     expected.sort_unstable();
@@ -159,6 +166,9 @@ fn invalid_flows_are_rejected() {
         "parser-test-21",                  // task without description
         "parser-test-22",                  // http:// is not flow://
         "parser-test-24",                  // flow-level description commented out
+        "parser-test-ttl-1",               // ttl on a regular function task
+        "parser-test-ttl-2",               // ttl not less than flow.ttl
+        "parser-test-ttl-3",               // malformed ttl duration
         "sample.yml",                      // present on disk but not listed
         "sample",
     ] {
@@ -167,6 +177,22 @@ fn invalid_flows_are_rejected() {
     // duplicate flow.id: parser-test-1 re-declares 'greetings' and must lose —
     // the flows.yaml version (first.task 'my.greeting.task') stays
     assert_eq!(flow("greetings").first_task, "my.greeting.task");
+}
+
+/// Java parity (FlowTests.taskTtlDeclarationsAreValidatedAtCompileTime): the
+/// per-task 'ttl' override is compile-validated with whole-flow rejection —
+/// sub-flow tasks only, positive duration, less than flow.ttl. The valid
+/// fixture stores the parsed deadline in milliseconds on the Task.
+#[test]
+fn task_ttl_declarations_are_validated_at_compile_time() {
+    compile_once();
+    let valid = flow("parser-test-ttl-0");
+    let sub = valid
+        .tasks
+        .get("sub")
+        .expect("the sub-flow task must compile");
+    assert_eq!(2000, sub.ttl, "ttl '2s' must parse to 2000 ms");
+    // rejection of ttl-1..3 is asserted in invalid_flows_are_rejected
 }
 
 /// Mapping normalization matches the Java compiler exactly: 3-part entries

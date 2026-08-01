@@ -69,6 +69,11 @@ pub struct Task {
     pub delay: i64,
     /// Model variable holding a runtime delay.
     pub delay_var: Option<String>,
+    /// Sub-flow deadline override in ms (−1 = propagate the parent's ttl;
+    /// Java parity). Only valid on a `flow://` task — a shorter child
+    /// deadline makes the sub-flow's timeout catchable by this flow's
+    /// exception handlers.
+    pub ttl: i64,
     /// True when any input mapping touches `model.parent.*` / `model.root.*`.
     pub input_parent_ref: bool,
     /// True when any output mapping touches `model.parent.*` / `model.root.*`.
@@ -96,6 +101,7 @@ impl Task {
             source_model_key: None,
             delay: -1,
             delay_var: None,
+            ttl: -1,
             input_parent_ref: false,
             output_parent_ref: false,
         }

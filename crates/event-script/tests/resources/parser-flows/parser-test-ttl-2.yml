@@ -1,0 +1,17 @@
+flow:
+  id: 'parser-test-ttl-2'
+  description: 'Invalid - the task ttl must be less than flow.ttl or the child cannot fail first'
+  ttl: 10s
+
+first.task: 'sub'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+    name: 'sub'
+    process: 'flow://some-subflow'
+    ttl: 10s
+    output:
+      - 'result -> output.body'
+    description: 'ttl equal to flow.ttl defeats the catchability intent'
+    execution: end
