@@ -731,7 +731,10 @@ fn validate_ttl_parameter(
         ));
     }
     let seconds = duration_in_seconds(ttl);
-    if seconds < 1 {
+    // Java-parity bound: the reference parses the number as a 32-bit int, so
+    // an out-of-range duration fails the positive-duration rule (and the
+    // ms conversion below cannot overflow)
+    if !(1..=i32::MAX as i64).contains(&seconds) {
         return Err(format!(
             "invalid task {}. ttl must be a positive duration (e.g. 8s)",
             md.unique_task_name

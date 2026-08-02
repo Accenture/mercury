@@ -430,13 +430,16 @@ pub async fn post_companion_command_sync(
     // outlives this endpoint's budget and is honestly reported as truncated -
     // use the WebSocket console for long dry-runs.
     let max_polls: i64 = if is_traversal {
-        let deadline = crate::model::get_instance(&in_route)
+        // the 5s watcher grace applies only when a real deadline was read -
+        // a session with no instantiated graph keeps the plain 30s net
+        // (Java traversalDrainWindow parity)
+        let window = crate::model::get_instance(&in_route)
             .map(|instance| {
                 let mut state = instance.state.lock().expect("graph state machine");
-                crate::common::get_model_ttl(&mut state)
+                crate::common::get_model_ttl(&mut state) + 5_000
             })
             .unwrap_or(30_000);
-        (deadline + 5_000).clamp(5_000, 35_000) / 20
+        window.clamp(5_000, 35_000) / 20
     } else {
         250
     };

@@ -171,12 +171,13 @@ async fn transactional_consume_on_servers_older_than_6_2() {
         commands.iter().any(|c| c == "INFO"),
         "strategy detection must probe INFO server: {commands:?}"
     );
-    for expected in ["MULTI", "GET", "DEL", "EXEC"] {
-        assert!(
-            commands.iter().any(|c| c == expected),
-            "{expected} must appear on the wire: {commands:?}"
-        );
-    }
+    let atomic_window = commands
+        .windows(4)
+        .any(|w| w == ["MULTI", "GET", "DEL", "EXEC"]);
+    assert!(
+        atomic_window,
+        "the consume must be ONE contiguous MULTI/GET/DEL/EXEC transaction: {commands:?}"
+    );
     assert!(
         !commands.iter().any(|c| c == "GETDEL"),
         "GETDEL must never be sent to a pre-6.2 server: {commands:?}"

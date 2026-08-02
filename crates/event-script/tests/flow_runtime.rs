@@ -1483,9 +1483,12 @@ async fn flows_run_end_to_end_like_java() {
         .expect("deadline propagation probe");
     assert_eq!(408, reply.status());
     let body = json_body(&reply);
+    // Java ceils the header to whole seconds with a 1s floor - x-ttl 700
+    // yields a 1000 ms budget on BOTH engines (the Java engine cannot
+    // produce a sub-second flow budget from this header)
     assert_eq!(
-        body["message"], "Flow timeout for 700 ms",
-        "the caller's x-ttl must govern the flow budget: {body}"
+        body["message"], "Flow timeout for 1000 ms",
+        "the caller's x-ttl must govern the flow budget, ceiled to seconds: {body}"
     );
 
     // sanity: the RPC inbox is still healthy after all scenarios

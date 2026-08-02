@@ -660,6 +660,15 @@ async fn playground_command_grammar_and_companion() {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     assert!(completed, "the fast run must complete on the console");
+    // mechanism pin (not just the CAS masking a late line): completion must
+    // have RELEASED the watcher slot - the cancel half of claim_terminal
+    {
+        let instance = knowledge_graph::model::get_instance(fast_in).expect("fast instance");
+        assert!(
+            instance.get_run_watcher().is_none(),
+            "a completed run must release its watcher slot"
+        );
+    }
     // sleep past the 3s deadline: a canceled watcher must stay silent - a
     // stale firing would send a spurious timeout/abort line to this console
     tokio::time::sleep(Duration::from_millis(3800)).await;

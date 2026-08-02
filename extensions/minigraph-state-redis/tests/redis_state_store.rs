@@ -129,7 +129,7 @@ fn is_empty_map(value: &Value) -> bool {
 // same runtime and the same test double.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn redis_state_store_contract() {
-    let (port, raw_store, _journal) = common::start_resp_double("7.4.1").await;
+    let (port, raw_store, journal) = common::start_resp_double("7.4.1").await;
     platform_core::resources::prepend_resource_root("tests/resources");
     overrides::set("redis.host", "127.0.0.1");
     overrides::set("redis.port", &port.to_string());
@@ -220,6 +220,23 @@ async fn redis_state_store_contract() {
             .contains_key(&format!("{KEY_PREFIX}{cid}").into_bytes()),
         "GETDEL must delete the key"
     );
+    // the journal PROVES the strategy: detection probed INFO, native GETDEL
+    // went over the wire, and the transactional fallback never engaged
+    {
+        let commands = journal.lock().expect("journal").clone();
+        assert!(
+            commands.iter().any(|c| c == "INFO"),
+            "strategy detection must probe INFO server: {commands:?}"
+        );
+        assert!(
+            commands.iter().any(|c| c == "GETDEL"),
+            "the native strategy must send GETDEL: {commands:?}"
+        );
+        assert!(
+            !commands.iter().any(|c| c == "MULTI"),
+            "a 6.2+ server must never see the transactional fallback: {commands:?}"
+        );
+    }
 
     // 3) an absent correlation id is a normal empty result, not an error
     let absent = request(

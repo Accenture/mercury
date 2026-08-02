@@ -2354,3 +2354,24 @@ binary — the catch twin pins the CHILD's "Flow timeout for 1000 ms" through th
 parent's handler, the retry twin proves attempts=3/last_status=408/graceful give-up,
 and both delay forms (numeric + model-variable) assert the deferred elapsed time.
 Workspace suites green / clippy 0 / fmt.
+
+## Increment 80 — Adversarial review round: Java-parity hardening (2026-08-01)
+
+Four-lens review (concurrency/lifecycle, Java parity, correctness, test validity) with
+per-finding adversarial verification over the whole lock-step diff: 14 confirmed
+findings, all resolved. The decisive catches were Java-parity boundaries: the HTTP flow
+adapter's x-ttl budget used raw milliseconds where Java CEILS to whole seconds with a
+1-second floor via a 32-bit parse (x-ttl 700 → a 1000 ms budget and "Flow timeout for
+1000 ms" on BOTH engines — the probe now pins the ceiled value); the companion drain's
+unknown-deadline fallback was 35s vs Java's 30s (grace now applies only to a real
+deadline); the compile-side immutability message now quotes the WHOLE offending entry
+(Java gate wording) where the runtime guard quotes the target; the event-script ttl
+parse gained the i32 range bound + saturating duration math its graph-side twin already
+had. Test hardening: both redis suites now PROVE their strategy on the wire (native =
+INFO + GETDEL + never MULTI; legacy = one CONTIGUOUS MULTI/GET/DEL/EXEC window), the
+fast-run watcher scenario pins the released watcher slot (the CAS alone would mask a
+cancellation regression), and the manifest-count ledger reconciles at 42. Three
+findings confirmed as exact Java-parity residuals (documented, no change): the
+owner-token prefix window, the schedule-then-register deferred-dispatch window, and the
+unbounded-x-ttl divergence resolved by adopting Java's 32-bit parse. Workspace 58
+suites green / clippy 0 / fmt.

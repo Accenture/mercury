@@ -93,7 +93,7 @@ pub fn duration_in_seconds(duration: &str) -> i64 {
         Some(b'd') => (&d[..d.len() - 1], 24 * 60 * 60),
         _ => (d, 1),
     };
-    str2long(number) * multiplier
+    str2long(number).saturating_mul(multiplier)
 }
 
 #[cfg(test)]

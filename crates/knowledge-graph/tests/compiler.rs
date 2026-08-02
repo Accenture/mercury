@@ -50,7 +50,8 @@ fn manifest_listed_graphs_are_compiled() {
     // root node has no 'purpose' is rejected (rust-no-purpose fixture)
     assert!(!graphs::graph_exists("rust-no-purpose"));
     // 13 tutorials + 21 original fixtures + the 5 valid suspend fixtures +
-    // the valid node-ttl fixture; the 12 deliberately-invalid fixtures
+    // the 3 valid ttl fixtures (node-ttl ok + the 2 x-ttl wire echoes); the
+    // 12 deliberately-invalid fixtures
     // (suspend err1-7, no-end, ttl err1-4) are rejected by the mandatory
     // quality gate. Every graph a runtime test executes MUST be listed
     // here - deployed execution is compiled-or-404 (no lazy load)

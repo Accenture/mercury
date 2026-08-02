@@ -136,7 +136,15 @@ fn validate_model_metadata_immutability(graph: &MiniGraph) -> Result<(), String>
 fn assert_not_metadata_write(alias: &str, entry: &str) -> Result<(), String> {
     if let Some(sep) = entry.rfind(MAP_TO) {
         let rhs = entry[sep + MAP_TO.len()..].trim();
-        assert_mutable_model_target(alias, rhs).map_err(|e| e.message().to_string())?;
+        // the compile-side message quotes the WHOLE offending entry (Java
+        // GraphModelValidator wording), where the runtime guard quotes only
+        // its write target
+        if assert_mutable_model_target(alias, rhs).is_err() {
+            return Err(format!(
+                "{NODE_NAME}{alias} - invalid mapping ({}), model metadata is immutable",
+                entry.trim()
+            ));
+        }
     }
     Ok(())
 }
