@@ -60,10 +60,20 @@ impl ComposableFunction for MdmProfile {
         let Some(person_id) = person_id else {
             return Err(AppError::new(400, "Missing person id"));
         };
-        serve_mock_json(
+        let reply = serve_mock_json(
             &format!("profile-{person_id}"),
             &format!("Profile {person_id} not found"),
-        )
+        )?;
+        // echo the wire-observed request deadline so a caller (and the unit
+        // tests) can verify that the api.fetcher aligned x-ttl with its
+        // graph-side deadline (Java MdmProfile parity)
+        if let Some(ttl) = request["headers"]["x-ttl"].as_str() {
+            if let rmpv::Value::Map(mut entries) = reply.body().clone() {
+                entries.push((rmpv::Value::from("observed_ttl"), rmpv::Value::from(ttl)));
+                return Ok(reply.set_raw_body(rmpv::Value::Map(entries)));
+            }
+        }
+        Ok(reply)
     }
 }
 

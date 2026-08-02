@@ -57,7 +57,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        40,
+        42,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );

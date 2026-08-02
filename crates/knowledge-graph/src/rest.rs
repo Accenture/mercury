@@ -423,7 +423,24 @@ pub async fn post_companion_command_sync(
             )
             .await;
     }
-    let max_polls = if is_traversal { 1500 } else { 250 };
+    // A traversal's window is sized past the dry-run watcher deadline (the
+    // instantiated model.ttl + a 5s grace) so the watcher's terminal - not
+    // this safety net - ends the drain even in the default config; capped
+    // under the endpoint's own rest.yaml timeout. A larger seeded model.ttl
+    // outlives this endpoint's budget and is honestly reported as truncated -
+    // use the WebSocket console for long dry-runs.
+    let max_polls: i64 = if is_traversal {
+        let deadline = crate::model::get_instance(&in_route)
+            .map(|instance| {
+                let mut state = instance.state.lock().expect("graph state machine");
+                crate::common::get_model_ttl(&mut state)
+            })
+            .unwrap_or(30_000);
+        (deadline + 5_000).clamp(5_000, 35_000) / 20
+    } else {
+        250
+    };
+    let mut signalled = false;
     for _ in 0..max_polls {
         let done = {
             let g = buffer.lock().expect("capture buffer poisoned");
@@ -436,6 +453,7 @@ pub async fn post_companion_command_sync(
             }
         };
         if done {
+            signalled = true;
             break;
         }
         tokio::time::sleep(Duration::from_millis(20)).await;
@@ -458,7 +476,15 @@ pub async fn post_companion_command_sync(
             _ => result.push(v),
         }
     }
-    let error = first_error_line(&lines);
+    let mut error = first_error_line(&lines);
+    // when the safety net caught - the signal never arrived - the caller
+    // must know: the capture is truncated and the command is still running,
+    // so the outcome is a failure, never a silent success
+    if error.is_none() && !signalled {
+        error = Some(
+            "Output truncated - the command did not finish within the drain window".to_string(),
+        );
+    }
     let output: Vec<Value> = lines.iter().map(|l| Value::from(l.as_str())).collect();
     let ok = error.is_none();
 

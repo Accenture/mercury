@@ -1140,6 +1140,47 @@ async fn api_fetcher_matches_java_semantics(platform: &Platform) {
         Some(Value::from("100 World Blvd")),
         mm.get_element("address")
     );
+
+    // --- the api.fetcher stamps x-ttl from its effective deadline (Java
+    // DeadlineEnforcementTest twins): the mock MDM endpoint echoes the header
+    // exactly as observed on the wire. Node ttl 7s -> "7000".
+    let reply = run_graph(
+        &platform,
+        "unit-test-ttl-wire",
+        serde_json::json!({"person_id": 100}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "ttl-wire failed: {:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(
+        Some(Value::from("7000")),
+        mm.get_element("observed_ttl"),
+        "the api.fetcher must stamp x-ttl from the node ttl"
+    );
+    // without a node ttl the fetcher stamps the propagated model.ttl. The
+    // Java twin pins "30000" (its rest.yaml HTTP entry); this harness drives
+    // the graph-executor flow directly, so the propagated value is the flow
+    // template's own ttl (60s) - same mechanism, harness-visible number.
+    let reply = run_graph(
+        &platform,
+        "unit-test-ttl-wire-default",
+        serde_json::json!({"person_id": 100}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        200,
+        reply.status(),
+        "ttl-wire-default failed: {:?}",
+        reply.body()
+    );
+    let mm = body_map(&reply);
+    assert_eq!(
+        Some(Value::from("60000")),
+        mm.get_element("observed_ttl"),
+        "the api.fetcher must stamp the propagated model.ttl when no node ttl is declared"
+    );
 }
 
 async fn graphs_run_end_to_end_like_java(platform: &Platform) {

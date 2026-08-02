@@ -39,6 +39,9 @@ struct Metadata {
     correlation_id: Option<String>,
     flow_instance_id: Option<String>,
     reply_to: Option<String>,
+    /// The dry-run watcher slot: "owner-run-correlation-id|timer-id" —
+    /// owner-tagged so a stale watcher can never act on a newer run.
+    run_watcher: Option<String>,
 }
 
 /// One live graph traversal (Java `GraphInstance`).
@@ -89,6 +92,43 @@ impl GraphInstance {
 
     pub fn set_complete(&self) {
         self.complete.store(true, Ordering::SeqCst);
+    }
+
+    /// Exactly-one-terminal claim: flip `complete` false→true atomically —
+    /// the winner emits its terminal, a loser stays silent, so a run racing
+    /// its own deadline can never emit both terminals (Java
+    /// `GraphTraveler.claimTerminal`'s CAS half).
+    pub fn claim_complete(&self) -> bool {
+        self.complete
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+    }
+
+    /// Store or clear the dry-run watcher token
+    /// ("owner-run-correlation-id|timer-id").
+    pub fn set_run_watcher(&self, token: Option<String>) {
+        self.metadata.lock().expect("graph metadata").run_watcher = token;
+    }
+
+    pub fn get_run_watcher(&self) -> Option<String> {
+        self.metadata
+            .lock()
+            .expect("graph metadata")
+            .run_watcher
+            .clone()
+    }
+
+    /// Atomically clear the watcher slot only when it still holds the given
+    /// token, so two racing cancellers act at most once and never on a token
+    /// they did not read.
+    pub fn clear_run_watcher(&self, token: &str) -> bool {
+        let mut metadata = self.metadata.lock().expect("graph metadata");
+        if metadata.run_watcher.as_deref() == Some(token) {
+            metadata.run_watcher = None;
+            true
+        } else {
+            false
+        }
     }
 
     pub fn get_correlation_id(&self) -> String {

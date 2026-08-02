@@ -27,8 +27,8 @@ use async_trait::async_trait;
 use event_script::conversions::display;
 use event_script::mlm::MultiLevelMap;
 use platform_core::{
-    main_application, overrides, AppError, AutoStart, ComposableFunction, EventEnvelope, Platform,
-    PostOffice,
+    main_application, overrides, preload, AppError, AutoStart, ComposableFunction, EventEnvelope,
+    Platform, PostOffice,
 };
 use rmpv::Value;
 
@@ -52,6 +52,26 @@ impl ComposableFunction for Console {
         };
         self.lines.lock().expect("console").push(line);
         EventEnvelope::new().set_body("ok")
+    }
+}
+
+/// A deliberately slow composable function for the dry-run watcher scenarios:
+/// it outlives the run-level `model.ttl` deadline, so the traversal can only
+/// end through the watcher's terminal — never through this function's reply
+/// (Java `SlowTask` twin).
+#[preload(route = "v1.slow.task", instances = 10)]
+struct SlowTask;
+
+#[async_trait]
+impl ComposableFunction for SlowTask {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        tokio::time::sleep(Duration::from_millis(4000)).await;
+        EventEnvelope::new().set_body("late")
     }
 }
 
@@ -491,6 +511,171 @@ async fn playground_command_grammar_and_companion() {
         inspected.get_element("outcome"),
         "inspect endpoint resolves the composite scalar key and wraps it"
     );
+
+    // --- the dry-run watcher (Java DryRunTimeoutTest twins). A hung run:
+    // the graph.task node's own child-call ttl (8s) is deliberately LONGER
+    // than model.ttl (1.5s), so only the run-level watcher can end this
+    // traversal - the sync drain must end on the watcher's terminal, ok:false.
+    let hung_in = "ws.100002.1.in";
+    let hung_out = "ws.100002.1.out";
+    let hung_id = "ws-100002-1";
+    let hung_lines: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    platform
+        .register(
+            hung_out,
+            Arc::new(Console {
+                lines: hung_lines.clone(),
+            }),
+            1,
+        )
+        .expect("hung console route");
+    let _ = po
+        .send(
+            EventEnvelope::new()
+                .set_to(knowledge_graph::commands::ROUTE)
+                .set_raw_body(Value::Map(vec![
+                    (Value::from("type"), Value::from("open")),
+                    (Value::from("in"), Value::from(hung_in)),
+                ])),
+        )
+        .await;
+    tokio::time::sleep(Duration::from_millis(60)).await;
+    command(&po, hung_in, hung_out, "create node root\nwith type Root").await;
+    command(&po, hung_in, hung_out, "create node end").await;
+    command(
+        &po,
+        hung_in,
+        hung_out,
+        "create node slow\nwith type task\nwith properties\nskill=graph.task\ntask=v1.slow.task\nttl=8s",
+    )
+    .await;
+    command(&po, hung_in, hung_out, "connect root to slow with first").await;
+    command(&po, hung_in, hung_out, "connect slow to end with second").await;
+    command(
+        &po,
+        hung_in,
+        hung_out,
+        "instantiate graph\nlong(1500) -> model.ttl",
+    )
+    .await;
+    let started = std::time::Instant::now();
+    let sync_hung = platform_core::automation::AsyncHttpRequest::new()
+        .set_method("POST")
+        .set_target_host(&base_url())
+        .set_url(&format!("/api/companion/{hung_id}/sync"))
+        .set_header("content-type", "text/plain")
+        .set_body(Value::from("run"));
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(sync_hung.to_value()),
+            Duration::from_secs(35),
+        )
+        .await
+        .expect("sync hung run request");
+    assert!(
+        started.elapsed() < Duration::from_secs(15),
+        "the drain must end on the watcher's terminal, not the safety net"
+    );
+    let hung_outcome = MultiLevelMap::from_value(reply.body().clone());
+    assert_eq!(
+        Some(Value::Boolean(false)),
+        hung_outcome.get_element("ok"),
+        "a timed-out dry-run is a failure: {:?}",
+        reply.body()
+    );
+    let hung_output: Vec<String> = match hung_outcome.get_element("output") {
+        Some(Value::Array(items)) => items.iter().map(display).collect(),
+        other => panic!("hung run output must be an array, got {other:?}"),
+    };
+    assert!(
+        hung_output
+            .iter()
+            .any(|l| l == "Graph traversal timed out after 1500 ms"),
+        "the watcher must report the model.ttl deadline: {hung_output:?}"
+    );
+    assert!(
+        hung_output.iter().any(|l| l == "Graph traversal aborted"),
+        "a timed-out run must end with the canonical failure terminal: {hung_output:?}"
+    );
+
+    // --- a completed run cancels its watcher: the run's console IS the
+    // tapped route (through the sync endpoint the capture route is released
+    // before a stale watcher could fire, proving nothing - the Java
+    // mutation-test lesson), so a late timeout/abort line would land here.
+    let fast_in = "ws.100003.1.in";
+    let fast_out = "ws.100003.1.out";
+    let fast_lines: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    platform
+        .register(
+            fast_out,
+            Arc::new(Console {
+                lines: fast_lines.clone(),
+            }),
+            1,
+        )
+        .expect("fast console route");
+    let _ = po
+        .send(
+            EventEnvelope::new()
+                .set_to(knowledge_graph::commands::ROUTE)
+                .set_raw_body(Value::Map(vec![
+                    (Value::from("type"), Value::from("open")),
+                    (Value::from("in"), Value::from(fast_in)),
+                ])),
+        )
+        .await;
+    tokio::time::sleep(Duration::from_millis(60)).await;
+    command(&po, fast_in, fast_out, "create node root\nwith type Root").await;
+    command(&po, fast_in, fast_out, "create node end").await;
+    command(
+        &po,
+        fast_in,
+        fast_out,
+        "create node mapper\nwith type mapper\nwith properties\nskill=graph.data.mapper\nmapping[]=input.body.id -> output.body",
+    )
+    .await;
+    command(&po, fast_in, fast_out, "connect root to mapper with first").await;
+    command(&po, fast_in, fast_out, "connect mapper to end with second").await;
+    command(
+        &po,
+        fast_in,
+        fast_out,
+        "instantiate graph\ntext(hello) -> input.body.id\nlong(3000) -> model.ttl",
+    )
+    .await;
+    command(&po, fast_in, fast_out, "run").await;
+    let mut completed = false;
+    for _ in 0..100 {
+        if fast_lines
+            .lock()
+            .expect("fast console")
+            .iter()
+            .any(|l| l.starts_with("Graph traversal completed in"))
+        {
+            completed = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert!(completed, "the fast run must complete on the console");
+    // sleep past the 3s deadline: a canceled watcher must stay silent - a
+    // stale firing would send a spurious timeout/abort line to this console
+    tokio::time::sleep(Duration::from_millis(3800)).await;
+    {
+        let lines = fast_lines.lock().expect("fast console");
+        let late: Vec<&String> = lines
+            .iter()
+            .filter(|l| {
+                l.starts_with("Graph traversal timed out") || *l == "Graph traversal aborted"
+            })
+            .collect();
+        assert!(
+            late.is_empty(),
+            "a completed run must cancel its watcher - no late terminal allowed: {late:?}"
+        );
+    }
 
     // --- close the session
     let _ = po
