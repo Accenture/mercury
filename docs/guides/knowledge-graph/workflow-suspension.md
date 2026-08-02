@@ -214,7 +214,8 @@ curl -s -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   suspend *after* the join instead. Joins whose predecessors completed before suspension
   work: their completion marks are part of the persisted state.
 - **One resume per transaction.** The shipped stores consume the record atomically on
-  retrieval (Redis `GETDEL`), so a duplicate resume — a double click, a retried message —
+  retrieval (`GETDEL` on Redis 6.2+, an atomic `MULTI/EXEC` `GET`+`DEL` transaction on
+  older servers), so a duplicate resume — a double click, a retried message —
   finds nothing and behaves as a fresh run instead of double-executing the continuation.
   A later checkpoint in the resumed run simply persists a new record under the same ID.
 - **The correlation ID is a resume capability.** Whoever presents it continues the
@@ -265,7 +266,9 @@ store (`FileStateStore` in the knowledge-graph crate's test sources).
 ## The Redis store crate
 
 `extensions/minigraph-state-redis` ships `v1.redis.persist.model` (SETEX, native expiry)
-and `v1.redis.retrieve.model` (atomic `GETDEL` — Redis 6.2+). Add the crate as an
+and `v1.redis.retrieve.model` (atomic consume: `GETDEL` on Redis 6.2+, a `MULTI/EXEC`
+transaction on older servers — detected per connection and stated in the startup log).
+Add the crate as an
 application dependency and reference it from `main.rs` (the linker keeps its annotation
 inventory) — the two functions register automatically; the connection is lazy, so the
 application boots normally without Redis until a workflow actually suspends.

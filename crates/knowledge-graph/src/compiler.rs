@@ -167,7 +167,7 @@ fn load_and_validate(deploy_location: &str, graph_id: &str) -> Result<Value, Str
     if graph.get_end_node().is_none() {
         return Err("graph must have an 'end' node".to_string());
     }
-    model_validator::validate_suspend_resume(&graph)?;
+    model_validator::validate(&graph)?;
     Ok(model)
 }
 

@@ -6,7 +6,7 @@ Redis implementation of the knowledge graph's **suspend/resume state-store contr
 | Route | Contract | Redis operation |
 |---|---|---|
 | `v1.redis.persist.model` | headers `type=put`; body `{cid, node, ttl, model, seen, run}` | `SETEX graph:state:<cid>` (MsgPack bytes, native expiry) |
-| `v1.redis.retrieve.model` | headers `type=get`; body `{cid}` → record, or empty map when absent/expired | `GETDEL graph:state:<cid>` (atomic consume) |
+| `v1.redis.retrieve.model` | headers `type=get`; body `{cid}` → record, or empty map when absent/expired | `GETDEL graph:state:<cid>` on Redis 6.2+, atomic `MULTI/EXEC` `GET`+`DEL` on older servers (atomic consume either way) |
 
 Both functions are ordinary composable functions registered by `#[preload]` — **add this
 crate as a dependency of a graph application (e.g. the `minigraph-playground` example
@@ -28,9 +28,12 @@ ttl=2d
 
 - **Durability ack**: the persist function replies only after Redis accepts the SETEX —
   the `graph.suspend` skill treats anything but 2xx as a failed suspension.
-- **Consume-on-retrieve**: `GETDEL` removes the record atomically, so a duplicate resume
-  request (a double click, a retried message) cannot execute the continuation twice.
-  Requires **Redis 6.2+**.
+- **Consume-on-retrieve**: the record is removed atomically on read, so a duplicate
+  resume request (a double click, a retried message) cannot execute the continuation
+  twice. The strategy is **version-aware**: native `GETDEL` on Redis 6.2+, an equally
+  atomic `MULTI/EXEC` `GET`+`DEL` transaction on older servers (enterprise managed Redis
+  versions are often outside your control, and the redis-standalone Windows binary is
+  5.0.14). The detected strategy is stated in the startup log.
 - **Expiry is native**: the `ttl` from the suspend node becomes the Redis key TTL — no
   sweeper. An expired record simply reads as absent, which the resume skill treats as a
   fresh transaction.

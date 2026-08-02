@@ -95,6 +95,34 @@ impl ComposableFunction for HelloExceptionHandler {
     }
 }
 
+/// Java `RetryDecision` (`retry.decision`): each invocation counts one failed
+/// sub-flow attempt and decides whether the remaining budget allows another
+/// try — the flow's decision task routes true back to the sub-flow task and
+/// false to the give-up branch.
+#[preload(route = "retry.decision", instances = 10)]
+struct RetryDecision;
+
+#[async_trait]
+impl ComposableFunction for RetryDecision {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let body: serde_json::Value = input.body_as().unwrap_or(serde_json::Value::Null);
+        let failed = body["attempts"].as_i64().unwrap_or(0) + 1;
+        let mut result = serde_json::json!({
+            "attempts": failed,
+            "retry": failed < 3,
+        });
+        if let Some(status) = body["status"].as_i64() {
+            result["lastStatus"] = serde_json::json!(status);
+        }
+        EventEnvelope::new().set_body(result)
+    }
+}
+
 /// Java `SimpleDecision`: boolean from the `decision` input.
 #[preload(route = "simple.decision")]
 struct SimpleDecision;
@@ -636,6 +664,87 @@ async fn flows_run_end_to_end_like_java() {
     let body = json_body(&reply);
     assert_eq!(body["type"], "error");
     assert_eq!(body["message"], "Flow timeout for 500 ms");
+
+    // --- task ttl override: the CHILD times out first and its 408 is caught
+    // by the parent's task-level exception handler (Java
+    // FlowTests.subflowTimeoutIsCatchableWithTaskTtlOverride) - with default
+    // TTL propagation the parent's own uncatchable timeout would win
+    let reply = run_flow(
+        &platform,
+        "subflow-ttl-catch-test",
+        http_dataset(Some("test"), &[]),
+        "biz-cid-ttl-1",
+    )
+    .await;
+    assert_eq!(
+        reply.headers().get("x-catch").map(String::as_str),
+        Some("caught-by-parent"),
+        "the parent's exception handler must shape the response"
+    );
+    assert_eq!(reply.status(), 408);
+    let body = json_body(&reply);
+    assert_eq!(body["status"], 408);
+    assert_eq!(
+        body["message"], "Flow timeout for 1000 ms",
+        "the caught error must be the child's 1s timeout, not the parent's"
+    );
+
+    // --- budgeted retries (the field use case): three 1s attempts caught,
+    // counted and retried inside the 15s parent budget, then a graceful
+    // give-up (Java FlowTests.subflowTimeoutsAreRetriedWithinTheParentBudget)
+    let reply = run_flow(
+        &platform,
+        "retry-subflow-test",
+        http_dataset(Some("test"), &[]),
+        "biz-cid-ttl-2",
+    )
+    .await;
+    assert_eq!(
+        reply.headers().get("x-retry").map(String::as_str),
+        Some("exhausted")
+    );
+    let body = json_body(&reply);
+    assert_eq!(body["attempts"], 3);
+    assert_eq!(body["last_status"], 408);
+    assert_eq!(body["outcome"], "gave-up-after-retries");
+
+    // --- 'delay' defers a sub-flow launch - it used to be a silent no-op at
+    // the flow:// dispatch branch (Java FlowTests.delayDefersSubflowLaunch)
+    let started = std::time::Instant::now();
+    let reply = run_flow(
+        &platform,
+        "subflow-delay-test",
+        http_dataset(Some("test"), &[]),
+        "biz-cid-ttl-3",
+    )
+    .await;
+    let elapsed = started.elapsed().as_millis();
+    assert_eq!(reply.status(), 200);
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "test", "the deferred sub-flow must still run");
+    assert!(
+        elapsed >= 1200,
+        "the sub-flow launch must be deferred by the task delay (elapsed {elapsed} ms)"
+    );
+
+    // --- the model-variable delay form defers the launch the same way
+    // (Java FlowTests.modelVariableDelayDefersSubflowLaunch)
+    let started = std::time::Instant::now();
+    let reply = run_flow(
+        &platform,
+        "subflow-delay-var-test",
+        http_dataset(Some("test"), &[("delay", "1200")]),
+        "biz-cid-ttl-4",
+    )
+    .await;
+    let elapsed = started.elapsed().as_millis();
+    assert_eq!(reply.status(), 200);
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "test");
+    assert!(
+        elapsed >= 1200,
+        "the model-variable delay must defer the launch (elapsed {elapsed} ms)"
+    );
 
     // --- dynamic reserved-key rejection at runtime (Java FlowTests parity):
     // 'model.{model.pointer}' resolves to model.none only at runtime; the
@@ -1349,6 +1458,37 @@ async fn flows_run_end_to_end_like_java() {
     assert!(
         wire_traceparent.contains(trace_id),
         "W3C traceparent carries the trace id: {wire_traceparent}"
+    );
+
+    // --- end-to-end deadline propagation (the maintainer-ruled x-ttl
+    // feature, Java HttpToFlow parity): a Mercury caller's x-ttl header
+    // overrides the endpoint's rest.yaml timeout AND becomes the flow's own
+    // budget - the 408 must name the CALLER's deadline, not the endpoint's
+    let deadline_probe = platform_core::automation::AsyncHttpRequest::new()
+        .set_method("GET")
+        .set_target_host("http://127.0.0.1:8102")
+        .set_url("/api/timeout/12345")
+        .set_query_parameter("ex", "timeout")
+        .set_header("accept", "application/json")
+        .set_header("x-ttl", "700");
+    let po = PostOffice::new(&platform);
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(deadline_probe.to_value()),
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("deadline propagation probe");
+    assert_eq!(408, reply.status());
+    let body = json_body(&reply);
+    // Java ceils the header to whole seconds with a 1s floor - x-ttl 700
+    // yields a 1000 ms budget on BOTH engines (the Java engine cannot
+    // produce a sub-second flow budget from this header)
+    assert_eq!(
+        body["message"], "Flow timeout for 1000 ms",
+        "the caller's x-ttl must govern the flow budget, ceiled to seconds: {body}"
     );
 
     // sanity: the RPC inbox is still healthy after all scenarios

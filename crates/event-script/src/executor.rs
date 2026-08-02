@@ -351,6 +351,11 @@ async fn end_flow(platform: &Platform, instance: &Arc<FlowInstance>, normal: boo
     if let Some(timer) = instance.take_timeout_timer() {
         po.cancel_future_event(&timer);
     }
+    // a deferred task launch must not outlive its flow (cancel is a safe
+    // no-op for an already-delivered event)
+    for timer in instance.take_pending_future_events() {
+        po.cancel_future_event(&timer);
+    }
     // release task references
     {
         let metrics = instance.metrics.lock().expect("metrics");
@@ -1326,7 +1331,10 @@ pub(crate) async fn execute_task(
         }
         let mut sub_dataset = MultiLevelMap::new();
         sub_dataset
-            .set_element("ttl", Value::from(instance.ttl_ms()))
+            .set_element(
+                "ttl",
+                Value::from(resolve_child_ttl(instance, task, delay_ms)),
+            )
             .map_err(|e| AppError::new(500, e))?;
         sub_dataset
             .set_element("body", body)
@@ -1358,6 +1366,15 @@ pub(crate) async fn execute_task(
             forward = forward.set_trace(trace_id, path);
         }
         let po = PostOffice::new(platform);
+        // the delay parameter defers a sub-flow launch the same way it defers
+        // a function task; the child's own TTL timer only starts on delivery,
+        // and the pending launch is canceled if this flow ends during the
+        // delay window
+        if delay_ms > 0 {
+            instance
+                .add_pending_future_event(po.send_later(forward, Duration::from_millis(delay_ms)));
+            return Ok(());
+        }
         return po.send(forward).await;
     }
     let mut event = EventEnvelope::new()
@@ -1380,12 +1397,46 @@ pub(crate) async fn execute_task(
     // mapped optional header cannot collide with the framework value
     event = event.add_tag(BUSINESS_CID_TAG, &instance.business_correlation_id);
     let po = PostOffice::new(platform);
+    // a deferred dispatch is canceled at teardown so it cannot fire after
+    // this flow has ended - same contract as a sub-flow
     if delay_ms > 0 {
-        po.send_later(event, Duration::from_millis(delay_ms));
+        instance.add_pending_future_event(po.send_later(event, Duration::from_millis(delay_ms)));
         Ok(())
     } else {
         po.send(event).await
     }
+}
+
+/// The sub-flow launch ttl: the task's own `ttl` override when declared,
+/// else the parent's effective ttl (plain propagation - the child gets the
+/// FULL value with a restarted timer). A deferred launch consumes the
+/// parent's budget before the child starts, so the delay counts against the
+/// catchability headroom (Java `TaskExecutor.resolveChildTtl`).
+fn resolve_child_ttl(instance: &FlowInstance, task: &Task, delay_ms: u64) -> u64 {
+    if task.ttl <= 0 {
+        return instance.ttl_ms(); // propagate TTL from parent flow
+    }
+    let ttl = task.ttl as u64;
+    if delay_ms + ttl >= instance.ttl_ms() {
+        if delay_ms > 0 {
+            log::warn!(
+                "Flow {}:{} task {} delay {delay_ms} ms + ttl {ttl} ms is not less than the effective flow ttl {} ms - the sub-flow timeout may not be catchable",
+                instance.template.id,
+                instance.id,
+                task.service,
+                instance.ttl_ms()
+            );
+        } else {
+            log::warn!(
+                "Flow {}:{} task {} ttl {ttl} ms is not less than the effective flow ttl {} ms - the sub-flow timeout may not be catchable",
+                instance.template.id,
+                instance.id,
+                task.service,
+                instance.ttl_ms()
+            );
+        }
+    }
+    ttl
 }
 
 /// Outcome of an input-mapping pass: the function-input body tree, the

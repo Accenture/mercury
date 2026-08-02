@@ -38,6 +38,7 @@ use crate::session;
 
 pub const ROUTE: &str = "graph.traveler";
 const NEXT: &str = "next";
+const RUN_TIMEOUT: &str = "run_timeout";
 const MAX_BUFFER_SIZE: usize = 62 * 1024;
 
 /// The interceptor body (Java `handleEvent`).
@@ -50,11 +51,126 @@ pub async fn handle(
     if let Some(cid) = event.correlation_id() {
         if cid.contains('@') {
             handle_skill_response(platform, &po, &event).await;
+        } else if headers.get("type").map(String::as_str) == Some(RUN_TIMEOUT) {
+            handle_run_timeout(&po, &headers, &event).await;
         } else if event.reply_to().is_some() {
             execute_graph(platform, &po, &headers, &event).await;
         }
     }
     EventEnvelope::new().set_body("ignored")
+}
+
+/// Dry-run mirror of the deployed lane's flow timer (a FlowInstance schedules
+/// one at construction): a one-shot watcher that turns a hung or overlong
+/// traversal into the canonical failure terminal at the `model.ttl` deadline,
+/// so the console — and the synchronous companion drain — always receives an
+/// end-of-transmission line. Child calls are already deadline-bounded by
+/// `get_effective_ttl` in both lanes; this covers what those cannot: total
+/// run duration and a skill that never replies. `model.ttl` is immutable
+/// during a run, so the deadline armed here is the deadline reported. The
+/// slot token carries the owning run's correlation id, so a stale watcher
+/// can never act on a newer run (Java `GraphTraveler.armRunWatcher`).
+fn arm_run_watcher(po: &PostOffice, instance: &Arc<GraphInstance>, in_route: &str) {
+    // the traveler is re-runnable in the same session - a previous run's
+    // watcher may still be pending and must not abort the new run
+    cancel_run_watcher(po, instance);
+    let ttl = {
+        let mut state = instance.state.lock().expect("graph state machine");
+        common::get_model_ttl(&mut state)
+    };
+    let cid = instance.get_correlation_id();
+    let timeout_event = EventEnvelope::new()
+        .set_to(ROUTE)
+        .set_header("type", RUN_TIMEOUT)
+        .set_header("in", in_route)
+        .set_correlation_id(&cid);
+    let timer = po.send_later(
+        timeout_event,
+        std::time::Duration::from_millis(ttl.max(0) as u64),
+    );
+    instance.set_run_watcher(Some(format!("{cid}|{timer}")));
+}
+
+fn cancel_run_watcher(po: &PostOffice, instance: &Arc<GraphInstance>) {
+    if let Some(token) = instance.get_run_watcher() {
+        // atomic removal: two racing cancellers act at most once, on the
+        // exact token read
+        if instance.clear_run_watcher(&token) {
+            if let Some(sep) = token.find('|') {
+                po.cancel_future_event(&token[sep + 1..]);
+            }
+        }
+    }
+}
+
+/// Exactly-one-terminal arbitration: every terminal path (success, error,
+/// timeout) claims the run before emitting — the winner cancels the watcher
+/// and emits its terminal, a loser stays silent, so a run racing its own
+/// deadline can never emit both terminals (which would misclassify a
+/// successful run as failed in the companion capture; Java
+/// `GraphTraveler.claimTerminal`).
+fn claim_terminal(po: &PostOffice, instance: &Arc<GraphInstance>) -> bool {
+    if instance.claim_complete() {
+        cancel_run_watcher(po, instance);
+        true
+    } else {
+        false
+    }
+}
+
+async fn handle_run_timeout(
+    po: &PostOffice,
+    headers: &HashMap<String, String>,
+    event: &EventEnvelope,
+) {
+    let Some(in_route) = headers.get("in") else {
+        return;
+    };
+    let Some(instance) = crate::model::get_instance(in_route) else {
+        return;
+    };
+    let event_cid = event.correlation_id().unwrap_or_default();
+    let Some(token) = instance.get_run_watcher() else {
+        return;
+    };
+    // the watcher may act only for the run that armed it: the slot token
+    // carries the owning run's correlation id and the atomic removal is the
+    // claim - a stale watcher (a newer run owns the slot, or a canceller
+    // already won) stays silent
+    if !token.starts_with(&format!("{event_cid}|"))
+        || !instance.clear_run_watcher(&token)
+        || !claim_terminal(po, &instance)
+    {
+        return;
+    }
+    let ttl = {
+        let mut state = instance.state.lock().expect("graph state machine");
+        common::get_model_ttl(&mut state)
+    };
+    let out = instance.get_reply_to();
+    // best-effort sends: the reply route may be a released companion capture
+    // route - the run is already marked complete, so bookkeeping stays
+    // consistent either way
+    let _ = po
+        .send(
+            EventEnvelope::new()
+                .set_to(&out)
+                .set_correlation_id(event_cid)
+                .set_status(408)
+                .set_raw_body(Value::from(format!(
+                    "Graph traversal timed out after {ttl} ms"
+                ))),
+        )
+        .await;
+    let _ = po
+        .send(
+            EventEnvelope::new()
+                .set_to(&out)
+                .set_correlation_id(event_cid)
+                .set_raw_body(Value::from("Graph traversal aborted"))
+                .set_status(400),
+        )
+        .await;
 }
 
 async fn execute_graph(
@@ -67,6 +183,14 @@ async fn execute_graph(
     let cid = event.correlation_id().unwrap_or_default().to_string();
     let outcome = begin(platform, po, headers, &reply_to, &cid).await;
     if let Err(e) = outcome {
+        // a live instance may exist when the failure happened after arming
+        // the run watcher (a walk-time error) - claim the terminal so the
+        // watcher cannot fire a second one later
+        if let Some(in_route) = headers.get("in") {
+            if let Some(instance) = crate::model::get_instance(in_route) {
+                claim_terminal(po, &instance);
+            }
+        }
         let _ = po
             .send(
                 EventEnvelope::new()
@@ -102,6 +226,9 @@ async fn begin(
         .get("in")
         .ok_or_else(|| invalid("Missing instance ID in header"))?;
     let instance = common::get_graph_instance(in_route)?;
+    // disarm a previous run's watcher BEFORE the reset so it cannot observe
+    // the half-reset state and abort the new run
+    cancel_run_watcher(po, &instance);
     instance.set_flow_instance_id(in_route);
     instance.set_correlation_id(cid);
     instance.set_reply_to(reply_to);
@@ -128,6 +255,7 @@ async fn begin(
         .graph
         .get_end_node()
         .ok_or_else(|| invalid("End node does not exist"))?;
+    arm_run_watcher(po, &instance, in_route);
     walk(platform, po, &instance, root, None).await
 }
 
@@ -141,6 +269,12 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
     let Some(instance) = crate::model::get_instance(in_route) else {
         return;
     };
+    // a late reply after the run reached a terminal (completed, aborted or
+    // timed out) is dropped before any console send - the reply route may
+    // already be a released companion capture route
+    if instance.is_complete() {
+        return;
+    }
     let target = {
         let state = instance.state.lock().expect("graph state machine");
         state.get_element(&format!("{node_name}.target"))
@@ -201,17 +335,19 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
     if let (Some(Value::Integer(rc)), Some(error), None) =
         (&process_status, &result_error, &error_handler)
     {
-        let error_map = get_error_map(Some(error.clone()), target);
-        let _ = po
-            .send(
-                EventEnvelope::new()
-                    .set_to(&reply_to)
-                    .set_correlation_id(&instance.get_correlation_id())
-                    .set_raw_body(error_map)
-                    .set_status(rc.as_i64().unwrap_or(500) as i32),
-            )
-            .await;
-        emit_aborted(po, &instance).await;
+        if claim_terminal(po, &instance) {
+            let error_map = get_error_map(Some(error.clone()), target);
+            let _ = po
+                .send(
+                    EventEnvelope::new()
+                        .set_to(&reply_to)
+                        .set_correlation_id(&instance.get_correlation_id())
+                        .set_raw_body(error_map)
+                        .set_status(rc.as_i64().unwrap_or(500) as i32),
+                )
+                .await;
+            emit_aborted(po, &instance).await;
+        }
     } else if !instance.is_complete() {
         let next = display(response.body());
         decide_next(platform, po, &instance, node, &next).await;
@@ -460,6 +596,9 @@ async fn walk_to(
 }
 
 async fn execution_complete(po: &PostOffice, instance: &Arc<GraphInstance>) {
+    if !claim_terminal(po, instance) {
+        return;
+    }
     let in_route = instance.get_flow_instance_id();
     let out = instance.get_reply_to();
     let value = {
@@ -498,7 +637,6 @@ async fn execution_complete(po: &PostOffice, instance: &Arc<GraphInstance>) {
             )
             .await;
     }
-    instance.set_complete();
     let elapsed = session::now_ms() - instance.start_time_ms();
     let _ = po
         .send(
@@ -606,6 +744,9 @@ async fn handle_error_response(
     instance: &Arc<GraphInstance>,
     response: &EventEnvelope,
 ) {
+    if !claim_terminal(po, instance) {
+        return;
+    }
     let out = instance.get_reply_to();
     let _ = po
         .send(
@@ -620,12 +761,12 @@ async fn handle_error_response(
 }
 
 /// Canonical failure terminal — the mirror of the success terminal in
-/// [`execution_complete`]. Marks the traversal complete and emits the single
-/// end-of-transmission line the synchronous companion endpoint drains on, so
-/// **every** `run` finishes with either `Graph traversal completed in N ms` or
+/// [`execution_complete`]. Emits the single end-of-transmission line the
+/// synchronous companion endpoint drains on, so **every** `run` finishes
+/// with either `Graph traversal completed in N ms` or
 /// `Graph traversal aborted` — a deterministic signal, never a timeout.
+/// Callers own the terminal via [`claim_terminal`] before emitting.
 async fn emit_aborted(po: &PostOffice, instance: &Arc<GraphInstance>) {
-    instance.set_complete();
     let _ = po
         .send(
             EventEnvelope::new()
@@ -641,7 +782,9 @@ async fn emit_aborted(po: &PostOffice, instance: &Arc<GraphInstance>) {
 /// terminal, so the human/companion sees *why* and any watcher (the sync
 /// endpoint included) still gets the uniform end-of-transmission line last.
 async fn send_error(po: &PostOffice, instance: &Arc<GraphInstance>, message: &str) {
-    instance.set_complete();
+    if !claim_terminal(po, instance) {
+        return;
+    }
     let _ = po
         .send(
             EventEnvelope::new()

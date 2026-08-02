@@ -1,0 +1,24 @@
+#
+# The model-variable form of 'delay' on a sub-flow task: the delay is resolved from the
+# state machine per execution (same idiom as delayed-response.yml) and defers the
+# sub-flow launch - previously the resolved value was silently dropped.
+#
+flow:
+  id: 'subflow-delay-var-test'
+  description: 'Parent flow that defers a sub-flow launch with a model-variable delay'
+  ttl: 10s
+
+first.task: 'deferred-child'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> user'
+      - 'input.query.delay -> model.wait'
+    name: 'deferred-child'
+    process: 'flow://echo-flow'
+    delay: model.wait
+    output:
+      - 'result -> output.body'
+      - 'text(application/json) -> output.header.content-type'
+    description: 'Launch the echo sub-flow after the delay given by the query parameter'
+    execution: end

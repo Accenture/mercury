@@ -78,9 +78,7 @@ const INTERNAL_SERVER_ERROR: i32 = 500;
 /// values are authoritative (`run` is the fresh/resume flag set by
 /// graph.resume; embalming it would let a later resume read a stale
 /// condition, and the store is pluggable so a record is external input).
-pub const NON_PERSISTED_MODEL_KEYS: [&str; 9] = [
-    "cid", "instance", "flow", "ttl", "trace", "parent", "root", "none", "run",
-];
+pub const NON_PERSISTED_MODEL_KEYS: [&str; 9] = crate::common::RESERVED_MODEL_METADATA;
 
 /// The shared context ladder (Java `GraphStateSkill.getContext`): validate
 /// EXECUTE, resolve instance/node, check the skill route, require a valid

@@ -69,7 +69,7 @@ rest:
   - service: 'post.companion.command.sync'
     methods: ['POST']
     url: '/api/companion/{id}/sync'
-    timeout: 30s
+    timeout: 40s
     tracing: true
 
   # dev-only mock data providers (app.env=dev) — the tutorials' API-fetcher exercises

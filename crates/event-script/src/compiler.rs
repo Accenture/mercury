@@ -158,6 +158,7 @@ fn validate_entry(
             &md.execution,
         );
         validate_delay_parameter(&md, entry, &mut task)?;
+        validate_ttl_parameter(&md, entry, &mut task)?;
         if let Some(te) = &md.task_exception {
             task.exception_task = Some(te.clone());
         }
@@ -703,6 +704,53 @@ fn validate_delay_parameter(
     }
 }
 
+/// Java `validateTtlParameter`: parse and validate the optional per-task
+/// `ttl` — the deadline OVERRIDE for a sub-flow task. With default TTL
+/// propagation, parent and child carry the same value and the parent's timer
+/// always fires first, so a sub-flow timeout is never catchable. A shorter
+/// child deadline lets the sub-flow time out FIRST, and this flow's
+/// task-level or flow-level exception handler can then catch the 408 and
+/// retry within the remaining budget.
+///
+/// Only meaningful on a sub-flow (flow://) task — a regular function task
+/// has no per-task watchdog, so the key is rejected there rather than
+/// silently ignored. The value uses the flow.ttl duration syntax (e.g. 8s,
+/// 2m) and must be less than this flow's own ttl.
+fn validate_ttl_parameter(
+    md: &FlowConfigMetadata,
+    entry: &Flow,
+    task: &mut Task,
+) -> Result<(), String> {
+    let Some(ttl) = md.ttl.as_deref().filter(|t| !t.is_empty()) else {
+        return Ok(());
+    };
+    if !task.function_route.starts_with("flow://") {
+        return Err(format!(
+            "invalid task {}. ttl is only applicable to a sub-flow task",
+            md.unique_task_name
+        ));
+    }
+    let seconds = duration_in_seconds(ttl);
+    // Java-parity bound: the reference parses the number as a 32-bit int, so
+    // an out-of-range duration fails the positive-duration rule (and the
+    // ms conversion below cannot overflow)
+    if !(1..=i32::MAX as i64).contains(&seconds) {
+        return Err(format!(
+            "invalid task {}. ttl must be a positive duration (e.g. 8s)",
+            md.unique_task_name
+        ));
+    }
+    let ttl_ms = seconds as u64 * 1000;
+    if ttl_ms >= entry.ttl {
+        return Err(format!(
+            "invalid task {}. ttl must be less than flow.ttl",
+            md.unique_task_name
+        ));
+    }
+    task.ttl = ttl_ms as i64;
+    Ok(())
+}
+
 /// Java `filterDataMapping`: normalize entries — a `text(` constant keeps the
 /// 2-part form (its content may contain `->`); other entries decompose 3-part
 /// mappings and normalize `!model.x` negation. An entry with bad shape is
@@ -804,6 +852,7 @@ struct FlowConfigMetadata {
     function_route: Option<String>,
     execution: String,
     delay: Option<String>,
+    ttl: Option<String>,
     task_exception: Option<String>,
     loop_statement: Option<String>,
     loop_conditions: Vec<String>,
@@ -875,6 +924,7 @@ impl FlowConfigMetadata {
             function_route,
             execution,
             delay: reader.get_property(&format!("tasks[{i}].delay")),
+            ttl: reader.get_property(&format!("tasks[{i}].ttl")),
             task_exception: match reader.get(&format!("tasks[{i}].exception")) {
                 Some(ConfigValue::Text(e)) => Some(e),
                 _ => None,

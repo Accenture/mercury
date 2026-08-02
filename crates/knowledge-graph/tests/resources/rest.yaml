@@ -41,7 +41,7 @@ rest:
   - service: 'post.companion.command.sync'
     methods: ['POST']
     url: '/api/companion/{id}/sync'
-    timeout: 30s
+    timeout: 40s
     tracing: true
 
   # deployed graph execution over the REAL HTTP stack (Java test rest.yaml

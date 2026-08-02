@@ -1,0 +1,53 @@
+#
+# The budgeted-retry idiom (the field use case behind the task 'ttl' override): each sub-flow
+# attempt gets a 1s deadline inside the parent's 15s budget, so a timeout is CAUGHT by the
+# task-level exception handler, counted, and retried - three attempts, then a graceful give-up
+# response. With default TTL propagation none of this is possible: the parent's own uncatchable
+# timeout would fire before the child's.
+#
+flow:
+  id: 'retry-subflow-test'
+  description: 'Catch each sub-flow timeout, retry within budget, then respond gracefully'
+  ttl: 15s
+
+first.task: 'slow-backend'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> user'
+    name: 'slow-backend'
+    process: 'flow://slow-subflow'
+    ttl: 1s
+    output:
+      - 'result -> output.body'
+    description: 'Each attempt gets a 1s deadline inside the parent budget'
+    execution: end
+    exception: 'retry-decision'
+
+  - name: 'retry-decision'
+    input:
+      - 'model.attempts -> attempts'
+      - 'error.code -> status'
+    process: 'retry.decision'
+    output:
+      - 'result.attempts -> model.attempts'
+      - 'result.lastStatus -> model.last_status'
+      - 'result.retry -> decision'
+    description: 'Count the failed attempt and retry while the budget allows'
+    execution: decision
+    next:
+      - 'slow-backend'
+      - 'give-up'
+
+  - name: 'give-up'
+    input:
+      - 'model.attempts -> attempts'
+      - 'model.last_status -> last_status'
+      - 'text(gave-up-after-retries) -> outcome'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'text(exhausted) -> output.header.x-retry'
+      - 'result -> output.body'
+    description: 'Respond gracefully after the retry budget is spent'
+    execution: end

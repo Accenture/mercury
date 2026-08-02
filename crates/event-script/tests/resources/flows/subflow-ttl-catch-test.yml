@@ -1,0 +1,35 @@
+#
+# Demonstrates the task-level 'ttl' override: the sub-flow gets a 1-second deadline while this
+# parent keeps its 10-second budget, so the child times out FIRST and its 408 is caught by the
+# task-level exception handler - with default TTL propagation, parent and child would share the
+# same deadline and the parent's own (uncatchable) timeout would fire before the child's.
+#
+flow:
+  id: 'subflow-ttl-catch-test'
+  description: 'Parent flow that catches a sub-flow timeout via a task ttl override'
+  ttl: 10s
+
+first.task: 'slow-backend'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> user'
+    name: 'slow-backend'
+    process: 'flow://slow-subflow'
+    ttl: 1s
+    output:
+      - 'result -> output.body'
+    description: 'Invoke the slow sub-flow with a 1s deadline so its timeout is catchable here'
+    execution: end
+    exception: 'v1.hello.exception'
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+    process: 'v1.hello.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+      - 'text(caught-by-parent) -> output.header.x-catch'
+    description: 'Catch the sub-flow timeout while the parent flow is still alive'
+    execution: end

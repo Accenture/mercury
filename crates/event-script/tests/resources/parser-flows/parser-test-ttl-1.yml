@@ -1,0 +1,16 @@
+flow:
+  id: 'parser-test-ttl-1'
+  description: 'Invalid - ttl is only applicable to a sub-flow task, not a regular function task'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+    process: 'greeting.test'
+    ttl: 2s
+    output:
+      - 'result -> output.body'
+    description: 'A regular function task must not declare a ttl'
+    execution: end

@@ -33,8 +33,8 @@ use platform_core::{AppError, EventEnvelope, Platform, PostOffice};
 use rmpv::Value;
 
 use crate::common::{
-    fill_fetcher_api_parameters, get_entries, get_for_each_mapping, get_model_array_size,
-    get_model_ttl, get_next_model_param_set, invalid, perform_fetcher_output_mapping, ERROR,
+    fill_fetcher_api_parameters, get_effective_ttl, get_entries, get_for_each_mapping,
+    get_model_array_size, get_next_model_param_set, invalid, perform_fetcher_output_mapping, ERROR,
     EXCEPTION, HEADER, NEXT, NODE_NAME, RESULT, SKILL, STATUS, TARGET,
 };
 use crate::model::GraphInstance;
@@ -102,7 +102,7 @@ pub async fn handle(
                 fill_fetcher_api_parameters(node_name, entry, &mut state, true)?;
             }
         }
-        (size, get_model_ttl(&mut state))
+        (size, get_effective_ttl(&mut state, &node)?)
     };
     call_extension_with_fork_join(&po, &instance, &node, &extension, size, timeout).await?;
     let state = instance.state.lock().expect("graph state machine");
@@ -128,7 +128,7 @@ async fn call_extension(
         for entry in &mapping {
             fill_fetcher_api_parameters(&node_name, entry, &mut state, false)?;
         }
-        let ttl = get_model_ttl(&mut state);
+        let ttl = get_effective_ttl(&mut state, node)?;
         let parameters = state
             .get_element(&format!("{node_name}.fetch"))
             .unwrap_or(Value::Map(vec![]));

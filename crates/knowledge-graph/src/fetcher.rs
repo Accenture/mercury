@@ -38,8 +38,8 @@ use platform_core::{AppError, EventEnvelope, Platform, PostOffice};
 use rmpv::Value;
 
 use crate::common::{
-    fill_fetcher_api_parameters, get_entries, get_for_each_mapping, get_model_array_size,
-    get_model_ttl, get_next_model_param_set, invalid, map_http_input,
+    fill_fetcher_api_parameters, get_effective_ttl, get_entries, get_for_each_mapping,
+    get_model_array_size, get_next_model_param_set, invalid, map_http_input,
     perform_fetcher_output_mapping, substitute_var_if_any, ERROR, EXCEPTION, HEADER, MAP_TO, NEXT,
     NODE_NAME, RESULT, SKILL, STATUS, TARGET,
 };
@@ -205,7 +205,7 @@ pub async fn handle(
         let mut state = instance.state.lock().expect("graph state machine");
         state.remove_element(&format!("{node_name}.{RESULT}"));
         state.remove_element(&format!("{node_name}.{HEADER}"));
-        let timeout = get_model_ttl(&mut state);
+        let timeout = get_effective_ttl(&mut state, &fetcher)?;
         if for_each.is_empty() {
             (timeout, None)
         } else {
@@ -326,7 +326,7 @@ async fn execute_providers(
                     Value::from(dd.get_alias()),
                 )
                 .map_err(invalid)?;
-            let request = build_http_request(&md, &mut state)?;
+            let request = build_http_request(&md, &mut state, timeout)?;
             // the cache key is the DICTIONARY-scoped parameter map
             // ({node}.dd.{alias}.* — declared inputs only), never the whole
             // staged fetch map: equivalent dictionary requests must share a
@@ -470,7 +470,7 @@ async fn execute_providers_with_fork_join(
                         &mut params_map,
                     )?;
                 }
-                requests.push(build_http_request(&md, &mut state)?.to_value());
+                requests.push(build_http_request(&md, &mut state, timeout)?.to_value());
             }
             state
                 .set_element(
@@ -657,11 +657,23 @@ fn perform_dictionary_output_mapping(
 fn build_http_request(
     md: &ProviderMetadata,
     state: &mut MultiLevelMap,
+    timeout_ms: i64,
 ) -> Result<AsyncHttpRequest, AppError> {
+    // align the wire-level read timeout with the graph-side deadline (node
+    // ttl or model.ttl): the stamp travels as the x-ttl request header, so a
+    // hung upstream's socket self-cancels shortly after the RPC wait gives
+    // up - and on a mercury-to-mercury call the callee honors the inbound
+    // x-ttl over its endpoint timeout (end-to-end deadline propagation, the
+    // maintainer-ruled feature). An explicit x-ttl from input mapping or a
+    // before-feature still wins because those are applied after this stamp.
+    // (Pre-fix divergence note: this engine's HTTP client defaulted the read
+    // timeout to 30s when x-ttl was absent - misaligned, not disabled as in
+    // pre-fix Java.)
     let mut request = AsyncHttpRequest::new()
         .set_method(&md.method)
         .set_target_host(&md.target.host)
-        .set_url(&md.target.uri);
+        .set_url(&md.target.uri)
+        .set_timeout_seconds((timeout_ms.max(1) as u64).div_ceil(1000));
     if !md.inputs.is_empty() {
         request = map_http_input(
             request,

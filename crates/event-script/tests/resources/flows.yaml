@@ -54,5 +54,10 @@ flows:
   - 'parse-date-time.yml'
   - 'string-util.yml'
   - 'null-transport.yml'
+  - 'slow-subflow.yml'
+  - 'subflow-ttl-catch-test.yml'
+  - 'subflow-delay-test.yml'
+  - 'subflow-delay-var-test.yml'
+  - 'retry-subflow-test.yml'
 
 location: 'classpath:/flows/'

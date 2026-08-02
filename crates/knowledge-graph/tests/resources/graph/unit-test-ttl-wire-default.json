@@ -1,0 +1,92 @@
+{
+ "nodes": [
+  {
+   "types": [
+    "UnitTest"
+   ],
+   "alias": "end",
+   "properties": {}
+  },
+  {
+   "types": [
+    "Fetcher"
+   ],
+   "alias": "fetcher",
+   "properties": {
+    "output": [
+     "result.observed_ttl -> output.body.observed_ttl"
+    ],
+    "input": [
+     "input.body.person_id -> person_id"
+    ],
+    "dictionary": [
+     "ttl-echo"
+    ],
+    "skill": "graph.api.fetcher"
+   }
+  },
+  {
+   "types": [
+    "Provider"
+   ],
+   "alias": "mdm-profile",
+   "properties": {
+    "input": [
+     "text(application/json) -> header.accept",
+     "person_id -> path_parameter.id"
+    ],
+    "method": "GET",
+    "purpose": "Master Data Management's profile management endpoint",
+    "url": "http://127.0.0.1:${rest.server.port:8080}/api/mdm/profile/{id}"
+   }
+  },
+  {
+   "types": [
+    "Dictionary"
+   ],
+   "alias": "ttl-echo",
+   "properties": {
+    "output": [
+     "response.observed_ttl -> result.observed_ttl"
+    ],
+    "input": [
+     "person_id"
+    ],
+    "purpose": "echo of the wire-observed x-ttl request header",
+    "provider": "mdm-profile"
+   }
+  },
+  {
+   "types": [
+    "UnitTest"
+   ],
+   "alias": "root",
+   "properties": {
+    "name": "unit-test-ttl-wire-default",
+    "purpose": "Unit test fixture proving the api.fetcher stamps the propagated model.ttl when no node ttl is declared"
+   }
+  }
+ ],
+ "connections": [
+  {
+   "source": "fetcher",
+   "relations": [
+    {
+     "type": "test",
+     "properties": {}
+    }
+   ],
+   "target": "end"
+  },
+  {
+   "source": "root",
+   "relations": [
+    {
+     "type": "test",
+     "properties": {}
+    }
+   ],
+   "target": "fetcher"
+  }
+ ]
+}

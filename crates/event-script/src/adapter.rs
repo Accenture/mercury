@@ -70,14 +70,36 @@ async fn process_request(platform: &Platform, event: &EventEnvelope) -> Result<(
         .get_element("headers.x-flow-id")
         .map(|v| crate::conversions::display(&v))
         .ok_or_else(|| AppError::new(400, "Missing x-flow-id in HTTP request headers"))?;
-    // convert the HTTP context to the flow "input" dataset (Java key set)
+    // convert the HTTP context to the flow "input" dataset (Java key set).
+    // The flow TTL follows the delivered x-ttl header (milliseconds), where
+    // the ingress already applies caller-wins precedence - so a Mercury
+    // caller's deadline propagates end-to-end into this flow's own budget
+    // (the maintainer-ruled feature; Java HttpToFlow reads the same header
+    // via getTimeoutSeconds). Without the header, the endpoint's rest.yaml
+    // timeout applies.
     let mut dataset = MultiLevelMap::new();
-    let seconds = request
-        .get_element("timeout")
-        .map(|v| crate::util::str2long(&crate::conversions::display(&v)))
-        .filter(|n| *n > 0)
-        .unwrap_or(30);
-    set(&mut dataset, "ttl", Value::from(seconds * 1000))?;
+    let ttl_ms = match request.get_element("headers.x-ttl") {
+        // Java-exact derivation (AsyncHttpRequest.getTimeoutSeconds): the
+        // header is parsed as a 32-bit integer (garbage/overflow -> -1) and
+        // CEILED to whole seconds with a 1-second floor - x-ttl 700 yields a
+        // 1000 ms budget and "Flow timeout for 1000 ms" on both engines
+        Some(v) => {
+            let ms = crate::conversions::display(&v)
+                .trim()
+                .parse::<i32>()
+                .unwrap_or(-1) as i64;
+            (ms + 999).div_euclid(1000).max(1) * 1000
+        }
+        None => {
+            request
+                .get_element("timeout")
+                .map(|v| crate::util::str2long(&crate::conversions::display(&v)))
+                .filter(|n| *n > 0)
+                .unwrap_or(30)
+                * 1000
+        }
+    };
+    set(&mut dataset, "ttl", Value::from(ttl_ms))?;
     for (from, to) in [
         ("headers", "header"),
         ("body", "body"),

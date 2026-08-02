@@ -41,6 +41,13 @@ graphs:
   - 'unit-test-suspend-5'
   # the suspend-err graphs are deliberately invalid: CompileGraph must reject every
   # one of them, and a rejected graph answers HTTP-404 (compiled or 404)
+  - 'unit-test-ttl-ok'
+  - 'unit-test-ttl-wire'
+  - 'unit-test-ttl-wire-default'
+  - 'unit-test-ttl-err1'
+  - 'unit-test-ttl-err2'
+  - 'unit-test-ttl-err3'
+  - 'unit-test-ttl-err4'
   - 'unit-test-suspend-err1'
   - 'unit-test-suspend-err2'
   - 'unit-test-suspend-err3'

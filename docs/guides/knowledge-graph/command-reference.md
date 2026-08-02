@@ -210,6 +210,13 @@ inspect output.body.name     # a specific composite key
 > Write `inspect output.body.name`, not `inspect {output.body.name}` (a literal
 > `{output.body}` is treated as the key `{output` → `body}` and resolves to nothing).
 
+**Run deadline:** a dry-run traversal is bounded by `model.ttl` (default 30 s) — the same
+deadline its deployed twin gets from the flow timer, so dev and production time out alike. A
+hung or overlong run ends with `Graph traversal timed out after N ms` followed by the canonical
+`Graph traversal aborted` terminal (the console and the synchronous companion endpoint always
+receive an end-of-transmission line). Seed a different budget at the instantiate edge:
+`long(60000) -> model.ttl`.
+
 ### describe / list / seen {#describe}
 
 ```
@@ -303,9 +310,9 @@ and examples; this is the at-a-glance contract.
 | `graph.data.mapper` | `mapping[]` | — |
 | `graph.math` | `statement[]` (`COMPUTE`/`IF`/`MAPPING`/`EXECUTE`/`RESET`) | `for_each[]`, `NEXT:`, `DELAY:`, `BEGIN`/`END` |
 | ~~`graph.js`~~ | ⚠️ **retired in this Rust port** (security) — use `graph.math` or `graph.task` | — |
-| `graph.api.fetcher` | `dictionary[]` (+ `input[]` whenever its dictionaries declare parameters — the usual case) | `output[]` (the result set always lands at `{node}.result` for a later mapper), `for_each[]` (see [Iterative fetching](#for-each)), `concurrency` (1–30, def 3), `exception` |
-| `graph.extension` | `extension` (`{graph-id}` or `flow://{flow-id}`), `input[]` | `output[]`, `for_each[]`, `concurrency`, `exception` |
-| `graph.task` | `task` (a composable function's route name) | `input[]`, `output[]`, `for_each[]`, `concurrency`, `exception` |
+| `graph.api.fetcher` | `dictionary[]` (+ `input[]` whenever its dictionaries declare parameters — the usual case) | `output[]` (the result set always lands at `{node}.result` for a later mapper), `for_each[]` (see [Iterative fetching](#for-each)), `concurrency` (1–30, def 3), `ttl` (call deadline), `exception` |
+| `graph.extension` | `extension` (`{graph-id}` or `flow://{flow-id}`), `input[]` | `output[]`, `for_each[]`, `concurrency`, `ttl` (call deadline), `exception` |
+| `graph.task` | `task` (a composable function's route name) | `input[]`, `output[]`, `for_each[]`, `concurrency`, `ttl` (call deadline), `exception` |
 | `graph.join` | — | — |
 | `graph.island` | — | — |
 

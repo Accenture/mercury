@@ -30,6 +30,7 @@
 //! resolvable through the usual `${ENV_VAR:default}` substitution, e.g.
 //! `redis.password=${REDIS_PASSWORD:}`.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use platform_core::{AppConfigReader, AppError};
@@ -41,7 +42,25 @@ use tokio::sync::OnceCell;
 /// can resume on any other instance sharing the same Redis.
 pub(crate) const KEY_PREFIX: &str = "graph:state:";
 
+const REDIS_VERSION: &str = "redis_version:";
+const UNKNOWN: &str = "unknown";
+
 static MANAGER: OnceCell<ConnectionManager> = OnceCell::const_new();
+
+/// Whether the connected server supports GETDEL (Redis 6.2+). Enterprise
+/// deployments rarely control their managed Redis version (AWS/Azure/GCP),
+/// and the redis-standalone Windows binary is 5.0.14 — detected once from
+/// `INFO server` when the shared manager is first built. Because the manager
+/// reconnects internally, a mid-run failover to a DIFFERENT-version server
+/// keeps the detected strategy (the Java port has the same exposure until
+/// its connection closes).
+static NATIVE_GETDEL: AtomicBool = AtomicBool::new(true);
+
+/// True when the consume strategy is native GETDEL (Redis 6.2+); false
+/// selects the equally atomic MULTI/EXEC GET+DEL transaction.
+pub(crate) fn native_getdel() -> bool {
+    NATIVE_GETDEL.load(Ordering::Relaxed)
+}
 
 /// The shared connection manager, connecting on first use (Java
 /// `RedisStateConnection.commands()`). `ConnectionManager` is a cheap clone
@@ -110,6 +129,76 @@ async fn connect() -> Result<ConnectionManager, redis::RedisError> {
                 "connection timed out",
             ))
         })??;
-    log::info!("Graph state store connected to redis://{host}:{port}/{database}");
+    // detect the consume strategy from the server version - an undetectable
+    // version selects the transactional fallback, which works everywhere
+    let mut probe = manager.clone();
+    let version = match tokio::time::timeout(
+        request_timeout(),
+        redis::cmd("INFO")
+            .arg("server")
+            .query_async::<String>(&mut probe),
+    )
+    .await
+    {
+        Ok(Ok(info)) => redis_version(&info),
+        _ => UNKNOWN.to_string(),
+    };
+    let getdel = supports_getdel(&version);
+    NATIVE_GETDEL.store(getdel, Ordering::Relaxed);
+    log::info!(
+        "Graph state store connected to redis://{host}:{port}/{database} (Redis {version}, consume via {})",
+        if getdel { "GETDEL" } else { "transactional GET+DEL" }
+    );
     Ok(manager)
+}
+
+/// Extract the server version from `INFO server` output, or "unknown" when
+/// absent (Java `RedisStateConnection.redisVersion`).
+fn redis_version(server_info: &str) -> String {
+    for line in server_info.lines() {
+        if let Some(version) = line.strip_prefix(REDIS_VERSION) {
+            return version.trim().to_string();
+        }
+    }
+    UNKNOWN.to_string()
+}
+
+/// GETDEL needs Redis 6.2 or later; an unparseable version selects the
+/// transactional fallback, which works on every server (Java
+/// `RedisStateConnection.supportsGetdel`).
+fn supports_getdel(version: &str) -> bool {
+    let mut parts = version.split('.');
+    let (Some(major), Some(minor)) = (parts.next(), parts.next()) else {
+        return false;
+    };
+    match (major.parse::<i32>(), minor.parse::<i32>()) {
+        (Ok(major), Ok(minor)) => major > 6 || (major == 6 && minor >= 2),
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{redis_version, supports_getdel};
+
+    #[test]
+    fn version_is_extracted_from_info_server_output() {
+        let info = "# Server\r\nredis_version:6.2.7\r\nredis_git_sha1:0\r\n";
+        assert_eq!("6.2.7", redis_version(info));
+        assert_eq!("5.0.14.1", redis_version("redis_version:5.0.14.1\n"));
+        assert_eq!("unknown", redis_version("# Server\nos:Linux\n"));
+        assert_eq!("unknown", redis_version(""));
+    }
+
+    #[test]
+    fn getdel_needs_redis_6_2_or_later() {
+        for version in ["6.2.0", "6.2.7", "7.4.1", "8.0"] {
+            assert!(supports_getdel(version), "{version} must use GETDEL");
+        }
+        for version in ["6.0.9", "3.0.504", "unknown", "x.y.z", "7"] {
+            assert!(!supports_getdel(version), "{version} must use the fallback");
+        }
+        // the Windows community binary reports four segments - major 5 fails the gate
+        assert!(!supports_getdel("5.0.14.1"));
+    }
 }

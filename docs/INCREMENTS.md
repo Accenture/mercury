@@ -2301,6 +2301,28 @@ ADR-0009 (suspend/resume) + ADR-0010 (mandatory gate) proposed as twins of Java
 ADR-0010/0011; the knowledge-graph port design record's "session persistence out of
 scope" line superseded for workflow state. Workspace 295 / clippy 0 / fmt.
 
+
+## Increment 76 — Version-aware Redis consume: GETDEL or MULTI/EXEC (2026-08-01)
+
+Lock-step half of the Java v4.11.1 field fix. The retrieve function's atomic consume is
+now **version-aware**: `connect()` probes `INFO server` once when the shared manager is
+first built (the strategy is process-lifetime — a mid-run failover to a different-version
+server keeps it, the same exposure as Java until its connection closes), parses
+`redis_version`, and states the choice in the startup log ("(Redis {version}, consume via
+GETDEL|transactional GET+DEL)"). Servers below 6.2 — including the redis-standalone
+Windows binary at 5.0.14 — consume via `redis::pipe().atomic().get(key).del(key)`: the
+atomic pipeline is written as ONE contiguous MULTI/EXEC batch on the multiplexed
+connection, so no request can interleave between GET and DEL (Java serializes explicitly
+for the same guarantee); an undetectable version selects the fallback, which works
+everywhere. Version-parse twins (`redis_version` extraction + the `supports_getdel`
+table) are in-module unit tests. The RESP2 test double moved to a shared, parameterized
+`tests/common` module (INFO reply version + per-connection MULTI/EXEC/QUEUED state + a
+command journal); the existing contract suite pins the native path at "7.4.1", and a NEW
+separate-process suite (`redis_state_store_legacy.rs`, fresh once-per-process detection)
+drives the fallback for real at "5.0.14" — the journal proves MULTI/GET/DEL/EXEC went
+over the wire and GETDEL never did. README + workflow-suspension guide wording is now
+version-aware. Crate 4 tests / clippy 0 / fmt.
+
 ## Deferred backlog (as of increment 10)
 
 See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,
@@ -2312,3 +2334,44 @@ a dedicated lightweight RPC inbox.
 
 **Next layer:** event-script (layer 2) — the YAML flow DSL, unlocking REST automation's
 `flow:` binding and the composable-application programming model.
+
+## Increment 77 — Task-level ttl override + honored sub-flow delay (2026-08-01)
+
+Lock-step half of the Java v4.11.1 Event Script features. Per-task `ttl` (duration
+syntax via `duration_in_seconds`, sub-flow tasks only — rejected on function tasks
+rather than silently ignored — positive, and less than `flow.ttl`; whole-flow rejection
+with Java-exact messages) stored on `Task.ttl` (−1 = unset); the sub-flow launch dataset
+ttl now comes from `resolve_child_ttl` — the task override when declared, else the
+parent's full effective ttl — with the delay-aware catchability WARN
+("delay {d} ms + ttl {n} ms is not less than the effective flow ttl {m} ms"). The
+`delay` parameter now DEFERS a flow:// launch via `send_later` (verified pre-fix as the
+same silent no-op Java had), and both deferred-dispatch branches track their timer ids
+in `FlowInstance.pending_future_events`, drained and cancelled at `end_flow` so a
+deferred launch cannot outlive its parent (orphaned-launch fix). Fixtures: the nine
+Java files copied verbatim (5 flows incl. the budgeted-retry idiom + 4 parser
+rejections); `retry.decision` ported; four e2e twins appended to the sequential runtime
+binary — the catch twin pins the CHILD's "Flow timeout for 1000 ms" through the
+parent's handler, the retry twin proves attempts=3/last_status=408/graceful give-up,
+and both delay forms (numeric + model-variable) assert the deferred elapsed time.
+Workspace suites green / clippy 0 / fmt.
+
+## Increment 80 — Adversarial review round: Java-parity hardening (2026-08-01)
+
+Four-lens review (concurrency/lifecycle, Java parity, correctness, test validity) with
+per-finding adversarial verification over the whole lock-step diff: 14 confirmed
+findings, all resolved. The decisive catches were Java-parity boundaries: the HTTP flow
+adapter's x-ttl budget used raw milliseconds where Java CEILS to whole seconds with a
+1-second floor via a 32-bit parse (x-ttl 700 → a 1000 ms budget and "Flow timeout for
+1000 ms" on BOTH engines — the probe now pins the ceiled value); the companion drain's
+unknown-deadline fallback was 35s vs Java's 30s (grace now applies only to a real
+deadline); the compile-side immutability message now quotes the WHOLE offending entry
+(Java gate wording) where the runtime guard quotes the target; the event-script ttl
+parse gained the i32 range bound + saturating duration math its graph-side twin already
+had. Test hardening: both redis suites now PROVE their strategy on the wire (native =
+INFO + GETDEL + never MULTI; legacy = one CONTIGUOUS MULTI/GET/DEL/EXEC window), the
+fast-run watcher scenario pins the released watcher slot (the CAS alone would mask a
+cancellation regression), and the manifest-count ledger reconciles at 42. Three
+findings confirmed as exact Java-parity residuals (documented, no change): the
+owner-token prefix window, the schedule-then-register deferred-dispatch window, and the
+unbounded-x-ttl divergence resolved by adopting Java's 32-bit parse. Workspace 58
+suites green / clippy 0 / fmt.
