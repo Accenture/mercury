@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.0** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-07-30 | agent: Claude Code (2026-07-30-181400)
+- **last_session:** 2026-08-01 | agent: Claude Code (2026-08-01-233448)
 - **last_review:** 2026-07-30 | through 2026-07-30-011111.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -166,6 +166,22 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [x] (lock-step — **SHIPPED 2026-08-01: feature merged as PR #191 (`5db06a8f`),
+  release merged as PR #192 (`7358f1a2`), tag `v4.11.1` on the verified merge commit;
+  both engines in lock-step at 4.11.1**)
+  **The Java v4.11.1 lock-step arc: version-aware Redis consume (GETDEL / atomic
+  MULTI/EXEC below 6.2, field report), Event Script per-task ttl + honored sub-flow
+  delay with teardown cancellation, minigraph node ttl + model-metadata immutability
+  (the previously UNGUARDED model.* RHS closed), the traveler run-level watcher with
+  exactly-one-terminal CAS arbitration, honest companion drain, fetcher x-ttl stamp,
+  and end-to-end deadline propagation (the flow adapter now derives the budget from
+  the delivered x-ttl, Java-exact ceil-to-seconds).** Adversarial review round: 14
+  confirmed findings resolved (the Java-parity lens caught the raw-ms budget, the
+  35s drain fallback, the gate message wording); three exact Java-parity residuals
+  documented as shared follow-ups. Workspace 58 suites green / clippy 0 / fmt.
+  Increments 76-80. Java reference: mercury-composable v4.11.1 (tag on `410e03bb`).
+  <!-- id: thread-v4-11-1-lockstep | created: 2026-08-01 | last_used: 2026-08-01 | uses: 1 | tier: working | origin: 2026-08-01-233448 -->
 
 - [x] (release — 2026-07-30; **TAGGED, then RE-TAGGED pre-publication (Eric's ruling:
   release tags include the updated docs): `v4.11.0` now on merge commit `167484bd` (PR
