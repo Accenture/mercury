@@ -234,6 +234,33 @@ Delay before the task executes: an integer in milliseconds (an `ms` suffix is co
 stripped), which must be positive and **less than `flow.ttl`** — or a `model.*` variable
 resolved at run time.
 
+Applies to regular function tasks **and** sub-flow tasks (`process: 'flow://...'`). On a
+sub-flow task the launch itself is deferred and the child's TTL timer only starts on delivery,
+so the delay consumes the parent's budget first — keep `delay + ttl` under this flow's `ttl`
+or the sub-flow timeout may no longer be catchable (the engine logs a warning). Combined with
+the task [`ttl`](#ttl) override, a delayed retry loop gains spacing between attempts (backoff).
+
+#### `ttl`
+
+| Type | Required |
+|---|---|
+| duration | no |
+
+Deadline override for a **sub-flow task** (`process: 'flow://...'`) — rejected on regular
+function tasks. Duration string in `flow.ttl` syntax (e.g. `8s`); must be less than this
+flow's `ttl`. By default a sub-flow inherits the parent's **full** TTL with a restarted timer,
+so the parent always times out first and a sub-flow timeout is never catchable. A shorter task
+`ttl` makes the sub-flow time out first, so this task's `exception` handler (or the flow-level
+one) catches the 408 and can retry within the parent's remaining budget:
+
+```yaml
+- process: 'flow://payment-processor'
+  execution: sequential
+  ttl: 8s                        # sub-flow times out first (must be < flow.ttl)
+  exception: 'v1.payment.retry'  # catches the 408; may route back for a retry
+  # ... name / input / output / description / next as usual
+```
+
 #### `join`
 
 | Type | Required |
@@ -344,6 +371,12 @@ input mapping feeds the child's `input.*` dataset, the child's final response be
 task's `result`, and the child can reach the parent's state machine through
 `model.parent.<key>` (`model.root.<key>` is an alias of the same object). See
 [Event Script Syntax — hierarchy of flows](event-script/syntax.md#hierarchy-of-flows).
+
+**Deadline:** a sub-flow does not run under its own `flow.ttl` — by default the parent's
+**full** TTL value is copied to the sub-flow and the sub-flow's timer restarts at launch, so
+the parent's deadline fires first and a sub-flow timeout is not catchable. An optional
+task-level [`ttl`](#ttl) overrides this with a shorter sub-flow deadline, making its 408
+catchable by this flow's exception handler.
 
 ## Exception handling
 

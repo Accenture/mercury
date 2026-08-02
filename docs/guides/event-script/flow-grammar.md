@@ -57,6 +57,7 @@ Each entry under `tasks:` may have:
 | `loop` | no | loop control (`statement`/`condition`) for a `pipeline` |
 | `source` | no | a `model.*` list to iterate for a dynamic `fork` |
 | `delay` | no | ms (int) or a `model.*` var; must be < `flow.ttl` |
+| `ttl` | no | duration (e.g. `8s`); sub-flow tasks only; must be < `flow.ttl`; overrides the propagated parent TTL so the sub-flow's timeout is catchable |
 | `exception` | no | task-level exception handler route (overrides `flow.exception`) |
 
 ## Execution types {#execution-types}
@@ -141,6 +142,7 @@ Compile-time rules — violate them and the flow won't load:
 5. `fork` requires `join`; `pipeline` requires a `pipeline` list.
 6. A `name` is required when the same `process` appears in more than one task.
 7. `ext:` targets require `external.state.machine` to be declared.
+8. A task `ttl` is only valid on a sub-flow (`flow://`) task, and must be < `flow.ttl`.
 
 ## See also {#see-also}
 

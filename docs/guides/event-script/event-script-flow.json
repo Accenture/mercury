@@ -24,7 +24,8 @@
     { "field": "pipeline", "required": "conditional", "meaning": "ordered task list; required for pipeline" },
     { "field": "loop", "required": false, "meaning": "loop control (statement/condition) for a pipeline" },
     { "field": "source", "required": false, "meaning": "model.* list to iterate for a dynamic fork" },
-    { "field": "delay", "required": false, "meaning": "ms (int) or model.* var; must be < flow.ttl" },
+    { "field": "delay", "required": false, "meaning": "ms (int) or model.* var; must be < flow.ttl; defers function AND sub-flow tasks (a sub-flow's ttl timer starts on delivery)" },
+    { "field": "ttl", "required": false, "meaning": "duration (e.g. 8s); sub-flow tasks only; must be < flow.ttl; overrides propagated TTL so the sub-flow timeout is catchable" },
     { "field": "exception", "required": false, "meaning": "task-level exception handler (overrides flow.exception)" }
   ],
   "execution_types": [
@@ -64,6 +65,7 @@
     "decision needs >=2 next; sequential/response/pipeline need exactly 1; end/sink have no next",
     "fork requires join; pipeline requires a pipeline list",
     "a name is required when the same process appears in more than one task",
-    "ext: targets require external.state.machine to be declared"
+    "ext: targets require external.state.machine to be declared",
+    "a task ttl is only valid on a sub-flow (flow://) task, and must be < flow.ttl"
   ]
 }

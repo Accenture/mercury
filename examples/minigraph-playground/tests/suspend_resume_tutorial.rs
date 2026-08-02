@@ -128,6 +128,17 @@ fn dispatch(args: &[Vec<u8>], store: &SharedStore) -> Vec<u8> {
     match command.as_str() {
         "PING" => b"+PONG\r\n".to_vec(),
         "CLIENT" | "SELECT" | "AUTH" => b"+OK\r\n".to_vec(),
+        // the store detects its consume strategy from INFO server once per
+        // process; report a 6.2+ version so this suite keeps exercising the
+        // native GETDEL path (the transactional fallback has its own suite
+        // in the store crate)
+        "INFO" => {
+            let body = "# Server\r\nredis_version:7.4.1\r\n";
+            let mut reply = format!("${}\r\n", body.len()).into_bytes();
+            reply.extend_from_slice(body.as_bytes());
+            reply.extend_from_slice(b"\r\n");
+            reply
+        }
         "SETEX" if args.len() == 4 => {
             let seconds: u64 = String::from_utf8_lossy(&args[2]).parse().unwrap_or(0);
             map.insert(

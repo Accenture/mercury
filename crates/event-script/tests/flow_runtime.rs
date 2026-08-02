@@ -1460,6 +1460,34 @@ async fn flows_run_end_to_end_like_java() {
         "W3C traceparent carries the trace id: {wire_traceparent}"
     );
 
+    // --- end-to-end deadline propagation (the maintainer-ruled x-ttl
+    // feature, Java HttpToFlow parity): a Mercury caller's x-ttl header
+    // overrides the endpoint's rest.yaml timeout AND becomes the flow's own
+    // budget - the 408 must name the CALLER's deadline, not the endpoint's
+    let deadline_probe = platform_core::automation::AsyncHttpRequest::new()
+        .set_method("GET")
+        .set_target_host("http://127.0.0.1:8102")
+        .set_url("/api/timeout/12345")
+        .set_query_parameter("ex", "timeout")
+        .set_header("accept", "application/json")
+        .set_header("x-ttl", "700");
+    let po = PostOffice::new(&platform);
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(deadline_probe.to_value()),
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("deadline propagation probe");
+    assert_eq!(408, reply.status());
+    let body = json_body(&reply);
+    assert_eq!(
+        body["message"], "Flow timeout for 700 ms",
+        "the caller's x-ttl must govern the flow budget: {body}"
+    );
+
     // sanity: the RPC inbox is still healthy after all scenarios
     let po = PostOffice::new(&platform);
     let ping = po

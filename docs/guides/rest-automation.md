@@ -124,7 +124,14 @@ Maximum time to wait for the function's response, written as `10s`, `2m`, or `15
 number means seconds). Values are clamped to the range 1 second – 5 minutes; an unparsable
 value falls back to the default. On expiry the caller receives an HTTP **408** error response.
 For a flow-bound endpoint this value also rides into the flow input dataset as the `timeout`
-field (in seconds), from which the flow adapter derives the flow instance TTL.
+field (in seconds), from which the flow adapter derives the flow instance TTL — so at an HTTP
+entry point the endpoint timeout **overrides `flow.ttl`** as the flow's effective time budget.
+
+The ingress also represents the endpoint timeout as the `x-ttl` request header (milliseconds),
+and an inbound `x-ttl` sent by the caller **wins over the configured value**: a Mercury caller
+(e.g. [`graph.api.fetcher`](knowledge-graph/skills-reference.md#api-fetcher), which stamps its
+effective deadline on the outbound wire) propagates its own deadline end-to-end, so this
+endpoint runs with the caller's remaining budget instead of the configured value.
 
 #### `cors`
 

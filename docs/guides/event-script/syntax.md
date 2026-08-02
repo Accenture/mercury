@@ -182,9 +182,12 @@ All events are delivered asynchronously and there is no timeout value for each e
 for a complete end-to-end flow. Upon expiry, an unfinished flow will be aborted. You can use suffix "s" for seconds,
 "m" for minutes and "h" for hours. e.g. "30s" for 30 seconds.
 
-> *Note*: When using the HTTP Flow Adapter, the flow.ttl value can be higher than the REST endpoint's timeout value.
-  This would happen when one of your tasks in the event flow responds to the caller and the event flow continues to
-  execute the rest of the flow. This type of task is called "response" task.
+> *Note*: When a flow is started through the HTTP Flow Adapter, the REST endpoint's "timeout" value in
+  rest.yaml overrides flow.ttl — the adapter passes the endpoint timeout to the new flow instance as its
+  TTL, so the effective time budget at an HTTP entry point is always the REST timeout, even for the part
+  of a flow that continues asynchronously after a "response" task. Keep the two values consistent;
+  flow.ttl stands on its own when the flow is started by other means, e.g. a custom event adapter.
+  Similarly, a sub-flow does not run under its own flow.ttl — see "Sub-flow deadline override" below.
 
 `first.task` - this points to the route name of a function (aka "task") to which the flow engine will deliver
 the incoming event.
@@ -2054,6 +2057,60 @@ tasks:
     execution: end
     delay: '2000 ms'
 ```
+
+The delay applies to sub-flow tasks (`process: 'flow://...'`) too — the launch itself is
+deferred, and the child's TTL timer only starts on delivery.
+
+### Sub-flow deadline override ("ttl" tag)
+
+You may add a "ttl" tag to a sub-flow task (`process: 'flow://...'`) to give the child flow a
+shorter deadline than its parent.
+
+By default, a sub-flow inherits the parent's full TTL value and its timer restarts when the
+sub-flow is launched. Since the child starts later, the parent's deadline always fires first —
+and a flow's own timeout bypasses exception handlers, so a slow sub-flow would abort the whole
+transaction with HTTP-408 instead of giving the parent a chance to recover.
+
+A task-level "ttl" reverses the race: the sub-flow times out first while the parent is still
+alive, so the task's exception handler (or the flow-level one) catches the 408 and can retry
+within the remaining time budget. For example, a parent with `flow.ttl: 30s` calling a sub-flow
+with `ttl: 8s` has budget for up to three attempts and still time to respond to the caller.
+
+The value uses the same duration syntax as `flow.ttl` (e.g. "8s") and must be less than the
+parent's `flow.ttl`. It is validated at compile time and rejected on a regular function task.
+
+```yaml
+tasks:
+  - name: 'charge.card'
+    input:
+      - 'model.order -> input.body'
+    process: 'flow://payment-processor'
+    output:
+      - 'result -> model.receipt'
+    description: 'Charge the card, time-boxed to 8 seconds'
+    execution: sequential
+    ttl: 8s
+    exception: 'v1.payment.retry'
+    next:
+      - 'confirm.order'
+
+  - input:
+      - 'error.code -> status'
+      - 'model.attempt -> attempt'
+    process: 'v1.payment.retry'
+    output:
+      - 'result.attempt -> model.attempt'
+      - 'result.retry -> decision'
+    description: 'Decide to retry using a model counter'
+    execution: decision
+    next:
+      - 'charge.card'      # try again within the remaining budget
+      - 'payment.failed'   # attempts exhausted
+```
+
+For a ready-made retry/backoff policy, the built-in `resilience.handler` described earlier can
+serve as the exception handler instead of a custom function.
+
 ## See also
 
 - [Flow grammar](flow-grammar.md) + [`event-script-flow.json`](event-script-flow.json) — the rule-based schema (the deterministic spec).

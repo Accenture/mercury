@@ -15,3 +15,10 @@ rest:
     flow: 'http-client-by-config'
     timeout: 10s
     tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/timeout/{user}"
+    flow: 'timeout-test'
+    timeout: 10s
+    tracing: true

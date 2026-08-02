@@ -70,14 +70,27 @@ async fn process_request(platform: &Platform, event: &EventEnvelope) -> Result<(
         .get_element("headers.x-flow-id")
         .map(|v| crate::conversions::display(&v))
         .ok_or_else(|| AppError::new(400, "Missing x-flow-id in HTTP request headers"))?;
-    // convert the HTTP context to the flow "input" dataset (Java key set)
+    // convert the HTTP context to the flow "input" dataset (Java key set).
+    // The flow TTL follows the delivered x-ttl header (milliseconds), where
+    // the ingress already applies caller-wins precedence - so a Mercury
+    // caller's deadline propagates end-to-end into this flow's own budget
+    // (the maintainer-ruled feature; Java HttpToFlow reads the same header
+    // via getTimeoutSeconds). Without the header, the endpoint's rest.yaml
+    // timeout applies.
     let mut dataset = MultiLevelMap::new();
-    let seconds = request
-        .get_element("timeout")
+    let ttl_ms = request
+        .get_element("headers.x-ttl")
         .map(|v| crate::util::str2long(&crate::conversions::display(&v)))
         .filter(|n| *n > 0)
-        .unwrap_or(30);
-    set(&mut dataset, "ttl", Value::from(seconds * 1000))?;
+        .unwrap_or_else(|| {
+            request
+                .get_element("timeout")
+                .map(|v| crate::util::str2long(&crate::conversions::display(&v)))
+                .filter(|n| *n > 0)
+                .unwrap_or(30)
+                * 1000
+        });
+    set(&mut dataset, "ttl", Value::from(ttl_ms))?;
     for (from, to) in [
         ("headers", "header"),
         ("body", "body"),
