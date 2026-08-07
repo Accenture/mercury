@@ -2375,3 +2375,28 @@ findings confirmed as exact Java-parity residuals (documented, no change): the
 owner-token prefix window, the schedule-then-register deferred-dispatch window, and the
 unbounded-x-ttl divergence resolved by adopting Java's 32-bit parse. Workspace 58
 suites green / clippy 0 / fmt.
+
+## Increment 81 — tutorial-14: the manager approval becomes a real decision (2026-08-07)
+
+Demo-content mirror of the Java reference engine's same-day change (a field team
+member's suggestion). The purchase workflow's store manager can now reject as well as
+approve: a `check-approval` node (graph.math) sits on the order checkpoint's
+continuation, so the manager's resume request lands there — an approved decision routes
+to the approval suspension point exactly as before, anything else routes to the new
+terminal `manager-reject` mapper, which reports the manager's reason together with the
+original order, and the workflow ends with no further checkpoints (the record was
+consumed on resume, so a later request under the same correlation ID is a fresh 404).
+The decision reuses the tutorial's null-safe probe idiom (a missing decision is a
+rejection, not a runtime error) and check-fresh's two-drawn-edge decision shape. The
+graph model is byte-identical to the Java engine's; the tutorial help and the
+workflow-suspension guide walk both outcomes (Rust-specific passages preserved). The
+end-to-end suite gains a rejection section (reason reported, order echoed, run=resume,
+post-rejection 404) and a wait-loop section: an invalid or missing decision re-suspends
+through await-decision, whose continuation loops back to the decision — stable across two
+consecutive suspensions thanks to a RESET of both loop nodes before the decision's IFs
+(seen marks survive suspension and a seen node never re-executes) — and an explicit
+approval exits the loop. The existing happy path exercises the approved branch unchanged. The decide-before-you-suspend rule is stated everywhere an author learns the
+grammar — a new design rule in the guide, the tutorial help, the AI grammar
+(minigraph-commands.json and the graph.suspend skill help) — and the validator/runtime
+error for suspend=true on a routing skill now explains the why and the fix instead of
+only the restriction (same wording as the Java engine).

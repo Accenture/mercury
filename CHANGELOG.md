@@ -11,6 +11,30 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Unreleased
+
+### Changed
+
+1. **tutorial-14's manager approval step is now a real decision with three outcomes** (mirrored
+   from the Java reference engine, same-day). The purchase workflow's store manager can approve —
+   the graph suspends for the delivery department as before — or **reject with a reason**: a
+   `graph.math` decision at the manager's resumption point routes an explicit rejection to a
+   terminal node that reports the reason together with the original order, and the workflow ends
+   (the record was consumed on resume, so a later request under the same correlation ID is a
+   fresh 404). **Anything else — a missing or unrecognized decision — re-suspends** through a
+   wait node whose continuation loops back to the decision, so an invalid request (or a replay
+   against a leftover record) can never end a long-running workflow by accident; the loop uses
+   `RESET` to clear both loop nodes' seen marks on every pass, since seen marks survive
+   suspension and a seen node never re-executes. The graph model is byte-identical to the Java
+   engine's; the end-to-end suite covers all three outcomes including loop stability across two
+   suspensions; the tutorial help and the workflow-suspension guide walk every path. The
+   decide-before-you-suspend rule, the suspensible node's capability envelope, and the wait-loop
+   RESET pattern are stated everywhere an author learns the grammar — the guide's design rules,
+   the tutorial help, the AI grammar (`minigraph-commands.json` and the `graph.suspend` skill
+   help) — and the validator/runtime error for `suspend=true` on a routing skill now explains
+   the why and the fix instead of only the restriction (same wording as the Java engine).
+
+---
 ## Version 4.11.1, 8/1/2026
 
 ### Added

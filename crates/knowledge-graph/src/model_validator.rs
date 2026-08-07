@@ -230,9 +230,11 @@ fn validate_suspensible_node(
         skill.as_deref(),
         Some(crate::skills::MATH_ROUTE) | Some(JS_ROUTE)
     ) {
+        let skill_name = skill.unwrap_or_default();
         return Err(format!(
-            "{NODE_NAME}{alias} cannot use 'suspend=true' with skill {}",
-            skill.unwrap_or_default()
+            "{NODE_NAME}{alias} cannot use 'suspend=true' with skill {skill_name} - \
+             a suspensible node suspends unconditionally, so make the decision first: \
+             place the {skill_name} node before a suspensible node and route the continuing path to it"
         ));
     }
     if suspend_node.is_none() {
