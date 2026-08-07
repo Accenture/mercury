@@ -441,13 +441,15 @@ async fn walk_to_suspend_node(
 ) {
     let skill = node.get_property(SKILL).map(|v| display(&v));
     if matches!(skill.as_deref(), Some("graph.math") | Some("graph.js")) {
+        let skill_name = skill.unwrap_or_default();
         send_error(
             po,
             instance,
             &format!(
-                "Node '{}' cannot use 'suspend=true' with skill {}",
-                node.get_alias(),
-                skill.unwrap_or_default()
+                "Node '{}' cannot use 'suspend=true' with skill {skill_name} - \
+                 a suspensible node suspends unconditionally, so make the decision first: \
+                 place the {skill_name} node before a suspensible node and route the continuing path to it",
+                node.get_alias()
             ),
         )
         .await;

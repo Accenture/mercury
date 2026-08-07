@@ -413,4 +413,144 @@ async fn tutorial_14_purchase_workflow() {
         "unexpected rejection message: {:?}",
         rejected.body()
     );
+
+    // --- the manager rejects instead: the check-approval decision routes to
+    // the terminal rejection, which reports the manager's reason with the
+    // original order, and the workflow ends - no further checkpoints
+    let reject_cid = uuid::Uuid::new_v4().simple().to_string();
+    let ordered = stage(
+        &run_graph(
+            &po,
+            &target,
+            &reject_cid,
+            json_map(&[
+                ("item", Value::from("monitor")),
+                ("amount", Value::from(300)),
+            ]),
+        )
+        .await,
+        &reject_cid,
+    );
+    assert!(
+        text_of(get_element(&ordered, &["stage"])).starts_with("order-submitted"),
+        "reject-path run 1: {ordered:?}"
+    );
+    let declined = stage(
+        &run_graph(
+            &po,
+            &target,
+            &reject_cid,
+            json_map(&[
+                ("decision", Value::from("rejected")),
+                ("reason", Value::from("budget exceeded")),
+            ]),
+        )
+        .await,
+        &reject_cid,
+    );
+    assert_eq!("rejected", text_of(get_element(&declined, &["stage"])));
+    assert_eq!(
+        "budget exceeded",
+        text_of(get_element(&declined, &["reason"])),
+        "the manager's reason is reported"
+    );
+    assert_eq!(
+        "resume",
+        text_of(get_element(&declined, &["run"])),
+        "the rejection run is a resumed continuation"
+    );
+    assert_eq!(
+        "monitor",
+        text_of(get_element(&declined, &["order", "item"])),
+        "the reply echoes the original order"
+    );
+    // the record was consumed on resume and nothing re-suspended: the workflow
+    // is over, so a further request under the same correlation id is rejected
+    // as a fresh transaction
+    let after = run_graph(
+        &po,
+        &target,
+        &reject_cid,
+        json_map(&[("release", Value::from(true))]),
+    )
+    .await;
+    assert_eq!(
+        404,
+        after.status(),
+        "a rejected workflow cannot be continued: {:?}",
+        after.body()
+    );
+
+    // --- an invalid or missing decision keeps the workflow waiting: the
+    // check-approval decision routes it to await-decision, which re-suspends
+    // and loops its continuation back to the decision (RESET clears the loop
+    // nodes' seen marks on every pass, so the loop is stable across resumes)
+    let wait_cid = uuid::Uuid::new_v4().simple().to_string();
+    let ordered = stage(
+        &run_graph(
+            &po,
+            &target,
+            &wait_cid,
+            json_map(&[
+                ("item", Value::from("keyboard")),
+                ("amount", Value::from(80)),
+            ]),
+        )
+        .await,
+        &wait_cid,
+    );
+    assert!(
+        text_of(get_element(&ordered, &["stage"])).starts_with("order-submitted"),
+        "wait-path run 1: {ordered:?}"
+    );
+    // run 2: no decision at all (e.g. a stale-record replay) - re-suspends
+    let waiting = stage(
+        &run_graph(
+            &po,
+            &target,
+            &wait_cid,
+            json_map(&[("note", Value::from("no decision here"))]),
+        )
+        .await,
+        &wait_cid,
+    );
+    assert!(
+        text_of(get_element(&waiting, &["stage"])).starts_with("awaiting-decision"),
+        "an invalid decision re-suspends: {waiting:?}"
+    );
+    assert_eq!("resume", text_of(get_element(&waiting, &["run"])));
+    // run 3: an unrecognized decision loops the same way - the wait loop is
+    // stable across suspensions
+    let still_waiting = stage(
+        &run_graph(
+            &po,
+            &target,
+            &wait_cid,
+            json_map(&[("decision", Value::from("maybe"))]),
+        )
+        .await,
+        &wait_cid,
+    );
+    assert!(
+        text_of(get_element(&still_waiting, &["stage"])).starts_with("awaiting-decision"),
+        "an unrecognized decision keeps waiting: {still_waiting:?}"
+    );
+    // run 4: the manager finally approves - the workflow exits the wait loop
+    let approved_after_wait = stage(
+        &run_graph(
+            &po,
+            &target,
+            &wait_cid,
+            json_map(&[
+                ("decision", Value::from("approved")),
+                ("manager", Value::from("store-88")),
+            ]),
+        )
+        .await,
+        &wait_cid,
+    );
+    assert!(
+        text_of(get_element(&approved_after_wait, &["stage"])).starts_with("approved"),
+        "a valid decision exits the wait loop: {approved_after_wait:?}"
+    );
 }
