@@ -45,3 +45,9 @@
 - thread-release-4-10-2 — (release — 2026-07-23; CLOSED same day) v4.10.2 SHIPPED via the normal flow, in — faded (completed release/feature threads, sslu 21 > archive_window 20; archival-safety adversarially confirmed) — 2026-Q3.md
 - thread-metadata-injection-hardening — (feature branch — 2026-07-23; MERGED as PR [#171](https://github.com/Accenture/mercury/pul… — faded (completed release/feature threads, sslu 21 > archive_window 20; archival-safety adversarially confirmed) — 2026-Q3.md
 - thread-release-4-10-3 — (release — 2026-07-24; CLOSED same day) v4.10.3 SHIPPED via the normal flow, in — faded (completed release thread; sslu 25 > archive_window 20) — 2026-Q3.md
+- thread-reverify-invariants-2026q3 — Re-verify invariants (due — 40 sessions since the last check ≥ verify_invariants_every — completed thread swept (older than archive_window) — 2026-Q3.md
+- thread-annotation-macro-consistency — (2026-07-26; ARC COMPLETE — P2 MERGED same day: Rust PR — completed thread swept (older than archive_window) — 2026-Q3.md
+- thread-release-4-10-5 — (release — 2026-07-24; CLOSED same day) v4.10.5 SHIPPED AND PUBLISHED in lock-step — completed thread swept (older than archive_window) — 2026-Q3.md
+- thread-release-4-10-4 — (release — 2026-07-24; CLOSED same day) v4.10.4 SHIPPED AND PUBLISHED in lock-step — completed thread swept (older than archive_window) — 2026-Q3.md
+- thread-interop-header-hygiene — (in flight — 2026-07-24; RELEASED same day in v4.10.4, [[thread-release-4-10-4]]) — completed thread swept (older than archive_window) — 2026-Q3.md
+- thread-configurable-traceparent — (in flight — 2026-07-24; MERGED same day as PR #177, merge commit `e99013cb`; the — completed thread swept (older than archive_window) — 2026-Q3.md

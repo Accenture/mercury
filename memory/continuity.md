@@ -13,10 +13,10 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.0** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.1** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-01 | agent: Claude Code (2026-08-01-233448)
-- **last_review:** 2026-07-30 | through 2026-07-30-011111.md
+- **last_session:** 2026-08-07 | agent: Claude Code (2026-08-07-150018)
+- **last_review:** 2026-08-07 | through 2026-08-07-150018.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -90,7 +90,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   unchanged; the retrofit's surrogate-split micro-divergence is retired (no lossy case
   under scalar indexing). Do NOT re-retrofit UTF-16 in the name of parity — the ruling
   is deliberate and Eric-verified. Docs: syntax-guide Rust-port note + CHANGELOG.
-  <!-- id: string-plugins-unicode-scalars | created: 2026-07-26 | last_used: 2026-07-28 | uses: 3 | tier: active | origin: 2026-07-26-022229.md -->
+  <!-- id: string-plugins-unicode-scalars | created: 2026-07-26 | last_used: 2026-07-28 | uses: 3 | tier: archive-candidate | origin: 2026-07-26-022229.md -->
 
 - **Registration metadata is a cross-language contract; carriers are per-language idioms.
   (ADR-0008)** One canonical model + fixed semantics for #[preload] and family (boot-time
@@ -105,13 +105,13 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   the wire-format golden-vector method applied to the declaration surface. New ports pass
   the three vector suites before their declaration surface is done. Twin of the Java
   ledger's ADR-0009.
-  <!-- id: registration-metadata-contract | created: 2026-07-26 | last_used: 2026-07-28 | uses: 4 | tier: active | origin: 2026-07-26-013851.md -->
+  <!-- id: registration-metadata-contract | created: 2026-07-26 | last_used: 2026-07-28 | uses: 4 | tier: archive-candidate | origin: 2026-07-26-013851.md -->
 
 - **Port bottom-up, faithfully to the Java original** — re-implement mercury-composable in
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-07-29 | uses: 96 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-01 | uses: 97 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -124,7 +124,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   suites on both engines, cross-engine interop verification when the wire contract is
   touched, and lock-step shipping. The permanent baseline is the interop report
   (docs/test-reports/suspend-resume-interop.md) + the twin test suites.
-  <!-- id: conv-suspend-resume-regression-critical | created: 2026-07-30 | last_used: 2026-07-30 | uses: 1 | tier: working | origin: 2026-07-30-181400.md -->
+  <!-- id: conv-suspend-resume-regression-critical | created: 2026-07-30 | last_used: 2026-08-01 | uses: 2 | tier: active | origin: 2026-07-30-181400.md -->
 
 - **The Java repo's helper servers are the standard local test servers for Rust ports
   (Eric, 2026-07-30).** `helpers/redis-standalone` for the suspend/resume arc;
@@ -135,7 +135,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   tests may use fast hermetic in-process doubles (e.g. the RESP2 test double — the
   double stands in for the SERVER, never the client); the helper is the
   integration/live-drive tier.
-  <!-- id: conv-java-helper-servers-for-rust-tests | created: 2026-07-30 | last_used: 2026-07-30 | uses: 1 | tier: working | origin: 2026-07-30-015038.md -->
+  <!-- id: conv-java-helper-servers-for-rust-tests | created: 2026-07-30 | last_used: 2026-07-30 | uses: 4 | tier: active | origin: 2026-07-30-015038.md -->
 
 - **`cargo fmt` + `cargo clippy --all-targets` clean** is part of "done" for every change
   (default settings, no custom rustfmt.toml yet).
@@ -160,12 +160,29 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-26: "ok with the tests/ui without license headers"): a header shifts every
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-07-30 | uses: 100 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-08-01 | uses: 105 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [x] (lock-step — **MERGED 2026-08-07 as PR #193, merge `bea95c80` carrying commit
+  `8162b733`, CI green; same-day mirror of Java PR #263; rides the next release via
+  INCREMENTS 81**) **tutorial-14's manager approval became a real three-outcome
+  decision** (approved → checkpoint; explicit rejected → terminal manager-reject with
+  the reason; anything else → re-suspend through await-decision looping back to
+  check-approval). Model byte-identical to Java; decide-before-you-suspend + the
+  suspensible capability envelope + the wait-loop RESET pattern stated across guide,
+  tutorial help, skill help, and AI catalog (suspend entries byte-identical
+  cross-engine); the suspend-on-routing-skill error TEACHES at both Rust enforcement
+  sites (validator + traveler). **Durable engine facts (mirror of the Java lesson):**
+  seen marks survive suspension and a seen node never re-executes — a wait loop across
+  suspensions must `RESET:` its own nodes before the IFs; the Playground Tutorials tab
+  bakes resources/help/*.md into the webapp bundle at build time — help edits need
+  `npm run release` (bundle now index-DK_iWtSl.js). E2E: rejection + wait-loop
+  sections in suspend_resume_tutorial.rs; knowledge-graph 9 suites, fmt, clippy 0.
+  <!-- id: thread-tutorial-14-decision-rust | created: 2026-08-07 | last_used: 2026-08-07 | uses: 1 | tier: working | origin: 2026-08-07-150018 -->
 
 - [x] (lock-step — **SHIPPED 2026-08-01: feature merged as PR #191 (`5db06a8f`),
   release merged as PR #192 (`7358f1a2`), tag `v4.11.1` on the verified merge commit;
@@ -206,7 +223,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `chore/release-4.11.0`, NOT pushed — Eric gates push/PR/tag (verify the tag lands on
   the verified merge commit — the 4.10.2 tag-race lesson). Java side: 33 poms swept,
   skipTests hardcode removed from 26 poms. Close when tagged + published both repos.
-  <!-- id: thread-release-4-11-0 | created: 2026-07-30 | last_used: 2026-07-30 | uses: 1 | tier: working | origin: 2026-07-30-172823.md -->
+  <!-- id: thread-release-4-11-0 | created: 2026-07-30 | last_used: 2026-07-30 | uses: 4 | tier: active | origin: 2026-07-30-172823.md -->
 
 - [x] (feature — 2026-07-29; **MERGED 2026-07-30 as
   [PR #186](https://github.com/Accenture/mercury/pull/186), merge commit `d2791b09`
@@ -364,7 +381,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   suspend/resume interop evidence is now permanent on BOTH doc sites (Java twin
   PR #243 in flight). Next arc: the lock-step official release (Eric planning).**
   → serves vision-mercury (the suspension blueprint).
-  <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-30 | uses: 3 | tier: working | origin: 2026-07-29-235442.md -->
+  <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-30 | uses: 11 | tier: active | origin: 2026-07-29-235442.md -->
 
 - [x] (release — 2026-07-27; **PUBLISHED 2026-07-26 (Eric confirmed) — CLOSED.
   TAGGED: `v4.10.6` on merge commit `9732799e` (PR
@@ -385,7 +402,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   presentation fix reached EVERY JSON surface — functions, actuators, flows, AND the
   MiniGraph graph endpoint (live proof: POST /api/graph/tutorial-2 returns pretty JSON) —
   with zero additional code.
-  <!-- id: thread-release-4-10-6 | created: 2026-07-27 | last_used: 2026-07-27 | uses: 1 | tier: active | origin: 2026-07-27-011116.md -->
+  <!-- id: thread-release-4-10-6 | created: 2026-07-27 | last_used: 2026-07-27 | uses: 1 | tier: archive-candidate | origin: 2026-07-27-011116.md -->
 
 - [x] (2026-07-26; **MERGED same day as PR
   [#183](https://github.com/Accenture/mercury/pull/183), merge commit `1c8fa91b` — the arc
@@ -462,215 +479,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Merged — CLOSED. Relates [[registration-metadata-contract]]
   (capability matrix: inputPojoClass N/A because typed I subsumes it — this delivers the
   HTTP-facing half of that story), [[port-bottom-up-faithful]].
-  <!-- id: thread-typed-async-http-request | created: 2026-07-26 | last_used: 2026-07-27 | uses: 2 | tier: active | origin: 2026-07-26-233047.md -->
-
-- [x] **Re-verify invariants (due — 40 sessions since the last check ≥ verify_invariants_every
-  40).** Raised by the 2026-07-26 review (cadence); **VERIFIED 2026-07-26 against live code,
-  authorized by Eric ("proceed with the invariant re-verification when D5 is done").
-  Per-fact verdicts: `inv-never-couple-functions` CONFIRMED (route-string + envelope coupling
-  only — examples address peers via set_to("route"); the P1/P2 arcs changed registration
-  mechanics, not the coupling model; one substance refresh: the ADR-ledger parenthetical now
-  reads 0001…0007 adapted + 0008 native). `inv-telemetry-presentation-parity` CONFIRMED and
-  STRENGTHENED (rpc-tag one-record-per-span gate, ENGINE_METADATA_KEYS entry scrub + exit
-  sanitize, app-log-context default-on gating all live; the ce_traceparent/hygiene rounds
-  ended eight-echoes-identical in v4.10.4/5). `port-bottom-up-faithful` CONFIRMED (three
-  layers + macro crates + standalone examples; the whole macro arc practiced
-  Java-reference-first, map-don't-mirror). `conventions-rust-baseline` CONFIRMED with two
-  remedied code drifts (util/mod.rs + automation/mod.rs lacked the Apache header — headers
-  added in the verification commit) and one flagged carve-out for Eric: tests/ui compile-fail
-  FIXTURES carry no license header (deliberate — .stderr line numbers depend on fixture
-  content; treated as test resources, like Java's src/test/resources). Vision
-  (`vision-mercury`) CONFIRMED — north star unchanged, 2026-07-21 current-state context still
-  accurate, the annotation-macro arc directly serves the template-for-future-ports
-  trajectory. No supersessions required.**
-  <!-- id: thread-reverify-invariants-2026q3 | created: 2026-07-26 | last_used: 2026-07-26 | uses: 3 | tier: archive-candidate | origin: 2026-07-26-013015.md -->
-
-- [x] (2026-07-26; **ARC COMPLETE — P2 MERGED same day: Rust PR
-  [#182](https://github.com/Accenture/mercury/pull/182) (merge `fd4685d5`) in lock-step with
-  Java PR #235 (squash `84c4957f`). The full ratified scope is delivered: D1/D2/D3a in P1,
-  D4 (yaml.preload.override) + D5 (registration-metadata contract page + byte-identical
-  golden vectors + 3 conformance suites + ADR-0008) in P2; D3b/D6 deferred by design. The
-  branch also carried: the scalar-semantics ruling ([[string-plugins-unicode-scalars]] —
-  f:length/f:substring on Unicode scalar values, UTF-16 retrofit superseded, with the
-  anti-re-retrofit guard), the Eric-authorized invariant ceremony (all five never-decay
-  facts CONFIRMED against live code, two header drifts remedied), and the docs
-  housekeeping (AI-companion test log → docs/test-reports/, joined the site nav).**
-  P1 was MERGED earlier the same day: Rust PR
-  [#181](https://github.com/Accenture/mercury/pull/181) (merge `ecee2df6`, CI 2m26s — the
-  first trybuild CI run passed, .stderr matched stable first try) in lock-step with Java
-  PR #234 (squash `265f295d`, CI 6m37s). Remaining = P2: D4 yaml.preload.override port +
-  D5 registration-metadata contract page + golden conformance fixture + ADR pair
-  (trybuild already landed in P1). **P2/D4 IN PROGRESS 2026-07-26: yaml.preload.override
-  PORTED on branch `feature/registration-metadata-contract` (1 commit, NOT pushed)** —
-  new platform-core `preload_override` module (Java getPreloadOverride/overrideTasks/
-  getMatchedPreload/overridePreloadInfo semantics verbatim: comma-separated locations,
-  missing/malformed file logged+skipped whole-file, original/routes/instances/
-  keep-original entries, multi-file merge = route-set UNION + first-file-set instances
-  wins, match on ANY declared comma-split route, declared list REPLACED by sorted set,
-  positive instances replaces the env-resolved count, Java log wording); applied in
-  AutoStart between inventory collection and registration, after env_instances
-  resolution (the resolved value is the "old" in the log). 7-scenario regression suite
-  (rename+fan-out shared handler, keep-original, instances override, multi-file merge,
-  missing-file chain, alias-declared original, non-matched untouched). Docs: config
-  reference gains the key (removed from the not-read list), macros-reference +
-  event-script/syntax.md "not ported" blocks rewritten, CHANGELOG Unreleased. Gate: 266
-  (265+1) / clippy 0 / fmt. **P2/D5 DONE 2026-07-26 (2nd+3rd commits on the branch): golden vectors copied
-  VERBATIM from Java 73a0d1be (diff-verified byte-identical, all three); fixtures through
-  the Rust carriers (core kind incl. one marker deliberately ABOVE #[preload] — the
-  conformance fixture itself exercises P1's order-freedom; plugin kind pins BOTH naming
-  halves — explicit positional "vectorEcho" on an unrelated fn name + derived
-  "vectorDerived" from fn vector_derived, the cross-language name-rule proof; feature kind
-  gated-in + gated-out); 3 conformance suites (registration_vectors test binaries, declared
-  metadata read straight from the inventory + resolved registration from the platform);
-  adapted contract page docs/guides/registration-metadata-contract.md (Rust carrier
-  canonical, capability N/As as the port's own note, mkdocs nav under Reference,
-  macros-reference cross-linked both ways); ADR-0008 in the Rust ledger (twin of Java
-  ADR-0009 — cross-ledger numbering note) formalizing the new Key Decision fact
-  [[registration-metadata-contract]].**) **Annotation→macro consistency P1 (ratified arc; design:
-  Java repo `draft-design-specs/annotation-macro-interop-design.md`; goal: the Rust macro
-  surface reads like the Java annotation surface — the template for future Python/Node
-  ports). Java's lock-step half (Platform javadoc + PlaygroundLoader WARN) rides the
-  same-named Java branch.** (D1) The engine dogfoods its extension points: all 46 built-in
-  mapping plugins converted to `#[simple_plugin(name = "...")]` declarations (bodies
-  VERBATIM, twin tests pass unchanged; explicit name= on all 46 — the plugin_* fn prefix
-  means camelCase derivation never matches, and keyword-named plugins never become fn
-  idents); both built-in fetch features converted to `#[fetch_feature]`;
-  builtin_registrations()/register_builtins() deleted; plugins_e8.rs is a proper module
-  (include! retired); `extern crate self as ...` in both crates so the macros' absolute
-  paths resolve in-crate; registry = one link-time inventory fold (OnceLock) + startup
-  count assertions (>= 46 plugins at SimplePluginLoader seq 3, >= 2 features at
-  GraphResources) so linker elision fails the boot loudly. (D2) One conflict policy:
-  explicit register wins over declarative; duplicate name = WARN + last-wins everywhere —
-  Java's exact wordings (Reloading SimplePlugin/FetchFeature {name} - please check
-  duplicated ...); websocket adds the same-style WARN; features flip from skip-if-present
-  to warn+replace; regressions in 2 dedicated test binaries with a capturing logger (incl.
-  user #[simple_plugin] shadowing a built-in — the winner is link-order-dependent like a
-  Java classpath scan, the WARN is the contract). (D3a) #[fetch_feature] accepts a stacked
-  #[optional_service] (platform strip/fold pattern; FetchFeatureEntry.optional_service;
-  is_required at boot; "Skip optional FetchFeature - {name}"); per Eric's ruling
-  #[simple_plugin] takes NO optional_service (plugins are flow vocabulary — stated in
-  macro docs). Stale docs fixed: syntax.md (#[preload] DOES take comma aliases),
-  api-overview.md (public/private IS ported). Docs: macros-reference, design notes,
-  CHANGELOG Unreleased, increment 70. Gate: workspace 262 (260+2) / clippy 0 / fmt.
-  Two Eric-approved addenda folded in: POSITIONAL #[simple_plugin("name")] form (mirrors
-  fetch_feature's grammar; all 46 built-ins flipped; name= stays as alias; no-arg keeps
-  camelCase derivation — one grammar, portable to Python/Node decorators) and
-  ORDER-INSENSITIVE marker stacking (#[zero_tracing]/#[event_interceptor] are real macros
-  via the optional_service self-reattachment pattern — above/below/inline all equivalent,
-  Java annotation semantics; no compile-fail harness in the workspace, behavioral
-  regressions only at first — Eric then upgraded trybuild to THIS round: 3 tests/ui
-  compile-fail suites in the runtime crates, 11 fixtures pinning every deliberate macro
-  compile error, .stderr committed; no rust-toolchain pin, so a diagnostics-reshaping
-  bump regenerates via TRYBUILD=overwrite). Final gate: 265 (262+3) / clippy 0 / fmt.
-  P2 (same arc, gated separately): yaml.preload.override port + contract spec/ADR pair.
-  P1 and P2 both merged — ARC CLOSED. Relates [[port-bottom-up-faithful]],
-  [[registration-metadata-contract]], [[string-plugins-unicode-scalars]].
-  <!-- id: thread-annotation-macro-consistency | created: 2026-07-26 | last_used: 2026-07-26 | uses: 3 | tier: archive-candidate | origin: 2026-07-26-002157.md -->
-
-- [x] (release — 2026-07-24; CLOSED same day) **v4.10.5 SHIPPED AND PUBLISHED in lock-step
-  (both repos) — tag `v4.10.5` on merge commit `5ae307c2` (PR
-  [#180](https://github.com/Accenture/mercury/pull/180), CI green), release published; the
-  Java v4.10.5 published the same day (PR #230, tag on squash `4c82eae0`). Dependabot #16
-  CONFIRMED closed by Eric — the security warning is gone. Sixth lock-step release of the
-  4.10 arc: 4.10.0 interop → 4.10.1 presentation parity → 4.10.2 boundary demarcation →
-  4.10.3 field roll-up → 4.10.4 traceparent carrier + hygiene → 4.10.5 security patch.**
-  Prep detail retained: security patch in lock-step with the Java engine's v4.10.5. Content: playground webapp migrated
-  react-router-dom ^7.18.1 → react-router ^8.3.0 (coordinator's commit `a2fcb26b`),
-  remediating dependabot #16 (React Router RSC Mode CSRF Bypass, follow-up to CVE-2026-22030;
-  affected >= 7.12.0 < 8.3.0) — the -dom package ends at 7.18.1 and pins the vulnerable
-  react-router exactly; v8 consolidated into the single package. Validation: npm audit 0,
-  124 webapp tests, bundle redeployed via npm run release. This closes the dependabot #16
-  loop flagged in the v4.10.4 closure push response. Prep commit: sweep 4.10.4→4.10.5 (root
-  Cargo.toml; lock regenerated; continuity status line), CHANGELOG
-  `## Version 4.10.5, 7/24/2026` Security section. Gate: workspace 260 / clippy 0 / fmt
-  (one unidentified single-test failure during the first post-bump compile-storm run; did
-  not reproduce across 4 subsequent full runs incl. --no-fail-fast — noted for honesty).
-  Tagged + published on both repos — CLOSED.
-  <!-- id: thread-release-4-10-5 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 1 | tier: archive-candidate | origin: 2026-07-24-191554.md -->
-
-- [x] (release — 2026-07-24; CLOSED same day) **v4.10.4 SHIPPED AND PUBLISHED in lock-step
-  (both repos) — tag `v4.10.4` on merge commit `03424582` (PR
-  [#179](https://github.com/Accenture/mercury/pull/179), CI green, 260 tests), release
-  published; the Java v4.10.4 published the same day (PR #229, tag on squash `0125c17b`).
-  Fifth lock-step release of the 4.10 arc: 4.10.0 interop → 4.10.1 presentation parity →
-  4.10.2 boundary demarcation → 4.10.3 field roll-up → 4.10.4 traceparent carrier + interop
-  hygiene.** Prep detail below retained: in lock-step with the Java engine's v4.10.4
-  (Java PR #228 merge `fcd4fbc1`; Rust PR #178 merge `b58d2163`). Patch release: configurable traceparent carrier (standards-first —
-  the optional name is backward-compat-only; standard traceparent wins inbound) + the
-  interop hygiene round (clean delivered envelope view, /api/event wire alignment, x-ttl
-  ingress parity), validated by the ce_traceparent four-way drive with all eight echoes
-  identical (docs/test-reports/event-over-http-interop.md). Sweep 4.10.3→4.10.4 (root
-  Cargo.toml only — members inherit; lock regenerated; continuity status line); CHANGELOG
-  Unreleased → `## Version 4.10.4, 7/24/2026` + release summary. Gate: workspace 260 /
-  clippy 0 / fmt. Tagged + published on both repos — CLOSED.
-  <!-- id: thread-release-4-10-4 | created: 2026-07-24 | last_used: 2026-07-24 | uses: 2 | tier: archive-candidate | origin: 2026-07-24-183956.md -->
-
-- [x] (in flight — 2026-07-24; RELEASED same day in v4.10.4, [[thread-release-4-10-4]])
-  **Interop header-hygiene round, mirrored from the Java reference branch of the same
-  name.** The ce_traceparent interop matrix PASSED (report on `docs/interop-ce-traceparent`,
-  pushed as `62210de8`) but exposed pre-existing header-hygiene asymmetries; all fixed.
-  (1) **Aligned invariant:** a function's delivered ENVELOPE view never contains my_route/
-  my_trace_id/my_trace_path/my_correlation_id/x-event-api — the matrix leak was TRANSPORT (the
-  hello-flow demo copied its injected view onto the outgoing envelope), NOT injection: the Rust
-  delivery never injected my_* into the envelope view and already removed cid/x-event-api; the
-  three my_* keys passed through as transported headers. The worker now scrubs all 5 keys from
-  the delivered envelope for NON-interceptor functions (shared ENGINE_METADATA_KEYS with the
-  exit filter); interceptors keep raw transport fidelity (also RESTORES Java semantics — the
-  port previously stripped cid/x-event-api from interceptor envelopes too); legacy
-  my_correlation_id honored-then-scrubbed. (2) Demo: hello-flow EventOverHttpRpc filters the 4
-  injected my_* keys from its header-copy loop. (3) Wire hygiene on the /api/event client leg:
-  insert-semantics engine stamps (stamp_header, Java http.set — kills the doubled
-  x-trace-id/traceparent/custom-name headers); NO x-correlation-id on the transport leg (the
-  business cid rides the my_cid tag; leg marked via an HTTP-level x-event-api client
-  instruction, consumed by the client + HEADERS_TO_IGNORE — Java's "client-side instruction"
-  precedent); + accept:*/* + x-small-payload-as-bytes:true (Java's header set, same order);
-  + the 3 startup header-name log lines (Java wording). Wire VERIFIED with a raw header-dump
-  listener: single trace headers, no x-correlation-id, full Java set, marker off the wire.
-  2 regression twins of Java PostOfficeTest (CleanEnvelopeEcho probe reporting both views).
-  Gate: workspace 259 (257+2) / clippy 0 / fmt. Docs: event-over-http engine-internals note,
-  CHANGELOG Unreleased Fixed ×3, increment 69. **Matrix re-run VERIFIED the hygiene fixes
-  independently (all 8 runs leak-free, wire = exact Java header set, startup parity line,
-  cross-language span parenting intact); ONE residual fixed as a 2nd commit: the endpoint
-  timeout now rides the request dataset as the x-ttl header (ms, Java setTimeoutSeconds
-  semantics; caller-sent value WINS — route-wins broke the /api/event in-band remote-timeout
-  race, caught by remote_timeout_arrives_in_band). Regression
-  endpoint_timeout_rides_the_dataset_as_the_x_ttl_header; gate now workspace 260 / clippy 0 /
-  fmt.** **FINAL RULING (Eric) applied as a 3rd commit, mirroring Java `5401f1f8`: inbound,
-  the STANDARD traceparent always wins; the custom name is a fallback only when the standard
-  is absent/malformed (a well-formed standard traceparent = the legacy system already
-  upgraded; residual proprietary header safely ignored — self-consistent with the
-  trace.id.header fallback). Precedence regression inverted
-  (standard_traceparent_wins_over_custom_header_name); gateway-simulation test unchanged
-  (proves the fallback); all "custom name first" doc phrases flipped; outbound dual stamping
-  unchanged. Gate: workspace 260 / clippy 0 / fmt.** **MERGED 2026-07-24 as PR #178 (merge `b58d2163`),
-  lock-step with Java PR #228 (merge `fcd4fbc1`); ships in v4.10.4
-  ([[thread-release-4-10-4]]) — close with that release.** Relates
-  [[inv-telemetry-presentation-parity]], [[thread-configurable-traceparent]].
-  <!-- id: thread-interop-header-hygiene | created: 2026-07-24 | last_used: 2026-07-24 | uses: 2 | tier: archive-candidate | origin: 2026-07-24-173129.md -->
-
-- [x] (in flight — 2026-07-24; **MERGED same day as PR #177**, merge commit `e99013cb`; the
-  ce_traceparent interop matrix verified the custom carrier cross-language; **RELEASED in
-  v4.10.4 with the standards-first precedence flip — CLOSED**) **Configurable traceparent header name (field request), mirrored from
-  the Java reference in lock-step** (mercury-composable branch of the same name, commit
-  `5ee496dd`). `http.traceparent.header` (default `traceparent`) + per-entry
-  `traceparent.header` in rest.yaml (precedence per-entry > global > default). Inbound
-  (REST automation): parse the custom name FIRST — a well-formed value under it wins, so a
-  sidecar-injected standard `traceparent` cannot override the peer's context — standard header
-  as fallback for compliant callers. Outbound (async HTTP client + the Event-over-HTTP encode
-  path): the same W3C value stamped under BOTH names when they differ (case-insensitive).
-  Escape hatch for a gateway allow-list that strips the standard header — the full W3C context
-  crosses, so cross-app span parenting survives (beats trace-id conflation). Java's Kafka twins
-  (`kafka.traceparent.header` / `secondary.kafka.traceparent.header` + the adapter per-binding
-  override) have NO Rust surface (mesh not ported) — skipped per the mirror-what-exists rule.
-  Test pattern mirrored: suite-wide `http.traceparent.header=X-Trace-Context` in
-  tests/resources/application.properties (the whole platform-core suite runs feature-active,
-  proving it additive) + 5 regression twins of the Java tests (custom carries context / custom
-  wins over injected standard / standard fallback / per-entry override / dual-stamp
-  echo-chain). Gate: workspace 257 (252+5) / clippy 0 / fmt. Docs: config reference,
-  observability (impedance row + "renamed traceparent beats conflation" tip), rest-automation
-  grammar, reserved-names, HTTP-client guide, CHANGELOG Unreleased, increment 68. Close when
-  merged (+ released in the next lock-step patch). Relates [[inv-telemetry-presentation-parity]].
-  <!-- id: thread-configurable-traceparent | created: 2026-07-24 | last_used: 2026-07-24 | uses: 3 | tier: archive-candidate | origin: 2026-07-24-160634.md -->
+  <!-- id: thread-typed-async-http-request | created: 2026-07-26 | last_used: 2026-07-27 | uses: 2 | tier: archive-candidate | origin: 2026-07-26-233047.md -->
 
 ### Blueprint — gaps from Current State (three layers shipped + graduated) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a
@@ -738,7 +547,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   surface — the asymmetry (Rust strictly more predictable) is documented, not closed.
   Revisit trigger: first consumer that truly runs at capacity.**
   → serves: vision-mercury
-  <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-28 | uses: 4 | tier: active | origin: 2026-07-21-030938.md -->
+  <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-28 | uses: 4 | tier: archive-candidate | origin: 2026-07-21-030938.md -->
 
 - [x] **(knowledge-harvest — CLOSED 2026-07-27 by Eric's ruling: per-layer harvest COMPLETE;
   the connectors/sync-over-async harvest rides [[bp-kafka-connectors-backlog]].)
@@ -757,7 +566,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   sync-over-async harvest (rides [[bp-kafka-connectors-backlog]]). **Human gate:** mark
   this `[x]` (per-layer harvest done) or re-scope it to the connectors harvest — Eric's call.
   → serves: vision-mercury
-  <!-- id: ot-harvest-mercury-composable | created: 2026-07-15 | last_used: 2026-07-27 | uses: 3 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: ot-harvest-mercury-composable | created: 2026-07-15 | last_used: 2026-07-27 | uses: 3 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
 
 ## User Preferences
 
