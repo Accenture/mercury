@@ -101,10 +101,12 @@ colors in the Playground; the skill defines the behavior.
 app) is the complete multi-checkpoint pattern — **three human checkpoints, four short
 runs, one correlation ID**:
 
-```text
-root → resume → order (suspend=true) → check-approval → approval (suspend=true) → delivery (suspend=true) → ship → end
-                                        ↑        ↘ manager-reject → end
-                                        └─ await-decision (suspend=true)
+```mermaid
+flowchart LR
+    root(["root"]) --> resume --> order["order<br>(suspend=true)"] --> check{"check-approval"}
+    check -->|approved| approval["approval<br>(suspend=true)"] --> delivery["delivery<br>(suspend=true)"] --> ship --> done(["end"])
+    check -->|rejected| reject["manager-reject"] --> done
+    check -->|waiting| await["await-decision<br>(suspend=true)"] --> check
 ```
 
 A customer orders, the store manager approves **or rejects with a reason**, the delivery
