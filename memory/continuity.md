@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.1** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.4** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-08 | agent: Claude Code (2026-08-08-005419)
+- **last_session:** 2026-08-08 | agent: Claude Code (2026-08-08-022929)
 - **last_review:** 2026-08-07 | through 2026-08-07-150018.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -166,6 +166,15 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [x] (release — SHIPPED AND PUBLISHED 2026-08-08, **lock-step with the Java engine
+  at v4.11.4**) **v4.11.4 — the suspend/resume rationalization release.** Release
+  PR #196, merge `27c2cc8e`, CI green; workspace 4.11.1→4.11.4 + Cargo.lock refresh
+  (the CHANGELOG notes 4.11.2/4.11.3 were Java-only releases); 58 suites green; tag
+  `v4.11.4` on the verified merge, dereference-verified; published by Eric. Contents:
+  [[thread-suspend-resume-rationalization-rust]] (ADR-0011) incl. the webapp UI
+  refresh from the Java repo. Java twin: PR #266, squash `ad60f7e4`, tag verified.
+  <!-- id: thread-release-4-11-4-rust | created: 2026-08-08 | last_used: 2026-08-08 | uses: 1 | tier: working | origin: 2026-08-08-022929 -->
 
 - [x] (lock-step — **MERGED 2026-08-08 as mercury PR #195, merge `4e6bdf43` carrying
   commit `995cfeb7` with its single co-author trailer, CI green; mirrors the Java
