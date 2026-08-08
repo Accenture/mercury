@@ -14,6 +14,12 @@ import {
   detectGraphExportFailure,
   parseNodeActionTextResult,
 } from '../utils/messageParser';
+import {
+  parseSessionStarted,
+  parseSessionStatus,
+  parseSessionCommandResult,
+  parseSessionNotification,
+} from '../session/sessionParser';
 
 export const SESSION_RESTARTED_MSG = 'Session restarted';
 
@@ -39,6 +45,7 @@ export function classifyMessage(msgId: number, raw: string): ProtocolEvent[] {
   let matchedMockUpload = false;
   let matchedUploadContentPath = false;
   let matchedLargePayload = false;
+  let matchedSession = false;
 
   // ── Rule 1: JSON lifecycle event ──────────────────────────────────────────
   const jsonCheck = tryParseJSON(raw);
@@ -152,6 +159,7 @@ export function classifyMessage(msgId: number, raw: string): ProtocolEvent[] {
       status: nodeActionResult.status,
       action: nodeActionResult.action,
       alias: nodeActionResult.alias,
+      targetAlias: nodeActionResult.targetAlias,
       message: nodeActionResult.message,
     });
   }
@@ -172,7 +180,58 @@ export function classifyMessage(msgId: number, raw: string): ProtocolEvent[] {
 
   // ── Rule 7c: Session reset ────────────────────────────────────────────────
   if (raw === SESSION_RESTARTED_MSG) {
+    matchedSession = true;
     events.push({ ...base, kind: 'session.reset' });
+  }
+
+  // ── Rule 7d: Session collaboration text events ──────────────────────────
+  const sessionStarted = parseSessionStarted(raw);
+  if (sessionStarted) {
+    matchedSession = true;
+    events.push({
+      ...base,
+      kind: 'minigraph.session.started',
+      sessionId: sessionStarted.sessionId,
+      companionEndpoint: sessionStarted.companionEndpoint,
+    });
+  }
+
+  const sessionStatus = parseSessionStatus(raw);
+  if (sessionStatus) {
+    matchedSession = true;
+    events.push({
+      ...base,
+      kind: 'minigraph.session.status',
+      sessionId: sessionStatus.sessionId,
+      startedSince: sessionStatus.startedSince,
+      subscribedTo: sessionStatus.subscribedTo,
+      subscribers: sessionStatus.subscribers,
+    });
+  }
+
+  const sessionCommandResult = parseSessionCommandResult(raw);
+  if (sessionCommandResult) {
+    matchedSession = true;
+    events.push({
+      ...base,
+      kind: 'minigraph.session.commandResult',
+      command: sessionCommandResult.command,
+      status: sessionCommandResult.status,
+      sessionId: sessionCommandResult.sessionId,
+      message: sessionCommandResult.message,
+    });
+  }
+
+  const sessionNotification = parseSessionNotification(raw);
+  if (sessionNotification) {
+    matchedSession = true;
+    events.push({
+      ...base,
+      kind: 'minigraph.session.notification',
+      type: sessionNotification.type,
+      sessionId: sessionNotification.sessionId,
+      message: sessionNotification.message,
+    });
   }
 
   // ── Rule 8: Command echo (starts with "> ") ──────────────────────────────
@@ -224,6 +283,7 @@ export function classifyMessage(msgId: number, raw: string): ProtocolEvent[] {
     !matchedMockUpload &&
     !matchedUploadContentPath &&
     !matchedLargePayload &&
+    !matchedSession &&
     isMarkdownCandidate(raw)
   ) {
     events.push({

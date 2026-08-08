@@ -41,6 +41,7 @@ export type WsPhase = "idle" | "connecting" | "connected";
  */
 export interface WsSlot {
   phase: WsPhase;
+  connectionEpoch: number | null;
   messages: { id: number; raw: string }[];
   wsRef: React.RefObject<WebSocket | null>;
   msgIdRef: React.RefObject<number>;
@@ -52,6 +53,7 @@ export interface WebSocketContextValue {
   /** Get the reactive state (phase + messages) for a given wsPath. */
   getSlot: (wsPath: string) => {
     phase: WsPhase;
+    connectionEpoch: number | null;
     messages: { id: number; raw: string }[];
   };
   /**
@@ -96,6 +98,8 @@ export interface WebSocketContextValue {
 
 interface SlotState {
   phase: WsPhase;
+  /** Message id assigned when the current WebSocket connection opened. */
+  connectionEpoch: number | null;
   messages: { id: number; raw: string }[];
 }
 
@@ -115,14 +119,14 @@ function appendMsg(
   id: number,
   msg: string,
 ): AllSlots {
-  const prev = slots[path] ?? { phase: "idle", messages: [] };
+  const prev = slots[path] ?? { phase: "idle", connectionEpoch: null, messages: [] };
   const msgs = [...prev.messages, { id, raw: msg }];
   if (msgs.length > MAX_ITEMS) msgs.shift();
   return { ...slots, [path]: { ...prev, messages: msgs } };
 }
 
 function slotsReducer(state: AllSlots, action: SlotAction): AllSlots {
-  const prev = state[action.path] ?? { phase: "idle", messages: [] };
+  const prev = state[action.path] ?? { phase: "idle", connectionEpoch: null, messages: [] };
 
   switch (action.type) {
     case "CONNECTING":
@@ -130,7 +134,14 @@ function slotsReducer(state: AllSlots, action: SlotAction): AllSlots {
 
     case "CONNECTED":
       return appendMsg(
-        { ...state, [action.path]: { ...prev, phase: "connected" } },
+        {
+          ...state,
+          [action.path]: {
+            ...prev,
+            phase: "connected",
+            connectionEpoch: action.id,
+          },
+        },
         action.path,
         action.id,
         action.msg,
@@ -421,7 +432,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   // ── getSlot ──────────────────────────────────────────────────────────────
   const getSlot = useCallback(
     (wsPath: string) => {
-      return slots[wsPath] ?? { phase: "idle" as WsPhase, messages: [] };
+      return slots[wsPath] ?? {
+        phase: "idle" as WsPhase,
+        connectionEpoch: null,
+        messages: [],
+      };
     },
     [slots],
   );

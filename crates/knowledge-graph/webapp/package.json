@@ -5,13 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run typecheck && vite build",
     "preview": "vite preview",
     "clean": "node scripts/clean.js",
     "release": "npm run clean && npm run build && npm run deploy",
     "deploy": "node scripts/deploy.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@xyflow/react": "^12.10.1",
@@ -25,11 +26,13 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "babel-plugin-react-compiler": "^1.0.0",
     "fake-indexeddb": "^6.2.5",
+    "happy-dom": "^20.11.1",
     "typescript": "^5.9.3",
     "vite": "^8.0.16",
     "vite-plugin-svgr": "^4.5.0",

@@ -2067,6 +2067,101 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
         step_count("two", cid),
         "model.cid must survive a composite-path forgery (cid.x / ttl[0])"
     );
+
+    // --- suspend-6: JUMP MODE - a decision jumps to the island-anchored
+    // suspend node and is RE-EXECUTED against the new input on every resume
+    let cid = "wf-suspend-jump-007";
+    // run 1: no decision - the gate jumps to suspend and stages its own waiting reply
+    let r1 = run_graph_cid(
+        platform,
+        "unit-test-suspend-6",
+        cid,
+        serde_json::json!({"noise": true}),
+    )
+    .await;
+    assert_eq!(200, r1.status(), "jump run 1: {:?}", r1.body());
+    let waiting1 = body_map(&r1);
+    assert_eq!(
+        Some(Value::from("waiting")),
+        waiting1.get_element("stage"),
+        "the decision stages the caller's reply"
+    );
+    assert_eq!(Some(Value::from("fresh")), waiting1.get_element("run"));
+    // the persisted suspension point is the DECISION that jumped
+    let record = MultiLevelMap::from_value(unpack_value(
+        &std::fs::read(store_file(cid)).expect("jump record"),
+    ));
+    assert_eq!(Some(Value::from("gate")), record.get_element("data.node"));
+    // run 2: still no decision - the gate re-executes and re-suspends (before
+    // jump-mode re-execution this dead-ended: a node marked seen never
+    // re-dispatches, and the persisted seen marks include the gate)
+    let r2 = run_graph_cid(
+        platform,
+        "unit-test-suspend-6",
+        cid,
+        serde_json::json!({"noise": true}),
+    )
+    .await;
+    assert_eq!(200, r2.status(), "jump run 2: {:?}", r2.body());
+    let waiting2 = body_map(&r2);
+    assert_eq!(Some(Value::from("waiting")), waiting2.get_element("stage"));
+    assert_eq!(
+        Some(Value::from("resume")),
+        waiting2.get_element("run"),
+        "the second wait is a resumed run"
+    );
+    let record2 = MultiLevelMap::from_value(unpack_value(
+        &std::fs::read(store_file(cid)).expect("re-suspension record"),
+    ));
+    assert_eq!(
+        Some(Value::from("gate")),
+        record2.get_element("data.node"),
+        "re-suspension re-persists"
+    );
+    assert_eq!(
+        0,
+        step_count("go-step", cid),
+        "the continuing path must not run yet"
+    );
+    // run 3: the decision arrives - the re-executed gate routes onward
+    let r3 = run_graph_cid(
+        platform,
+        "unit-test-suspend-6",
+        cid,
+        serde_json::json!({"decision": "go"}),
+    )
+    .await;
+    assert_eq!(200, r3.status(), "jump run 3: {:?}", r3.body());
+    assert_eq!(
+        Some(Value::from("go-step")),
+        body_map(&r3).get_element("step")
+    );
+    assert_eq!(1, step_count("go-step", cid));
+    assert!(
+        !store_file(cid).exists(),
+        "the record must be consumed on the final resume"
+    );
+
+    // --- compat: the retired 'suspend=true' property with NO drawn edge
+    // deploys (gate WARN) and never suspends
+    let cid = "wf-suspend-compat-008";
+    let response = run_graph_cid(
+        platform,
+        "unit-test-suspend-compat-1",
+        cid,
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, response.status(), "compat: {:?}", response.body());
+    assert_eq!(
+        Some(Value::from("finished")),
+        body_map(&response).get_element("stage")
+    );
+    assert_eq!(1, step_count("compat-step", cid));
+    assert!(
+        !store_file(cid).exists(),
+        "the retired property must not suspend"
+    );
 }
 
 /// Find a mutable reference to a nested map's entry list by literal keys.

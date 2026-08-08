@@ -35,8 +35,7 @@
         ],
         "output": [
           "result.count -> model.step1_count"
-        ],
-        "suspend": true
+        ]
       }
     },
     {

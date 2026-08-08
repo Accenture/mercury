@@ -1,5 +1,12 @@
 import type { NodeFormState } from './nodeAuthoringTypes';
-import { validateCommandSize, validateDeleteNodeAlias, validateNodeFormState, type DeleteNodeValidationOptions } from './validation';
+import type { ConnectionFormState } from './connectionAuthoringTypes';
+import {
+  validateCommandSize,
+  validateConnectionFormState,
+  validateDeleteNodeAlias,
+  validateNodeFormState,
+  type DeleteNodeValidationOptions,
+} from './validation';
 
 function getSerializablePropertyRows(formState: NodeFormState, preserveValue = false) {
   return formState.properties
@@ -94,6 +101,17 @@ export function buildDeleteNodeCommand(aliasInput: string, options: DeleteNodeVa
   }
 
   const command = `delete node ${alias}`;
+  assertValidCommandSize(command);
+  return command;
+}
+
+export function buildCreateConnectionCommand(formState: ConnectionFormState): string {
+  const validation = validateConnectionFormState(formState);
+  if (!validation.valid) {
+    throw new Error(Object.values(validation.errors)[0] ?? 'Invalid connection form state.');
+  }
+
+  const command = `connect ${formState.sourceAlias.trim()} to ${formState.targetAlias.trim()} with ${formState.relation.trim()}`;
   assertValidCommandSize(command);
   return command;
 }

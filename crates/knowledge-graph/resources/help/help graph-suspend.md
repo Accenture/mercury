@@ -9,32 +9,37 @@ function, but the persistence envelope is assembled by the skill itself, so the 
 no input or output data mapping.
 
 The node carrying this skill MUST be named "suspend" - a reserved alias like "root" and
-"end" - because graph traversal jumps to it by name: when a node with the "suspend=true"
-property completes normally, the walker routes to the "suspend" node instead of the node's
-normal forward path. A plain connection into the "suspend" node is an unconditional
-suspension point. There is exactly one suspend node per graph.
+"end". There is exactly one suspend node per graph, and there are two ways to reach it:
+
+1. Edge mode - a working node with a DRAWN EDGE to the "suspend" node suspends when its
+   skill completes normally: the walker redirects to the checkpoint instead of following
+   the node's continuation edge. The drawn edge is the declaration - no node property is
+   needed. The node must also have at least one other edge (the continuation): a resumed
+   run continues along it, and the node itself is never re-executed. An edge-mode node is
+   a complete working node - it executes its skill in full (input mapping, skill, output
+   mapping) before suspending, so it may carry any non-routing skill (graph.data.mapper,
+   graph.task, graph.api.fetcher, graph.extension), capture the actor's input into the
+   model, and stage the caller's reply in output.* - only its exit changes.
+
+2. Jump mode - a decision (graph.math) reaches the checkpoint by returning "suspend"
+   from its IF-THEN-ELSE. On resume the decision is RE-EXECUTED against the new request
+   input, so it re-decides every time: an approval proceeds, a rejection terminates, and
+   anything else jumps back to "suspend" - a wait loop with no extra nodes. A decision
+   must NOT draw an edge to the suspend node (its drawn edges are outcome alternatives,
+   and the gate rejects the shape); it may stage the caller's waiting reply in output.*
+   before its IFs - the outcome paths overwrite it.
+
+When the suspend node is reachable only by jumps, anchor it behind an island so the graph
+has no orphan nodes: "root -> island -> suspend" - traversal stops at the island, so the
+anchor edge is never walked. The suspend node cannot be an exception handler
+(exception=suspend is rejected). The retired "suspend=true" property is accepted and
+ignored for one deprecation window (the gate logs a WARN) - every valid earlier model
+already draws its checkpoint edge, which now declares the same behavior.
 
 A suspension point must be the sole active branch - do not suspend between a fan-out and
 its join; suspend after the join instead. Anything a later step needs must be mapped into
 the "model" namespace before the suspension point, because a node's transient "result"
 properties do not survive suspension - the model is the workflow's durable memory.
-
-A suspensible node is a complete working node - it executes its skill in full (input
-mapping, skill, output mapping) before routing to the suspend node, so it may carry any
-non-routing skill (graph.data.mapper, graph.task, graph.api.fetcher, graph.extension),
-capture the actor's input into the model, and stage the caller's reply in output.* -
-only its exit changes. Its non-checkpoint edge defines where the next run continues
-after resume.
-
-A suspensible node suspends unconditionally - it cannot evaluate the actor's input and
-choose not to suspend. When the input decides the workflow's direction (e.g. approve vs
-reject), place a routing node (graph.math) on the resume continuation BEFORE the next
-suspensible node, so the decision is made first and only the continuing path reaches the
-checkpoint - see tutorial-14's "check-approval" node for the pattern. To keep a workflow
-waiting on invalid input, route the fallback to a suspensible wait node whose continuation
-loops back to the decision - and RESET both loop nodes in the decision's statements before
-its IFs, because the traveler and executor never re-execute a node marked "seen" and the
-seen marks survive suspension (tutorial-14's "await-decision" shows the full loop).
 
 Unless the graph staged its own output before suspension, the skill stages a default
 response body so the caller of the suspended run receives a meaningful reply:

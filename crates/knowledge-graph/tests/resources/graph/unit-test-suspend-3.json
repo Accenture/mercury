@@ -72,8 +72,7 @@
         ],
         "output": [
           "result.count -> model.gamma_count"
-        ],
-        "suspend": true
+        ]
       }
     },
     {

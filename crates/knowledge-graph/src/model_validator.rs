@@ -29,7 +29,7 @@
 //! The rules here are whole-graph properties that per-command input
 //! validation cannot express: the suspend/resume contract ('suspend' is a
 //! reserved alias bound to the 'graph.suspend' skill in both directions; a
-//! suspensible node must not use a routing skill, requires the suspend node
+//! a routing-skill node must not draw an edge to 'suspend'; needs the suspend node
 //! and must draw its checkpoint edge to it; every suspension point needs a
 //! continuation edge; the suspend node needs 'task', a valid 'ttl' and an
 //! outgoing connection; a 'resume' node needs 'task').
@@ -39,7 +39,7 @@ use platform_core::graph::{MiniGraph, SimpleNode};
 use rmpv::Value;
 use std::sync::Arc;
 
-use crate::common::{assert_mutable_model_target, get_entries, NODE_NAME, SKILL};
+use crate::common::{assert_mutable_model_target, get_entries, EXCEPTION, NODE_NAME, SKILL};
 use crate::suspend::{get_valid_ttl_seconds, RESUME_ROUTE, SUSPEND_ALIAS, SUSPEND_ROUTE};
 
 const TASK: &str = "task";
@@ -167,13 +167,9 @@ pub fn validate_suspend_resume(graph: &MiniGraph) -> Result<(), String> {
         if skill.as_deref() == Some(RESUME_ROUTE) {
             validate_resume_node(&node)?;
         }
-        if node
-            .get_property(SUSPEND_ALIAS)
-            .map(|v| display(&v).eq_ignore_ascii_case("true"))
-            .unwrap_or(false)
-        {
-            validate_suspensible_node(graph, &node, suspend_node.as_ref())?;
-        }
+        warn_if_retired_suspend_property(graph, &node);
+        validate_no_routing_skill_suspend_edge(graph, &node)?;
+        validate_exception_target(&node)?;
         validate_continuation_edge(graph, &node)?;
     }
     Ok(())
@@ -219,44 +215,98 @@ fn validate_resume_node(node: &Arc<SimpleNode>) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_suspensible_node(
+/// The 'suspend=true' property is retired: a drawn edge to the 'suspend' node is the
+/// suspension declaration (edge mode), and a decision jumps to the checkpoint instead
+/// (jump mode). The property is accepted and ignored for one deprecation window so
+/// v4.11.x models deploy unmodified - every valid v4.11.x suspensible node already
+/// draws the checkpoint edge, which now declares the same behavior.
+fn warn_if_retired_suspend_property(graph: &MiniGraph, node: &Arc<SimpleNode>) {
+    if node
+        .get_property(SUSPEND_ALIAS)
+        .map(|v| display(&v).eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+    {
+        let alias = node.get_alias();
+        if has_edge_to_suspend(graph, alias) {
+            log::warn!(
+                "Node '{alias}' uses the retired 'suspend=true' property - it is ignored; \
+                 the drawn edge to the '{SUSPEND_ALIAS}' node already declares the suspension point \
+                 (remove the property)"
+            );
+        } else {
+            log::warn!(
+                "Node '{alias}' uses the retired 'suspend=true' property and has no drawn \
+                 edge to the '{SUSPEND_ALIAS}' node - it will NOT suspend; draw the edge from a \
+                 working node, or jump from a decision's IF-THEN-ELSE"
+            );
+        }
+    }
+}
+
+/// A decision's forward links are outcome alternatives, not branches: if a
+/// routing-skill node drew an edge to 'suspend', a resumed run would fan out its
+/// alternatives as if they were parallel branches. A decision reaches the checkpoint
+/// by jumping (return 'suspend' from IF-THEN-ELSE) and is re-executed on resume.
+fn validate_no_routing_skill_suspend_edge(
     graph: &MiniGraph,
     node: &Arc<SimpleNode>,
-    suspend_node: Option<&Arc<SimpleNode>>,
 ) -> Result<(), String> {
-    let alias = node.get_alias();
     let skill = node.get_property(SKILL).map(|v| display(&v));
     if matches!(
         skill.as_deref(),
         Some(crate::skills::MATH_ROUTE) | Some(JS_ROUTE)
-    ) {
+    ) && has_edge_to_suspend(graph, node.get_alias())
+    {
         let skill_name = skill.unwrap_or_default();
         return Err(format!(
-            "{NODE_NAME}{alias} cannot use 'suspend=true' with skill {skill_name} - \
-             a suspensible node suspends unconditionally, so make the decision first: \
-             place the {skill_name} node before a suspensible node and route the continuing path to it"
+            "{NODE_NAME}{} has a drawn edge to the '{SUSPEND_ALIAS}' node but uses routing skill {skill_name} - \
+             a decision reaches the checkpoint by jumping: return '{SUSPEND_ALIAS}' from its IF-THEN-ELSE \
+             and draw edges to '{SUSPEND_ALIAS}' only from working nodes",
+            node.get_alias()
         ));
     }
-    if suspend_node.is_none() {
+    Ok(())
+}
+
+/// The suspend node cannot be an exception handler - checkpoint-on-failure would give
+/// a failed node retry-on-resume semantics through the back door. Route failures to a
+/// handler node.
+fn validate_exception_target(node: &Arc<SimpleNode>) -> Result<(), String> {
+    if node
+        .get_property(EXCEPTION)
+        .map(|v| display(&v) == SUSPEND_ALIAS)
+        .unwrap_or(false)
+    {
         return Err(format!(
-            "{NODE_NAME}{alias} is suspensible but the graph has no '{SUSPEND_ALIAS}' node"
+            "{NODE_NAME}{} routes its 'exception' to the '{SUSPEND_ALIAS}' node - the suspend node cannot \
+             be an exception handler; route failures to a handler node",
+            node.get_alias()
         ));
     }
-    for next in graph.get_forward_links(alias).unwrap_or_default() {
-        if next.get_alias() == SUSPEND_ALIAS {
-            return Ok(());
-        }
-    }
-    Err(format!(
-        "{NODE_NAME}{alias} is suspensible but has no connection to the '{SUSPEND_ALIAS}' \
-         node - the diagram must show the suspension path"
-    ))
+    Ok(())
+}
+
+fn has_edge_to_suspend(graph: &MiniGraph, alias: &str) -> bool {
+    graph
+        .get_forward_links(alias)
+        .unwrap_or_default()
+        .iter()
+        .any(|next| next.get_alias() == SUSPEND_ALIAS)
 }
 
 fn validate_continuation_edge(graph: &MiniGraph, node: &Arc<SimpleNode>) -> Result<(), String> {
-    // any node that routes to the checkpoint (suspend=true or a plain drawn edge)
-    // is a suspension point: a resumed run continues along its forward links
-    // excluding 'suspend', so at least one continuation edge must exist
+    // a node with a drawn edge to the checkpoint is an edge-mode suspension point:
+    // a resumed run continues along its forward links excluding 'suspend', so at
+    // least one continuation edge must exist - a suspend-only node would loop on
+    // resume. Shape-only rule: it applies regardless of skill (inspecting a
+    // decision's IF-THEN-ELSE logic is deliberately out of scope). The one
+    // exemption is also shape-level: an island's outgoing edges are never traversed
+    // (the branch stops there), so an island-to-suspend edge is the ANCHOR that
+    // keeps a jump-only suspend node non-orphan, not a checkpoint path
+    if node.get_property(SKILL).map(|v| display(&v)).as_deref() == Some(crate::skills::ISLAND_ROUTE)
+    {
+        return Ok(());
+    }
     let mut routes_to_suspend = false;
     let mut has_continuation = false;
     for next in graph

@@ -206,8 +206,18 @@
   min-height: 2.5rem;
   max-height: 28rem;
   overflow-y: auto;
+  /* Hide the scrollbar uniformly across platforms. On Windows the classic
+     scrollbar (with arrow buttons) shows on this auto-growing textarea, while
+     macOS uses overlay scrollbars — hide it everywhere for a consistent look.
+     Wheel/keyboard scrolling still works when content exceeds max-height. */
+  scrollbar-width: none; /* Firefox */
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
   box-sizing: border-box;
+}
+
+/* Chromium/WebKit (Windows Edge/Chrome, macOS Safari/Chrome) */
+.textarea::-webkit-scrollbar {
+  display: none;
 }
 
 .textarea:focus {

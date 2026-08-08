@@ -1,10 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import styles from './NodeContextMenu.module.css';
 
-interface NodeContextMenuProps {
+interface BaseNodeContextMenuProps {
   open: boolean;
   x: number;
   y: number;
+  onClose: () => void;
+}
+
+interface SingleNodeContextMenuProps extends BaseNodeContextMenuProps {
+  mode: 'single-node';
   nodeAlias: string;
   canClipNode: boolean;
   canEditNode: boolean;
@@ -12,36 +17,47 @@ interface NodeContextMenuProps {
   onClipNode: () => void;
   onEditNode: () => void;
   onDeleteNode: () => void;
-  onClose: () => void;
 }
+
+interface MultiNodeContextMenuProps extends BaseNodeContextMenuProps {
+  mode: 'multi-node';
+  selectedCount: number;
+  canClipSelectedNodes: boolean;
+  canDeleteSelectedNodes: boolean;
+  onClipSelectedNodes: () => void;
+  onDeleteSelectedNodes: () => void;
+}
+
+type NodeContextMenuProps = SingleNodeContextMenuProps | MultiNodeContextMenuProps;
 
 const VIEWPORT_MARGIN = 8;
 
 // Node-level menu for actions that require a concrete graph node. This stays
 // separate from GraphContextMenu, which is reserved for pane-level actions.
-export default function NodeContextMenu({
-  open,
-  x,
-  y,
-  nodeAlias,
-  canClipNode,
-  canEditNode,
-  canDeleteNode,
-  onClipNode,
-  onEditNode,
-  onDeleteNode,
-  onClose,
-}: NodeContextMenuProps) {
+export default function NodeContextMenu(props: NodeContextMenuProps) {
+  const { open, x, y, onClose } = props;
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [position, setPosition] = useState({ left: x, top: y });
   const menuRef = useRef<HTMLDivElement>(null);
   const firstItemRef = useRef<HTMLButtonElement>(null);
   const confirmDeleteRef = useRef<HTMLButtonElement>(null);
-  const hasAnyAction = canClipNode || canEditNode || canDeleteNode;
+  const selectedCount = props.mode === 'multi-node' ? props.selectedCount : null;
+  const isMultiNode = selectedCount !== null && selectedCount > 1;
+  const canClip = props.mode === 'multi-node'
+    ? isMultiNode && props.canClipSelectedNodes
+    : props.canClipNode;
+  const canEdit = props.mode === 'single-node' && props.canEditNode;
+  const canDelete = props.mode === 'multi-node'
+    ? isMultiNode && props.canDeleteSelectedNodes
+    : props.canDeleteNode;
+  const hasAnyAction = canClip || canEdit || canDelete;
+  const targetLabel = isMultiNode
+    ? `${selectedCount} selected nodes`
+    : props.mode === 'single-node' ? props.nodeAlias : '';
 
   useLayoutEffect(() => {
     if (open) setConfirmingDelete(false);
-  }, [nodeAlias, open, x, y]);
+  }, [open, targetLabel, x, y]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -59,7 +75,7 @@ export default function NodeContextMenu({
       left: Math.min(Math.max(x, VIEWPORT_MARGIN), maxLeft),
       top: Math.min(Math.max(y, VIEWPORT_MARGIN), maxTop),
     });
-  }, [canClipNode, canDeleteNode, canEditNode, confirmingDelete, nodeAlias, open, x, y]);
+  }, [canClip, canDelete, canEdit, confirmingDelete, open, targetLabel, x, y]);
 
   useEffect(() => {
     if (!open) {
@@ -112,18 +128,24 @@ export default function NodeContextMenu({
       className={styles.menu}
       style={{ left: position.left, top: position.top }}
       role="menu"
-      aria-label={`Node actions for ${nodeAlias}`}
+      aria-label={isMultiNode ? `Actions for ${selectedCount} selected nodes` : `Node actions for ${targetLabel}`}
     >
       {confirmingDelete ? (
-        <div className={styles.confirmation} role="group" aria-label={`Confirm delete ${nodeAlias}`}>
-          <div className={styles.confirmationText}>Delete "{nodeAlias}"?</div>
+        <div className={styles.confirmation} role="group" aria-label={`Confirm delete ${targetLabel}`}>
+          <div className={styles.confirmationText}>
+            {isMultiNode ? `Delete ${selectedCount} selected nodes?` : `Delete "${targetLabel}"?`}
+          </div>
           <div className={styles.confirmationActions}>
             <button
               ref={confirmDeleteRef}
               type="button"
               className={`${styles.menuItem} ${styles.dangerItem}`}
               onClick={() => {
-                onDeleteNode();
+                if (props.mode === 'multi-node') {
+                  props.onDeleteSelectedNodes();
+                } else {
+                  props.onDeleteNode();
+                }
                 onClose();
               }}
             >
@@ -140,43 +162,47 @@ export default function NodeContextMenu({
         </div>
       ) : (
         <>
-          {canClipNode && (
+          {canClip && (
             <button
               ref={firstItemRef}
               role="menuitem"
               type="button"
               className={styles.menuItem}
               onClick={() => {
-                onClipNode();
+                if (props.mode === 'multi-node') {
+                  props.onClipSelectedNodes();
+                } else {
+                  props.onClipNode();
+                }
                 onClose();
               }}
             >
-              Clip to Workspace
+              {isMultiNode ? `Clip ${selectedCount} selected nodes to Workspace` : 'Clip to Workspace'}
             </button>
           )}
-          {canEditNode && (
+          {canEdit && props.mode === 'single-node' && (
             <button
-              ref={canClipNode ? undefined : firstItemRef}
+              ref={canClip ? undefined : firstItemRef}
               role="menuitem"
               type="button"
               className={styles.menuItem}
               onClick={() => {
-                onEditNode();
+                props.onEditNode();
                 onClose();
               }}
             >
               Edit Node
             </button>
           )}
-          {canDeleteNode && (
+          {canDelete && (
             <button
-              ref={!canClipNode && !canEditNode ? firstItemRef : undefined}
+              ref={!canClip && !canEdit ? firstItemRef : undefined}
               role="menuitem"
               type="button"
               className={`${styles.menuItem} ${styles.dangerItem}`}
               onClick={() => setConfirmingDelete(true)}
             >
-              Delete Node
+              {isMultiNode ? `Delete ${selectedCount} selected nodes` : 'Delete Node'}
             </button>
           )}
         </>

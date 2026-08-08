@@ -77,6 +77,41 @@
   text-align: initial;
 }
 
+:global(.react-flow__node.selectable.selected) {
+  box-shadow:
+    0 0 0 2px #7c3aed,
+    0 2px 8px rgba(0,0,0,0.45) !important;
+  outline: none;
+}
+
+:global(.react-flow__node.selectable.selected .react-flow__resize-control) {
+  display: none;
+}
+
+/*
+ * After box-select, React Flow renders a group bounding rectangle spanning the
+ * selected nodes. The individual node borders already express selection here;
+ * hiding the group surface avoids suggesting that empty space was selected and
+ * lets node right-click events reach NodeContextMenu.
+ */
+:global(.react-flow__nodesselection-rect) {
+  background: transparent;
+  border: 0;
+  pointer-events: none;
+}
+
+:global(.react-flow__selection) {
+  box-sizing: border-box;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px dashed rgba(37, 99, 235, 0.45);
+}
+
+:global(.react-flow__selection[style*="height: 0px"]),
+:global(.react-flow__selection[style*="width: 0px"]) {
+  border-color: transparent;
+  background: transparent;
+}
+
 /* ReactFlow attribution link — keep but de-emphasise */
 :global(.react-flow__attribution) {
   opacity: 0.35;

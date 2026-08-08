@@ -36,7 +36,8 @@
         "output": [
           "result.count -> model.step1_count"
         ],
-        "suspend": true
+        "suspend": true,
+        "purpose": "compat pin: the retired suspend=true property is kept deliberately - it deploys with a deprecation WARN and behaves identically because the drawn edge to the suspend node is the declaration"
       }
     },
     {

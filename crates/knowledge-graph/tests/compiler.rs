@@ -49,16 +49,17 @@ fn manifest_listed_graphs_are_compiled() {
     // the discovery contract is enforced at compile: a manifest graph whose
     // root node has no 'purpose' is rejected (rust-no-purpose fixture)
     assert!(!graphs::graph_exists("rust-no-purpose"));
-    // 13 tutorials + 21 original fixtures + the 5 valid suspend fixtures +
-    // the 3 valid ttl fixtures (node-ttl ok + the 2 x-ttl wire echoes); the
-    // 12 deliberately-invalid fixtures
+    // 13 tutorials + 21 original fixtures + the 7 valid suspend fixtures
+    // (incl. the jump-mode and retired-property compat shapes) + the 3 valid
+    // ttl fixtures (node-ttl ok + the 2 x-ttl wire echoes); the 12
+    // deliberately-invalid fixtures
     // (suspend err1-7, no-end, ttl err1-4) are rejected by the mandatory
     // quality gate. Every graph a runtime test executes MUST be listed
     // here - deployed execution is compiled-or-404 (no lazy load)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        42,
+        44,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
@@ -159,11 +160,13 @@ fn manifest_location_defaults_to_classpath_graph() {
 fn static_validator_rejects_every_invalid_suspend_resume_shape() {
     compile_once();
     // direct coverage of every static rule, independent of the manifest:
-    // err1 graph.suspend node not named 'suspend'; err2 suspend=true on graph.math;
-    // err3 suspensible node without a suspend node; err4 suspend node without ttl;
-    // err5 suspensible node without a drawn edge to 'suspend'; err6 suspend node
-    // without an outgoing connection; err7 suspension point without a
-    // continuation edge (a resumed run could not continue)
+    // err1 graph.suspend node not named 'suspend'; err2 graph.math with a drawn
+    // edge to 'suspend' (the retired suspend=true also present - a WARN only);
+    // err3 exception=suspend (the suspend node cannot be an exception handler);
+    // err4 suspend node without ttl; err5 graph.math with a drawn edge to
+    // 'suspend' and no retired property; err6 suspend node without an outgoing
+    // connection; err7 suspension point without a continuation edge (a resumed
+    // run could not continue)
     for id in [
         "unit-test-suspend-err1",
         "unit-test-suspend-err2",

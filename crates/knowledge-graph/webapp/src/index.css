@@ -1,8 +1,20 @@
 :root {
+  /* ── Shared panel row heights ──
+     Pin the graph panel and the workspace sidebar to the same row heights so
+     their header rows and control-bar rows line up across the split (the graph
+     tab strip ↔ Workspace header, and the graph toolbar ↔ sort bar). Both
+     panels are siblings starting at the same top, so equal row heights make the
+     divider lines align by construction. Values are border-box totals.
+     --pg-panel-header-row-height matches the tab strip (line 1.25rem + 0.5rem
+     padding + 2px tab border + 1px container border = 2.4375rem). */
+  --pg-panel-header-row-height: 2.4375rem;
+  --pg-panel-control-row-height: 2.5rem;
+
   /* ── Semantic colours ── */
   --primary-color: #2563eb;
   --primary-hover: #1d4ed8;
   --success-color: #10b981;
+  --success-strong: #047857;
   --warning-color: #f59e0b;
   --danger-color:  #ef4444;
   --error-color:   #f87171;   /* red-400 — lighter than --danger-color; for reviewable delete actions */

@@ -6,12 +6,18 @@ interface GraphSaveButtonProps {
   disabled:     boolean;
   /** Pre-filled name derived by the caller from the current graph data. */
   defaultName:  string;
+  /** Last server-confirmed export name, or null when the graph is unsaved/dirty. */
+  savedName?:   string | null;
   /** Called with the confirmed name when the user submits the form. */
   onSave:       (name: string) => void;
   /** Returns true if a bookmark with this name already exists. */
   nameExists?:  (name: string) => boolean;
   /** When false the button is disabled — an active connection is required to export. */
   connected?:   boolean;
+}
+
+export function formatGraphSaveButtonLabel(savedName: string | null): string {
+  return savedName ? `Saved: ${savedName}` : 'Save Graph';
 }
 
 /**
@@ -24,6 +30,7 @@ interface GraphSaveButtonProps {
 export default function GraphSaveButton({
   disabled,
   defaultName,
+  savedName = null,
   onSave,
   nameExists,
   connected = false,
@@ -31,6 +38,8 @@ export default function GraphSaveButton({
   const [isSaving, setIsSaving] = useState(false);
   const [saveName, setSaveName] = useState('');
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef(false);
 
   // Open the inline form and pre-fill with the caller-supplied default.
   const handleOpen = useCallback(() => {
@@ -39,6 +48,7 @@ export default function GraphSaveButton({
   }, [defaultName]);
 
   const handleCancel = useCallback(() => {
+    restoreFocusRef.current = true;
     setIsSaving(false);
     setSaveName('');
   }, []);
@@ -47,6 +57,7 @@ export default function GraphSaveButton({
     const trimmed = saveName.trim();
     if (!trimmed) return;
     onSave(trimmed);
+    restoreFocusRef.current = true;
     setIsSaving(false);
     setSaveName('');
   }, [saveName, onSave]);
@@ -56,9 +67,14 @@ export default function GraphSaveButton({
     if (e.key === 'Escape') { e.preventDefault(); handleCancel(); }
   }, [handleConfirm, handleCancel]);
 
-  // Focus the input whenever the form opens.
+  // Focus the input on open and return focus to the trigger on either close path.
   useEffect(() => {
-    if (isSaving) nameInputRef.current?.focus();
+    if (isSaving) {
+      nameInputRef.current?.focus();
+    } else if (restoreFocusRef.current) {
+      restoreFocusRef.current = false;
+      triggerRef.current?.focus();
+    }
   }, [isSaving]);
 
   if (isSaving) {
@@ -99,17 +115,22 @@ export default function GraphSaveButton({
 
   return (
     <button
-      className={styles.saveBtn}
+      ref={triggerRef}
+      className={`${styles.saveBtn}${savedName ? ` ${styles.saveBtnSaved}` : ''}`}
       onClick={handleOpen}
       disabled={disabled || !connected}
       title={
         disabled    ? 'No graph loaded'
         : !connected ? 'Connect first to save'
+        : savedName  ? `Graph saved as ${savedName}. Click to save again`
         :              'Export graph snapshot to server and save bookmark'
       }
-      aria-label="Save graph snapshot"
+      aria-label={savedName ? `Graph saved as ${savedName}. Save again` : 'Save graph snapshot'}
     >
-      💾 Save Graph
+      <span aria-hidden="true">{savedName ? '✅' : '💾'}</span>
+      <span className={styles.saveBtnLabel}>
+        {formatGraphSaveButtonLabel(savedName)}
+      </span>
     </button>
   );
 }

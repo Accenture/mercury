@@ -2376,6 +2376,25 @@ owner-token prefix window, the schedule-then-register deferred-dispatch window, 
 unbounded-x-ttl divergence resolved by adopting Java's 32-bit parse. Workspace 58
 suites green / clippy 0 / fmt.
 
+## Increment 82 — suspension is a destination: edge and jump modes replace suspend=true (2026-08-07)
+
+Lock-step mirror of the Java reference engine's rationalization (Java PR #265, ADR-0012;
+this port's ADR-0011 amending ADR-0009). A suspension point is declared by graph shape:
+a working node with a drawn edge to `suspend` is an edge-mode checkpoint (redirect on
+`next`; resumed past, never re-executed; continuation edge mandatory), and a `graph.math`
+decision jumps to `suspend` from its IF-THEN-ELSE (jump mode; RE-EXECUTED against the new
+input on every resume — the wait loop with no auxiliary nodes and no RESET). The retired
+`suspend=true` property is a deprecation-WARN no-op; a routing-skill drawn edge to
+`suspend` and `exception=suspend` are rejected with teaching errors (Java-exact wording);
+a jump-only suspend node is island-anchored (`root → island → suspend`) for the no-orphan
+rule, with the island exempt from the continuation-edge rule (its edges are never
+traversed). Both walker lanes bifurcate resume by shape; the record and store contracts
+are unchanged (earlier records replay correctly). tutorial-14 remodeled byte-identical to
+Java (await-decision + RESET deleted); fixtures synced byte-identical incl. the jump-mode
+and retired-property compat shapes; the runtime suite gained the jump-mode re-execution
+loop and compat scenarios; docs/AI grammar rewritten as one story with the port's
+divergent passages preserved; webapp replaced from the Java repo's latest UI source.
+
 ## Increment 81 — tutorial-14: the manager approval becomes a real decision (2026-08-07)
 
 Demo-content mirror of the Java reference engine's same-day change (a field team

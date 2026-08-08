@@ -10,6 +10,9 @@
 .tabStrip {
   display: flex;
   flex: 0 0 auto;
+  /* Pinned so this header row and the Workspace header row are equal height
+     (see --pg-panel-header-row-height in index.css). */
+  height: var(--pg-panel-header-row-height);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* G5: rgba instead of light --border-color */
   gap: 0;
 }
@@ -51,6 +54,10 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.tabBody:focus-visible {
+  outline: none;
 }
 
 /* Hidden tab — stays mounted; hidden from view and from AT */

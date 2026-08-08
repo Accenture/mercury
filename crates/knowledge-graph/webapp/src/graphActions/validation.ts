@@ -1,5 +1,6 @@
 import { MAX_BUFFER } from '../config/playgrounds';
 import type { MinigraphGraphData } from '../utils/graphTypes';
+import type { ConnectionFormState, ConnectionFormValidationErrors } from './connectionAuthoringTypes';
 import type { NodeFormState, NodeFormValidationErrors } from './nodeAuthoringTypes';
 
 // Keep this token rule aligned with GraphProperties.validateName on the backend.
@@ -108,6 +109,11 @@ export interface DeleteNodeValidationOptions {
   graphData?: MinigraphGraphData | null;
 }
 
+export interface ConnectionFormValidationOptions {
+  graphData?: MinigraphGraphData | null;
+  connected?: boolean;
+}
+
 export function validateDeleteNodeAlias(
   aliasInput: string,
   options: DeleteNodeValidationOptions = {},
@@ -121,6 +127,56 @@ export function validateDeleteNodeAlias(
     errors.alias = 'Use only letters, numbers, underscore, and hyphen.';
   } else if (options.graphData && !options.graphData.nodes.some((node) => node.alias.toLowerCase() === alias.toLowerCase())) {
     errors.alias = `Node "${alias}" is no longer available in the current graph.`;
+  }
+
+  return { valid: Object.keys(errors).length === 0, errors };
+}
+
+function graphHasAlias(graphData: MinigraphGraphData | null | undefined, alias: string): boolean {
+  return Boolean(graphData?.nodes.some((node) => node.alias.toLowerCase() === alias.toLowerCase()));
+}
+
+export function validateConnectionFormState(
+  formState: ConnectionFormState,
+  options: ConnectionFormValidationOptions = {},
+): { valid: boolean; errors: ConnectionFormValidationErrors } {
+  const errors: ConnectionFormValidationErrors = {};
+  const sourceAlias = formState.sourceAlias.trim();
+  const targetAlias = formState.targetAlias.trim();
+  const relation = formState.relation.trim();
+
+  if (options.connected === false) {
+    errors.command = 'Connection disconnected. Reconnect before creating a connection.';
+  }
+
+  if (!sourceAlias) {
+    errors.sourceAlias = 'Source is required.';
+  } else if (!NODE_NAME_RE.test(sourceAlias)) {
+    errors.sourceAlias = 'Use only letters, numbers, underscore, and hyphen.';
+  } else if (options.graphData && !graphHasAlias(options.graphData, sourceAlias)) {
+    errors.sourceAlias = `Node "${sourceAlias}" is no longer available in the current graph.`;
+  }
+
+  if (!targetAlias) {
+    errors.targetAlias = 'Target is required.';
+  } else if (!NODE_NAME_RE.test(targetAlias)) {
+    errors.targetAlias = 'Use only letters, numbers, underscore, and hyphen.';
+  } else if (options.graphData && !graphHasAlias(options.graphData, targetAlias)) {
+    errors.targetAlias = `Node "${targetAlias}" is no longer available in the current graph.`;
+  }
+
+  if (
+    sourceAlias &&
+    targetAlias &&
+    sourceAlias.toLowerCase() === targetAlias.toLowerCase()
+  ) {
+    errors.targetAlias = 'Source and target nodes must be different.';
+  }
+
+  if (!relation) {
+    errors.relation = 'Relation is required.';
+  } else if (!NODE_NAME_RE.test(relation)) {
+    errors.relation = 'Use only letters, numbers, underscore, and hyphen.';
   }
 
   return { valid: Object.keys(errors).length === 0, errors };

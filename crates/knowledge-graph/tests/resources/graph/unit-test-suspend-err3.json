@@ -3,26 +3,34 @@
     {
       "alias": "root",
       "types": [
-        "UnitTest"
+        "Root"
       ],
       "properties": {
-        "purpose": "a suspensible node requires a suspend node in the graph",
+        "purpose": "R7 violation: a node routes its exception to the suspend node",
         "name": "unit-test-suspend-err3"
       }
     },
     {
       "alias": "step-1",
       "types": [
-        "Suspensible"
+        "task"
       ],
       "properties": {
         "skill": "graph.task",
         "task": "v1.counting.step",
-        "input": [
-          "text(orphan) -> step",
-          "model.cid -> cid"
-        ],
-        "suspend": true
+        "exception": "suspend",
+        "purpose": "invalid: exception=suspend would give a failed node retry-on-resume semantics"
+      }
+    },
+    {
+      "alias": "suspend",
+      "types": [
+        "Suspend"
+      ],
+      "properties": {
+        "skill": "graph.suspend",
+        "task": "v1.file.state.store",
+        "ttl": "30s"
       }
     },
     {
@@ -39,7 +47,7 @@
       "target": "step-1",
       "relations": [
         {
-          "type": "test",
+          "type": "then",
           "properties": {}
         }
       ]
@@ -49,7 +57,17 @@
       "target": "end",
       "relations": [
         {
-          "type": "test",
+          "type": "next",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "suspend",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
           "properties": {}
         }
       ]

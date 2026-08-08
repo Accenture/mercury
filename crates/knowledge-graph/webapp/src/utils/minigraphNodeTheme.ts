@@ -18,6 +18,9 @@ const TYPE_META: Record<string, MinigraphNodeTypeMeta> = {
   Extension:   { icon: '🧩', label: 'Extension' },
   Island:      { icon: '🏝️', label: 'Island' },
   Decision:    { icon: '❓', label: 'Decision' },
+  Suspend:     { icon: '⏸️', label: 'Suspend' },
+  Resume:      { icon: '▶️', label: 'Resume' },
+  Suspensible: { icon: '⏯️', label: 'Suspensible' },
 };
 
 const BASE_NODE_STYLE: CSSProperties = {
@@ -46,6 +49,9 @@ const NODE_ACCENT: Record<string, string> = {
   Extension: '#4338ca',
   Island: '#475569',
   Decision: '#b45309',
+  Suspend: '#0d9488',
+  Resume: '#0284c7',
+  Suspensible: '#c026d3',
 };
 
 const UNKNOWN_ACCENT = '#6c7086';

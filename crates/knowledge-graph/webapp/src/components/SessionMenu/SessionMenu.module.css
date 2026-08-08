@@ -1,0 +1,280 @@
+.panel {
+  min-width: 260px;
+  max-width: 300px;
+  padding: 0.45rem 0.6rem 0.55rem;
+}
+
+.section {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.section:first-child {
+  padding-top: 0.1rem;
+}
+
+.sectionHeader {
+  margin-bottom: 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.sessionHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.iconButton {
+  display: inline-flex;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--primary-color) 34%, var(--border-color));
+  border-radius: 999px;
+  background: var(--bg-primary);
+  color: var(--primary-color);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.iconButton:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 8%, var(--bg-primary));
+}
+
+.iconButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.copyButton {
+  display: inline-flex;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.copyButton svg {
+  width: 0.78rem;
+  height: 0.78rem;
+  fill: currentColor;
+}
+
+.copyButton:hover {
+  border-color: color-mix(in srgb, var(--primary-color) 24%, var(--border-color));
+  background: color-mix(in srgb, var(--primary-color) 7%, var(--bg-primary));
+  color: var(--primary-color);
+}
+
+.copyButton:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.copyButtonCopied,
+.copyButtonCopied:hover {
+  border-color: color-mix(in srgb, var(--success-color) 34%, var(--border-color));
+  background: color-mix(in srgb, var(--success-color) 9%, var(--bg-primary));
+  color: var(--success-color);
+}
+
+.relationshipRow,
+.subscriberRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.relationshipRow {
+  justify-content: flex-start;
+}
+
+.sessionId {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0.1rem 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--success-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--success-color) 18%, transparent);
+  flex: 0 0 auto;
+}
+
+.metaText,
+.emptyMessage {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.metaText {
+  margin-top: 0.18rem;
+}
+
+.subscriberList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.subscribeForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.subscribeInput {
+  min-width: 0;
+  height: 1.85rem;
+  padding: 0 0.45rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.76rem;
+  line-height: 1.85rem;
+}
+
+.subscribeInput:focus {
+  border-color: var(--primary-color);
+  outline: 2px solid color-mix(in srgb, var(--primary-color) 24%, transparent);
+  outline-offset: 1px;
+}
+
+.subscribeInput:disabled {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.subscribeButton,
+.resetButton {
+  flex: 0 0 auto;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.subscribeButton {
+  min-height: 1.85rem;
+  padding: 0 0.6rem;
+  border: 1px solid var(--primary-color);
+  background: var(--primary-color);
+  color: white;
+}
+
+.subscribeButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary-color) 88%, black);
+}
+
+.subscribeButton:disabled,
+.resetButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.unsubscribeButton {
+  flex: 0 0 auto;
+  padding: 0.12rem 0.38rem;
+  border: 1px solid color-mix(in srgb, var(--danger-color) 34%, var(--border-color));
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--danger-color);
+  cursor: pointer;
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.unsubscribeButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger-color) 9%, transparent);
+}
+
+.unsubscribeButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.actionsRow {
+  display: flex;
+  justify-content: center;
+  padding: 0.55rem 0 0.15rem;
+}
+
+.resetButton {
+  width: 100%;
+  min-height: 1.75rem;
+  padding: 0 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--warning-color, #f59e0b) 42%, var(--border-color));
+  background: color-mix(in srgb, var(--warning-color, #f59e0b) 8%, var(--bg-primary));
+  color: color-mix(in srgb, var(--warning-color, #f59e0b) 72%, var(--text-primary));
+  text-align: center;
+}
+
+.resetButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--warning-color, #f59e0b) 14%, var(--bg-primary));
+}
+
+.errorMessage,
+.infoMessage {
+  margin-top: 0.65rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.errorMessage {
+  border: 1px solid color-mix(in srgb, var(--danger-color) 38%, var(--border-color));
+  background: color-mix(in srgb, var(--danger-color) 8%, var(--bg-primary));
+  color: var(--danger-color);
+}
+
+.infoMessage {
+  border: 1px solid color-mix(in srgb, var(--primary-color) 28%, var(--border-color));
+  background: color-mix(in srgb, var(--primary-color) 8%, var(--bg-primary));
+  color: var(--text-primary);
+}

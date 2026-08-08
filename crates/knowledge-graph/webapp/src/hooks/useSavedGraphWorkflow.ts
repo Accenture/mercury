@@ -6,8 +6,8 @@ export interface UseSavedGraphWorkflowOptions {
   bus:              ProtocolBus;
   connected:        boolean;
   sendRawText:      (text: string) => void;
-  saveGraph:        (name: string) => void;
-  setLastSavedName: (name: string) => void;
+  /** Persists confirmed exports when this playground supports saved graphs. */
+  saveGraph:        ((name: string) => void) | null;
   addToast:         (message: string, type?: ToastType) => void;
 }
 
@@ -23,6 +23,14 @@ type PendingSave = {
   timeoutId: ReturnType<typeof setTimeout>;
 };
 
+/** Persist every server-confirmed export, regardless of whether UI or console initiated it. */
+export function subscribeGraphExportBookmarks(
+  bus: ProtocolBus,
+  saveGraph: (name: string) => void,
+): () => void {
+  return bus.on('graph.exported', event => saveGraph(event.graphName));
+}
+
 /**
  * Orchestrates the save/load workflow for named graph snapshots.
  *
@@ -30,13 +38,17 @@ type PendingSave = {
  *   1. Sends `export graph as {name}` over the WebSocket.
  *   2. Arms a 10-second timeout as a safety net.
  *   3. Waits for the server's response:
- *      - `graph.exported` with matching graphName → confirms; writes bookmark; updates name state.
- *      - `graph.export.failed` → rejects; shows typed error toast; does NOT update name state.
- *      - timeout → rejects with timeout toast; does NOT update name state.
- *      - disconnect → clears pending; shows disconnect toast; does NOT update name state.
- *   4. Does NOT call setLastSavedName on initiation — only on confirmed success.
- *   5. If called while disconnected, shows an error toast and returns immediately — no bookmark
+ *      - `graph.exported` with matching graphName → confirms the pending UI save.
+ *      - `graph.export.failed` → rejects and shows a typed error toast.
+ *      - timeout → rejects with a timeout toast.
+ *      - disconnect → clears pending and shows a disconnect toast.
+ *   4. If called while disconnected, shows an error toast and returns immediately — no bookmark
  *      is written. A bookmark without a server-side export file cannot be loaded.
+ *
+ * Every `graph.exported` event writes a bookmark when saved graphs are enabled.
+ * This gives exports entered in the command console the same Saved + Load Graph
+ * state as exports submitted through the Save Graph button. The protocol-driven
+ * saved indicator remains owned by `useGraphSaveName`.
  *
  * **Load flow:**
  *   Sends `import graph from {name}` — the backend reads the previously exported JSON file.
@@ -46,7 +58,6 @@ export function useSavedGraphWorkflow({
   connected,
   sendRawText,
   saveGraph,
-  setLastSavedName,
   addToast,
 }: UseSavedGraphWorkflowOptions): UseSavedGraphWorkflowReturn {
   // Tracks a save that is waiting for server confirmation.
@@ -61,7 +72,7 @@ export function useSavedGraphWorkflow({
       return;
     }
     // Connected path: arm the ref, start the timeout, send the export command.
-    // Do NOT call setLastSavedName yet — reserved for confirmed success only.
+    // Saved UI state updates independently when graph.exported reaches the bus.
     const timeoutId = setTimeout(() => {
       if (pendingSaveRef.current === null) return; // already resolved — do nothing
       pendingSaveRef.current = null;
@@ -71,7 +82,13 @@ export function useSavedGraphWorkflow({
     sendRawText(`export graph as ${name}`);
   }, [connected, sendRawText, addToast]);
 
-  // Confirm pending save: server confirmed the export with a graph.exported event.
+  // A server-confirmed export is loadable regardless of which UI initiated it.
+  useEffect(() => {
+    if (saveGraph === null) return;
+    return subscribeGraphExportBookmarks(bus, saveGraph);
+  }, [bus, saveGraph]);
+
+  // Confirm pending UI save and provide its action-specific success feedback.
   useEffect(() => {
     return bus.on('graph.exported', (event) => {
       if (pendingSaveRef.current === null) return;
@@ -79,11 +96,9 @@ export function useSavedGraphWorkflow({
       clearTimeout(pendingSaveRef.current.timeoutId);
       const name = pendingSaveRef.current.graphName;
       pendingSaveRef.current = null;
-      saveGraph(name);
-      setLastSavedName(name);
       addToast(`Graph saved as "${name}"`, 'success');
     });
-  }, [bus, saveGraph, setLastSavedName, addToast]);
+  }, [bus, addToast]);
 
   // Reject pending save: server returned an export-failure event.
   useEffect(() => {
@@ -126,4 +141,3 @@ export function useSavedGraphWorkflow({
 
   return { handleSaveGraph, handleLoadGraph };
 }
-

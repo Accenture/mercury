@@ -4,7 +4,9 @@ import { useWebSocketContext } from '../contexts/WebSocketContext';
 import { type WsPhase } from '../contexts/WebSocketContext';
 import { type ToastType } from '../hooks/useToast';
 import NavMenu, { type DotStatus } from './NavMenu/NavMenu';
+import SessionMenu from './SessionMenu/SessionMenu';
 import { makeWsUrl } from '../utils/urls';
+import type { SessionCollaborationController } from '../session/sessionTypes';
 import styles from './Navigation.module.css';
 
 // ---------
@@ -53,9 +55,10 @@ interface NavigationProps {
   /** Forwarded from the host Playground's useToast() so connect/disconnect
    *  notifications appear in the same rendered toast stack. */
   addToast: (message: string, type?: ToastType) => void;
+  sessionCollaboration?: SessionCollaborationController | null;
 }
 
-export default function Navigation({ addToast }: NavigationProps) {
+export default function Navigation({ addToast, sessionCollaboration }: NavigationProps) {
   const ctx = useWebSocketContext();
 
   // Collect live phases for the aggregate dot on the Tools menu
@@ -84,6 +87,10 @@ export default function Navigation({ addToast }: NavigationProps) {
 
   return (
     <nav className={styles.nav} aria-label="Main navigation">
+
+      {sessionCollaboration && (
+        <SessionMenu controller={sessionCollaboration} />
+      )}
 
       {/* ── Tools (nav + connection status combined) ── */}
       <NavMenu label="Tools" dotStatus={toolsDotStatus}>

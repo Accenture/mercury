@@ -4,6 +4,10 @@
   align-items: center;
   justify-content: space-between;
   flex: 0 0 auto;
+  /* Pinned so this control row and the workspace sort bar are equal height
+     (see --pg-panel-control-row-height in index.css), keeping their bottom
+     divider lines aligned across the split. */
+  height: var(--pg-panel-control-row-height);
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-secondary);

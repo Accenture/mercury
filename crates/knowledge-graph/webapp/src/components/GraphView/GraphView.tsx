@@ -3,16 +3,20 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
   BackgroundVariant,
+  SelectionMode,
   type Edge,
   type Node,
+  type IsValidConnection,
+  type OnConnect,
+  type OnConnectStart,
+  type OnConnectEnd,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import { nodeTypes } from './NodeTypes';
+import { AUTHORING_SOURCE_HANDLE_ID, AUTHORING_TARGET_HANDLE_ID, nodeTypes } from './NodeTypes';
 import { GraphViewErrorBoundary } from './GraphViewErrorBoundary';
 import { transformGraphData, type GraphNodeData, type GraphEdgeData } from '../../utils/graphTransformer';
 import type { MinigraphGraphData, MinigraphNode, MinigraphConnection } from '../../utils/graphTypes';
@@ -21,6 +25,13 @@ import { findNodeByAlias, extractDirectConnections } from '../../clipboard/helpe
 import GraphToolbar from '../GraphToolbar/GraphToolbar';
 import GraphContextMenu from './GraphContextMenu';
 import NodeContextMenu from './NodeContextMenu';
+import GraphMultiSelectTip from './GraphMultiSelectTip';
+import {
+  filterAliasesToGraphNodes,
+  resolveNodeContextTarget,
+  type GraphClipItem,
+  type NodeContextTarget,
+} from './selectionTargets';
 import styles from './GraphView.module.css';
 
 interface GraphViewProps {
@@ -36,16 +47,25 @@ interface GraphViewProps {
   isRefreshing?:   boolean;
   /** Callback for "Clip to Workspace" from the node context menu. */
   onClipNode?:     (node: MinigraphNode, connections: MinigraphConnection[]) => void;
+  onClipNodes?:    (items: GraphClipItem[]) => void;
   onClipboardDrop?: (itemId: string) => void;
   isConnected:     boolean;
   supportsAuthoring?: boolean;
   onCreateNode?:   (source: 'empty-graph' | 'pane-context-menu') => void;
+  onCreateConnection?: (sourceAlias: string, targetAlias: string) => void;
   onEditNode?:     (node: MinigraphNode) => void;
   onDeleteNode?:   (node: MinigraphNode) => void;
+  onDeleteNodes?:  (nodes: MinigraphNode[]) => void;
 }
 
 const EMPTY_NODES: Node<GraphNodeData>[]  = [];
 const EMPTY_EDGES: Edge<GraphEdgeData>[]  = [];
+const NODE_MULTI_SELECTION_KEYS = ['Shift', 'Control', 'Meta'];
+
+function sameAliasSelection(current: string[], next: string[]): boolean {
+  return current.length === next.length
+    && current.every((alias, index) => alias === next[index]);
+}
 
 export default function GraphView({
   graphData,
@@ -55,28 +75,41 @@ export default function GraphView({
   onRenderError,
   isRefreshing = false,
   onClipNode,
+  onClipNodes,
   onClipboardDrop,
   isConnected,
   supportsAuthoring = false,
   onCreateNode,
+  onCreateConnection,
   onEditNode,
   onDeleteNode,
+  onDeleteNodes,
 }: GraphViewProps) {
 
   // ── Context menu state ──────────────────────────────────────────────────
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    nodeAlias: string;
+    target: NodeContextTarget;
   } | null>(null);
   const [paneMenu, setPaneMenu] = useState<{ x: number; y: number } | null>(null);
+  const [selectedNodeAliases, setSelectedNodeAliases] = useState<string[]>([]);
   const [clipboardDragActive, setClipboardDragActive] = useState(false);
+  const [tipVisible, setTipVisible] = useState(false);
+  const [tipFading, setTipFading] = useState(false);
   const clipboardDragDepthRef = useRef(0);
+  const tipShownRef = useRef(false);
+  const tipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canCreateNode = Boolean(supportsAuthoring && onCreateNode && isConnected);
+  const canCreateConnection = Boolean(supportsAuthoring && onCreateConnection && isConnected);
   const canClipNode = Boolean(onClipNode);
+  const canClipNodes = Boolean(onClipNodes);
   const canEditNode = Boolean(supportsAuthoring && onEditNode && isConnected);
   const canDeleteNode = Boolean(supportsAuthoring && onDeleteNode && isConnected);
-  const canOpenNodeContextMenu = canClipNode || canEditNode || canDeleteNode;
+  const canDeleteNodes = Boolean(supportsAuthoring && onDeleteNodes && isConnected);
+  const canOpenSingleNodeContextMenu = canClipNode || canEditNode || canDeleteNode;
+  const canOpenMultiNodeContextMenu = canClipNodes || canDeleteNodes;
+  const canOpenNodeContextMenu = canOpenSingleNodeContextMenu || canOpenMultiNodeContextMenu;
   const canAcceptClipboardDrop = Boolean(onClipboardDrop && isConnected);
 
   const resetClipboardDragState = useCallback(() => {
@@ -122,7 +155,9 @@ export default function GraphView({
   const { nodes: initialNodes, edges: initialEdges, transformError } = useMemo(() => {
     if (!graphData) return { nodes: EMPTY_NODES, edges: EMPTY_EDGES, transformError: null };
     try {
-      const result = transformGraphData(graphData);
+      const result = transformGraphData(graphData, {
+        supportsConnectionAuthoring: canCreateConnection,
+      });
       return { ...result, transformError: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -131,7 +166,7 @@ export default function GraphView({
       // useEffect below, which fires the callback safely after the render cycle.
       return { nodes: EMPTY_NODES, edges: EMPTY_EDGES, transformError: message };
     }
-  }, [graphData]);
+  }, [canCreateConnection, graphData]);
 
   // Fire the render-error callback whenever the transform produces a new error.
   // A useEffect is the correct place for side-effects that react to derived state.
@@ -151,12 +186,63 @@ export default function GraphView({
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<GraphNodeData>>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<GraphEdgeData>>(initialEdges);
+  const connectionDragSourceRef = useRef<string | null>(null);
+  const hasGraphData = Boolean(graphData && graphData.nodes.length > 0);
+
+  // React Flow can notify selection while it initializes controlled nodes.
+  // Keep the handler stable and avoid writing an equivalent alias snapshot,
+  // otherwise initialization can feed an unnecessary render/update loop.
+  const handleSelectionChange = useCallback(({ nodes: selectedNodes }: {
+    nodes: Node<GraphNodeData>[];
+  }) => {
+    const nextAliases = selectedNodes.map((node) => node.data.alias);
+    setSelectedNodeAliases((currentAliases) => (
+      sameAliasSelection(currentAliases, nextAliases) ? currentAliases : nextAliases
+    ));
+  }, []);
 
   // Re-sync whenever the upstream graphData changes
   useEffect(() => {
     setNodes(initialNodes);
     setEdges(initialEdges);
+    setSelectedNodeAliases([]);
+    setContextMenu(null);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
+
+  const dismissMultiSelectTip = useCallback(() => {
+    if (!tipVisible || tipFading) return;
+    setTipFading(true);
+    if (tipFadeTimerRef.current !== null) {
+      clearTimeout(tipFadeTimerRef.current);
+    }
+    tipFadeTimerRef.current = setTimeout(() => {
+      setTipVisible(false);
+      tipFadeTimerRef.current = null;
+    }, 400);
+  }, [tipFading, tipVisible]);
+
+  // The shortcut is introduced only after the first useful graph reaches the
+  // canvas. Keeping the shown flag in memory makes ordinary refreshes quiet.
+  useEffect(() => {
+    if (!hasGraphData || transformError || tipShownRef.current) return;
+    tipShownRef.current = true;
+    setTipFading(false);
+    setTipVisible(true);
+  }, [hasGraphData, transformError]);
+
+  useEffect(() => {
+    if (!tipVisible || tipFading) return;
+    const timerId = setTimeout(dismissMultiSelectTip, 5000);
+    return () => clearTimeout(timerId);
+  }, [dismissMultiSelectTip, tipFading, tipVisible]);
+
+  useEffect(() => {
+    return () => {
+      if (tipFadeTimerRef.current !== null) {
+        clearTimeout(tipFadeTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleClipboardDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
     if (!canAcceptClipboardDrop) return;
@@ -197,10 +283,45 @@ export default function GraphView({
     }
   };
 
-  const hasGraphData = Boolean(graphData && graphData.nodes.length > 0);
-  const contextNode = contextMenu && graphData
-    ? findNodeByAlias(graphData, contextMenu.nodeAlias)
+  const graphNodeAliases = useMemo(
+    () => new Set(graphData?.nodes.map((node) => node.alias) ?? []),
+    [graphData],
+  );
+  const contextNode = contextMenu?.target.kind === 'single-node' && graphData
+    ? findNodeByAlias(graphData, contextMenu.target.alias)
     : null;
+  const contextAliases = contextMenu?.target.kind === 'multi-node'
+    ? contextMenu.target.aliases
+    : [];
+  const contextNodes = graphData
+    ? filterAliasesToGraphNodes(contextAliases, graphData)
+    : [];
+
+  const isConnectionValid = useCallback<IsValidConnection>((connection) => {
+    if (!canCreateConnection) return false;
+    if (!connection.source || !connection.target) return false;
+    if (connection.source === connection.target) return false;
+    if (!graphNodeAliases.has(connection.source) || !graphNodeAliases.has(connection.target)) return false;
+    return connection.sourceHandle === AUTHORING_SOURCE_HANDLE_ID &&
+      connection.targetHandle === AUTHORING_TARGET_HANDLE_ID;
+  }, [canCreateConnection, graphNodeAliases]);
+
+  const handleConnect = useCallback<OnConnect>((connection) => {
+    if (!isConnectionValid(connection)) return;
+    if (!connection.source || !connection.target) return;
+    onCreateConnection?.(connection.source, connection.target);
+  }, [isConnectionValid, onCreateConnection]);
+
+  const handleConnectStart = useCallback<OnConnectStart>((_event, params) => {
+    if (params.handleId !== AUTHORING_SOURCE_HANDLE_ID || params.handleType !== 'source') return;
+    connectionDragSourceRef.current = params.nodeId;
+    setContextMenu(null);
+    setPaneMenu(null);
+  }, []);
+
+  const handleConnectEnd = useCallback<OnConnectEnd>(() => {
+    connectionDragSourceRef.current = null;
+  }, []);
 
   if (transformError) {
     return (
@@ -235,6 +356,7 @@ export default function GraphView({
           onDragOver={handleClipboardDragOver}
           onDragLeave={handleClipboardDragLeave}
           onDrop={handleClipboardDrop}
+          onWheelCapture={dismissMultiSelectTip}
         >
           {hasGraphData ? (
             <ReactFlow
@@ -242,54 +364,62 @@ export default function GraphView({
               edges={edges}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
+              nodesConnectable={canCreateConnection}
+              edgesReconnectable={false}
+              connectOnClick={false}
+              isValidConnection={isConnectionValid}
+              onConnect={handleConnect}
+              onConnectStart={handleConnectStart}
+              onConnectEnd={handleConnectEnd}
               nodeTypes={nodeTypes}
               fitView
               fitViewOptions={{ padding: 0.25 }}
               minZoom={0.2}
               maxZoom={2.5}
+              selectionKeyCode="Shift"
+              multiSelectionKeyCode={NODE_MULTI_SELECTION_KEYS}
+              selectionOnDrag={false}
+              selectionMode={SelectionMode.Partial}
               // colorMode="dark" // enable for dark mode
               proOptions={{ hideAttribution: false }}
+              onSelectionChange={handleSelectionChange}
               onNodeContextMenu={(event, node) => {
                 event.preventDefault();
                 event.stopPropagation();
+                dismissMultiSelectTip();
                 setPaneMenu(null);
                 if (!canOpenNodeContextMenu) return;
-                setContextMenu({ x: event.clientX, y: event.clientY, nodeAlias: node.data.alias });
+                const target = resolveNodeContextTarget(node.data.alias, selectedNodeAliases);
+                if (target.kind === 'single-node' && selectedNodeAliases.length > 1) {
+                  setNodes((currentNodes) => currentNodes.map((currentNode) => ({
+                    ...currentNode,
+                    selected: currentNode.data.alias === node.data.alias,
+                  })));
+                  setSelectedNodeAliases([node.data.alias]);
+                }
+                setContextMenu({ x: event.clientX, y: event.clientY, target });
               }}
               onPaneContextMenu={(event) => {
                 event.preventDefault();
-                if (!canCreateNode) return;
+                dismissMultiSelectTip();
                 setContextMenu(null);
+                if (!canCreateNode) return;
                 setPaneMenu({ x: event.clientX, y: event.clientY });
               }}
               onPaneClick={() => {
+                dismissMultiSelectTip();
                 setContextMenu(null);
                 setPaneMenu(null);
+              }}
+              onNodeClick={() => dismissMultiSelectTip()}
+              onNodeDragStart={() => dismissMultiSelectTip()}
+              onSelectionStart={() => dismissMultiSelectTip()}
+              onMoveStart={(event) => {
+                if (event) dismissMultiSelectTip();
               }}
             >
               <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="rgba(255,255,255,0.07)" />
               <Controls showInteractive={false} />
-              <MiniMap
-                nodeColor={(node) => {
-                  const colorMap: Record<string, string> = {
-                    Root:        '#15803d',
-                    End:         '#dc2626',
-                    Fetcher:     '#2563eb',
-                    mapper:      '#ea580c',
-                    Math:        '#a16207',
-                    JavaScript:  '#7e22ce',
-                    Provider:    '#be185d',
-                    Dictionary:  '#0e7490',
-                    Join:        '#65a30d',
-                    Extension:   '#4338ca',
-                    Island:      '#475569',
-                    Decision:    '#b45309',
-                  };
-                  return colorMap[node.type ?? ''] ?? '#6c7086';
-                }}
-                maskColor="rgba(0,0,0,0.3)"
-                style={{ background: '#fff' }}
-              />
             </ReactFlow>
           ) : (
             <div className={styles.empty}>
@@ -313,6 +443,12 @@ export default function GraphView({
               )}
             </div>
           )}
+
+          <GraphMultiSelectTip
+            visible={tipVisible}
+            fading={tipFading}
+            onDismiss={dismissMultiSelectTip}
+          />
 
           {isRefreshing && (
             <div className={styles.refreshingOverlay}>
@@ -338,29 +474,58 @@ export default function GraphView({
             onCreateNode={() => onCreateNode?.('pane-context-menu')}
             onClose={() => setPaneMenu(null)}
           />
-          <NodeContextMenu
-            open={contextMenu !== null && contextNode !== null && canOpenNodeContextMenu}
-            x={contextMenu?.x ?? 0}
-            y={contextMenu?.y ?? 0}
-            nodeAlias={contextMenu?.nodeAlias ?? ''}
-            canClipNode={canClipNode && contextNode !== null}
-            canEditNode={canEditNode && contextNode !== null}
-            canDeleteNode={canDeleteNode && contextNode !== null}
-            onClipNode={() => {
-              if (!contextNode || !graphData) return;
-              const connections = extractDirectConnections(graphData, contextNode.alias);
-              onClipNode?.(contextNode, connections);
-            }}
-            onEditNode={() => {
-              if (!contextNode) return;
-              onEditNode?.(contextNode);
-            }}
-            onDeleteNode={() => {
-              if (!contextNode) return;
-              onDeleteNode?.(contextNode);
-            }}
-            onClose={() => setContextMenu(null)}
-          />
+          {contextMenu?.target.kind === 'multi-node' ? (
+            <NodeContextMenu
+              mode="multi-node"
+              open={contextNodes.length > 1 && canOpenMultiNodeContextMenu}
+              x={contextMenu.x}
+              y={contextMenu.y}
+              selectedCount={contextAliases.length}
+              canClipSelectedNodes={canClipNodes}
+              canDeleteSelectedNodes={canDeleteNodes}
+              onClipSelectedNodes={() => {
+                if (!graphData) {
+                  onClipNodes?.([]);
+                  return;
+                }
+                const items = contextNodes.map((node) => ({
+                  node,
+                  connections: extractDirectConnections(graphData, node.alias),
+                }));
+                onClipNodes?.(items);
+              }}
+              onDeleteSelectedNodes={() => {
+                const allTargetsStillExist = contextNodes.length === contextAliases.length;
+                onDeleteNodes?.(allTargetsStillExist ? contextNodes : []);
+              }}
+              onClose={() => setContextMenu(null)}
+            />
+          ) : (
+            <NodeContextMenu
+              mode="single-node"
+              open={contextMenu !== null && contextNode !== null && canOpenSingleNodeContextMenu}
+              x={contextMenu?.x ?? 0}
+              y={contextMenu?.y ?? 0}
+              nodeAlias={contextMenu?.target.kind === 'single-node' ? contextMenu.target.alias : ''}
+              canClipNode={canClipNode && contextNode !== null}
+              canEditNode={canEditNode && contextNode !== null}
+              canDeleteNode={canDeleteNode && contextNode !== null}
+              onClipNode={() => {
+                if (!contextNode || !graphData) return;
+                const connections = extractDirectConnections(graphData, contextNode.alias);
+                onClipNode?.(contextNode, connections);
+              }}
+              onEditNode={() => {
+                if (!contextNode) return;
+                onEditNode?.(contextNode);
+              }}
+              onDeleteNode={() => {
+                if (!contextNode) return;
+                onDeleteNode?.(contextNode);
+              }}
+              onClose={() => setContextMenu(null)}
+            />
+          )}
         </div>
       </div>
     </GraphViewErrorBoundary>

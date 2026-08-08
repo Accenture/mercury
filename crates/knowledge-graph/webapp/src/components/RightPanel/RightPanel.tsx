@@ -6,6 +6,7 @@ import GraphDataView from '../GraphDataView/GraphDataView';
 import styles from './RightPanel.module.css';
 import { type ValidationResult } from '../../utils/validators';
 import type { MinigraphGraphData, MinigraphNode, MinigraphConnection } from '../../utils/graphTypes';
+import type { GraphClipItem } from '../GraphView/selectionTargets';
 
 export type RightTab = 'payload' | 'graph' | 'graph-data';
 
@@ -29,14 +30,18 @@ interface RightPanelProps {
   onGraphDataCopyError?:   () => void;
   /** When true, forwards the loading-overlay state to GraphView. */
   isGraphRefreshing?:      boolean;
-  /** Callback for "Clip to Clipboard" from the node context menu in GraphView. */
+  /** Callback for "Clip to Workspace" from a single-node context menu in GraphView. */
   onClipNode?:             (node: MinigraphNode, connections: MinigraphConnection[]) => void;
+  /** Callback for "Clip selected nodes to Workspace" from a multi-node context menu. */
+  onClipNodes?:            (items: GraphClipItem[]) => void;
   onClipboardDrop?:        (itemId: string) => void;
   isConnected:             boolean;
   supportsAuthoring?:      boolean;
   onCreateNode?:           (source: 'empty-graph' | 'pane-context-menu') => void;
+  onCreateConnection?:     (sourceAlias: string, targetAlias: string) => void;
   onEditNode?:             (node: MinigraphNode) => void;
   onDeleteNode?:           (node: MinigraphNode) => void;
+  onDeleteNodes?:          (nodes: MinigraphNode[]) => void;
   /**
    * When provided and non-null, the right panel renders a vertical split:
    * top = tab content, bottom = help panel.  Accepts either a plain ReactNode
@@ -69,12 +74,15 @@ export default function RightPanel({
   onGraphDataCopyError,
   isGraphRefreshing,
   onClipNode,
+  onClipNodes,
   onClipboardDrop,
   isConnected,
   supportsAuthoring,
   onCreateNode,
+  onCreateConnection,
   onEditNode,
   onDeleteNode,
+  onDeleteNodes,
   helpPanel,
 }: RightPanelProps) {
   const uid              = useId();
@@ -159,12 +167,15 @@ export default function RightPanel({
               onCopySuccess={onGraphDataCopySuccess}
               onCopyError={onGraphDataCopyError}
               onClipNode={onClipNode}
+              onClipNodes={onClipNodes}
               onClipboardDrop={onClipboardDrop}
               isConnected={isConnected}
               supportsAuthoring={supportsAuthoring}
               onCreateNode={onCreateNode}
+              onCreateConnection={onCreateConnection}
               onEditNode={onEditNode}
               onDeleteNode={onDeleteNode}
+              onDeleteNodes={onDeleteNodes}
             />
           </div>
         </div>
