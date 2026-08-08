@@ -11,7 +11,10 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
-## Unreleased
+## Version 4.11.4, 8/7/2026
+
+> Versions 4.11.2 and 4.11.3 were Java-only releases (the Kafka client/dependency
+> surface this port does not carry); this port's version tracks the Java line.
 
 ### Changed
 
