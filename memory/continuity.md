@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.1** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-07 | agent: Claude Code (2026-08-07-150018)
+- **last_session:** 2026-08-08 | agent: Claude Code (2026-08-08-005419)
 - **last_review:** 2026-08-07 | through 2026-08-07-150018.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -166,6 +166,25 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [x] (lock-step — **MERGED 2026-08-08 as mercury PR #195, merge `4e6bdf43` carrying
+  commit `995cfeb7` with its single co-author trailer, CI green; mirrors the Java
+  reference engine's PR #265 (squash `392f7128`, ADR-0012); both engines identical —
+  rides the next release via CHANGELOG Unreleased / INCREMENTS 82**)
+  **Suspend/resume rationalization: suspension is a destination — edge/jump modes
+  replace `suspend=true` (this port's ADR-0011, amending ADR-0009).** Edge mode = drawn
+  edge + mandatory continuation, resume continues past, never re-executes (back-compat
+  exact; property = deprecation-WARN no-op). Jump mode = graph.math IF-THEN-ELSE jump,
+  RE-EXECUTED on every resume (wait loop, no RESET); routing-skill drawn edge to suspend
+  + exception=suspend rejected with Java-exact teaching errors; jump-only suspend is
+  island-anchored (island exempt from the continuation-edge rule). tutorial-14 +
+  fixtures byte-identical from Java (await-decision/RESET gone); jump-mode + compat
+  scenarios added to graph_runtime; knowledge-graph 9 suites (44-graph gate), playground
+  e2e, fmt, clippy 0. **Webapp REPLACED from the Java repo's latest UI source (Eric's
+  directive — brings the Java PR #262 UI work over), port path adaptations re-applied,
+  webapp 212/212, bundle index-DqzF65vX.js.** Record/store contracts unchanged.
+  Relates [[thread-tutorial-14-decision-rust]].
+  <!-- id: thread-suspend-resume-rationalization-rust | created: 2026-08-08 | last_used: 2026-08-08 | uses: 1 | tier: working | origin: 2026-08-08-005419 -->
 
 - [x] (lock-step — **MERGED 2026-08-07 as PR #193, merge `bea95c80` carrying commit
   `8162b733`, CI green; same-day mirror of Java PR #263; rides the next release via
