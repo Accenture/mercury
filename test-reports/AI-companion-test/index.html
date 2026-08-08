@@ -1,0 +1,3718 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Rust port of mercury-composable — Accenture's event-driven, composable application platform: platform-core, Event Script, and the active knowledge graph, delivered bottom-up in Rust.">
+      
+      
+        <meta name="author" content="Eric Law">
+      
+      
+        <link rel="canonical" href="https://accenture.github.io/mercury/test-reports/AI-companion-test/">
+      
+      
+        <link rel="prev" href="../suspend-resume-interop/">
+      
+      
+        <link rel="next" href="../../background/port-scope/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>AI Companion Test Report - mercury</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ai-companion-test-log" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="mercury" class="md-header__button md-logo" aria-label="mercury" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            mercury
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              AI Companion Test Report
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../guides/getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Foundations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/event-driven/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 1 — Event-Driven
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/event-script/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 2 — Event Script
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/knowledge-graph/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 3 — Knowledge Graph
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../guides/configuration-reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="mercury" class="md-nav__button md-logo" aria-label="mercury" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    mercury
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Foundations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Foundations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/event-driven/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 1 — Event-Driven
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 1 — Event-Driven
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/write-your-first-function/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Write Your First Function
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/function-execution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/rest-automation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST Automation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-over-http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event over HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/event-script/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 2 — Event Script
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 2 — Event Script
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/syntax/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Script Syntax
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/flow-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/flow-schema-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Schema Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/knowledge-graph/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 3 — Knowledge Graph
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 3 — Knowledge Graph
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/build-your-first-graph/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Your First Graph
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/workflow-suspension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow Suspension
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/playground-and-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground & AI Companion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/composing-the-layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composing the Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/command-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MiniGraph Command Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/skills-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/macros-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macros
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/registration-metadata-contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Registration Metadata Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-envelope-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EventEnvelope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/api-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform & PostOffice API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/reserved-names-and-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reserved Names & Headers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/actuators-and-http-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Actuators & HTTP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-over-http-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report (Java ⇄ Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suspend-resume-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Suspend/Resume
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Companion Test Report
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Companion Test Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-ladder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation ladder
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stage-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage records
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stage records">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tutorials-12-l1-mechanics-transcription-passed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorials 1–2 — L1 (mechanics + transcription) — PASSED
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-3-l2-comprehension-passed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 3 — L2 (comprehension) — PASSED
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-4-l3-synthesis-problem-solving-failed-doc-fix-re-verified-pass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 4 — L3 (synthesis / problem-solving) — FAILED → doc fix → RE-VERIFIED PASS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-5-l4-composition-parallel-fan-out-join-data-sourcing-passed-first-attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 5 — L4 (composition: parallel fan-out + join + data sourcing) — PASSED (first attempt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-6-l5-data-driven-iteration-for_each-chained-fetch-passed-first-attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 6 — L5 (data-driven iteration: for_each + chained fetch) — PASSED (first attempt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-7-l6-mapping-language-depth-passed-first-attempt-the-cleanest-run-yet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 7 — L6 (mapping-language depth) — PASSED (first attempt; the cleanest run yet)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-8-l7-reshaping-toolbox-jsonpath-transformation-plugins-passed-first-attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 8 — L7 (reshaping toolbox: JSONPath + transformation plugins) — PASSED (first attempt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-9-l8-reuse-under-governance-off-path-modules-execute-passed-one-self-corrected-iteration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 9 — L8 (reuse under governance: off-path modules + EXECUTE) — PASSED (one self-corrected iteration)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-10-l9-composition-by-delegation-graphextension-sub-graph-passed-first-attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 10 — L9 (composition by delegation: graph.extension sub-graph) — PASSED (first attempt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-11-l10-cross-layer-composition-flow-extension-passed-first-attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 11 — L10 (cross-layer composition: flow extension) — PASSED (first attempt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-12-l11-resilience-engineering-exception-routing-bounded-retry-recovery-passed-first-attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 12 — L11 (resilience engineering: exception routing + bounded retry + recovery) — PASSED (first attempt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-13-l12-the-custom-logic-seam-graphtask-passed-first-attempt-sweep-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 13 — L12 (the custom-logic seam: graph.task) — PASSED (first attempt) — SWEEP COMPLETE
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sweep-complete-the-scorecard-2026-07-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sweep complete — the scorecard (2026-07-19)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-sweep-forced-test-drive-flistofmap-2026-07-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Post-sweep forced test-drive: f:listOfMap (2026-07-19)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-sweep-forced-test-drive-2-discovery-driven-delegation-2026-07-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Post-sweep forced test-drive #2: discovery-driven delegation (2026-07-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-sweep-forced-test-drive-3-live-https-fetch-2026-07-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Post-sweep forced test-drive #3: live HTTPS fetch (2026-07-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#back-port-validation-the-java-engine-on-the-back-ported-docs-2026-07-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Back-port validation: the JAVA engine on the back-ported docs (2026-07-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#findings-documentation-grammar-improvements-rollup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings → documentation &amp; grammar improvements (rollup)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/port-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Port Scope & Fidelity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arch-decisions/ADR/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CHANGELOG.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CONTRIBUTING.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CODE_OF_CONDUCT.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code of Conduct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/INCLUSIVITY.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inclusivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-ladder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation ladder
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stage-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage records
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stage records">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tutorials-12-l1-mechanics-transcription-passed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorials 1–2 — L1 (mechanics + transcription) — PASSED
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-3-l2-comprehension-passed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 3 — L2 (comprehension) — PASSED
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-4-l3-synthesis-problem-solving-failed-doc-fix-re-verified-pass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 4 — L3 (synthesis / problem-solving) — FAILED → doc fix → RE-VERIFIED PASS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-5-l4-composition-parallel-fan-out-join-data-sourcing-passed-first-attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 5 — L4 (composition: parallel fan-out + join + data sourcing) — PASSED (first attempt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-6-l5-data-driven-iteration-for_each-chained-fetch-passed-first-attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 6 — L5 (data-driven iteration: for_each + chained fetch) — PASSED (first attempt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-7-l6-mapping-language-depth-passed-first-attempt-the-cleanest-run-yet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 7 — L6 (mapping-language depth) — PASSED (first attempt; the cleanest run yet)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-8-l7-reshaping-toolbox-jsonpath-transformation-plugins-passed-first-attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 8 — L7 (reshaping toolbox: JSONPath + transformation plugins) — PASSED (first attempt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-9-l8-reuse-under-governance-off-path-modules-execute-passed-one-self-corrected-iteration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 9 — L8 (reuse under governance: off-path modules + EXECUTE) — PASSED (one self-corrected iteration)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-10-l9-composition-by-delegation-graphextension-sub-graph-passed-first-attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 10 — L9 (composition by delegation: graph.extension sub-graph) — PASSED (first attempt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-11-l10-cross-layer-composition-flow-extension-passed-first-attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 11 — L10 (cross-layer composition: flow extension) — PASSED (first attempt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-12-l11-resilience-engineering-exception-routing-bounded-retry-recovery-passed-first-attempt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 12 — L11 (resilience engineering: exception routing + bounded retry + recovery) — PASSED (first attempt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-13-l12-the-custom-logic-seam-graphtask-passed-first-attempt-sweep-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial 13 — L12 (the custom-logic seam: graph.task) — PASSED (first attempt) — SWEEP COMPLETE
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sweep-complete-the-scorecard-2026-07-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sweep complete — the scorecard (2026-07-19)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-sweep-forced-test-drive-flistofmap-2026-07-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Post-sweep forced test-drive: f:listOfMap (2026-07-19)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-sweep-forced-test-drive-2-discovery-driven-delegation-2026-07-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Post-sweep forced test-drive #2: discovery-driven delegation (2026-07-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#post-sweep-forced-test-drive-3-live-https-fetch-2026-07-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Post-sweep forced test-drive #3: live HTTPS fetch (2026-07-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#back-port-validation-the-java-engine-on-the-back-ported-docs-2026-07-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Back-port validation: the JAVA engine on the back-ported docs (2026-07-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#findings-documentation-grammar-improvements-rollup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings → documentation &amp; grammar improvements (rollup)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="ai-companion-test-log">AI-Companion Test Log<a class="headerlink" href="#ai-companion-test-log" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>A running record of the <strong>human–AI collaboration</strong> validation exercise: can a <em>fresh</em> AI agent,
+given only the canonical AI-agent documentation (no tutorial walkthroughs), operate the MiniGraph
+Playground and help a human build correct knowledge graphs? Each stage raises the cognitive
+demand. The point is not just pass/fail — it is to surface where <code>llms.txt</code>, the AI grammar
+(<code>command-reference.md</code> / <code>minigraph-commands.json</code>), and the human docs can be improved, and to
+harden the Rust port toward production quality along the way.</p>
+<p>Tracked as Open Thread <code>ot-companion-validation-sweep</code> in <code>memory/continuity.md</code>.</p>
+</blockquote>
+<h2 id="method">Method<a class="headerlink" href="#method" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Fresh agent per test</strong> — a new sub-agent with no prior context, briefed only with a task and a
+  pointer to the canonical AI-agent docs. <strong>As of 2026-07-18 these are ported into THIS repo</strong> so a
+  test references the Rust port's own docs (which reflect its reality — e.g. <code>graph.js</code> retired, the
+  synchronous companion endpoint): <code>docs/llms.txt</code>, <code>docs/guides/knowledge-graph/ai-agent-guide.md</code>,
+  <code>command-reference.md</code>, <code>minigraph-commands.json</code>, <code>skills-reference.md</code>. <strong>Never</strong> the interactive
+  <code>help/*.md</code> or the tutorial walkthroughs. (Tutorials 1–4 used the Java upstream's copies.)
+  <strong>From tutorial 6 on, the allowed set is <code>docs/llms.txt</code> + every guide it maps</strong> — including the
+  layer-1/2 AI docs (<code>docs/guides/event-script/</code>, <code>docs/guides/event-driven/</code>, ported 2026-07-19)
+  for tutorials whose extensions use flows and tasks. In-band engine lookups (<code>help</code>,
+  <code>describe skill</code>) remain fair game but each one is <strong>recorded as a doc gap</strong> — the grammar's goal
+  is that agents never need them.</li>
+<li><strong>The companion drives the live session</strong> over the documented endpoints. AI agents use the
+  <strong>synchronous</strong> <code>POST /api/companion/{id}/sync</code> (outcome in-band <code>{ok, output, error, result}</code>;
+  also teed to the human's WS console); <code>GET /api/graph/session/{id}</code> reads the model shape.</li>
+<li><strong>The human validates</strong> in the Playground UI (screenshots) and via a behavioral <strong>dry-run</strong>.</li>
+<li>The orchestrator (Claude Code) may privately consult the canonical tutorial to <em>judge</em> correctness
+  and assist if the companion is genuinely stuck, but never leaks it into the briefing.</li>
+</ul>
+<h2 id="validation-ladder">Validation ladder<a class="headerlink" href="#validation-ladder" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Tutorials</th>
+<th>What it tests</th>
+<th>Briefing</th>
+<th>Pause model</th>
+<th>Acceptance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>L1 — mechanics + transcription</strong></td>
+<td>1–2</td>
+<td>drive the endpoints; look up exact syntax for a <em>known</em> graph</td>
+<td>command list / syntax reference</td>
+<td>step-wise</td>
+<td>commands dispatch; graph built</td>
+</tr>
+<tr>
+<td><strong>L2 — comprehension</strong></td>
+<td>3</td>
+<td>reconstruct a <em>specified</em> graph from the canonical docs alone (no walkthrough)</td>
+<td>full node/connection plan; derive syntax</td>
+<td>step-wise, screenshot each step</td>
+<td>structural match to canonical + dry-run</td>
+</tr>
+<tr>
+<td><strong>L3 — synthesis / problem-solving</strong></td>
+<td>4</td>
+<td><em>design</em> a correct solution to a stated <strong>problem + output contract</strong>, with <strong>no syntax hints</strong></td>
+<td>problem statement only</td>
+<td>build whole graph, pause for dry-run</td>
+<td><strong>behavioral</strong>: dry-run honors the contract on every branch</td>
+</tr>
+<tr>
+<td><strong>L4 — composition</strong></td>
+<td>5</td>
+<td><em>compose</em> mechanisms (parallel fan-out + join barrier + data sourcing + list assembly) from a problem + contract, no syntax hints</td>
+<td>problem statement only</td>
+<td>build whole graph, pause for dry-run</td>
+<td><strong>behavioral</strong> + demonstrable parallelism (traversal-log timing)</td>
+</tr>
+<tr>
+<td><strong>L5 — data-driven iteration</strong></td>
+<td>6</td>
+<td>chained multi-step fetch where the fan-out set is <strong>runtime data</strong> (<code>for_each</code> inside a fetcher), incl. a POST provider</td>
+<td>problem statement only</td>
+<td>build whole graph, pause for dry-run</td>
+<td><strong>behavioral</strong>: every element of the runtime list fetched + assembled; nothing hardcoded</td>
+</tr>
+<tr>
+<td><strong>L6 — mapping-language depth</strong></td>
+<td>7</td>
+<td>the data-mapping mini-language end-to-end: constants, nested extraction, ordered array assembly, execution-time <code>f:</code> plugin values — pure transformation, no backends</td>
+<td>problem statement only</td>
+<td>build whole graph, pause for dry-run</td>
+<td><strong>behavioral</strong>: exact reshaped contract incl. a genuinely runtime-generated value</td>
+</tr>
+<tr>
+<td><strong>L7 — reshaping toolbox</strong></td>
+<td>8</td>
+<td>choose the right transformation tool (JSONPath wildcard extraction, <code>f:listOfMap</code>, <code>f:removeKey</code>) for a data-driven list-reshaping contract</td>
+<td>problem statement only</td>
+<td>build whole graph, pause for dry-run</td>
+<td><strong>behavioral</strong>: contract met for any list length; internal field never exposed</td>
+</tr>
+<tr>
+<td><strong>L8 — reuse under governance</strong></td>
+<td>9</td>
+<td>author common logic <strong>once</strong> in an off-path library module; borrow it at run time from the execution path (<code>graph.math</code> <code>EXECUTE</code>)</td>
+<td>problem statement only (reuse stated as an architectural requirement)</td>
+<td>build whole graph, pause for dry-run</td>
+<td><strong>behavioral</strong> + structural: formula authored once, module off-path, borrower maps the result</td>
+</tr>
+<tr>
+<td><strong>L9 — composition by delegation</strong></td>
+<td>10</td>
+<td>delegate to a <strong>deployed, governed graph model</strong> (<code>graph.extension</code> sub-graph) instead of rebuilding its logic</td>
+<td>problem statement only (deployed model's id + contract given as environment facts)</td>
+<td>build whole graph, pause for dry-run</td>
+<td><strong>behavioral</strong> + structural: contract served with zero re-implementation (no own providers/dictionaries/fetchers)</td>
+</tr>
+<tr>
+<td><strong>L10 — cross-layer composition</strong></td>
+<td>11</td>
+<td>delegate to a deployed <strong>Event Script flow</strong> (<code>extension=flow://{flow-id}</code>) — the semantic layer composing onto layer 2</td>
+<td>problem statement only (flow id + contract as environment facts)</td>
+<td>build whole graph, pause for dry-run</td>
+<td><strong>behavioral</strong> + structural: response produced by the flow (delegation visible in the traversal), zero echo logic in the graph</td>
+</tr>
+<tr>
+<td><strong>L11 — resilience engineering</strong></td>
+<td>12</td>
+<td>custom error handling: <code>exception=</code> failure routing + a bounded retry loop (<code>RESET</code>/<code>NEXT</code>/<code>DELAY</code>, attempt counting) + a recovery path — under the engine's loop guard</td>
+<td>problem statement only (failure-simulation header as an environment fact)</td>
+<td>build whole graph, dry-run BOTH paths</td>
+<td><strong>behavioral</strong>: failing path retries with pauses, recovers at the bound, ends in success; happy path untouched</td>
+</tr>
+<tr>
+<td><strong>L12 — the custom-logic seam</strong></td>
+<td>13</td>
+<td>plug a deployed <strong>composable function</strong> into a graph (<code>graph.task</code>): whole-body pass-through, request headers, result mapping</td>
+<td>problem statement only (function route + contract as environment facts; header value differs from the doc example)</td>
+<td>build whole graph, pause for dry-run</td>
+<td><strong>behavioral</strong>: the function's exact result returned; zero re-implementation</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="stage-records">Stage records<a class="headerlink" href="#stage-records" title="Permanent link">&para;</a></h2>
+<h3 id="tutorials-12-l1-mechanics-transcription-passed">Tutorials 1–2 — L1 (mechanics + transcription) — PASSED<a class="headerlink" href="#tutorials-12-l1-mechanics-transcription-passed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Method:</strong> fresh companion agents derived the exact commands from <code>minigraph-commands.json</code> and
+  built the tutorial graphs, one command at a time with human screenshot validation.</li>
+<li><strong>Result:</strong> proved a fresh agent can (a) use the companion endpoint contract, (b) read the model
+  back over the session endpoint, and (c) translate the command grammar into valid commands.</li>
+<li><strong>Doc/grammar insight:</strong> the companion hint set should point at <code>docs/llms.txt</code> +
+  <code>docs/guides/knowledge-graph/ai-agent-guide.md</code> (the AI-facing docs), not the interactive help.</li>
+</ul>
+<h3 id="tutorial-3-l2-comprehension-passed">Tutorial 3 — L2 (comprehension) — PASSED<a class="headerlink" href="#tutorial-3-l2-comprehension-passed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Task:</strong> the Data-Dictionary method — source a person's name + address from an MDM Provider via
+  two Dictionary entries + a Fetcher, keyed by <code>person_id</code>.</li>
+<li><strong>Method:</strong> fresh companion, canonical docs only, <strong>step-wise</strong> with a screenshot pause per node
+  and per connection.</li>
+<li><strong>Result:</strong> built <strong>7 nodes + 7 connections</strong>, an <strong>exact structural match</strong> to the canonical
+  <code>tutorial-3.json</code> (verified by an independent nodes/edges diff); dry-run with <code>person_id=100</code>
+  returned <code>output.body = {name:"Peter", address:"100 World Blvd"}</code>.</li>
+<li><strong>Loose ends surfaced (engine/parity), all fixed (increments 30–32):</strong></li>
+<li><code>@OptionalService</code> only gated <code>#[preload]</code> → extended to <code>#[websocket_service]</code> /
+     <code>#[before_application]</code> / <code>#[main_application]</code>; the Playground was retired from programmatic
+     registration to <strong>declarative dev-gating</strong> (increment 31, Java parity).</li>
+<li>The dev mock data providers (<code>mock.mdm.profile</code>, …) weren't ported → added, dev-gated
+     (increment 30).</li>
+<li>A Dictionary node's bare <code>input[]=person_id</code> was wrongly rejected by the create/update console
+     command → node-type-aware fix (Java first, then Rust).</li>
+<li><strong>Doc/grammar insight (increment 32):</strong> the <code>inspect</code> command docs used <code>{…}</code> as a placeholder in
+  the <em>syntax</em> line but <strong>repeated the braces in the examples</strong>, so the companion sent
+  <code>inspect {output.body}</code> — which both engines resolve to the key <code>{output</code>→<code>body}</code> = empty. Fixed:
+  <strong>examples unbraced, braces only in syntax lines, + a placeholder-convention note</strong> in
+  <code>command-reference.md</code>, <code>ai-agent-guide.md</code>, <code>help inspect.md</code>, <code>minigraph-commands.json</code>.
+  A first pass also changed the webapp autocomplete <em>template</em> — reverted, because a <code>template</code>
+  field is a fill-in placeholder (<code>{variable_name}</code> is correct there), not an example. <strong>Lesson: in
+  the docs, <code>{…}</code> must appear only where a value is substituted, never in text meant to be typed
+  verbatim.</strong></li>
+</ul>
+<h3 id="tutorial-4-l3-synthesis-problem-solving-failed-doc-fix-re-verified-pass">Tutorial 4 — L3 (synthesis / problem-solving) — FAILED → doc fix → RE-VERIFIED PASS<a class="headerlink" href="#tutorial-4-l3-synthesis-problem-solving-failed-doc-fix-re-verified-pass" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Task (problem only, no syntax hints):</strong> input has two parameters <code>a</code> and <code>b</code>; build a graph that
+  compares them and branches two ways (<code>a &gt;= b</code> and <code>a &lt; b</code>). Output contract:
+  <code>{ "message": &lt;describes the outcome&gt;, "less_than": &lt;bool&gt;, "sum": &lt;a + b&gt; }</code>. Tutorial-4's focus
+  is the <strong>decision node</strong>.</li>
+<li><strong>Method:</strong> fresh companion, canonical docs only, <strong>no</strong> node/type/mapping/<code>input.body.*</code> hints;
+  built the whole graph then paused for the dry-run (step-wise pauses dropped — mechanics proven at L2).</li>
+<li><strong>Design produced (companion's own — a <em>valid alternative</em> to the canonical <code>Decision</code> node):</strong>
+  <code>root → compare (graph.math: sum + branch) → {ge-path | lt-path} (graph.data.mapper) → end
+  (graph.data.mapper, assembles the contract)</code>. 5 nodes, 5 connections, all commands HTTP 200 —
+  the build succeeded and read back exactly as intended.</li>
+<li><strong>Dry-run: FAILED.</strong> <code>a=5,b=3</code> seeded fine (<code>input.body={a:5,b:3}</code>) but the run aborted at the
+  <code>compare</code> node with the WS-console error:<blockquote>
+<p><code>Walk to root</code> → <code>Walk to compare</code> → <strong><code>node compare does not have if:, then: or else:</code></strong> →
+<code>Graph traversal aborted</code>
+  Read-back confirmed total failure: <code>model = {}</code>, <code>output.body = Not found</code> (not even <code>COMPUTE</code>
+  ran). The companion is <strong>blind</strong> to this — its POSTs returned HTTP 200 "accepted"; the parser
+  error only reached the WS console, and its read-back endpoints just showed empty state.</p>
+</blockquote>
+</li>
+<li><strong>Root cause — an AI-grammar gap.</strong> The companion invented <code>IF: … / BEGIN / NEXT: &lt;relation&gt; /
+  END</code>. The engine's real <code>graph.math</code> decision grammar is the multi-line triad
+  <code>IF: &lt;bool&gt;</code> / <code>THEN: &lt;node|next&gt;</code> / <code>ELSE: &lt;node|next&gt;</code>. Every wrong guess was one the docs
+  <em>caused</em>: <code>NEXT:</code> actually takes a <strong>node name</strong> (not a relation label); <code>BEGIN</code>/<code>END</code> are
+  <strong><code>for_each</code> iteration</strong> delimiters (not IF-block braces); and <strong><code>THEN:</code>/<code>ELSE:</code> appear nowhere in
+  the AI-facing docs</strong>. The AI docs (<code>command-reference.md</code>, <code>minigraph-commands.json</code>) <em>listed</em> the
+  keywords (<code>COMPUTE</code>/<code>IF</code>/<code>MAPPING</code>/<code>EXECUTE</code>/<code>RESET</code> + <code>NEXT:</code>/<code>BEGIN</code>/<code>END</code>) but gave <strong>no
+  statement syntax</strong> — the full grammar lived only in the interactive <code>help graph-math.md</code>, which the
+  companion was (by design) forbidden to read. A keyword inventory without syntax was <em>worse than
+  silence</em>: <code>BEGIN</code>/<code>END</code>/<code>NEXT:</code> were misleading breadcrumbs.</li>
+<li><strong>Doc fix (this session):</strong> promoted the <code>graph.math</code> / <code>graph.js</code> <strong>statement grammar</strong> into the
+  AI-facing docs — the <code>IF</code>/<code>THEN</code>/<code>ELSE</code> multi-line form (with a worked branch example),
+  <code>NEXT:</code> = node-name, <code>BEGIN</code>/<code>END</code> = <code>for_each</code> scope, <code>COMPUTE</code> → <code>result</code> namespace,
+  <code>MAPPING</code>/<code>EXECUTE</code>/<code>RESET</code>. Files: <code>command-reference.md</code> (new "statement grammar" subsection) +
+  <code>minigraph-commands.json</code> (<code>graph.math</code> <code>statement_syntax</code> + notes). <em>(Java-canonical only — the
+  Rust repo doesn't carry these guides; its <code>help graph-math.md</code> already had the full grammar.)</em></li>
+<li><strong>Verification — PASSED (fix proven).</strong> A <em>second</em> fresh companion (no knowledge of the failure or
+  the doc change), same problem, now read the documented grammar and built a <strong>runnable decision</strong>:
+  <code>compare</code> (<code>graph.math</code>) with <code>COMPUTE: sum -&gt; a+b</code>, <code>COMPUTE: less_than -&gt; a&lt;b</code>, and the real
+  triad <code>IF: a&gt;=b / THEN: ge-path / ELSE: lt-path</code>; two <code>graph.data.mapper</code> branches filling the
+  contract from <code>compare.result.*</code>. Dry-run on the primary session honored the contract on <strong>all
+  three</strong> cases (types preserved — <code>less_than</code> a real boolean, <code>sum</code> a real number <code>8.0</code> in
+  graph.math double precision):</li>
+<li><code>a=5,b=3</code> → <code>{message:"a is greater than or equal to b", less_than:false, sum:8.0}</code></li>
+<li><code>a=3,b=5</code> → <code>{message:"a is less than b", less_than:true, sum:8.0}</code></li>
+<li><code>a=4,b=4</code> → <code>{message:"a is greater than or equal to b", less_than:false, sum:8.0}</code> — the
+    boundary handled <strong>more correctly than canonical tutorial-4</strong> (which branches on <code>a&gt;b</code>, so
+    <code>a==b</code> would wrongly take the "&lt;" path); by computing <code>less_than=a&lt;b</code> and branching on <code>a&gt;=b</code>
+    the companion nails the spec.</li>
+<li><strong>Additional (smaller) doc frictions from the retry, still open:</strong> (a) boolean/float/list constant
+  syntax (<code>boolean(...)</code> etc.) isn't reachable from the four AI docs (deferred to the Event Script
+  page) — the companion avoided it by <em>computing</em> the boolean; consider inlining the constant-type
+  table; (b) no example of one node's mapper reading another node's <code>.result</code> (bare form,
+  <code>compare.result.sum</code>); (c) whether an <code>IF</code> <code>THEN:</code>/<code>ELSE:</code> jump requires a matching <code>connect</code>
+  (and whether the relation label matters to routing) is unspecified; (d) a skill-less "terminate
+  only" <code>End</code> is only implied. None blocked the solution; all are polish.</li>
+<li><strong>Session-management feature validated in passing.</strong> For this run the human's primary
+  (<code>ws-145417-6</code>) and a companion-side subscriber (<code>ws-452385-7</code>, a zero-dependency Node-22
+  built-in-<code>WebSocket</code> <code>.mjs</code>) were linked via <code>session subscribe</code>. Content synced both ways (both
+  showed 5 nodes / 5 connections) and the mirrored console stream gave the orchestrator <strong>live
+  visibility into run output</strong> — directly mitigating finding #4: it let the orchestrator
+  self-diagnose a <em>curl-quoting</em> bug of its own (zsh <code>$"…"</code> vs <code>$'…'</code>) from the console alone,
+  without the human relaying it.</li>
+<li><strong>Trivial aside:</strong> the first (failed) build showed as "untitled-1" — the root node had no <code>name</code>
+  property (sets the graph title / export name); not the focus.</li>
+</ul>
+<h3 id="tutorial-5-l4-composition-parallel-fan-out-join-data-sourcing-passed-first-attempt">Tutorial 5 — L4 (composition: parallel fan-out + join + data sourcing) — PASSED (first attempt)<a class="headerlink" href="#tutorial-5-l4-composition-parallel-fan-out-join-data-sourcing-passed-first-attempt" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Task (problem only, no syntax hints):</strong> fetch the profiles of TWO people <strong>in parallel</strong> (both API
+  calls at the same time) and return one combined response. Input: <code>{person1: &lt;id&gt;, person2: &lt;id&gt;}</code>
+  (mock ids 100/200). Profile API: <code>GET /api/mdm/profile/{id}</code> on the same server (the dev mock).
+  Output contract: <code>output.body = { "profile": [ &lt;both profiles&gt; ] }</code>, each entry carrying at least
+  name and address; order irrelevant. Tutorial-5's focus is <strong>parallelism + the <code>graph.join</code> barrier</strong>.</li>
+<li><strong>Method:</strong> fresh companion; <strong>this repo's own AI docs for the first time</strong> (<code>docs/llms.txt</code> + the
+  four <code>docs/guides/knowledge-graph/</code> files — tutorials 1–4 used the Java upstream's copies); build
+  whole graph → dry-run; allowed to probe the profile endpoint directly and to use anything the
+  engine says <strong>in-band</strong>; drove the human's live UI session (<code>ws-976371-7</code>) entirely via <code>/sync</code>.</li>
+<li><strong>Result: PASSED on the first run — 18/18 commands <code>ok:true</code>, zero failed commands</strong> (a first for
+  the sweep at L3+; tut-4 needed a doc fix + retry). Design: <code>root</code> forks to <code>fetch-one</code>/<code>fetch-two</code>
+  (<code>graph.api.fetcher</code>, per-fetcher <code>model.profile1</code>/<code>model.profile2</code> scratch), both converge on
+  <code>join-profiles</code> (<code>graph.join</code>), and <code>end</code> (<code>graph.data.mapper</code>) assembles
+  <code>model.profile1 -&gt; output.body.profile[0]</code>, <code>model.profile2 -&gt; output.body.profile[1]</code>; one
+  shared Dictionary (<code>person-profile</code>, <code>response.profile -&gt; result.profile</code>) + Provider
+  (<code>mdm-profile</code>, <code>person_id -&gt; path_parameter.id</code>). Dry-run (verified independently by the
+  orchestrator re-running it):
+  <code>{"profile":[{"address":"100 World Blvd","id":"100","name":"Peter"},{"address":"200 World Blvd","id":"200","name":"Mary"}]}</code>.
+  <strong>Parallelism proven from the traversal log:</strong> both <code>Walk to fetch-*</code> lines precede either
+  <code>Executed</code>; the two fetches (~4.5–5 ms each) complete out-of-order inside a ~6 ms total traversal;
+  the join executes twice (sink, then release). Exported as <code>parallel-profile-fetch</code>.</li>
+<li><strong>Judged against canonical <code>tutorial-5.json</code> — semantically equivalent, three deliberate
+  divergences, all valid and two arguably better:</strong></li>
+<li><strong>One</strong> Dictionary returning the whole <code>response.profile</code> object vs canonical's two
+     field-level entries (<code>person-name</code>, <code>person-address</code>) — fewer nodes for the same contract
+     (each profile also carries <code>id</code>, a superset).</li>
+<li><strong>Deterministic post-join assembly</strong> at <code>end</code> (<code>profile[0]</code>/<code>profile[1]</code>) vs canonical's
+     per-fetcher append (<code>model.fetcher-N -&gt; output.body.profile[]</code>, order undetermined) — avoids
+     the concurrent-append hazard entirely and pins order (canonical's own walkthrough mentions the
+     indexed variant as the order-guaranteeing option).</li>
+<li>No organizational Island node — the docs mark it optional; Provider/Dictionary stayed
+     unconnected per the documented config-node exception.
+  Notably the companion derived tutorial-5's <strong>key lesson</strong> — parallel branches must write to
+  disjoint <code>model.*</code> scratch keys — on its own, with no hint.</li>
+<li><strong>KEY method finding — the five AI docs alone were <em>not</em> sufficient; in-band help bridged the
+  gap.</strong> Provider URL <code>{name}</code> placeholders and the Dictionary node's <strong>bare</strong> <code>input[]</code> (a parameter
+  name, not a <code>source -&gt; target</code> mapping) are documented nowhere in the five docs — the page both
+  guides delegate to (<code>composing-the-layers.md#data-dictionary</code>) <strong>doesn't exist in this repo</strong>. The
+  companion resolved both <em>before</em> authoring — <code>describe skill graph.api.fetcher</code> (documented) told it
+  to run <code>help data-dictionary</code> (undocumented but discoverable), whose in-band text carries the full
+  recipe — and that is why it never issued a failing command. Legitimate under the rules (in-band is
+  fair game, and the <code>/sync</code> channel is exactly this feedback loop), but it means doc completeness was
+  rescued by the engine's own help surface.</li>
+<li><strong>Doc frictions recorded by the companion (rollup #9–#13 — all fixed in the AI grammar the same
+  day, maintainer-directed):</strong> the dangling
+  links (<code>composing-the-layers.md</code>, <code>build-your-first-graph.md</code>, <code>playground-and-companion.md</code>,
+  <code>index.md</code>, <code>../event-script/syntax.md</code> — the latter owed the <strong>full constant-type set</strong>, tut-4
+  friction (a) again); <code>help {topic}</code> absent from the grammar docs; ai-agent-guide prose still calls
+  the endpoint "<code>/command</code>" post-rename; the success envelope <strong>omits</strong> <code>error</code>/<code>result</code> (increment-33
+  null-omission) though the docs write <code>error: null</code>, and carries an undocumented <code>id</code> field; fan-out
+  concurrency (multiple outgoing connections = parallel branches) implied only by <code>graph.join</code>'s notes.</li>
+<li><strong>Engine finding by the orchestrator (not the companion): <code>session subscribe</code> issued via
+  <code>/sync</code> corrupts the subscriber registration.</strong> The command registers its reply route as the
+  subscriber — through <code>/sync</code> that is the <strong>ephemeral per-request capture route</strong>
+  (<code>companion.sync.&lt;uuid&gt;</code>, released when the POST returns), not the session's real WS <code>.out</code>.
+  Engine state confirmed it: the primary reported <code>subscribed by ["companion.sync.3da2143d…"]</code>
+  while the watcher session believed <code>subscribed to ws-976371-7</code>. <em>(Post-mortem correction: the
+  watcher's mirror feed dying mid-test was </em><em>user-confirmed collateral of an accidental browser
+  restart</em><em> that closed/reopened the primary — not proven to be caused by this defect. The
+  capture-route-as-subscriber state remains objectively wrong and worth fixing.)</em> Java upstream
+  mirrors the same <code>/sync</code> mechanism (#189) — check both ports. Workaround: issue
+  <code>session subscribe</code> over the WS connection itself. Tracked as an Open Thread in
+  <code>memory/continuity.md</code>.</li>
+<li><strong>RETEST (2026-07-19, after grammar fixes #9–#13 and #17–#22) — PASSED on the tightened
+  criterion: ZERO in-band lookups.</strong> A fresh companion, same problem-only brief, session
+  <code>ws-876960-4</code>: <strong>20/20 commands <code>ok:true</code>, zero failures, first-attempt dry-run pass</strong> — and
+  where the first run had to pull <code>describe skill</code> + <code>help data-dictionary</code> for Provider/Dictionary
+  authoring, this run needed <strong>no in-band help at all</strong>: the docs alone sufficed (that is exactly
+  what fixes #9–#13 claimed). Bonus validations: the companion <strong>wired the Island knowledge layer
+  unprompted</strong> (<code>root -[contains]-&gt; knowledge -[data]-&gt; person-profile -[provider]-&gt; mdm-profile</code>
+  — the #22 mandate, applied from the grammar with no hint in the brief), cited the documented
+  fork/state-safety rules (#13) in its design rationale, and produced an even cleaner design than
+  the first run (each fetcher's result read directly from its own <code>{node}.result</code> namespace —
+  no scratch keys needed — with deterministic post-join <code>profile[0]/[1]</code> assembly). Independently
+  re-verified by the orchestrator (the island sinks in 0.014 ms; both fetchers overlap; contract
+  honored). Two <strong>inference-only</strong> frictions noted (worked first try, but the docs never show
+  them): array-index mapping targets (<code>-&gt; output.body.profile[0]</code>) and whole-subtree Dictionary
+  output (<code>response.profile -&gt; result.profile</code>) — rollup #23/#24. Exported as
+  <code>parallel-profile-fetch-v2</code>.</li>
+<li><strong>Session-hygiene aside (cause understood):</strong> the human's browser restarted accidentally before
+  the test; the primary session closed, a new one (<code>ws-976371-7</code>) was handed over — and it arrived
+  carrying a complete draft of this very exercise (the UI restores the local draft into the
+  reconnected session; <code>session reset</code> resets subscriptions, not the draft graph). The orchestrator
+  deleted all 7 nodes before briefing the companion, or the exercise would have been contaminated.
+  Lesson for the method: <strong>always verify the primary is empty before briefing.</strong></li>
+</ul>
+<h3 id="tutorial-6-l5-data-driven-iteration-for_each-chained-fetch-passed-first-attempt">Tutorial 6 — L5 (data-driven iteration: for_each + chained fetch) — PASSED (first attempt)<a class="headerlink" href="#tutorial-6-l5-data-driven-iteration-for_each-chained-fetch-passed-first-attempt" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Task (problem only, no syntax hints):</strong> given <code>{person_id: &lt;id&gt;}</code>, return the person's profile
+  AND the details of <strong>every</strong> account they hold: <code>output.body = {name, address, accounts:[detail…]}</code>.
+  Two live services: <code>GET /api/mdm/profile/{id}</code> (profile + the account-number list) and
+  <code>POST /api/account/details</code> (JSON body <code>person_id</code>+<code>account_id</code> → one account's details). The
+  account list is <strong>runtime data</strong> — nothing hardcoded. Tutorial-6's focus is <strong><code>for_each</code>
+  iterative fetching</strong> (chained fetchers, parallel batches).</li>
+<li><strong>Method:</strong> fresh companion on the human's live session (<code>ws-876960-4</code>), driven via <code>/sync</code>;
+  <strong>docs = <code>docs/llms.txt</code> + the guides it maps</strong> (first run on the post-#9–#13 grammar and the
+  newly ported layer-1/2 docs); in-band lookups allowed but each recorded as a doc gap; the
+  orchestrator's headless watcher subscribed <strong>over the WS connection</strong> (<code>subscribed by
+  ["ws-759054-5"]</code> — the #194 read-only companion rule + WS-side subscribe validated live; the
+  mirror held for the entire run).</li>
+<li><strong>Result: PASSED on the first dry-run — 18 observed POSTs, all <code>ok:true</code>, zero failed commands</strong>
+  (the companion reported 16 — it didn't count its two <code>describe graph</code> read-backs). Design:
+  <code>root → profile-fetcher (person-profile Dictionary → GET provider; name/address/accounts into
+  disjoint model.* scratch) → accounts-fetcher (</code>for_each[]=profile-fetcher.result.accounts -&gt;
+  model.account_id<code>, explicit</code>concurrency=3<code>, account-detail Dictionary → **POST provider** with</code>body.<em><code>targets) → end (mapper assembles the contract)</code>. Dry-run returned all </em><em>5</em>* account
+  details + name/address for person 100; independently re-verified by the orchestrator (chained
+  traversal ~15 ms; iteration inside the second fetcher — no join barrier needed, correctly).</li>
+<li><strong>Judged vs canonical <code>tutorial-6.json</code> — semantically equivalent; economical divergences:</strong> one
+  whole-profile Dictionary vs canonical's three field-level entries (name/address/accounts); scratch
+  <code>model.*</code> + deterministic <code>end</code>-mapper assembly vs canonical's direct-to-<code>output.body</code> writes; no
+  organizational Island; no <code>feature[]</code> flags (the mock needs none — canonical shows <code>oauth2-bearer</code>
+  as a placeholder). The <strong>key mechanism — a cross-node runtime array
+  (<code>profile-fetcher.result.accounts</code>) driving <code>for_each</code> iteration with <code>model.*</code> per-element input
+  wiring — was derived correctly</strong>, with exactly <strong>one</strong> in-band lookup.</li>
+<li><strong>Grammar-sufficiency check (the tightened criterion from tut-5's planned retest, applied here):</strong>
+  the tut-5 fixes <strong>held</strong> — Provider/Dictionary authoring (incl. the previously-undocumented POST
+  <code>body.*</code> form) and everything else came <strong>straight from the AI docs, zero lookups</strong>. The single
+  in-band <code>help graph-api-fetcher</code> was for the <strong><code>for_each</code> idiom</strong>, whose authoring detail the AI
+  docs still lack (rollup #17) — one gap class per tutorial, each narrower than the last.</li>
+<li><strong>Doc frictions recorded by the companion (rollup #17–#21 — all fixed same day,
+  maintainer-directed, engine-verified; plus the #22 island mandate):</strong> <code>for_each</code> idiom absent from the AI
+  grammar (bare <code>for_each[]=&lt;array&gt; -&gt; model.&lt;var&gt;</code> syntax only — no cross-node source example, no
+  input-wiring pattern); <strong>aggregation semantics undocumented</strong> (per-iteration <code>result.{key}</code> values
+  collect into an array — confirmed only by experiment; ordering unspecified though observed
+  input-order under <code>concurrency=3</code>); <code>output[]</code> <strong>required-vs-optional contradiction</strong> for
+  <code>graph.api.fetcher</code> (AI matrix says required, engine help says optional); POST-body Provider
+  authoring was example-free; and the KG grammar's constants section reads as a <strong>closed set</strong> while
+  <code>f:</code> simple-plugin calls (and <code>$.</code> JSONPath) are in fact resolvable in graph mappings — the graph
+  skills route through the shared Event Script mapping engine (code-confirmed:
+  <code>skills.rs</code> → <code>get_lhs_or_constant</code> → <code>f:</code> dispatch); the in-band help even recommends <code>f:</code> as the
+  <code>:type</code> replacement.</li>
+</ul>
+<h3 id="tutorial-7-l6-mapping-language-depth-passed-first-attempt-the-cleanest-run-yet">Tutorial 7 — L6 (mapping-language depth) — PASSED (first attempt; the cleanest run yet)<a class="headerlink" href="#tutorial-7-l6-mapping-language-depth-passed-first-attempt-the-cleanest-run-yet" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Task (problem only, no syntax hints):</strong> a <strong>pure transformation</strong> graph, no backends. Input
+  <code>{profile: {name, address1, address2}}</code>; output contract
+  <code>{hello: "world" (literal), name, address: [address1, address2] (ordered), time: &lt;current local
+  date-time generated at execution — not a constant&gt;}</code>. Tutorial-7's focus is the <strong>data-mapping
+  mini-language</strong>: constants, nested extraction, array assembly, plugin functions.</li>
+<li><strong>Pre-flight (maintainer prompt):</strong> the tutorial needs the <code>f:now()</code> simple plugin and not all
+  Java plugins were assumed converted — verified <strong>present and correct</strong> in the port (registry +
+  <code>plugins_e8.rs</code> + a live scratch-session probe: <code>iso</code>/<code>local</code>/<code>ms</code> all working in a real graph
+  mapping) before briefing; no engine work needed. Also noted: the tutorial help pages carry
+  known errors (backlog #16) — the canonical walkthrough itself recommends direct addressing over
+  its own append+clear (<code>model.none</code>) sequence.</li>
+<li><strong>Result: PASSED — 8/8 commands <code>ok:true</code>, zero failures, ZERO in-band lookups, first-attempt
+  dry-run pass</strong> (session <code>ws-783755-2</code>). Output verbatim:
+  <code>{"address":["100 World Blvd","New York"],"hello":"world","name":"Peter","time":"2026-07-19 08:54:28.815"}</code>;
+  independently re-run by the orchestrator (fresh timestamp proved execution-time generation).</li>
+<li><strong>The updated grammar visibly drove the design:</strong> indexed <code>address[0]/[1]</code> chosen <strong>with the
+  documented determinism-vs-append rationale</strong> (#23/#25 in action); <code>f:now(text(local))</code>
+  discovered by following the #21 pointer from the KG grammar into the <strong>event-script plugin
+  catalog</strong> (the cross-layer llms.txt map worked); nested seed lines
+  (<code>text(Peter) -&gt; input.body.profile.name</code>) inferred from the composite-key rule; and <strong>no
+  cargo-cult island</strong> — the companion correctly reasoned the #22 mandate doesn't apply to a graph
+  with no config/data-entity nodes.</li>
+<li><strong>Judged vs canonical <code>tutorial-7.json</code>:</strong> semantically equivalent and <strong>more economical</strong> —
+  2 nodes (<code>root</code> → <code>end</code>-as-mapper, per the docs' own recipe) vs canonical's 3 (separate mapper +
+  skill-less end); the companion independently landed on the walkthrough's own "better solution"
+  (direct addressing, no <code>model.none</code> clearing needed).</li>
+<li><strong>Frictions (inference-only, both fixed same day → rollup #26/#27):</strong> the KG grammar named no
+  example <code>f:</code> plugin (an agent must realize the timestamp answer lives a layer down) → generator
+  examples now inline; nested composite keys in <code>instantiate</code> seed lines were implied but never
+  shown → nested-seed example added.</li>
+</ul>
+<h3 id="tutorial-8-l7-reshaping-toolbox-jsonpath-transformation-plugins-passed-first-attempt">Tutorial 8 — L7 (reshaping toolbox: JSONPath + transformation plugins) — PASSED (first attempt)<a class="headerlink" href="#tutorial-8-l7-reshaping-toolbox-jsonpath-transformation-plugins-passed-first-attempt" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Task (problem only, no syntax hints):</strong> pure transformation — input
+  <code>{profile: {name, account: [{id, amount, description, type}, …]}}</code>; output
+  <code>{name, account: [same accounts, same order, each WITHOUT the internal "description" field]}</code>;
+  list length data-driven, nothing hardcoded per element. Tutorial-8's teaching set: JSONPath
+  wildcard extraction (<code>$.…account[*].type</code> → map-of-lists), <code>f:listOfMap</code> consolidation, and
+  <code>f:removeKey</code> — the walkthrough's own "indeed easier" single-source route.</li>
+<li><strong>Result: PASSED — 17/17 commands <code>ok:true</code>, zero failures, ZERO in-band lookups, first-attempt
+  dry-run pass</strong> (session <code>ws-783755-2</code>). Output verbatim:
+  <code>{"account":[{"amount":18000.3,"id":"100","type":"C/D"},{"amount":62050.8,"id":"200","type":"Saving"}],"name":"Peter"}</code>
+  — order preserved, <code>description</code> gone; independently re-run by the orchestrator.</li>
+<li><strong>Technique chosen:</strong> the one-mapping <code>f:removeKey(input.body.profile.account, text(description))</code>
+  route — the canonical's own recommendation for a single source; the invocation form was
+  <strong>inferred</strong> from the generic plugin pattern (→ #28). JSONPath/<code>f:listOfMap</code> were not needed by
+  the winning design (the JSONPath machinery itself remains covered by the canonical fixture
+  suite); the companion's unused fallback plan was a <code>graph.math</code> <code>for_each</code> loop (→ #29).</li>
+<li><strong>Emergent knowledge-layer behavior (beyond the #22 mandate):</strong> with <strong>no config nodes at all</strong>,
+  the companion still built an island with two <strong>data-entity nodes</strong> (<code>person-profile</code>, <code>account</code>)
+  whose purposes document the domain — including "description is internal-only and never exposed".
+  The graph-as-living-documentation idea is now shaping designs unprompted; it also flagged that
+  the mandate's scope for pure-transformation graphs could be stated crisply (→ #30, maintainer
+  question).</li>
+<li><strong>Frictions:</strong> #28 (<code>f:removeKey</code> had no syntax line/example anywhere — fixed same day,
+  code-verified: map or list-of-maps, N key args, returns a copy) and #29 (<code>graph.math</code>
+  <code>for_each[]</code>/<code>BEGIN</code>/<code>END</code> thinly specified — candidate; likely better addressed when a later
+  tutorial exercises it). Verified-by-use with no issues: nested/indexed <code>instantiate</code> seeds
+  (#27's fix), <code>double(…)</code> constants, the <code>/sync</code> envelope contract.</li>
+</ul>
+<h3 id="tutorial-9-l8-reuse-under-governance-off-path-modules-execute-passed-one-self-corrected-iteration">Tutorial 9 — L8 (reuse under governance: off-path modules + EXECUTE) — PASSED (one self-corrected iteration)<a class="headerlink" href="#tutorial-9-l8-reuse-under-governance-off-path-modules-execute-passed-one-self-corrected-iteration" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Task (problem only; reuse stated architecturally, no mechanism named):</strong> input <code>{a, b}</code> →
+  output <code>{sum: a+b}</code>, with the formula authored <strong>exactly once</strong> in a reusable <strong>library node off
+  the execution path</strong>, borrowed at run time by a node on the path, and the graph readable as
+  documentation (library distinguishable from flow). Tutorial-9's focus is the <strong>reusable module</strong>
+  (<code>graph.math</code> + <code>EXECUTE</code>) — <em>not</em> subgraphs (<code>graph.extension</code> comes in later tutorials).</li>
+<li><strong>Result: PASSED — 19/19 commands <code>ok:true</code>, zero failed commands, ZERO in-band grammar
+  lookups; one functional defect self-corrected in-band</strong> (session <code>ws-783755-2</code>). First <code>run</code>
+  produced an empty output; the companion diagnosed it purely with three <code>inspect</code>s
+  (<code>model</code> ✓ → <code>add-formula.result</code> empty → <code>adder.result</code> has the sum), identified the rule —
+  <strong><code>EXECUTE</code> results land on the invoking node, not the module</strong> — fixed with one <code>update node</code>,
+  re-ran: <code>{"sum": 30.0}</code>. Independently re-verified by the orchestrator with different operands
+  (<code>7+35 → 42.0</code>). Exported as <code>reusable-addition</code>.</li>
+<li><strong>Design matches canonical <code>tutorial-9.json</code> in every structural idea:</strong> off-path <code>Module</code>
+  (<code>add-formula</code>, neutral <code>model.*</code> operands so any caller can feed it), execution-path caller
+  (<code>MAPPING</code>×2 → <code>EXECUTE</code> → <code>MAPPING</code> result out), island anchoring the module
+  (<code>root -[contains]-&gt; library -[module]-&gt; add-formula</code>) — the island applied to a <strong>module</strong> node
+  unprompted, extending the #22/#30 convention exactly as the maintainer intends.</li>
+<li><strong>Findings:</strong> #31 — the <code>EXECUTE</code> result-landing rule (the canonical walkthrough's own teaching
+  point: "it just borrows the logic") was absent from the AI grammar and cost the iteration —
+  <strong>fixed same day</strong> (EXECUTE semantics + a full reusable-module worked example in
+  <code>command-reference.md#math-statements</code>, mirrored in <code>minigraph-commands.json</code> +
+  <code>skills-reference.md</code>). #32 — <code>#create</code>'s "<code>{name}</code> and <code>{type}</code> are lowercase-and-hyphen"
+  contradicted the lexical table and every example (types Capitalized; engine accepts them) —
+  <strong>fixed same day</strong>. #33 — island scope now explicitly includes <strong>module/library</strong> nodes, and the
+  "never executed" phrasing corrected to match the run log ("executes only to sink") —
+  <strong>fixed same day</strong>.</li>
+</ul>
+<h3 id="tutorial-10-l9-composition-by-delegation-graphextension-sub-graph-passed-first-attempt">Tutorial 10 — L9 (composition by delegation: graph.extension sub-graph) — PASSED (first attempt)<a class="headerlink" href="#tutorial-10-l9-composition-by-delegation-graphextension-sub-graph-passed-first-attempt" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Task (problem only; the deployed model's id + contract given as environment facts):</strong> the
+  organization operates a deployed, governed graph model <code>tutorial-3</code> (person_id → name+address,
+  maintained by another team). Build a NEW graph that <strong>delegates</strong> the lookup — rebuilding,
+  copying or re-implementing its internals is forbidden. Input <code>{person_id}</code> → output
+  <code>{name, address}</code>. Tutorial-10's focus is the <strong><code>graph.extension</code> sub-graph</strong>.</li>
+<li><strong>Result: PASSED — 16/16 commands <code>ok:true</code>, zero failures, ZERO in-band lookups, first-attempt
+  dry-run pass</strong> (session <code>ws-783755-2</code>). Output verbatim:
+  <code>{"address":"100 World Blvd","name":"Peter"}</code>; independently re-run by the orchestrator with
+  <code>person_id=200</code> → Mary (genuine delegation, nothing hardcoded). Exported as <code>delegate-profile</code>.</li>
+<li><strong>The delegation choice was correct and unprompted:</strong> <code>graph.extension</code> with
+  <code>extension=tutorial-3</code> (not <code>import graph from tutorial-3</code>, which would have <em>copied</em> the
+  logic into the draft — exactly what the brief forbade); field-level result mapping
+  (<code>result.name/.address -&gt; output.body.*</code>); zero own providers/dictionaries/fetchers. The
+  knowledge island (encouraged form, per #30) now documents <strong>the delegation itself</strong>: a
+  <code>person</code> entity plus a <code>person-lookup-model</code> node carrying <code>graph_id=tutorial-3</code> +
+  input/output contract properties — the external dependency captured as enterprise knowledge.</li>
+<li><strong>Frictions (inference-only, all fixed same day → #34–#36):</strong> <code>graph.extension</code>'s data contract
+  was example-implied (bare <code>input[]</code> targets = the sub-graph's <code>input.body</code> keys; the node's
+  <code>result.*</code> <strong>is</strong> the sub-graph's <code>output.body</code>; where <code>extension={graph-id}</code> resolves) — now
+  rule-stated; the node-name lexical rule ("lowercase letters and hyphen only") wrongly excluded
+  digits (canonical fixtures use <code>fetcher-1</code>; engine-verified: no charset validation) — corrected
+  everywhere; the skill-less <code>End</code> was only implied ("usually with graph.data.mapper") — now
+  explicitly valid.</li>
+</ul>
+<h3 id="tutorial-11-l10-cross-layer-composition-flow-extension-passed-first-attempt">Tutorial 11 — L10 (cross-layer composition: flow extension) — PASSED (first attempt)<a class="headerlink" href="#tutorial-11-l10-cross-layer-composition-flow-extension-passed-first-attempt" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Task (problem only; flow id + contract as environment facts):</strong> the platform hosts a deployed
+  Event Script flow <code>flow-11</code> (an echo service, maintained by another team). Build a graph that
+  hands its input to that flow and returns the flow's response — implementing the echo in the
+  graph is forbidden. Input <code>{hello, message}</code> → output = the flow's echo. Tutorial-11's focus is
+  <strong><code>extension=flow://{flow-id}</code></strong> — the semantic layer composing onto layer 2.</li>
+<li><strong>Pre-flight:</strong> <code>flow-11</code> verified live in the running app by an orchestrator scratch-session
+  probe before briefing (echoed <code>{"hello":"probe"}</code> through the flow).</li>
+<li><strong>Result: PASSED — 15/15 commands <code>ok:true</code>, zero failures, ZERO in-band lookups, first-attempt
+  dry-run pass</strong> (session <code>ws-783755-2</code>). Output verbatim:
+  <code>{"hello":"world","message":"this is a good day"}</code>; delegation proven in-band
+  (<code>Executed flow-delegate with skill graph.extension</code>; <code>inspect flow-delegate.result</code> = the
+  flow's response); independently re-run with a different payload. Exported <code>delegate-to-flow</code>.</li>
+<li><strong>The feedback loop is compounding — the companion explicitly credited the prior fixes:</strong> "the
+  island convention, the <code>flow://</code> prefix, the bare-key <code>input[]</code> semantics, and the
+  <code>result</code>-is-flow-output rule were all <strong>stated as rules (not just examples), which is exactly
+  what made a zero-error first run possible</strong>" (#22/#30, #34, #36 at work). The island documents
+  the flow dependency (<code>echo-flow</code> entity with <code>flow_id</code> + contract + ownership note).</li>
+<li><strong>Frictions (minor):</strong> #37 — whole-body <code>*</code> forwarding on <code>graph.extension</code> unspecified —
+  <strong>engine-verified: not supported</strong> (named keys only; the <code>*</code> merge idiom is <code>graph.task</code>-only)
+  and now stated; #38 — no discovery command for deployed flow/graph ids (agents rely on the
+  brief) — candidate, needs engine work; #39 — the <code>Described in /api/graph/model/{name}/{token}</code>
+  reply from <code>export</code> referenced an undocumented endpoint — now noted in <code>#export</code>.</li>
+</ul>
+<h3 id="tutorial-12-l11-resilience-engineering-exception-routing-bounded-retry-recovery-passed-first-attempt">Tutorial 12 — L11 (resilience engineering: exception routing + bounded retry + recovery) — PASSED (first attempt)<a class="headerlink" href="#tutorial-12-l11-resilience-engineering-exception-routing-bounded-retry-recovery-passed-first-attempt" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Task (problem only; the <code>X-Exception: true</code> failure-simulation header as an environment
+  fact):</strong> a resilient person lookup — input <code>{person_id, exception?}</code>; with <code>exception=true</code> the
+  service call fails (401) and the graph must NOT abort: bounded retries (max 3) with a pause
+  between attempts, then a recovery path that clears the flag and fetches successfully; happy path
+  straight through. <strong>The most demanding exercise of the sweep</strong> — it composes <code>exception=</code>
+  failure routing, a <code>graph.math</code> retry loop (<code>f:defaultValue</code>/<code>f:add</code> counting, <code>IF</code> bound check,
+  <code>RESET</code>, <code>NEXT</code>, <code>DELAY</code>) and the engine's loop guard.</li>
+<li><strong>Pre-flight:</strong> the canonical <code>tutorial-12</code> was scratch-probed end-to-end first (retry machinery
+  verified live in the Rust engine — it is not among the fixture tests). The probe also surfaced
+  <strong>#40</strong>: <code>import graph from tutorial-12</code> returned <code>ok:false</code> on a command that succeeded — the
+  <code>/sync</code> <code>is_error_line</code> heuristic trips on import's benign "Graph model <strong>not found</strong> in
+  /tmp/…" fallback line.</li>
+<li><strong>Result: PASSED — 27/27 commands <code>ok:true</code>, zero failures, ZERO in-band lookups, both dry-runs
+  first attempt</strong> (session <code>ws-783755-2</code>). Failing path: 4 fetch executions (3 real failures —
+  the handler is reachable <em>only</em> via the exception route), two visible ~500 ms pauses,
+  <code>attempts: 3.0</code>, flag cleared, final success <code>{Peter, 100 World Blvd}</code>; happy path: one call,
+  7 ms, retry machinery untouched. Independently re-run with person 200 (4 executions → Mary).
+  Exported <code>resilient-profile</code>.</li>
+<li><strong>Design judged vs canonical <code>tutorial-12.json</code>: equivalent mechanics, arguably cleaner
+  decomposition</strong> — a three-node retry machine (<code>retry-control</code>: count + bound → <code>retry-pause</code>:
+  DELAY + resets + NEXT → <code>recover</code>: clear flag + refetch) using <strong>mutual resets</strong> instead of
+  canonical's comma-list self-reset; no defensive status check needed (the handler only runs on
+  failure); the same Dictionary <code>exception:false</code> default + Provider <code>header.x-exception</code>
+  pass-through as canonical; <code>init</code> used default-then-overlay in place of canonical's
+  <code>f:defaultValue</code> (both now documented idioms).</li>
+<li><strong>Frictions — seven load-bearing behaviors were inferred, not documented (each "a gamble" that
+  paid off): #41–#46, all engine-verified and fixed same day.</strong> <code>exception=</code> semantics (jump not
+  abort; <code>output[]</code> skipped; no-handler ⇒ abort) → new <strong>Failure routing</strong> section with the
+  canonical bounded-retry pattern; RESET truths (comma <strong>list</strong>, safe no-op on never-executed
+  nodes, self-reset allowed, loop-guard warning) → statement grammar; taken-<code>IF</code>-jump <strong>ends the
+  statement list</strong> while <code>next</code> falls through → statement grammar; <code>NEXT:</code>/<code>DELAY:</code> are
+  <code>statement[]</code> lines (NEXT applies after the list completes — last one wins; DELAY pauses after
+  the node) → keyword block rewritten; unresolvable mapping source <strong>skips</strong> the entry (target
+  untouched — enables default-then-overlay) → mapping rules; dedup scope = <strong>per graph instance,
+  successful responses only</strong> (failures never cached ⇒ retries re-call) → fetcher gotchas.</li>
+</ul>
+<h3 id="tutorial-13-l12-the-custom-logic-seam-graphtask-passed-first-attempt-sweep-complete">Tutorial 13 — L12 (the custom-logic seam: graph.task) — PASSED (first attempt) — <strong>SWEEP COMPLETE</strong><a class="headerlink" href="#tutorial-13-l12-the-custom-logic-seam-graphtask-passed-first-attempt-sweep-complete" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Task (problem only; the function's route + contract as environment facts):</strong> plug the deployed
+  composable function <code>v1.hello.task</code> (greeting from <code>name</code>, doubles <code>amount</code>, echoes the <code>x-app</code>
+  header) into a graph — whole input payload as its request body, the <code>x-app</code> header set to
+  <strong><code>portfolio-app</code></strong> (deliberately different from the docs' example value, so the header idiom
+  must be understood, not copied), the function's result as <code>output.body</code>. Pre-flight: the demo
+  function verified <strong>ported</strong> (<code>mock.rs</code>, <code>#[preload]</code> + first-class <code>#[optional_service]</code>,
+  Java-contract parity, fixture-tested).</li>
+<li><strong>Result: PASSED — 16/16 commands <code>ok:true</code>, zero failures, ZERO in-band lookups, first-attempt
+  dry-run pass</strong> (session <code>ws-783755-2</code>). Output verbatim:
+  <code>{"app":"portfolio-app","doubled":42.0,"greeting":"Hello, world"}</code>; independently re-run with
+  different values (<code>Eric</code>/<code>50</code> → <code>Hello, Eric</code> / <code>100.0</code>). Exported <code>hello-task-app</code>. The island
+  documents the capability (<code>hello-service</code> node: route + contract) and the response entity.</li>
+<li><strong>Frictions (both fixed same day → #47/#48):</strong> bare-<code>result</code> semantics for <code>graph.task</code> were
+  shown-not-stated (now the explicit rule, aligned with <code>graph.extension</code>); the example's
+  "(Tutorial 13)" label pointed outside the self-sufficient doc set (relabeled).</li>
+</ul>
+<hr />
+<h2 id="sweep-complete-the-scorecard-2026-07-19">Sweep complete — the scorecard (2026-07-19)<a class="headerlink" href="#sweep-complete-the-scorecard-2026-07-19" title="Permanent link">&para;</a></h2>
+<p><strong>All 13 tutorials passed</strong> (plus the tutorial-5 retest), every one by a <strong>fresh agent with no
+prior context</strong>, from the AI docs alone, over the synchronous companion endpoint, with a human
+watching live. The arc:</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Tutorials</th>
+<th>Outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java-docs era</td>
+<td>1–4</td>
+<td>mechanics → comprehension → synthesis; 2 doc-fix cycles (incl. the tut-4 FAIL → statement-grammar fix → re-verified PASS)</td>
+</tr>
+<tr>
+<td>This repo's docs, first runs</td>
+<td>5–6</td>
+<td>first-attempt passes; 2 then 1 in-band lookups — gaps #9–#22 fixed</td>
+</tr>
+<tr>
+<td>Self-sufficiency proven</td>
+<td>5-retest, 7–13</td>
+<td><strong>eight consecutive zero-lookup, first-attempt passes</strong> (tut-9's single functional defect self-corrected in-band)</td>
+</tr>
+</tbody>
+</table>
+<p>What the sweep produced beyond validation: <strong>48 rollup findings</strong> (all resolved or tracked);
+the synchronous companion endpoint (<code>/sync</code>, both ports, byte-identical); the read-only companion
+session rule (#194); <code>#[optional_service]</code> as a first-class attribute (increment 34); the
+layer-1/2 AI-doc port; the island knowledge-layer mandate; and an AI grammar hardened to the
+point where fresh agents design <em>cleaner-than-canonical</em> solutions and cite the rules they
+build on. Open follow-ups live in <code>memory/continuity.md</code>: the help-pages rewrite backlog
+(closed 2026-07-19), the flow/graph discovery-command backlog, and the <code>/sync</code> ok-heuristic
+engine fix (#40 — closed 2026-07-19, both ports).</p>
+<hr />
+<h2 id="post-sweep-forced-test-drive-flistofmap-2026-07-19">Post-sweep forced test-drive: <code>f:listOfMap</code> (2026-07-19)<a class="headerlink" href="#post-sweep-forced-test-drive-flistofmap-2026-07-19" title="Permanent link">&para;</a></h2>
+<p>The one reshaping plugin the sweep never exercised (tut-8's agent chose the "easier"
+<code>f:removeKey</code> route) got its own fresh-agent validation — a custom exercise whose contract
+<strong>requires</strong> real impedance matching and cannot be solved with hard-coded indices.</p>
+<ul>
+<li><strong>Setup (fully headless — no human session needed):</strong> orchestrator started the dev server,
+  opened a Playground session over a zero-dep raw-WebSocket client (<code>ws-301207-1</code>,
+  <code>/ws/graph/playground</code>), verified the draft empty, and dropped a column-oriented export at
+  <code>/tmp/columnar-catalog.json</code> (<code>{title[], price[], sku[], internal_cost[]}</code> — 4 rows).</li>
+<li><strong>Brief (L3, problem-only):</strong> ingest the nightly columnar export; answer row-oriented
+  (<code>output.body.books</code> = row objects with EXACTLY <code>title</code>/<code>price</code>/<code>sku</code>, in row order);
+  <code>internal_cost</code> is confidential and must not appear; <code>output.body.count</code>; <strong>the export
+  length varies run to run</strong> (kills any hard-coded-index bypass). No plugin names, no syntax.</li>
+<li><strong>Result: PASSED — 17/17 commands ok, ZERO in-band lookups, first-attempt dry-run pass.</strong>
+  The design is arguably <em>better than the intended solution</em>: one <code>normalizer</code> mapper chains
+  <code>file(json:…) -&gt; model.catalog</code> → <code>f:removeKey(…, text(internal_cost))</code> →
+  <code>f:listOfMap(…) -&gt; model.books</code> — dropping the confidential column <strong>before rows are ever
+  formed</strong> — and the <code>end</code> mapper adds <code>f:length(…) -&gt; output.body.count</code>. The island
+  knowledge layer was volunteered unprompted with data-entity nodes documenting the export
+  and the public-vs-confidential field split (#22/#30 shaping designs again).</li>
+<li><strong>Judged first-hand (not from the agent's report):</strong> orchestrator re-ran
+  instantiate/run/inspect — rows ordered, field sets exact, <code>internal_cost</code> absent from the
+  whole <code>output</code> namespace, count 4; then <strong>swapped the export to 2 books and re-ran</strong>:
+  count 2, new titles — proving length-agnosticism AND that <code>file(json:…)</code> is read at
+  execution time. The WS console tee carried all 45 lines live.</li>
+<li><strong>Findings #49–#52</strong> (all engine-verified and FIXED same day, below). The agent's four
+  "inferences that held" were exactly the four rules the docs didn't state.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>From</th>
+<th>Insight</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>49</td>
+<td>listOfMap drive</td>
+<td><strong><code>mapping[]</code> in-order application is implied, not rule-stated</strong> — the chain idiom (a later entry reads an earlier entry's target) rests on it</td>
+<td><strong>DONE</strong> (same day, engine-verified: sequential entry loop in the mapper) — rule stated in <code>skills-reference.md#data-mapper</code>, the JSON catalog's mapper entry, and <code>help graph-data-mapper.md</code></td>
+</tr>
+<tr>
+<td>50</td>
+<td>listOfMap drive</td>
+<td><strong><code>f:listOfMap</code> order preservation shown, never guaranteed</strong> in the text</td>
+<td><strong>DONE</strong> (same day, engine-verified: <code>normalize_map_of_lists</code> builds row <em>i</em> from index <em>i</em>) — "order-preserving, length-agnostic" stated in <code>syntax.md</code> (matrix row + prose) and the KG catalog</td>
+</tr>
+<tr>
+<td>51</td>
+<td>listOfMap drive</td>
+<td><strong><code>file(…)</code> resolution time unstated</strong> — matters for a "varies run to run" ingest</td>
+<td><strong>DONE</strong> (same day, <strong>empirically verified</strong>: swapped the file between runs, next run picked it up) — "read at mapping-evaluation time (each execution)" stated in the constants table + catalog</td>
+</tr>
+<tr>
+<td>52</td>
+<td>listOfMap drive</td>
+<td><code>f:length</code> only discoverable in the Layer-2 catalog (cosmetic; cross-layer discovery via llms.txt worked as designed)</td>
+<td><strong>DONE</strong> (same day) — added to the KG grammar's <code>f:</code> examples cell</td>
+</tr>
+</tbody>
+</table>
+<p>The self-sufficiency streak extends: <strong>nine consecutive zero-lookup first-attempt passes</strong>
+(tut-5 retest → tut-13, plus this forced drive).</p>
+<hr />
+<h2 id="post-sweep-forced-test-drive-2-discovery-driven-delegation-2026-07-20">Post-sweep forced test-drive #2: discovery-driven delegation (2026-07-20)<a class="headerlink" href="#post-sweep-forced-test-drive-2-discovery-driven-delegation-2026-07-20" title="Permanent link">&para;</a></h2>
+<p>The capstone for increment 42's discovery commands <strong>and</strong> the completed human-docs site: a
+delegation brief that names <strong>no graph or flow id</strong> — the agent must find its <code>extension=</code>
+target itself.</p>
+<ul>
+<li><strong>Setup:</strong> headless orchestrator-owned session (<code>ws-575720-1</code>), empty draft verified.</li>
+<li><strong>Brief (L3+, problem-only):</strong> "a teammate already deployed a profile-lookup capability
+  somewhere on this server — you don't know its name; delegate to it (no own
+  Provider/Dictionary/fetcher) and answer <code>greeting: Hello {name} of {address}</code>; validate for
+  person 100 AND 200." The public execution endpoint was explicitly allowed for
+  investigation.</li>
+<li><strong>Result: PASSED — 21/21 commands ok, ZERO in-band lookups, first-attempt dry-runs for
+  both persons.</strong> Discovery loop exactly as designed: <code>list graphs</code> → two candidates by
+  purpose (tutorial-3/tutorial-5 share the same text) → empirical contract probes via
+  <code>POST /api/graph/{id}</code> → <code>extension=tutorial-3</code> delegation with <code>f:concat</code> greeting
+  assembly, plus an <strong>unprompted island documenting the delegation contract itself</strong>
+  (DataEntity + ExternalModel node with graph_id/contract properties).</li>
+<li><strong>Judged first-hand:</strong> orchestrator re-ran the dry-run (greeting exact for person 100) and
+  inspected the exported model (<code>extension=tutorial-3</code>, zero own fetchers). Then probed the
+  agent's defensive inference #56 empirically: <code>f:</code> args DO resolve <code>{node}.result.*</code> — the
+  staging through <code>model.*</code> was unnecessary caution, now documented away.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>From</th>
+<th>Insight</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>53</td>
+<td>discovery drive</td>
+<td><strong>No contract visibility for deployed models</strong> — <code>list graphs</code> gives id+purpose but not input/output contracts; the model view needs an exporter-only token, so the agent probed <code>POST /api/graph/{id}</code> empirically (worked, but trial-and-error)</td>
+<td><strong>DONE</strong> (2026-07-20, increment 47, both ports): new read-only <strong><code>describe graph {graph-id}</code></strong> — a deployed model's contract view (purpose, size, <code>input.*</code>/<code>output.*</code> data surface derived from its own mappings); <code>list graphs</code> footer advertises it; grammar/catalog/help/agent-guide updated</td>
+</tr>
+<tr>
+<td>54</td>
+<td>discovery drive</td>
+<td><strong>Identical purposes don't disambiguate</strong> — tutorial-3 and tutorial-5 carry the same purpose text</td>
+<td><strong>DONE</strong> (2026-07-20, increment 47, both repos): tutorial-3 = "fetch one person profile (name and address) by person_id"; tutorial-5 = "parallel data sourcing composition - fan out two profile fetches and join the results"; <code>help tutorial 3</code> transcript synced</td>
+</tr>
+<tr>
+<td>55</td>
+<td>discovery drive</td>
+<td><code>text()</code> whitespace preservation was undocumented (the agent trusted it for <code>text(Hello )</code>)</td>
+<td><strong>DONE</strong> (same day) — "spaces preserved exactly" stated in the constants table + catalog</td>
+</tr>
+<tr>
+<td>56</td>
+<td>discovery drive</td>
+<td>whether <code>f:</code> plugin args can read <code>{node}.result.*</code> was unstated (agent staged defensively through <code>model.*</code>)</td>
+<td><strong>DONE</strong> (same day, <strong>empirically verified</strong>: <code>f:concat(text(Hi ), profile-lookup.result.name)</code> works) — "args accept any state-machine path" stated in grammar + catalog</td>
+</tr>
+<tr>
+<td>57</td>
+<td>discovery drive</td>
+<td>re-<code>instantiate</code> semantics unstated (does it reset prior run state?)</td>
+<td><strong>DONE</strong> (same day, verified across repeated cycles) — "replaces the current instance: fresh state machine, cleared run marks" stated in grammar + catalog</td>
+</tr>
+</tbody>
+</table>
+<p>Streak: <strong>ten consecutive zero-lookup first-attempt passes.</strong></p>
+<hr />
+<h2 id="post-sweep-forced-test-drive-3-live-https-fetch-2026-07-20">Post-sweep forced test-drive #3: live HTTPS fetch (2026-07-20)<a class="headerlink" href="#post-sweep-forced-test-drive-3-live-https-fetch-2026-07-20" title="Permanent link">&para;</a></h2>
+<p>The field-validation of <strong>increment 48</strong> (outbound HTTPS for the async HTTP client): the
+strict OS-trust-store path can't be proven with a self-signed unit fixture, so a fresh agent
+drives the whole stack — Fetcher → <code>async.http.request</code> → rustls → a <strong>real CA-signed chain</strong>
+on the public internet (maintainer-proposed: systems of record in the field require HTTPS).</p>
+<ul>
+<li><strong>Setup:</strong> headless orchestrator-owned session (<code>ws-192994-1</code>), empty draft verified.
+  <strong>Pre-flight</strong> (scratch session <code>ws-655120-2</code>, per the tut-7 <code>f:now</code> precedent): the
+  transport was probed once before briefing — <code>https://www.google.com/</code> returned 200 with an
+  82,777-byte page through the graph, proving TLS against the live chain; the naked domain
+  answers 301 (body captured, traversal proceeds). The scratch session was closed before the
+  brief.</li>
+<li><strong>Brief (L3, problem-only):</strong> "build a graph that fetches the page at <code>https://google.com</code>
+  and returns, in the graph's output, the HTTP status of the fetch and the size of the page;
+  prove it with a dry-run." No skill names, no redirect hint, no syntax.</li>
+<li><strong>Result: PASSED — 16/16 commands ok, ZERO in-band lookups, first-attempt dry-run.</strong>
+  Textbook data-dictionary design (Provider + Dictionary + fetcher + island, all unprompted):
+  <code>output[]=response -&gt; result.page</code> (whole raw HTML body), <code>page-fetcher.status -&gt;
+  output.body.status</code>, <code>f:length(model.page) -&gt; output.body.page_size</code>. The agent handled the
+  redirect <strong>truthfully</strong>: <code>https://google.com</code> answers <code>301</code> with a 220-char body, and that
+  is exactly what its graph reports (<code>{status: 301, page_size: 220}</code>) — it reasoned in its
+  report that 301 &lt; 400 is a non-failure and the fetcher reports the actual fetch. It even
+  re-counted the body characters outside the engine to verify <code>f:length</code>.</li>
+<li><strong>Judged first-hand:</strong> the WS console tee carried the full transcript; the orchestrator's
+  own pre-flight independently confirmed both the 200/www and 301/naked behaviors. <strong>HTTPS is
+  field-validated end-to-end in the Rust port.</strong></li>
+<li><strong>Findings #58–#61</strong> (agent ambiguity reports — all engine-verified and doc-FIXED same
+  day) <strong>+ #62–#63</strong> (orchestrator pre-flight, engine-behavior candidates for the
+  maintainer, both ports).</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>From</th>
+<th>Insight</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>58</td>
+<td>https drive</td>
+<td><strong>bare <code>response</code> root as a Dictionary output source was undocumented</strong> — examples showed <code>response.{path}</code> only; the whole-raw-body form is the natural way to keep a non-JSON body (HTML/text) whole; the agent inferred it</td>
+<td><strong>DONE</strong> (same day, engine-verified: <code>fetcher.rs</code> explicitly allows <code>lhs == "response"</code>) — stated in <code>command-reference.md#provider-dictionary</code>, the catalog's Dictionary <code>output</code> note, <code>skills-reference.md#api-fetcher</code>, <code>help graph-api-fetcher.md</code></td>
+</tr>
+<tr>
+<td>59</td>
+<td>https drive</td>
+<td><strong><code>f:length</code> semantics beyond lists unstated</strong> ("element count of a list") — string behavior was an inference; chars-vs-bytes undocumented</td>
+<td><strong>DONE</strong> (same day, engine-verified in <code>conversions.rs::get_length</code>, Java-parity doc comment): list → element count, string → <strong>character</strong> count, bytes → byte count, null → 0 — stated in the KG grammar's <code>f:</code> examples cell</td>
+</tr>
+<tr>
+<td>60</td>
+<td>https drive</td>
+<td><strong><code>{node}.status</code> on success was unguaranteed in the docs</strong> — the namespaces table said "set by the engine" but only failure routing (≥ 400) documented it concretely; whether a 200/301 sets it was unverified</td>
+<td><strong>DONE</strong> (same day, engine-verified: <code>fetcher.rs</code> sets <code>{node}.status</code> unconditionally for every executed fetch, before the ≥ 400 branch) — guarantee stated in the namespaces table, fetcher docs, and catalog</td>
+</tr>
+<tr>
+<td>61</td>
+<td>https drive</td>
+<td><strong>redirect behavior + response-metadata reachability undocumented</strong> — the fetcher never follows redirects (one Provider call = one HTTP request); <code>response.*</code> is body-only; status lives at <code>{node}.status</code>, headers at <code>{node}.header.response.*</code> via <code>feature[]=log-response-headers</code></td>
+<td><strong>DONE</strong> (same day, engine-verified in <code>fetcher.rs</code> + <code>features.rs</code>) — "HTTP semantics" block in <code>skills-reference.md#api-fetcher</code> + rules in <code>command-reference.md#provider-dictionary</code>, catalog, <code>help graph-api-fetcher.md</code></td>
+</tr>
+<tr>
+<td>62</td>
+<td>https drive (orchestrator)</td>
+<td><strong>silent 1-second identical-command dedup on the command surface, BOTH engines</strong> (<code>is_duplicate</code> / <code>GraphCommandService</code>): an identical command repeated within 1s on the same session is dropped with only a debug log — a <code>/sync</code> caller gets <code>ok:true</code> with EMPTY <code>output</code> and no explanation, violating the documented envelope (echo always present). A scripted AI caller pipelining commands hits this; LLM pacing masked it through the whole sweep</td>
+<td><strong>DONE</strong> (2026-07-20, increment 49, both ports): <code>/sync</code> marks its dispatch <code>direct</code> and the guard does not apply — repeats always execute; the WS path keeps the guard unchanged (tested both ways in <code>graph_runtime.rs</code> + <code>CompanionSyncTest</code>); envelope contract documented in the agent guide + catalog</td>
+</tr>
+<tr>
+<td>63</td>
+<td>https drive (orchestrator)</td>
+<td><strong><code>/sync</code> <code>ok:true</code> on syntax-usage rejections</strong> — a malformed command (e.g. <code>connect a to b with type x</code>) answers with the <code>Syntax: …</code> usage line, which <code>first_error_line</code> doesn't classify as an error → false-positive <code>ok:true</code> (the command did nothing). Mirror image of #40's false-negative</td>
+<td><strong>DONE</strong> (2026-07-20, increment 49, both ports): <code>Syntax:</code> classifies as the error line — <code>ok:false</code> with the hint in-band (no help page starts a line with <code>Syntax:</code>, so no inverse false-positive); red/green-verified on old code (Rust)</td>
+</tr>
+</tbody>
+</table>
+<p>Streak: <strong>eleven consecutive zero-lookup first-attempt passes.</strong></p>
+<hr />
+<h2 id="back-port-validation-the-java-engine-on-the-back-ported-docs-2026-07-20">Back-port validation: the JAVA engine on the back-ported docs (2026-07-20)<a class="headerlink" href="#back-port-validation-the-java-engine-on-the-back-ported-docs-2026-07-20" title="Permanent link">&para;</a></h2>
+<p>Graduation prep: the survey found the Java AI docs frozen at the pre-tut-5 state (31/40
+grammar-hardening markers absent), so the hardened grammar was back-ported to the Java repo
+(branch <code>docs/ai-grammar-backport</code>: 4 KG AI docs + llms.txt + event-script syntax.md +
+<code>help graph-api-fetcher.md</code> + the parked <code>error.status</code>→<code>error.code</code> flow-schema fix;
+graph.js restored as a live skill — its retirement is Rust-only). The gold test: a fresh
+agent drives the <strong>Java</strong> Playground (example app :8085, built from the branch) from the
+<strong>back-ported Java docs alone</strong>, on the columnar <code>f:listOfMap</code> exercise (drive-#1 design).</p>
+<ul>
+<li><strong>Result: PASSED — 17/17 commands ok, zero failures, ZERO in-band lookups, first-attempt
+  dry-run — the first fresh-agent validation of the JAVA engine on the hardened grammar.</strong></li>
+<li>Same design quality as the Rust drives: allowlist projection (rows exact by construction —
+  stronger than the removeKey route), in-order chain idiom, <code>f:listOfMap</code> order guarantee,
+  <code>f:length</code> on the published list, skill-less End, <strong>island volunteered</strong> with entities
+  documenting the confidentiality split and a <code>published-as</code> relation.</li>
+<li>The agent ran the <strong>variable-length proof unprompted</strong>: appended a 5th row, re-instantiated
+  the unchanged graph → count 5 in order; export restored byte-identically (<code>cmp</code>) —
+  exercising the documented "file() read at mapping-evaluation time" rule for real.</li>
+<li>Observations (no fixes filed; agent's own judgment: "no doc-gap issue worth filing"):
+  the <code>f:listOfMap</code> worked example's nested-wrapper input reads ambiguously; row-object JSON
+  key order is unspecified (correctly inferred as unconstrained).</li>
+<li><strong>Orchestrator side-finding (headless-client authors):</strong> the Java WS server counts only
+  application-level text frames as activity — a client sending protocol-level pings alone is
+  idle-closed (~60 s); the Java UI's <code>{"type":"ping","message":"keep alive"}</code> text frame is
+  the keepalive contract. The Rust port tolerates protocol pings (more lenient, not a bug).</li>
+</ul>
+<p>The streak is now <strong>twelve consecutive zero-lookup first-attempt passes — the twelfth on the
+Java engine</strong>, proving the hardened grammar is engine-neutral.</p>
+<hr />
+<h2 id="findings-documentation-grammar-improvements-rollup">Findings → documentation &amp; grammar improvements (rollup)<a class="headerlink" href="#findings-documentation-grammar-improvements-rollup" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>From</th>
+<th>Insight</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Tut 1–2</td>
+<td>AI agents need the AI-facing docs, not interactive help</td>
+<td>hint set = <code>llms.txt</code> + <code>ai-agent-guide.md</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Tut 3</td>
+<td><code>{…}</code> mixed as placeholder <em>and</em> in examples misleads a literal reader/AI</td>
+<td>unbrace examples; placeholder-convention note (increment 32)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Tut 4</td>
+<td>AI docs <em>list</em> <code>graph.math</code> statement keywords but give <strong>no statement syntax</strong> (no <code>IF</code>/<code>THEN</code>/<code>ELSE</code>, <code>NEXT:</code>/<code>BEGIN</code>/<code>END</code> semantics unstated) → a capable agent invents wrong-but-plausible branching that fails silently</td>
+<td><strong>DONE + verified</strong> — documented the <code>graph.math</code>/<code>graph.js</code> <strong>statement grammar</strong> in <code>command-reference.md</code> + <code>minigraph-commands.json</code> (IF/THEN/ELSE, NEXT:=node-name, BEGIN/END=for_each, COMPUTE→result); a fresh companion then solved Tut-4 from the problem alone</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Tut 4</td>
+<td>companion is <strong>blind to run-time errors</strong> — POST returns 200, the parser error only reaches the WS console, read-back shows empty state</td>
+<td><strong>DONE (Rust prototype, verified end-to-end)</strong> — additive synchronous <code>POST /api/companion/{id}/sync</code> returns <code>{ok, output, error, result}</code> in-band (design: <code>docs/design/ai-companion-sync.md</code>; blueprint <code>bp-companion-sync</code>). Re-verified: a fresh companion rebuilt tutorial-4 <strong>fully autonomously</strong> via <code>/command</code> (built + ran + self-validated all 3 cases; explicitly <em>never needed the WS console or a GET fallback</em>); errors return in-band (<code>ok:false</code> + <code>error</code>). Java upstream PR still to follow.</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Tut 4</td>
+<td>boolean/float/list <strong>constant syntax</strong> (<code>boolean(...)</code>, etc.) isn't reachable from the four AI docs (deferred to the Event Script page)</td>
+<td>(candidate) inline the constant-type table into the knowledge-graph grammar</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Tut 4</td>
+<td>no example of a mapper reading another node's <code>.result</code>; <code>IF</code> jump ↔ <code>connect</code> relationship unspecified; skill-less terminal <code>End</code> only implied</td>
+<td>(candidate) add small examples/notes to the skills/command reference</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Tut-4 live demo</td>
+<td><strong><code>graph.js</code> retired at runtime but still listed as available</strong> in the AI docs → a fresh companion wasted three commands trying it (though it self-corrected each time via the in-band error)</td>
+<td><strong>DONE</strong> — AI docs <strong>ported into this Rust repo</strong> (<code>docs/guides/knowledge-graph/</code> + <code>docs/llms.txt</code>) and <code>graph.js</code> marked retired everywhere (command-reference, minigraph-commands.json, skills-reference); future tests reference the Rust repo's docs</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Tut-4 live demo</td>
+<td><code>graph.math</code>'s dialect is narrower than "JS-like" implies (no bitwise ops, no function calls) and serializes integers as floats (<code>8.0</code>) with no in-grammar coercion</td>
+<td><strong>DONE</strong> — documented in the ported command-reference + skills-reference</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Tut 5</td>
+<td>Provider URL <code>{name}</code> placeholder syntax and the Dictionary node's <strong>bare</strong> <code>input[]</code> shape (incl. <code>:</code> = default value <strong>only</strong>) were in none of the five AI docs — the page they delegated to (<code>composing-the-layers.md#data-dictionary</code>) doesn't exist in this repo; the recipe lived only in in-band <code>help data-dictionary</code></td>
+<td><strong>DONE</strong> (same day) — new <a href="../../guides/knowledge-graph/command-reference/#provider-dictionary">Provider &amp; Dictionary</a> section in <code>command-reference.md</code>, enriched <code>config_nodes</code> in <code>minigraph-commands.json</code>, <code>skills-reference.md</code> retargeted; <strong>all dangling links removed</strong> and the <strong>closed constant set</strong> inlined (<code>#constants</code>; deprecated <code>:type</code> suffix explicitly excluded — maintainer confirmed)</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Tut 5</td>
+<td><code>help {topic}</code> is the engine's own discovery surface (in-band <code>describe skill</code> even points to it) but was absent from the AI grammar docs</td>
+<td><strong>DONE</strong> (same day) — <code>help</code> documented as a command in <code>command-reference.md</code> + <code>minigraph-commands.json</code> (topics, aliases)</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Tut 5</td>
+<td><code>ai-agent-guide.md</code> prose still called the synchronous endpoint "the <code>/command</code> endpoint" after the <code>/command</code> → <code>/sync</code> rename (tables/examples were correct)</td>
+<td><strong>DONE</strong> (same day) — prose swept to <code>/sync</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td>Tut 5</td>
+<td>the <code>/sync</code> success envelope <strong>omits</strong> <code>error</code>/<code>result</code> (increment-33 serializer null-omission) though the docs wrote <code>error: null | "..."</code>, and carries an undocumented <code>id</code> field — a strict parser trips</td>
+<td><strong>DONE</strong> (same day) — envelope documented truthfully (absent ⇒ null, <code>id</code> field) in <code>ai-agent-guide.md</code> + a <code>sync_envelope</code> object in <code>minigraph-commands.json</code></td>
+</tr>
+<tr>
+<td>13</td>
+<td>Tut 5</td>
+<td>fan-out concurrency (multiple outgoing connections fork <strong>parallel</strong> branches) was implied only by <code>graph.join</code>'s notes</td>
+<td><strong>DONE</strong> (same day) — explicit fork/join/state-safety rules in <code>command-reference.md#connect</code>, <code>skills-reference.md#join</code>, and a <code>traversal</code> object in <code>minigraph-commands.json</code></td>
+</tr>
+<tr>
+<td>14</td>
+<td>Tut 5 (orchestrator)</td>
+<td><strong>engine defect, both ports:</strong> <code>session subscribe</code> via <code>/sync</code> registers the ephemeral <code>companion.sync.&lt;uuid&gt;</code> capture route as a durable subscriber → dangling subscriber + asymmetric session state. (The mirror death observed mid-test was later user-confirmed as collateral of an accidental browser restart — the wrong-registration defect stands on the engine-state evidence alone.)</td>
+<td><strong>DONE (Rust, same day; maintainer decision):</strong> both companion endpoints now limit <code>session</code> to the <strong>read-only status query</strong> — <code>subscribe</code>/<code>unsubscribe</code>/<code>reset</code> are rejected before dispatch (a companion is an <em>assistant to</em> a session, not a WS session of its own); refusal returned in-band (<code>ok:false</code> on <code>/sync</code>, 400 on fire-and-forget) <strong>and</strong> teed to the live console; deterministic test in <code>graph_runtime.rs</code>; AI docs updated. <strong>Java fix MERGED</strong> (<a href="https://github.com/Accenture/mercury-composable/pull/194">Accenture/mercury-composable#194</a>): same guard in PostCompanionCommand/-Sync + shared statics in GraphCommandService, byte-identical refusal text, test <code>companionEndpointsLimitSessionCommandToReadOnly</code>, 65-test module suite green — the read-only rule is live in <strong>both</strong> engines.</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Tut 5 (orchestrator)</td>
+<td><code>session reset</code> resets subscriptions but does <strong>not</strong> clear the draft graph, and the UI restores the local draft into a reconnected session — a "fresh" session can carry a stale (here: exercise-contaminating) draft</td>
+<td>(candidate) UX note in <code>help session.md</code>; consider a <code>clear graph</code> affordance; method rule: verify-empty before briefing</td>
+</tr>
+<tr>
+<td>16</td>
+<td>Tut 5 (maintainer)</td>
+<td>the interactive <code>help/*.md</code> pages are written for <strong>human operators</strong> and double as the engine's in-band reference; after tut-5 the AI grammar is self-sufficient, so the help pages deserve a dedicated human-UX rewrite (clarity, structure, the #15 <code>session reset</code> note)</td>
+<td><strong>Backlog</strong> — Open Thread <code>ot-help-pages-rewrite</code> in <code>memory/continuity.md</code>; separate session; coordinate with the Java upstream (the pages are verbatim ports)</td>
+</tr>
+<tr>
+<td>17</td>
+<td>Tut 6</td>
+<td>the <strong><code>for_each</code> authoring idiom</strong> was absent from the AI grammar — only the bare <code>for_each[]=&lt;array&gt; -&gt; model.&lt;var&gt;</code> syntax appeared; no cross-node array source (<code>{fetcher}.result.{key}</code>), no <code>input[]=model.&lt;var&gt; -&gt; {param}</code> wiring pattern — the companion's single in-band lookup (<code>help graph-api-fetcher</code>) was for exactly this</td>
+<td><strong>DONE</strong> (2026-07-19, maintainer-directed) — new <a href="../../guides/knowledge-graph/command-reference/#for-each">Iterative fetching</a> section (source, wiring, <code>concurrency</code>, worked example) + <code>for_each</code> object in <code>minigraph-commands.json</code> + <code>skills-reference.md#api-fetcher</code></td>
+</tr>
+<tr>
+<td>18</td>
+<td>Tut 6</td>
+<td><strong><code>for_each</code> result aggregation was undocumented everywhere</strong> (incl. the engine help): per-iteration <code>result.{key}</code> values collect into a single array; ordering under <code>concurrency</code> unspecified — the companion confirmed by experiment</td>
+<td><strong>DONE</strong> — engine-verified (<code>fetcher.rs</code>: batches execute in input order, responses join in request order, results <code>[]</code>-append per response ⇒ <strong>order deterministically follows the source list</strong>) and documented as a guarantee in all three docs</td>
+</tr>
+<tr>
+<td>19</td>
+<td>Tut 6</td>
+<td><code>output[]</code> contradiction for <code>graph.api.fetcher</code>: the AI skill matrix + <code>minigraph-commands.json</code> said <strong>required</strong>; the engine help says <strong>optional</strong> ("use another data mapper")</td>
+<td><strong>DONE</strong> — engine-verified (only <code>dictionary[]</code> is hard-required; the result always lands at <code>{node}.result</code>): matrix + JSON now say <code>dictionary[]</code> required, <code>input[]</code> conditional (when dictionaries declare parameters), <code>output[]</code> optional. The engine help contradicts <em>itself</em> on this — folded into the help-rewrite backlog (#16)</td>
+</tr>
+<tr>
+<td>20</td>
+<td>Tut 6</td>
+<td><strong>POST-body Provider authoring was example-free</strong> — <code>body.{key}</code> targets + <code>content-type</code> header were stated only as a target list; the only worked example was GET/path_parameter</td>
+<td><strong>DONE</strong> — second worked example (POST + <code>body.*</code> + <code>content-type</code>) in <code>command-reference.md#provider-dictionary</code></td>
+</tr>
+<tr>
+<td>21</td>
+<td>Tut 6</td>
+<td>the KG grammar's constants section read as a <strong>closed set</strong>, but <code>f:</code> simple-plugin calls and <code>$.</code> JSONPath are resolvable in graph mappings (shared Event Script mapping engine; code-confirmed) — and the engine help recommends <code>f:</code> as the <code>:type</code> replacement</td>
+<td><strong>DONE</strong> — "non-constant source forms" table added under <code>#constants</code> (pointing at the event-script plugin catalog) + <code>_non_constant_sources</code> note in <code>minigraph-commands.json</code></td>
+</tr>
+<tr>
+<td>22</td>
+<td>Tut 6 (maintainer)</td>
+<td><strong><code>graph.island</code> is required, not optional</strong>: islands are isolated from traversal but they link data entities and dictionaries into the graph's <strong>entity-relationship diagram</strong> — the graph is living documentation of enterprise knowledge (a new joiner discovers the domain model from the connected dictionaries/entities). The tut-6 companion left its four config nodes floating (the docs said "optionally group")</td>
+<td><strong>DONE</strong> (2026-07-19, maintainer decision) — the AI grammar now mandates <strong>no node left unconnected</strong>: <code>command-reference.md#island</code> (new section), invariants + node-types + <code>#provider-dictionary</code> reworded, <code>graph.island</code> rewritten in <code>skills-reference.md</code>, pre-send checklist + recipe step in <code>ai-agent-guide.md</code>, <code>minigraph-commands.json</code> (<code>_role</code>, invariants, island notes). <strong>Verified by the tut-5 retest</strong>: a fresh companion wired the island unprompted</td>
+</tr>
+<tr>
+<td>23</td>
+<td>Tut-5 retest</td>
+<td><strong>array-index mapping targets were never shown</strong> — the lexical rules said keys "may be composite (dot-bracket)" but no doc had a worked example of building a JSON list in a mapper target (<code>… -&gt; output.body.profile[0]</code>), the natural post-join assembly idiom; the companion inferred it correctly</td>
+<td><strong>DONE</strong> (2026-07-19) — "Composite keys &amp; arrays" block in <code>command-reference.md#namespaces</code> + indexed-assembly example in <code>skills-reference.md#data-mapper</code> + <code>composite_keys</code> lexical note in <code>minigraph-commands.json</code></td>
+</tr>
+<tr>
+<td>24</td>
+<td>Tut-5 retest</td>
+<td><strong>whole-subtree Dictionary output mapping was only implied</strong> — examples mapped leaf paths (<code>response.profile.name -&gt; result.name</code>); that an interior path (<code>response.profile -&gt; result.profile</code>) yields the entire subtree was never stated; the companion inferred it correctly</td>
+<td><strong>DONE</strong> (2026-07-19) — leaf-vs-interior rule + examples in <code>command-reference.md#provider-dictionary</code> (and the composite-keys block) + the Dictionary <code>output</code> note in <code>minigraph-commands.json</code></td>
+</tr>
+<tr>
+<td>25</td>
+<td>maintainer</td>
+<td>the <strong><code>[]</code> array-append target</strong> (<code>… -&gt; output.body.profile[]</code> appends an element, creating the list with the first element when absent) was absent from the KG grammar — and the parallel state-safety wording ("write to disjoint keys") over-restricted: data mapping is <strong>thread-safe</strong>, so concurrent appends carry no racing risk (element order follows completion order)</td>
+<td><strong>DONE</strong> (2026-07-19, engine-verified: <code>mlm.rs</code> <code>appendIndex</code> parity; the state mutex serializes mapping ops) — append + thread-safety + ordering guidance in the composite-keys block, <code>#connect</code> state-safety refined, <code>graph.join</code> gotcha aligned, <code>array_append</code> note in <code>minigraph-commands.json</code></td>
+</tr>
+<tr>
+<td>26</td>
+<td>Tut 7</td>
+<td>the KG grammar named <strong>no example <code>f:</code> plugin</strong> — an agent needing an execution-time value (timestamp, uuid) must realize the answer lives a layer down in the event-script plugin catalog; the pointer existed but carried no scent</td>
+<td><strong>DONE</strong> (same day) — generator/arithmetic/logic examples (<code>f:now(text(local))</code>, <code>f:uuid()</code>, …) inlined in the <code>#constants</code> non-constant-sources row + <code>minigraph-commands.json</code></td>
+</tr>
+<tr>
+<td>27</td>
+<td>Tut 7</td>
+<td><strong>nested composite keys in <code>instantiate</code> seed lines</strong> were implied by the global lexical rule but never shown — every example seeded flat keys</td>
+<td><strong>DONE</strong> (same day) — nested-seed example (<code>text(Peter) -&gt; input.body.profile.name</code>) in <code>command-reference.md#instantiate</code> + a note in <code>minigraph-commands.json</code></td>
+</tr>
+<tr>
+<td>28</td>
+<td>Tut 8</td>
+<td><strong><code>f:removeKey</code> had no syntax line or worked example anywhere</strong> (the plugin table only said "remove one or more keys from a map or list of maps") — the companion inferred <code>f:removeKey(source, text(key))</code> from the generic pattern; this is the natural idiom for hiding internal fields</td>
+<td><strong>DONE</strong> (same day, code-verified in <code>plugins_e8.rs</code>: map or list-of-maps, N key args, non-map list elements pass through, returns a copy) — syntax in the plugin table + a worked <em>removeKey</em> example in <code>syntax.md</code>; <code>removeKey</code>/<code>listOfMap</code> added to the KG grammar's <code>f:</code> examples + JSONPath wildcard note in <code>minigraph-commands.json</code></td>
+</tr>
+<tr>
+<td>29</td>
+<td>Tut 8</td>
+<td><strong><code>graph.math</code> <code>for_each[]</code>/<code>BEGIN</code>/<code>END</code> is thinly specified</strong> — no worked example, loop-variable binding / iteration order / interaction with the "MAPPING-only rejected" rule unstated (the fetcher's <code>for_each</code> got full rules in #17/#18; the math skill's didn't)</td>
+<td><strong>DONE</strong> (2026-07-19, engine-verified end-to-end): a probe fixture (<code>rust-foreach.json</code>) + permanent test <code>math_for_each_blocks_and_iteration</code> in <code>graph_runtime.rs</code> pinned every rule — pre/each/post <code>BEGIN</code>/<code>END</code> blocks (no <code>BEGIN</code> ⇒ whole list loops), strictly sequential in-order iteration inside ONE node execution, lockstep parallel arrays (equal length required), scalar entries bind once, unresolvable LHS removes the model key, a taken <code>IF</code> jump breaks the loop and skips the post-block, empty lists skip only the body. <strong>Probe also surfaced a new dialect truth: <code>COMPUTE</code> doubles didn't feed the then-whole-number-only <code>f:add</code></strong> — resolved same day by increment 39 (numeric promotion, both ports): <code>f:add</code> now composes with <code>COMPUTE</code> results. New <a href="../../guides/knowledge-graph/command-reference/#math-for-each">for_each section</a> + JSON catalog <code>for_each</code> object + skills-reference + <code>help graph-math.md</code> (webapp bundle re-released, 124 tests green)</td>
+</tr>
+<tr>
+<td>30</td>
+<td>Tut 8</td>
+<td><strong>island-scope crispness for graphs with <em>no</em> config nodes:</strong> the recipe said wire an island "if the graph has Dictionary/Provider (or data-entity) nodes" — for a pure-transformation graph, is a knowledge layer expected? (The tut-8 companion volunteered one with data-entity nodes documenting the domain)</td>
+<td><strong>DONE</strong> (maintainer ruling, 2026-07-19): island <strong>required</strong> whenever config/data-entity nodes exist; <strong>encouraged</strong> otherwise as ER documentation — wording landed in <code>command-reference.md#island</code>, <code>ai-agent-guide.md</code> recipe, <code>minigraph-commands.json</code>. Bonus context captured in <code>syntax.md</code>: <code>listOfMap</code>/JSONPath serve <strong>impedance matching</strong> between external (3rd-party) and internal API contracts</td>
+</tr>
+<tr>
+<td>31</td>
+<td>Tut 9</td>
+<td><strong><code>EXECUTE</code> result-landing was unspecified</strong> — "run another graph.math node inline" said nothing about where <code>COMPUTE</code> results land; they land on the <strong>invoking</strong> node (<code>{invoker}.result.{var}</code>), the module's namespace stays empty (the canonical walkthrough's own teaching point: "it just borrows the logic"). Cost the companion one self-corrected iteration</td>
+<td><strong>DONE</strong> (same day, engine behavior proven live by the companion's own inspects) — EXECUTE semantics + a full <strong>reusable-module</strong> worked example (module + caller + island anchoring) in <code>command-reference.md#math-statements</code>; mirrored in <code>minigraph-commands.json</code> <code>statement_syntax.EXECUTE</code> + <code>skills-reference.md</code></td>
+</tr>
+<tr>
+<td>32</td>
+<td>Tut 9</td>
+<td><strong>node-type case contradiction:</strong> <code>#create</code> said "<code>{name}</code> and <code>{type}</code> are lowercase-and-hyphen" while the lexical table and every worked example Capitalize types (engine accepts them)</td>
+<td><strong>DONE</strong> (same day) — <code>#create</code> bullet + <code>minigraph-commands.json</code> note corrected: name lowercase+hyphen; type a descriptive label, conventionally Capitalized</td>
+</tr>
+<tr>
+<td>33</td>
+<td>Tut 9</td>
+<td><strong>island scope didn't name module/library nodes</strong> (examples showed only Dictionary/Provider/entities — a <code>graph.math</code> module under an island "worked but unstated"), and "never executed" contradicted the run log's <code>Executed … with skill graph.island</code> line</td>
+<td><strong>DONE</strong> (same day) — island convention now covers <strong>off-path nodes: config, data-entity, and reusable Module</strong> (<code>island -[module]-&gt; module</code>); phrasing corrected to "executes only to sink; traversal never continues through it"</td>
+</tr>
+<tr>
+<td>34</td>
+<td>Tut 10</td>
+<td><strong><code>graph.extension</code>'s data contract was example-implied, not rule-stated</strong> — that bare <code>input[]</code> targets become the sub-graph's <code>input.body.{key}</code>, that the node's <code>result.*</code> <strong>is</strong> the sub-graph's <code>output.body</code>, and where <code>extension={graph-id}</code> resolves (deployed registry; drafts not addressable; missing-id failure mode) were all inferences from one example</td>
+<td><strong>DONE</strong> (same day, engine-verified in <code>extension.rs</code>/<code>graphs</code> registry) — "The delegation contract" rules block in <code>skills-reference.md#extension</code> + expanded notes in <code>minigraph-commands.json</code></td>
+</tr>
+<tr>
+<td>35</td>
+<td>Tut 10</td>
+<td><strong>the node-name lexical rule wrongly excluded digits</strong> ("lowercase letters and hyphen only") — canonical fixtures themselves use <code>fetcher-1</code>/<code>fetcher-2</code>; engine-verified: no charset validation at create. Consequence: agents avoid natural names (e.g. one documenting <code>tutorial-3</code>)</td>
+<td><strong>DONE</strong> (same day, + maintainer confirmation): digits (0-9) are legal — "lowercase letters, digits and hyphen" aligned across the lexical table, <code>#create</code>, invariants, pre-send checklist, and <code>minigraph-commands.json</code>. Hyphenated names are <strong>encouraged</strong> (communicative); the <code>{node-name.key}</code> substitution syntax in <code>graph.math</code> expressions is robust to hyphens (never parsed as a minus) — a briefly-added hyphen-avoidance style note was withdrawn by the maintainer</td>
+</tr>
+<tr>
+<td>36</td>
+<td>Tut 10</td>
+<td><strong>skill-less <code>End</code> legality was only implied</strong> ("often <code>graph.data.mapper</code>") — used successfully in tut-9 and tut-10 when an upstream node already shaped <code>output.body</code></td>
+<td><strong>DONE</strong> (same day) — explicitly blessed in the node-types table</td>
+</tr>
+<tr>
+<td>37</td>
+<td>Tut 11</td>
+<td><strong>whole-body <code>*</code> forwarding on <code>graph.extension</code> was unspecified</strong> (<code>graph.task</code> documents the <code>input.body -&gt; *</code> merge; extension didn't say)</td>
+<td><strong>DONE</strong> (same day, engine-verified: <code>extension.rs</code> stages named keys only — no <code>*</code> support) — stated in the delegation-contract block (<code>skills-reference.md#extension</code>) + <code>minigraph-commands.json</code>, incl. the flow:// case</td>
+</tr>
+<tr>
+<td>38</td>
+<td>Tut 11</td>
+<td><strong>no discovery command for deployed flow/graph ids</strong> — agents rely on the brief for <code>flow://</code>/<code>extension=</code> targets; nothing like <code>list flows</code> / <code>list graphs</code> exists in the command grammar</td>
+<td><strong>DONE</strong> (2026-07-20, increment 42, both ports): <code>list graphs</code> (compiled registry ∪ deployed folder, each with the root's <code>purpose</code> — living documentation) + <code>list flows</code> (Event Script flows), available on the console and both companion endpoints; documented in the grammar/catalog/AI guide/skills-reference/<code>help list.md</code>; Rust <code>playground.rs</code> + Java <code>CompanionSyncTest</code> coverage (70-test suite green, branch <code>feat/discovery-commands</code> pushed for upstream PR)</td>
+</tr>
+<tr>
+<td>39</td>
+<td>Tut 11</td>
+<td><code>export</code>'s reply references <code>Described in /api/graph/model/{name}/{token}</code> — an endpoint absent from the AI docs' endpoint table</td>
+<td><strong>DONE</strong> (same day) — noted in <code>command-reference.md#export</code></td>
+</tr>
+<tr>
+<td>40</td>
+<td>Tut 12 pre-flight</td>
+<td><strong><code>/sync</code> <code>ok</code> heuristic false-negative:</strong> <code>import graph from {deployed}</code> succeeds but returns <code>ok:false</code> — <code>is_error_line</code> trips on the benign "Graph model <strong>not found</strong> in /tmp/… Found deployed graph model" fallback line (both ports share the heuristic)</td>
+<td><strong>DONE</strong> (2026-07-19, engine fix, both ports): classification is now <strong>whole-output-aware</strong> — the not-found line is forgiven only when the same output also carries the fallback's success marker ("Found deployed graph model"); a genuine miss prints the not-found line alone and stays <code>ok:false</code>. Rust: <code>first_error_line</code> in <code>rest.rs</code> + both-direction test in <code>graph_runtime.rs</code>; Java: mirrored in <code>PostCompanionCommandSync</code> + <code>CompanionSyncTest</code> (66-test module suite green, local branch <code>fix/companion-sync-ok-heuristic</code> prepared for upstream PR). <code>ai-agent-guide.md</code> caveat replaced with the fixed semantics; <code>minigraph-commands.json</code> sync_envelope note added</td>
+</tr>
+<tr>
+<td>41</td>
+<td>Tut 12</td>
+<td><strong><code>exception=</code> semantics were one matrix line</strong> — jump-not-abort, <code>output[]</code> skipped on failure, no-handler ⇒ abort, handler wiring: all unstated</td>
+<td><strong>DONE</strong> (same day, engine-verified in <code>fetcher.rs</code>) — new <a href="../../guides/knowledge-graph/command-reference/#failure-routing">Failure routing</a> section with the canonical bounded-retry pattern; fetcher gotchas + <code>minigraph-commands.json</code></td>
+</tr>
+<tr>
+<td>42</td>
+<td>Tut 12</td>
+<td><strong><code>RESET</code> edge cases unstated:</strong> comma <strong>lists</strong> (<code>RESET: a, b</code> — canonical uses it), reset of a never-executed node (safe no-op), self-reset (allowed), and the loop guard (&gt;10 visits/second aborts)</td>
+<td><strong>DONE</strong> (same day, engine-verified in <code>common.rs::reset_nodes</code> + traveler/executor seen-marking + maintainer follow-up): self-reset is <strong>effective, not a no-op</strong> — the run-once mark is set <em>before</em> execution, so a self-reset survives (canonical tut-12 relies on it; live-probed). Nuance: a self-<code>RESET</code> also wipes the node's own in-flight state — place it before <code>DELAY:</code> (whose pending pause lives in node state); canonical order <code>RESET → NEXT → DELAY</code> is the safe one. Statement grammar + JSON catalog. <strong>Refined again (maintainer follow-up + live probe):</strong> the placement rule is RESET <strong>first among the action statements</strong> — it runs on every path (a taken IF jump skips later statements) — with the one exception that a check reading soon-wiped state (e.g. <code>{fetcher.status}</code>) must precede it: an IF on a wiped variable <strong>aborts the run</strong> (probe-verified). Tutorial-12 + the failure-routing pattern + all RESET guidance updated; reordered handler validated live (3 retries → recovery → success)</td>
+</tr>
+<tr>
+<td>43</td>
+<td>Tut 12</td>
+<td><strong>whether statements after a taken <code>IF</code> jump run was unspecified</strong></td>
+<td><strong>DONE</strong> (same day, engine-verified in <code>skills.rs::execute_statements</code>): a taken node-jump <strong>ends the statement list</strong>; a <code>next</code> branch falls through — stated in the <code>IF</code> rules</td>
+</tr>
+<tr>
+<td>44</td>
+<td>Tut 12</td>
+<td><strong><code>NEXT:</code>/<code>DELAY:</code> presentation:</strong> listed beside properties in the matrix, never shown as written <code>statement[]</code> lines; NEXT's apply-at-end (last-wins) and DELAY's after-node timing unstated</td>
+<td><strong>DONE</strong> (same day, engine-verified) — keyword block rewritten with written forms + timing semantics</td>
+</tr>
+<tr>
+<td>45</td>
+<td>Tut 12</td>
+<td><strong>unresolvable mapping source behavior unstated</strong> (skip vs null) — the companion invented default-then-overlay defensively</td>
+<td><strong>DONE</strong> (same day, engine-verified): an unresolvable source <strong>skips</strong> the entry (target untouched); both default idioms documented (<code>f:defaultValue</code>, default-then-overlay)</td>
+</tr>
+<tr>
+<td>46</td>
+<td>Tut 12</td>
+<td><strong>dedup scope vs retry ambiguity:</strong> "identical requests are deduplicated" left open whether a RESET re-execution would hit a cache and never re-call</td>
+<td><strong>DONE</strong> (same day, engine-verified in <code>fetcher.rs</code>): dedup is <strong>per graph instance</strong> and caches <strong>successful responses only</strong> — a failed call is never cached, so retries always re-call</td>
+</tr>
+<tr>
+<td>47</td>
+<td>Tut 13</td>
+<td><strong>bare-<code>result</code> semantics for <code>graph.task</code> were shown, not stated</strong> — the explicit whole-result rule existed only for <code>graph.extension</code>; the companion inferred it by analogy</td>
+<td><strong>DONE</strong> (same day) — the rule now stated in <code>skills-reference.md#task</code>, aligned with <code>graph.extension</code></td>
+</tr>
+<tr>
+<td>48</td>
+<td>Tut 13</td>
+<td>the <code>graph.task</code> example was labeled "(Tutorial 13)" — a pointer outside the self-sufficient doc set</td>
+<td><strong>DONE</strong> (same day) — relabeled</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../suspend-resume-interop/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Interop Test Report — Suspend/Resume">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Interop Test Report — Suspend/Resume
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../background/port-scope/" class="md-footer__link md-footer__link--next" aria-label="Next: Port Scope &amp; Fidelity">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Port Scope & Fidelity
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache-2.0 &middot; mercury is the Rust port of <a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
