@@ -13,9 +13,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 0.75rem;
+  /* Pinned to the same height as the graph panel's tab strip row so this
+     header and the tab strip share a baseline, keeping the rows below them
+     (sort bar / graph toolbar) aligned across the split. */
+  height: var(--pg-panel-header-row-height);
+  padding: 0.375rem 0.75rem;
   border-bottom: 1px solid var(--border-color);
-  min-height: 2.5rem;
   flex-shrink: 0;
 }
 
@@ -39,6 +42,181 @@
 
 .clearBtn:hover {
   background: var(--danger-08);
+}
+
+/* ── Sort controls ── */
+.sortBar {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  /* Pinned to the same height as the graph toolbar row so the two control-bar
+     rows' bottom divider lines align across the split (see
+     --pg-panel-control-row-height in index.css). */
+  height: var(--pg-panel-control-row-height);
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.sortMenuWrapper {
+  position: relative;
+  min-width: 0;
+}
+
+.sortMenuButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 12rem;
+  max-width: 100%;
+  /* Vertical padding + font mirror the Graph toolbar button (.toolbarButton:
+     padding 0.125rem, font 0.75rem, default line-height, 1px border) so this
+     button — and therefore the sort bar row — is the exact same height as the
+     toolbar row, making their bottom edges align by construction. No min-height
+     or line-height override, so intrinsic height matches the toolbar button. */
+  padding: 0.125rem 0.45rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.sortMenuButton:hover,
+.sortMenuButton:focus-visible {
+  border-color: var(--primary-color);
+}
+
+.sortButtonLabel {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.sortButtonValue {
+  color: var(--text-secondary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sortButtonDirection {
+  color: var(--primary-color);
+  font-weight: 600;
+  margin-left: auto;
+}
+
+/* Match the top nav menu chevron (NavMenu .chevron): same glyph, size, and
+   rotate-on-open behaviour. */
+.sortButtonCaret {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+.sortButtonCaretOpen {
+  transform: rotate(180deg);
+}
+
+.sortPopover {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 40;
+  width: min(18rem, calc(100vw - 2rem));
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-popover);
+  overflow: hidden;
+  padding-top: 0.25rem;
+}
+
+.sortGroup {
+  border: 0;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.sortGroup:first-child {
+  padding-top: 0.75rem;
+}
+
+.sortGroup + .sortGroup,
+.propertySortRow + .sortGroup {
+  border-top: 1px solid var(--border-color);
+}
+
+.sortGroupTitle {
+  color: var(--primary-color);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 0.875rem;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+}
+
+.sortOption {
+  display: grid;
+  grid-template-columns: 0.875rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.375rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+
+.sortOption input {
+  accent-color: var(--primary-color);
+  cursor: pointer;
+  height: 0.875rem;
+  margin: 0;
+  width: 0.875rem;
+}
+
+.sortOption span {
+  display: flex;
+  align-items: center;
+  min-height: 1.125rem;
+}
+
+.propertySortRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0 0.75rem 0.5rem;
+}
+
+.propertyLabel {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1rem;
+  white-space: nowrap;
+}
+
+.propertyInput {
+  height: 1.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  min-width: 0;
+  padding: 0 0.45rem;
+}
+
+.propertyInput:hover,
+.propertyInput:focus {
+  border-color: var(--primary-color);
 }
 
 /* ── Item list (scrollable) ── */

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Handle, Position, NodeResizer, type NodeProps, type Node } from '@xyflow/react';
 import type { GraphNodeData } from '../../utils/graphTransformer';
 import { MinigraphNodeBody } from './MinigraphNodeBody';
@@ -5,6 +6,8 @@ import styles from './NodeTypes.module.css';
 
 /** ReactFlow Node type for minigraph nodes. */
 export type MinigraphRFNode = Node<GraphNodeData>;
+export const AUTHORING_SOURCE_HANDLE_ID = 'authoring-source';
+export const AUTHORING_TARGET_HANDLE_ID = 'authoring-target';
 
 // ─── Resizable node ───────────────────────────────────────────────────────────
 //
@@ -17,10 +20,19 @@ export type MinigraphRFNode = Node<GraphNodeData>;
 //     needed (initialWidth/initialHeight tricks, CSS overrides for
 //     .react-flow__node-default, overflow:visible hacks, etc.).
 function MinigraphNode({ data, isConnectable, selected }: NodeProps<MinigraphRFNode>) {
+  const [isResizing, setIsResizing] = useState(false);
+  const showConnectionAuthoring = data.supportsConnectionAuthoring && !isResizing;
+
   return (
     <>
       {/* Resize handles — visible only when the node is selected */}
-      <NodeResizer minWidth={180} minHeight={data.minHeight} isVisible={selected} />
+      <NodeResizer
+        minWidth={180}
+        minHeight={data.minHeight}
+        isVisible={selected}
+        onResizeStart={() => setIsResizing(true)}
+        onResizeEnd={() => setIsResizing(false)}
+      />
 
       {/* Target handles (left) — multiple hidden anchors let edges land a few pixels apart. */}
       {data.targetHandles.map(({ id, offset }) => (
@@ -58,6 +70,28 @@ function MinigraphNode({ data, isConnectable, selected }: NodeProps<MinigraphRFN
         nodeType={data.nodeType}
         properties={data.properties}
       />
+
+      {showConnectionAuthoring && (
+        <>
+          <div className={styles.authoringFrame} aria-hidden="true" />
+          <Handle
+            id={AUTHORING_SOURCE_HANDLE_ID}
+            type="source"
+            position={Position.Right}
+            isConnectable={isConnectable}
+            isConnectableEnd={false}
+            className={`${styles.authoringHandle} ${styles.authoringSourceHandle}`}
+          />
+          <Handle
+            id={AUTHORING_TARGET_HANDLE_ID}
+            type="target"
+            position={Position.Left}
+            isConnectable={isConnectable}
+            isConnectableStart={false}
+            className={`${styles.authoringHandle} ${styles.authoringTargetHandle}`}
+          />
+        </>
+      )}
 
       {/* Source handles (right) — paired with target handles for best-effort edge spreading. */}
       {data.sourceHandles.map(({ id, offset }) => (

@@ -292,7 +292,12 @@ export type MutationKind = 'node-mutation' | 'import-graph';
 
 export type CreateNodeTextResultStatus = 'accepted' | 'rejected' | 'error';
 export type NodeActionTextResultStatus = 'accepted' | 'rejected' | 'error';
-export type NodeActionTextResultAction = 'create-node' | 'edit-node' | 'delete-node' | null;
+export type NodeActionTextResultAction =
+  | 'create-node'
+  | 'edit-node'
+  | 'delete-node'
+  | 'create-connection'
+  | null;
 
 export interface CreateNodeTextResult {
   status: CreateNodeTextResultStatus;
@@ -304,6 +309,7 @@ export interface NodeActionTextResult {
   status: NodeActionTextResultStatus;
   action: NodeActionTextResultAction;
   alias: string | null;
+  targetAlias: string | null;
   message: string;
 }
 
@@ -311,7 +317,10 @@ export const NODE_CREATED_RE = /^node ([A-Za-z0-9_-]+) created$/i;
 export const NODE_ALREADY_EXISTS_RE = /^node ([A-Za-z0-9_-]+) already exists$/i;
 export const NODE_UPDATED_RE = /^node ([A-Za-z0-9_-]+) updated$/i;
 export const NODE_DELETED_RE = /^node ([A-Za-z0-9_-]+) deleted$/i;
+export const NODE_CONNECTED_RE = /^node ([A-Za-z0-9_-]+) connected to ([A-Za-z0-9_-]+)$/i;
 export const NODE_NOT_FOUND_RE = /^node ([A-Za-z0-9_-]+) not found$/i;
+export const CONNECT_SELF_RE = /^Source and target nodes must be different$/i;
+export const CONNECT_SYNTAX_RE = /^Syntax: connect \{node-A\} to \{node-B\} with \{relation\}$/i;
 export const ERROR_RE = /^ERROR: (.+)$/;
 
 export function parseNodeActionTextResult(raw: string): NodeActionTextResult | null {
@@ -320,32 +329,47 @@ export function parseNodeActionTextResult(raw: string): NodeActionTextResult | n
 
   const created = text.match(NODE_CREATED_RE);
   if (created) {
-    return { status: 'accepted', action: 'create-node', alias: created[1], message: text };
+    return { status: 'accepted', action: 'create-node', alias: created[1], targetAlias: null, message: text };
   }
 
   const alreadyExists = text.match(NODE_ALREADY_EXISTS_RE);
   if (alreadyExists) {
-    return { status: 'rejected', action: 'create-node', alias: alreadyExists[1], message: text };
+    return { status: 'rejected', action: 'create-node', alias: alreadyExists[1], targetAlias: null, message: text };
   }
 
   const updated = text.match(NODE_UPDATED_RE);
   if (updated) {
-    return { status: 'accepted', action: 'edit-node', alias: updated[1], message: text };
+    return { status: 'accepted', action: 'edit-node', alias: updated[1], targetAlias: null, message: text };
   }
 
   const deleted = text.match(NODE_DELETED_RE);
   if (deleted) {
-    return { status: 'accepted', action: 'delete-node', alias: deleted[1], message: text };
+    return { status: 'accepted', action: 'delete-node', alias: deleted[1], targetAlias: null, message: text };
+  }
+
+  const connected = text.match(NODE_CONNECTED_RE);
+  if (connected) {
+    return {
+      status: 'accepted',
+      action: 'create-connection',
+      alias: connected[1],
+      targetAlias: connected[2],
+      message: text,
+    };
   }
 
   const notFound = text.match(NODE_NOT_FOUND_RE);
   if (notFound) {
-    return { status: 'rejected', action: null, alias: notFound[1], message: text };
+    return { status: 'rejected', action: null, alias: notFound[1], targetAlias: null, message: text };
+  }
+
+  if (CONNECT_SELF_RE.test(text) || CONNECT_SYNTAX_RE.test(text)) {
+    return { status: 'rejected', action: 'create-connection', alias: null, targetAlias: null, message: text };
   }
 
   const error = text.match(ERROR_RE);
   if (error) {
-    return { status: 'error', action: null, alias: null, message: text };
+    return { status: 'error', action: null, alias: null, targetAlias: null, message: text };
   }
 
   return null;

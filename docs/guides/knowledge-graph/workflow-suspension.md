@@ -21,8 +21,9 @@ related:
 >   and the run completes normally. A later request with the **same business correlation
 >   ID resumes** past the checkpoint without re-executing it. A long-running business
 >   process becomes a sequence of short runs — nothing stays in memory between them.
-> - **Vocabulary** — the `graph.suspend` and `graph.resume` skills, the reserved node
->   alias `suspend`, and the node property `suspend=true`.
+> - **Vocabulary** — the `graph.suspend` and `graph.resume` skills and the reserved node
+>   alias `suspend`, reached by a drawn edge (working nodes) or an IF-THEN-ELSE jump
+>   (decisions).
 > - **The store is pluggable** — Redis ships as the `minigraph-state-redis` extension
 >   crate; any composable function honoring the [store contract](#state-store-contract)
 >   works.
@@ -60,20 +61,35 @@ the store record's expiry. The `suspend` node also needs an **outgoing connectio
 (normally to `end`): without one, the record would persist and the run would then stall
 instead of completing — the compiler rejects the graph.
 
-**2. A suspensible node** — any skilled node marked `suspend=true`. After its skill
-completes and its output mapping runs, traversal routes to the `suspend` node instead of
-its normal forward path. Draw **both** edges — the checkpoint edge to `suspend` and the
-continuation edge — so the diagram tells the whole story (the compiler enforces this).
-Routing skills (`graph.math`, and `graph.js` in engines that ship it — it is retired in
-this Rust port) cannot be suspensible. A plain edge *into* the `suspend` node is an
-unconditional suspension point — no property needed.
+**2. A suspension point** — there are two modes, discriminated purely by graph shape:
+
+- **Edge mode (working nodes).** A working node with a **drawn edge to `suspend`** is a
+  checkpoint: after its skill completes and its output mapping runs, traversal redirects
+  to the `suspend` node instead of the node's continuation edge. The drawn edge **is**
+  the declaration — no property needed. Draw **both** edges — the checkpoint edge and at
+  least one continuation edge (the compiler enforces this): a resumed run continues along
+  the continuation and **never re-executes** the node.
+- **Jump mode (decisions).** A `graph.math` decision reaches the checkpoint by returning
+  `suspend` from its IF-THEN-ELSE. On resume the decision is **re-executed** against the
+  new request input — it re-decides every time, which makes "keep waiting on invalid
+  input" a one-node pattern. A decision must **not** draw an edge to `suspend` (its drawn
+  edges are outcome alternatives; the compiler rejects the shape). When `suspend` is
+  reachable only by jumps, anchor it behind an island (`root -> island -> suspend`) so
+  the graph has no orphan nodes — traversal stops at the island, so the anchor edge is
+  never walked.
+
+The `suspend` node cannot be an exception handler (`exception=suspend` is rejected). The
+retired `suspend=true` property is accepted and **ignored** for one deprecation window
+(the compiler logs a WARN): every valid earlier model already draws its checkpoint edge,
+which now declares the same behavior — models deploy unmodified.
 
 **3. The resume node** — conventionally named `resume`, placed right after `root` (or
 after setup nodes). When the store has a record for `model.cid`, it restores the model,
 re-arms the traversal bookkeeping (a downstream `graph.join` still sees branches that
-completed before suspension), and jumps past the checkpoint. When there is no record —
-a fresh transaction, the normal first-run case, or an expired one — traversal simply
-continues along the resume node's own forward path.
+completed before suspension), and continues at the checkpoint: past an edge-mode node
+along its continuation edge, or by **re-executing** a jump-mode decision against the new
+input. When there is no record — a fresh transaction, the normal first-run case, or an
+expired one — traversal simply continues along the resume node's own forward path.
 
 Either way, the skill records the outcome in **`model.run`** — `resume` when a record was
 restored, `fresh` when there was none. The engine deliberately does not distinguish
@@ -103,26 +119,25 @@ runs, one correlation ID**:
 
 ```mermaid
 flowchart LR
-    root(["root"]) --> resume --> order["order<br>(suspend=true)"] --> check{"check-approval"}
-    check -->|approved| approval["approval<br>(suspend=true)"] --> delivery["delivery<br>(suspend=true)"] --> ship --> done(["end"])
+    root(["root"]) --> resume --> order["order<br>(edge mode)"] --> check{"check-approval"}
+    check -->|approved| approval["approval<br>(edge mode)"] --> delivery["delivery<br>(edge mode)"] --> ship --> done(["end"])
     check -->|rejected| reject["manager-reject"] --> done
-    check -->|waiting| await["await-decision<br>(suspend=true)"] --> check
+    check -.->|waiting: jumps to suspend,<br>re-decides on resume| check
 ```
 
 A customer orders, the store manager approves **or rejects with a reason**, the delivery
 department releases the shipment, and the parcel ships — one `suspend` node serves every
-checkpoint, and each suspensible node captures its actor's input into the model and
+checkpoint. The `order`, `approval` and `delivery` checkpoints are **edge mode**: each
+draws its checkpoint edge to `suspend`, captures its actor's input into the model and
 stages its own stage-specific reply (overriding the default `suspended` response). The
 manager's decision lands at a `graph.math` decision node on the `order` checkpoint's
 continuation with three outcomes: an approved decision routes to the next suspension
 point, an explicit rejection routes to a terminal node that reports the manager's reason
-(the workflow ends), and anything else — a missing or unrecognized decision — re-suspends
-through `await-decision`, whose continuation loops back to the decision, so an invalid
-request can never end a long-running workflow by accident. The decision must sit
-**before** the suspensible nodes: a suspensible node always suspends when its skill
-completes — it cannot evaluate the input and choose not to — so the routing choice is
-made first, and only an approved decision reaches the checkpoint that suspends for the
-next actor. Run it with Redis (e.g. the Java repo's `helpers/redis-standalone` — a plain
+(the workflow ends), and anything else — a missing or unrecognized decision — **jumps**
+to `suspend` (jump mode). Because a jump-mode decision is re-executed against the new
+input on every resume, an invalid request can never end a long-running workflow by
+accident: the workflow keeps waiting and re-decides when the next request arrives, with
+no extra wait nodes. Run it with Redis (e.g. the Java repo's `helpers/redis-standalone` — a plain
 `java -jar` real Redis for developer machines without Docker) and drive the four runs
 with one correlation ID.
 
@@ -214,11 +229,11 @@ curl -s -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
 
 A **missing or unrecognized decision** takes the third path: the reply is
 `"stage": "awaiting-decision; supply decision approved or rejected for the store manager"`
-and the workflow **re-suspends** — `await-decision`'s continuation loops back to
-`check-approval`, so the next resume re-evaluates the decision and only an explicit
-`approved` or `rejected` moves the workflow forward. This is also what a replay against a
-leftover suspended record now yields — a self-explanatory "still waiting" instead of a
-surprise.
+and the workflow **re-suspends** — `check-approval` jumps to `suspend`, and because a
+jump-mode decision re-executes on every resume, the next request re-evaluates the
+decision: only an explicit `approved` or `rejected` moves the workflow forward. This is
+also what a replay against a leftover suspended record now yields — a self-explanatory
+"still waiting" instead of a surprise.
 
 The tutorial also validates its input: a request that is not an order submission, for a
 correlation ID with no suspended record, is **rejected with HTTP 404** — the order must
@@ -228,15 +243,13 @@ come first. Three techniques worth stealing from its model:
   substitution inside a `text()` constant is null-safe:
   `MAPPING: text(={input.body.item}) -> model.order_probe` always yields a present
   string (`=null` when the field is absent), which an `IF` can compare safely. The
-  `check-approval` decision reuses the same idiom, so a missing decision safely routes to
-  the wait loop rather than raising a runtime error.
-- **A wait loop across suspensions needs `RESET`.** The traveler and executor never
-  re-execute a node they have already seen — and the `seen` marks are part of the
-  persisted state, so they survive suspension. A loop that revisits a decision on every
-  resume must clear its own nodes first: `check-approval`'s
-  `RESET: check-approval await-decision` runs before its `IF` statements (an `IF` that
-  jumps to a node returns immediately), un-marking both loop nodes so the next resumed
-  run can walk them again.
+  `check-approval` decision reuses the same idiom, so a missing decision safely jumps
+  back to the checkpoint rather than raising a runtime error.
+- **A decision can stage the caller's reply.** `graph.math` `MAPPING:` statements run
+  before its `IF` statements and may write `output.*` — `check-approval` stages the
+  awaiting reply unconditionally, and the approval/rejection paths overwrite it
+  downstream. A jump-mode suspension therefore replies with the decision's own staged
+  body (or the default `{"type": "suspended", ...}` when nothing was staged).
 - **The run flag.** `graph.resume` sets `model.run` to `fresh` or `resume`, and the
   tutorial stages it into every reply (`model.run -> output.body.run`) — so the UI always
   knows whether it is looking at a new transaction or a resumed continuation, and a
@@ -263,27 +276,29 @@ curl -s -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
 - **The model is the workflow's durable memory.** Only the `model` namespace persists —
   a node's `{node}.result` scratch does not survive suspension. Map anything a later step
   needs into `model.*` **before** the checkpoint.
-- **A suspensible node is a complete working node — only its exit changes.** It executes
-  its skill in full (input mapping → skill → output mapping) before routing to the
-  `suspend` node, so it may carry any non-routing skill (`graph.data.mapper`,
+- **An edge-mode checkpoint is a complete working node — only its exit changes.** It
+  executes its skill in full (input mapping → skill → output mapping) before redirecting
+  to the `suspend` node, so it may carry any non-routing skill (`graph.data.mapper`,
   `graph.task`, `graph.api.fetcher`, `graph.extension`), capture the actor's input into
-  `model.*`, and stage the caller's reply in `output.*` — and its non-checkpoint edge
+  `model.*`, and stage the caller's reply in `output.*` — and its continuation edge
   defines exactly where the next run continues after resume. What it never does is
-  choose: it cannot route, and it cannot decline to suspend.
-- **Decide before you suspend.** A suspensible node always suspends — when its skill
-  completes, traversal routes to the `suspend` node unconditionally; it cannot inspect
-  the input and opt out. Place a routing node (e.g. `graph.math`) on the resume
-  continuation, **before** the next suspensible node, to decide whether the workflow
-  continues to that checkpoint, branches, or ends — as tutorial-14's `check-approval`
-  does with the manager's decision.
+  choose: an edge-mode checkpoint always suspends when its skill completes.
+- **Route the choice, don't property it.** When the input decides the workflow's
+  direction (approve vs reject vs wait), make the decision a `graph.math` node whose
+  outcomes route naturally: continue to the next checkpoint, branch to a terminal node,
+  or **jump to `suspend`** to keep waiting. The decision draws edges only to its real
+  outcome targets — never to `suspend` (the compiler rejects that shape) — and re-executes
+  on every resume, so each new request is re-evaluated. tutorial-14's `check-approval`
+  is the pattern.
 - **A suspension point must be the sole active branch.** Do not suspend between a fan-out
   and its join — branches in flight cannot be persisted (the engine logs a warning);
   suspend *after* the join instead. Joins whose predecessors completed before suspension
   work: their completion marks are part of the persisted state.
 - **One resume per transaction.** The shipped stores consume the record atomically on
-  retrieval (`GETDEL` on Redis 6.2+, an atomic `MULTI/EXEC` `GET`+`DEL` transaction on
-  older servers), so a duplicate resume — a double click, a retried message —
-  finds nothing and behaves as a fresh run instead of double-executing the continuation.
+  retrieval (Redis `GETDEL` on 6.2+, or a `MULTI/EXEC` `GET`+`DEL` transaction on older
+  servers — detected automatically), so a duplicate resume — a double click, a retried
+  message — finds nothing and behaves as a fresh run instead of double-executing the
+  continuation.
   A later checkpoint in the resumed run simply persists a new record under the same ID.
 - **The correlation ID is a resume capability.** Whoever presents it continues the
   workflow: protect resume-bearing endpoints with rest.yaml `authentication`, and use
@@ -317,9 +332,9 @@ anything else plugs in the same way.
 ```
 
 Store the body **opaquely** (the reference implementations use MsgPack — binary values
-round-trip; note the platform's [serialization gotchas](../api-overview.md)) and reply
-2xx only when the record is durable — the reply is the acknowledgement `graph.suspend`
-requires before the graph completes; any error fails the suspension.
+round-trip; note the platform's [serialization gotchas](../api-overview.md))
+and reply 2xx only when the record is durable — the reply is the acknowledgement
+`graph.suspend` requires before the graph completes; any error fails the suspension.
 
 **Retrieve** — invoked by `graph.resume`; headers `type=get`; body `{"cid": "..."}`.
 Return the stored record as-is, or **null / an empty map** when absent or expired — an
@@ -328,21 +343,23 @@ atomically on retrieval (or document your replay semantics). If the store has no
 TTL, implement record expiry yourself.
 
 The smallest possible reference implementation is the engine's test fixture — a temp-file
-store (`FileStateStore` in the knowledge-graph crate's test sources).
+store of ~60 lines (`FileStateStore` in the minigraph test sources).
 
-## The Redis store crate
+## The Redis store module
 
 `extensions/minigraph-state-redis` ships `v1.redis.persist.model` (SETEX, native expiry)
-and `v1.redis.retrieve.model` (atomic consume: `GETDEL` on Redis 6.2+, a `MULTI/EXEC`
-transaction on older servers — detected per connection and stated in the startup log).
-Add the crate as an
-application dependency and reference it from `main.rs` (the linker keeps its annotation
-inventory) — the two functions register automatically; the connection is lazy, so the
-application boots normally without Redis until a workflow actually suspends.
-Configuration uses the same `redis.*` keys as the sync-over-async family (`redis.host`,
-`redis.port`, `redis.password`, `redis.ssl`, `redis.database`, `redis.timeout.ms`), and
-the worker counts are ops-tunable via `worker.instances.v1.redis.persist.model` /
-`worker.instances.v1.redis.retrieve.model`. See the crate README for details.
+and `v1.redis.retrieve.model` (atomic consume-on-retrieve). The consume strategy is
+**version-aware**: native `GETDEL` on Redis 6.2+, or an equally atomic `MULTI/EXEC`
+`GET`+`DEL` transaction on older servers — detected once per connection from
+`INFO server` and stated in the startup log, since enterprise deployments rarely control
+their managed Redis version (and the community Windows binary used by `redis-standalone`
+is 5.0.14). Include the jar and the two functions register automatically; the connection
+is lazy, so the application boots normally without Redis until a workflow actually
+suspends. Configuration uses the same
+`redis.*` keys as the sync-over-async extension (`redis.host`, `redis.port`,
+`redis.password`, `redis.ssl`, `redis.database`, `redis.timeout.ms`), and the worker
+counts are ops-tunable via `worker.instances.v1.redis.persist.model` /
+`worker.instances.v1.redis.retrieve.model`. See the module README for details.
 
 ## See also
 

@@ -312,12 +312,15 @@ task=v1.redis.persist.model
 ttl=2d
 ```
 
-The node carrying this skill **must be named `suspend`** — a reserved alias like `root`/`end`,
-because traversal jumps to it by name: a node with the `suspend=true` property routes here after
-its skill completes, and a plain edge into `suspend` is an unconditional suspension point. `ttl`
-is **mandatory with no default** (duration syntax `20s/5m/2h/2d`) — it becomes the store record's
-expiry. Unless the graph staged its own `output.*`, the caller of the suspended run receives
-`{"type": "suspended", "cid": ...}`.
+The node carrying this skill **must be named `suspend`** — a reserved alias like `root`/`end`.
+Two ways in: a **working node with a drawn edge** to `suspend` suspends when its skill completes
+(edge mode — the edge is the declaration; a continuation edge is mandatory and the node is never
+re-executed on resume), and a **decision jumps** to it by returning `suspend` from its
+IF-THEN-ELSE (jump mode — the decision re-executes against the new input on every resume; it
+must not draw an edge to `suspend`). The retired `suspend=true` property is ignored (deprecation
+WARN). `ttl` is **mandatory with no default** (duration syntax `20s/5m/2h/2d`) — it becomes the
+store record's expiry. Unless the graph staged its own `output.*`, the caller of the suspended
+run receives `{"type": "suspended", "cid": ...}`.
 
 **Gotchas:** the store must acknowledge (2xx) before the graph completes — a failed persist fails
 the node (`exception=` routes it); a suspension point must be the sole active branch (never
@@ -326,10 +329,11 @@ model **before** the checkpoint. Full story: [Workflow Suspension](workflow-susp
 
 ## graph.resume {#resume}
 
-Restores the workflow state persisted by [`graph.suspend`](#suspend) and continues traversal from
-the recorded suspension point **without re-executing it**. Also a superset of `graph.task` — the
-`task` property names the store function (`type=get`, body `{cid}`), restoration is encapsulated,
-no mapping on the node.
+Restores the workflow state persisted by [`graph.suspend`](#suspend) and continues traversal at
+the recorded suspension point — **past an edge-mode checkpoint without re-executing it**, or by
+**re-executing a jump-mode decision** against the new request input. Also a superset of
+`graph.task` — the `task` property names the store function (`type=get`, body `{cid}`),
+restoration is encapsulated, no mapping on the node.
 
 ```
 skill=graph.resume

@@ -46,6 +46,7 @@ export interface PlaygroundConfig {
   supportsClipboard?:    boolean;    // true when clip/paste features are enabled (Minigraph only)
   supportsHelp?:         boolean;    // true when the help panel is available (Minigraph only)
   supportsAuthoring?:    boolean;    // true when UI graph authoring is enabled (Minigraph only)
+  supportsSessionCollaboration?: boolean; // true when the Session collaboration dropdown is enabled
   /**
    * localStorage key for the last-viewed help topic.
    * Only used when the playground includes the 'help' tab.
@@ -91,6 +92,7 @@ export const PLAYGROUND_CONFIGS: PlaygroundConfig[] = [
     supportsClipboard: true,
     supportsHelp: true,
     supportsAuthoring: true,
+    supportsSessionCollaboration: true,
     // Minigraph works with graph commands and text responses; it has no payload input.
     tabs: ['graph', 'graph-data'],
   },

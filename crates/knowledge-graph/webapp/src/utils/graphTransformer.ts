@@ -1,6 +1,7 @@
 import { MarkerType, type Node, type Edge } from '@xyflow/react';
 import type { MinigraphGraphData } from './graphTypes';
 import { getMinigraphNodeShellStyle } from './minigraphNodeTheme';
+import { getConnectionRelationColor } from '../graphActions/connectionRelations';
 
 /** Data bag attached to every ReactFlow node we create. */
 export interface GraphNodeData extends Record<string, unknown> {
@@ -14,6 +15,7 @@ export interface GraphNodeData extends Record<string, unknown> {
   backSourceHandles: GraphHandleData[];
   /** Back-edge target handles — rendered on the RIGHT side (incoming back-edges to this node). */
   backTargetHandles: GraphHandleData[];
+  supportsConnectionAuthoring: boolean;
   minHeight: number;
 }
 
@@ -40,6 +42,14 @@ const COL_GAP            = 120;  // horizontal gap between columns (levels)
 const COMPONENT_GAP      = 360;  // horizontal gap between independent flow trees
 const SECTION_GAP        = 120;  // vertical gap between main flow and first segregated row
 const SEGREGATED_ROW_GAP = 80;   // vertical gap between successive segregated rows
+const CROSSING_REDUCTION_PASSES = 4;
+const MAX_EXPANDED_LAYOUT_SEGMENTS = 10_000;
+const MAX_GEOMETRY_EDGE_NODE_PAIRS = 2_000;
+const MAX_TRANSPOSE_SLOTS = 64;
+const MAX_TRANSPOSE_SEGMENTS = 256;
+const MAX_TRANSPOSE_GEOMETRY_PAIRS = 256;
+const MAX_TRANSPOSE_EVALUATIONS = 512;
+const NODE_INTRUSION_EPSILON = 0.001;
 
 // ─── Edge styling constants ──────────────────────────────────────────────────
 // EDGE_STROKE: --text-muted (rgb 148 163 184) at 42% opacity — slate-400 tinted stroke
@@ -50,56 +60,8 @@ const EDGE_LABEL_BG       = 'var(--bg-secondary)';          // token: --bg-secon
 const EDGE_HANDLE_GAP     = 24;   // px between adjacent handle anchors on the same side
 const EDGE_HANDLE_PADDING = 32;   // min px from node top/bottom to first/last handle
 
-// Semantic edge-type colors — intentional per-relation accent palette.
-// Matches the same amber/green/purple axis used by NODE_ACCENT above.
-const EDGE_FALLBACK_COLORS = [
-  '#0369a1',   // sky-700
-  '#15803d',   // green-700
-  '#b45309',   // amber-700
-  '#7e22ce',   // purple-700
-  '#b91c1c',   // red-700
-  '#0f766e',   // teal-700
-  '#c2410c',   // orange-700
-  '#a16207',   // yellow-700
-];
-
-// Named relation-type → accent color map.
-const EDGE_COLOR_BY_RELATION: Record<string, string> = {
-  fetch:        '#0369a1',   // sky-700
-  details:      '#0369a1',
-  'ext-call':   '#0369a1',
-  mapping:      '#b45309',   // amber-700
-  compute:      '#b45309',
-  calculate:    '#b45309',
-  evaluate:     '#b45309',
-  fork:         '#7e22ce',   // purple-700
-  join:         '#7e22ce',
-  one:          '#7e22ce',
-  two:          '#6d28d9',   // purple-800
-  three:        '#5b21b6',   // violet-800
-  more:         '#4c1d95',   // violet-900
-  done:         '#15803d',   // green-700
-  complete:     '#15803d',
-  finish:       '#15803d',
-  positive:     '#15803d',
-  negative:     '#b91c1c',   // red-700
-};
-
-function hashString(value: string): number {
-  let hash = 0;
-  for (let i = 0; i < value.length; i++) {
-    hash = ((hash << 5) - hash) + value.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
 function edgeColor(relationTypes: string[]): string {
-  if (relationTypes.length === 0) return EDGE_STROKE;
-  const primary = relationTypes[0].trim().toLowerCase();
-  const known = EDGE_COLOR_BY_RELATION[primary];
-  if (known) return known;
-  return EDGE_FALLBACK_COLORS[hashString(primary) % EDGE_FALLBACK_COLORS.length];
+  return getConnectionRelationColor(relationTypes, EDGE_STROKE);
 }
 
 function edgeSourceHandleId(index: number): string {
@@ -165,6 +127,45 @@ interface FlowComponent {
   sortKey: string;
 }
 
+interface LayoutSlot {
+  id: string;
+  /** Real node alias. Virtual long-edge slots have no alias and are never rendered. */
+  alias?: string;
+  height: number;
+  stableKey: string;
+}
+
+interface LayoutSegment {
+  sourceId: string;
+  targetId: string;
+  level: number;
+}
+
+interface LayoutScore {
+  nodeIntrusions: number;
+  edgeCrossings: number;
+}
+
+interface CandidateNodeGeometry {
+  alias: string;
+  level: number;
+  x: number;
+  y: number;
+  height: number;
+}
+
+interface CandidateSideEntry {
+  connectionIndex: number;
+  peerAlias: string;
+  isBack: boolean;
+  stableKey: string;
+}
+
+interface GeometryPair {
+  connectionIndex: number;
+  nodeAlias: string;
+}
+
 const FLOW_COMPONENT_LAYOUT_ORDER = {
   ROOT_TREE: 0,
   DEFAULT_TREE: 1,
@@ -200,6 +201,603 @@ function compareFlowComponents(a: FlowComponent, b: FlowComponent): number {
   const rankDiff = getFlowComponentRank(a) - getFlowComponentRank(b);
   if (rankDiff !== 0) return rankDiff;
   return a.sortKey.localeCompare(b.sortKey);
+}
+
+function realSlotId(alias: string): string {
+  return `real:${alias}`;
+}
+
+function cloneLayers(layers: Map<number, LayoutSlot[]>): Map<number, LayoutSlot[]> {
+  return new Map([...layers].map(([level, slots]) => [level, slots.slice()]));
+}
+
+function slotPositions(slots: LayoutSlot[]): Map<string, number> {
+  return new Map(slots.map((slot, index) => [slot.id, index]));
+}
+
+function averageNeighborPosition(
+  slotId: string,
+  neighborsBySlot: Map<string, string[]>,
+  neighborPositions: Map<string, number>,
+): number | undefined {
+  const positions = (neighborsBySlot.get(slotId) ?? [])
+    .map(neighbor => neighborPositions.get(neighbor))
+    .filter((position): position is number => position !== undefined);
+  if (positions.length === 0) return undefined;
+  return positions.reduce((sum, position) => sum + position, 0) / positions.length;
+}
+
+/**
+ * Reorder one rank using the barycenter of its adjacent-rank neighbors.
+ * Previous position and stable key make equal barycenters deterministic.
+ */
+function reorderLayer(
+  slots: LayoutSlot[],
+  neighborsBySlot: Map<string, string[]>,
+  neighborPositions: Map<string, number>,
+): LayoutSlot[] {
+  const previousPositions = slotPositions(slots);
+  return slots.slice().sort((a, b) => {
+    const aBarycenter = averageNeighborPosition(a.id, neighborsBySlot, neighborPositions);
+    const bBarycenter = averageNeighborPosition(b.id, neighborsBySlot, neighborPositions);
+    if (aBarycenter !== undefined && bBarycenter !== undefined) {
+      const barycenterDifference = aBarycenter - bBarycenter;
+      if (Math.abs(barycenterDifference) > Number.EPSILON) return barycenterDifference;
+    }
+    const positionDifference = previousPositions.get(a.id)! - previousPositions.get(b.id)!;
+    if (positionDifference !== 0) return positionDifference;
+    return a.stableKey.localeCompare(b.stableKey);
+  });
+}
+
+function countStrictInversions(values: number[], valueCount: number): number {
+  const tree = new Array<number>(valueCount + 1).fill(0);
+  const query = (index: number) => {
+    let total = 0;
+    for (let cursor = index; cursor > 0; cursor -= cursor & -cursor) {
+      total += tree[cursor];
+    }
+    return total;
+  };
+  const update = (index: number) => {
+    for (let cursor = index; cursor < tree.length; cursor += cursor & -cursor) {
+      tree[cursor] += 1;
+    }
+  };
+
+  let inversions = 0;
+  for (let index = values.length - 1; index >= 0; index--) {
+    const oneBasedValue = values[index] + 1;
+    inversions += query(oneBasedValue - 1);
+    update(oneBasedValue);
+  }
+  return inversions;
+}
+
+/**
+ * Count crossings in the layered representation. Segments are ordered by
+ * source position and target position, so shared sources and shared targets
+ * do not count as crossings.
+ */
+function countLayerCrossings(
+  layers: Map<number, LayoutSlot[]>,
+  segments: LayoutSegment[],
+): number {
+  const positionsByLevel = new Map(
+    [...layers].map(([level, slots]) => [level, slotPositions(slots)]),
+  );
+  const segmentsByLevel = new Map<number, LayoutSegment[]>();
+  for (const segment of segments) {
+    if (!segmentsByLevel.has(segment.level)) segmentsByLevel.set(segment.level, []);
+    segmentsByLevel.get(segment.level)!.push(segment);
+  }
+
+  let crossings = 0;
+  for (const [level, levelSegments] of segmentsByLevel) {
+    const sourcePositions = positionsByLevel.get(level);
+    const targetPositions = positionsByLevel.get(level + 1);
+    if (!sourcePositions || !targetPositions) continue;
+    const orderedTargetPositions = levelSegments
+      .map(segment => ({
+        sourceId: segment.sourceId,
+        targetId: segment.targetId,
+        sourcePosition: sourcePositions.get(segment.sourceId)!,
+        targetPosition: targetPositions.get(segment.targetId)!,
+      }))
+      .sort((a, b) =>
+        a.sourcePosition - b.sourcePosition ||
+        a.targetPosition - b.targetPosition ||
+        a.sourceId.localeCompare(b.sourceId) ||
+        a.targetId.localeCompare(b.targetId),
+      )
+      .map(segment => segment.targetPosition);
+    crossings += countStrictInversions(orderedTargetPositions, targetPositions.size);
+  }
+  return crossings;
+}
+
+function addNeighbor(
+  neighborsBySlot: Map<string, string[]>,
+  slotId: string,
+  neighborId: string,
+): void {
+  if (!neighborsBySlot.has(slotId)) neighborsBySlot.set(slotId, []);
+  neighborsBySlot.get(slotId)!.push(neighborId);
+}
+
+function connectionStableKey(
+  connection: MinigraphGraphData['connections'][number],
+): string {
+  return [
+    connection.source,
+    connection.target,
+    ...connection.relations.map(relation => relation.type),
+  ].join('\t');
+}
+
+function isScoreBetter(candidate: LayoutScore, current: LayoutScore): boolean {
+  return candidate.nodeIntrusions < current.nodeIntrusions ||
+    (candidate.nodeIntrusions === current.nodeIntrusions &&
+      candidate.edgeCrossings < current.edgeCrossings);
+}
+
+function candidateNodeGeometry(
+  layers: Map<number, LayoutSlot[]>,
+): Map<string, CandidateNodeGeometry> {
+  const geometry = new Map<string, CandidateNodeGeometry>();
+  for (const [level, slots] of layers) {
+    const totalHeight = slots.reduce(
+      (sum, slot) => sum + slot.height,
+      0,
+    ) + Math.max(0, slots.length - 1) * ROW_GAP;
+    let cursorY = -totalHeight / 2;
+    for (const slot of slots) {
+      if (slot.alias) {
+        geometry.set(slot.alias, {
+          alias: slot.alias,
+          level,
+          x: level * (NODE_WIDTH + COL_GAP),
+          y: cursorY,
+          height: slot.height,
+        });
+      }
+      cursorY += slot.height + ROW_GAP;
+    }
+  }
+  return geometry;
+}
+
+function cubicCoordinate(
+  start: number,
+  startControl: number,
+  endControl: number,
+  end: number,
+  parameter: number,
+): number {
+  const inverse = 1 - parameter;
+  return (inverse * inverse * inverse * start) +
+    (3 * inverse * inverse * parameter * startControl) +
+    (3 * inverse * parameter * parameter * endControl) +
+    (parameter * parameter * parameter * end);
+}
+
+function parameterAtX(
+  startX: number,
+  controlX: number,
+  endX: number,
+  targetX: number,
+): number {
+  let low = 0;
+  let high = 1;
+  for (let iteration = 0; iteration < 32; iteration++) {
+    const middle = (low + high) / 2;
+    const x = cubicCoordinate(startX, controlX, controlX, endX, middle);
+    if (x < targetX) low = middle;
+    else high = middle;
+  }
+  return (low + high) / 2;
+}
+
+function forwardBezierIntersectsNode(
+  source: CandidateNodeGeometry,
+  target: CandidateNodeGeometry,
+  sourceOffset: number,
+  targetOffset: number,
+  node: CandidateNodeGeometry,
+): boolean {
+  const sourceX = source.x + NODE_WIDTH;
+  const targetX = target.x;
+  const nodeLeft = node.x + NODE_INTRUSION_EPSILON;
+  const nodeRight = node.x + NODE_WIDTH - NODE_INTRUSION_EPSILON;
+  if (nodeLeft >= targetX || nodeRight <= sourceX) return false;
+
+  const controlX = sourceX + ((targetX - sourceX) / 2);
+  const startParameter = parameterAtX(sourceX, controlX, targetX, nodeLeft);
+  const endParameter = parameterAtX(sourceX, controlX, targetX, nodeRight);
+  const sourceY = source.y + (source.height / 2) + sourceOffset;
+  const targetY = target.y + (target.height / 2) + targetOffset;
+  const startY = cubicCoordinate(
+    sourceY,
+    sourceY,
+    targetY,
+    targetY,
+    startParameter,
+  );
+  const endY = cubicCoordinate(
+    sourceY,
+    sourceY,
+    targetY,
+    targetY,
+    endParameter,
+  );
+  const nodeTop = node.y + NODE_INTRUSION_EPSILON;
+  const nodeBottom = node.y + node.height - NODE_INTRUSION_EPSILON;
+  return Math.max(startY, endY) > nodeTop &&
+    Math.min(startY, endY) < nodeBottom;
+}
+
+function collectGeometryPairs(
+  connections: MinigraphGraphData['connections'],
+  localLevelOf: Map<string, number>,
+): GeometryPair[] | null {
+  const aliasesByLevel = new Map<number, string[]>();
+  for (const [alias, level] of localLevelOf) {
+    if (!aliasesByLevel.has(level)) aliasesByLevel.set(level, []);
+    aliasesByLevel.get(level)!.push(alias);
+  }
+  for (const aliases of aliasesByLevel.values()) aliases.sort();
+
+  const pairs: GeometryPair[] = [];
+  for (const [connectionIndex, connection] of connections.entries()) {
+    const sourceLevel = localLevelOf.get(connection.source);
+    const targetLevel = localLevelOf.get(connection.target);
+    if (sourceLevel === undefined || targetLevel === undefined || targetLevel - sourceLevel <= 1) {
+      continue;
+    }
+    for (let level = sourceLevel + 1; level < targetLevel; level++) {
+      for (const nodeAlias of aliasesByLevel.get(level) ?? []) {
+        pairs.push({ connectionIndex, nodeAlias });
+        if (pairs.length > MAX_GEOMETRY_EDGE_NODE_PAIRS) return null;
+      }
+    }
+  }
+  return pairs;
+}
+
+/**
+ * Score the geometry that React Flow will actually draw for forward long
+ * edges. Positive-distance left/right Beziers have monotonic x and y, so
+ * testing their y-range while they traverse a node's x-range is exact.
+ */
+function countCandidateNodeIntrusions(
+  layers: Map<number, LayoutSlot[]>,
+  localLevelOf: Map<string, number>,
+  connections: MinigraphGraphData['connections'],
+  geometryPairs: GeometryPair[],
+): number {
+  const geometry = candidateNodeGeometry(layers);
+  const rightSide = new Map<string, CandidateSideEntry[]>();
+  const leftSide = new Map<string, CandidateSideEntry[]>();
+  for (const alias of localLevelOf.keys()) {
+    rightSide.set(alias, []);
+    leftSide.set(alias, []);
+  }
+
+  for (const [connectionIndex, connection] of connections.entries()) {
+    const sourceLevel = localLevelOf.get(connection.source);
+    const targetLevel = localLevelOf.get(connection.target);
+    if (sourceLevel === undefined || targetLevel === undefined) continue;
+    const isBack = sourceLevel >= targetLevel;
+    const stableKey = connectionStableKey(connection);
+    if (isBack) {
+      leftSide.get(connection.source)!.push({
+        connectionIndex,
+        peerAlias: connection.target,
+        isBack,
+        stableKey,
+      });
+      rightSide.get(connection.target)!.push({
+        connectionIndex,
+        peerAlias: connection.source,
+        isBack,
+        stableKey,
+      });
+    } else {
+      rightSide.get(connection.source)!.push({
+        connectionIndex,
+        peerAlias: connection.target,
+        isBack,
+        stableKey,
+      });
+      leftSide.get(connection.target)!.push({
+        connectionIndex,
+        peerAlias: connection.source,
+        isBack,
+        stableKey,
+      });
+    }
+  }
+
+  const peerY = (alias: string) => geometry.get(alias)?.y ?? 0;
+  const compareEntries = (a: CandidateSideEntry, b: CandidateSideEntry) =>
+    peerY(a.peerAlias) - peerY(b.peerAlias) ||
+    a.peerAlias.localeCompare(b.peerAlias) ||
+    a.stableKey.localeCompare(b.stableKey) ||
+    a.connectionIndex - b.connectionIndex;
+  for (const entries of rightSide.values()) entries.sort(compareEntries);
+  for (const entries of leftSide.values()) entries.sort(compareEntries);
+
+  const sourceOffsets = new Map<number, number>();
+  const targetOffsets = new Map<number, number>();
+  for (const entries of rightSide.values()) {
+    for (const [index, entry] of entries.entries()) {
+      const offset = edgeHandleOffset(index, entries.length);
+      if (entry.isBack) targetOffsets.set(entry.connectionIndex, offset);
+      else sourceOffsets.set(entry.connectionIndex, offset);
+    }
+  }
+  for (const entries of leftSide.values()) {
+    for (const [index, entry] of entries.entries()) {
+      const offset = edgeHandleOffset(index, entries.length);
+      if (entry.isBack) sourceOffsets.set(entry.connectionIndex, offset);
+      else targetOffsets.set(entry.connectionIndex, offset);
+    }
+  }
+
+  let intrusions = 0;
+  for (const { connectionIndex, nodeAlias } of geometryPairs) {
+    const connection = connections[connectionIndex];
+    const source = geometry.get(connection.source);
+    const target = geometry.get(connection.target);
+    const node = geometry.get(nodeAlias);
+    if (!source || !target || !node) continue;
+    if (forwardBezierIntersectsNode(
+      source,
+      target,
+      sourceOffsets.get(connectionIndex) ?? 0,
+      targetOffsets.get(connectionIndex) ?? 0,
+      node,
+    )) {
+      intrusions += 1;
+    }
+  }
+  return intrusions;
+}
+
+function transposeForBetterScore(
+  layers: Map<number, LayoutSlot[]>,
+  levels: number[],
+  evaluate: (candidate: Map<number, LayoutSlot[]>) => LayoutScore,
+  evaluationBudget: number,
+): number {
+  const signature = (candidate: Map<number, LayoutSlot[]>) => levels
+    .map(level => candidate.get(level)!.map(slot => slot.id).join('\t'))
+    .join('\n');
+  const start = cloneLayers(layers);
+  let evaluations = 1;
+  let best = start;
+  let bestScore = evaluate(start);
+  const queue: Array<{ candidate: Map<number, LayoutSlot[]>; depth: number }> = [
+    { candidate: start, depth: 0 },
+  ];
+  const seen = new Set([signature(start)]);
+  let queueIndex = 0;
+
+  while (queueIndex < queue.length && evaluations < evaluationBudget) {
+    const { candidate: current, depth } = queue[queueIndex++];
+    if (depth >= 2) continue;
+    for (const level of levels) {
+      const slots = current.get(level)!;
+      for (let from = 0; from < slots.length; from++) {
+        for (let to = 0; to < slots.length; to++) {
+          if (from === to) continue;
+          const next = cloneLayers(current);
+          const nextSlots = next.get(level)!;
+          const [moved] = nextSlots.splice(from, 1);
+          nextSlots.splice(to, 0, moved);
+          const nextSignature = signature(next);
+          if (seen.has(nextSignature)) continue;
+          seen.add(nextSignature);
+          const score = evaluate(next);
+          evaluations += 1;
+          if (isScoreBetter(score, bestScore)) {
+            best = next;
+            bestScore = score;
+          }
+          if (depth + 1 < 2) {
+            queue.push({ candidate: next, depth: depth + 1 });
+          }
+          if (evaluations >= evaluationBudget) break;
+        }
+        if (evaluations >= evaluationBudget) break;
+      }
+      if (evaluations >= evaluationBudget) break;
+    }
+  }
+
+  for (const level of levels) {
+    layers.set(level, best.get(level)!.slice());
+  }
+  return evaluations;
+}
+
+/**
+ * Build a layered representation with virtual slots for long forward edges,
+ * then keep the best ordering found by a fixed number of down/up sweeps.
+ */
+function minimizeCrossings(
+  localLevelOf: Map<string, number>,
+  connections: MinigraphGraphData['connections'],
+  backEdges: Set<string>,
+  nodeHeights: Map<string, number>,
+): Map<number, LayoutSlot[]> {
+  const realLayers = new Map<number, LayoutSlot[]>();
+  for (const [alias, level] of localLevelOf) {
+    if (!realLayers.has(level)) realLayers.set(level, []);
+    realLayers.get(level)!.push({
+      id: realSlotId(alias),
+      alias,
+      height: nodeHeights.get(alias) ?? NODE_HEIGHT,
+      stableKey: `real:${alias}`,
+    });
+  }
+  for (const slots of realLayers.values()) {
+    slots.sort((a, b) => a.stableKey.localeCompare(b.stableKey));
+  }
+  const baselineLayers = cloneLayers(realLayers);
+  const layers = cloneLayers(realLayers);
+
+  const forwardEdges = connections
+    .map((connection, connectionIndex) => ({
+      connectionIndex,
+      source: connection.source,
+      target: connection.target,
+      sourceLevel: localLevelOf.get(connection.source),
+      targetLevel: localLevelOf.get(connection.target),
+      stableKey: connectionStableKey(connection),
+    }))
+    .filter(edge =>
+      edge.sourceLevel !== undefined &&
+      edge.targetLevel !== undefined &&
+      !backEdges.has(`${edge.source}\t${edge.target}`) &&
+      edge.sourceLevel < edge.targetLevel,
+    )
+    .sort((a, b) =>
+      a.source.localeCompare(b.source) ||
+      a.target.localeCompare(b.target) ||
+      a.stableKey.localeCompare(b.stableKey) ||
+      a.connectionIndex - b.connectionIndex,
+    );
+  const expandedSegmentCount = forwardEdges.reduce(
+    (sum, edge) => sum + (edge.targetLevel! - edge.sourceLevel!),
+    0,
+  );
+  const expandLongEdges = expandedSegmentCount <= MAX_EXPANDED_LAYOUT_SEGMENTS;
+
+  const predecessors = new Map<string, string[]>();
+  const successors = new Map<string, string[]>();
+  const segments: LayoutSegment[] = [];
+
+  for (const [edgeIndex, edge] of forwardEdges.entries()) {
+    const sourceLevel = edge.sourceLevel!;
+    const targetLevel = edge.targetLevel!;
+    if (!expandLongEdges && targetLevel - sourceLevel > 1) continue;
+    let previousId = realSlotId(edge.source);
+    let previousLevel = sourceLevel;
+
+    for (let level = sourceLevel + 1; level < targetLevel; level++) {
+      const dummyId = `dummy:${edge.source}\t${edge.target}\t${edgeIndex}\t${level}`;
+      if (!layers.has(level)) layers.set(level, []);
+      layers.get(level)!.push({
+        id: dummyId,
+        height: NODE_HEIGHT,
+        stableKey: dummyId,
+      });
+      segments.push({ sourceId: previousId, targetId: dummyId, level: previousLevel });
+      addNeighbor(successors, previousId, dummyId);
+      addNeighbor(predecessors, dummyId, previousId);
+      previousId = dummyId;
+      previousLevel = level;
+    }
+
+    const targetId = realSlotId(edge.target);
+    segments.push({ sourceId: previousId, targetId, level: previousLevel });
+    addNeighbor(successors, previousId, targetId);
+    addNeighbor(predecessors, targetId, previousId);
+  }
+
+  for (const slots of layers.values()) {
+    slots.sort((a, b) => a.stableKey.localeCompare(b.stableKey));
+  }
+
+  const levels = [...layers.keys()].sort((a, b) => a - b);
+  if (levels.length <= 1 || segments.length === 0) return baselineLayers;
+
+  let working = cloneLayers(layers);
+  let best = cloneLayers(layers);
+  const geometryPairs = collectGeometryPairs(connections, localLevelOf);
+  const geometryPairCount = geometryPairs?.length ?? (MAX_GEOMETRY_EDGE_NODE_PAIRS + 1);
+  const scoreGeometry = geometryPairs !== null;
+  const evaluate = (candidate: Map<number, LayoutSlot[]>): LayoutScore => ({
+    nodeIntrusions: scoreGeometry
+      ? countCandidateNodeIntrusions(
+          candidate,
+          localLevelOf,
+          connections,
+          geometryPairs ?? [],
+        )
+      : 0,
+    edgeCrossings: countLayerCrossings(candidate, segments),
+  });
+  let bestScore = evaluate(best);
+
+  const keepIfBetter = () => {
+    const score = evaluate(working);
+    if (isScoreBetter(score, bestScore)) {
+      bestScore = score;
+      best = cloneLayers(working);
+    }
+  };
+
+  const totalSlots = [...layers.values()].reduce((sum, slots) => sum + slots.length, 0);
+  const canTranspose = totalSlots <= MAX_TRANSPOSE_SLOTS &&
+    segments.length <= MAX_TRANSPOSE_SEGMENTS &&
+    geometryPairCount <= MAX_TRANSPOSE_GEOMETRY_PAIRS;
+  let transposeEvaluations = 0;
+  const transpose = () => {
+    const remaining = MAX_TRANSPOSE_EVALUATIONS - transposeEvaluations;
+    if (!canTranspose || remaining <= 1) return;
+    transposeEvaluations += transposeForBetterScore(
+      working,
+      levels,
+      evaluate,
+      remaining,
+    );
+    keepIfBetter();
+  };
+
+  for (let pass = 0; pass < CROSSING_REDUCTION_PASSES; pass++) {
+    for (let index = 1; index < levels.length; index++) {
+      const level = levels[index];
+      const previousLevel = levels[index - 1];
+      working.set(
+        level,
+        reorderLayer(
+          working.get(level)!,
+          predecessors,
+          slotPositions(working.get(previousLevel)!),
+        ),
+      );
+    }
+    keepIfBetter();
+    transpose();
+
+    for (let index = levels.length - 2; index >= 0; index--) {
+      const level = levels[index];
+      const nextLevel = levels[index + 1];
+      working.set(
+        level,
+        reorderLayer(
+          working.get(level)!,
+          successors,
+          slotPositions(working.get(nextLevel)!),
+        ),
+      );
+    }
+    keepIfBetter();
+    transpose();
+  }
+
+  if (scoreGeometry) {
+    const baselineIntrusions = countCandidateNodeIntrusions(
+      baselineLayers,
+      localLevelOf,
+      connections,
+      geometryPairs ?? [],
+    );
+    if (baselineIntrusions < bestScore.nodeIntrusions) return baselineLayers;
+  }
+  return best;
 }
 
 /**
@@ -247,9 +845,10 @@ function classifyNode(
  *  3. Sort components left-to-right: root component first, end-only component
  *     last, all other components alphabetically in the middle.
  *  4. Assign each component its own BFS "level" columns from root-like or
- *     in-degree-zero seeds. Within each local level, stack nodes vertically,
- *     centred at y = 0.
- *  5. Compute the bounding box of the main flow, then place each segregated
+ *     in-degree-zero seeds. Use fixed barycentric sweeps and presentation-only
+ *     virtual slots to reduce crossings and reserve long-edge corridors.
+ *  5. Stack the ordered real/virtual slots vertically, centred at y = 0.
+ *  6. Compute the bounding box of the main flow, then place each segregated
  *     category in its own horizontal row below it, left-aligned with the flow.
  *
  * Segregated row order: Dictionary → Provider → Module → Entity → __unknown__.
@@ -305,13 +904,15 @@ function computeLayout(
     undirectedEdges.get(conn.target)?.add(conn.source);
     inDegree.set(conn.target, (inDegree.get(conn.target) ?? 0) + 1);
   }
+  for (const neighbors of outEdges.values()) neighbors.sort();
 
   // Seeds: flow nodes with in-degree 0, or explicitly typed as entry_point.
   // These are used for cycle detection only. Each component chooses its own
   // seeds again during placement.
   const allSeeds = flowNodes
     .filter(n => inDegree.get(n.alias) === 0 || n.types.includes('entry_point') || isRootLikeNode(n))
-    .map(n => n.alias);
+    .map(n => n.alias)
+    .sort();
 
   // ── Cycle detection: find back-edges via iterative DFS ────────────────────
   // Back-edges (edges pointing to an ancestor in the DFS tree) cause the
@@ -354,7 +955,7 @@ function computeLayout(
 
     // Prefer starting from seeds so the DFS tree mirrors the BFS flow.
     for (const s of allSeeds) dfsFrom(s);
-    for (const n of flowNodes) dfsFrom(n.alias);
+    for (const alias of [...flowAliases].sort()) dfsFrom(alias);
   }
 
   // ── Step 3: Connected components for independent flow trees ───────────────
@@ -393,6 +994,23 @@ function computeLayout(
   }
 
   components.sort(compareFlowComponents);
+  const componentIndexByAlias = new Map<string, number>();
+  components.forEach((component, componentIndex) => {
+    component.aliases.forEach(alias => componentIndexByAlias.set(alias, componentIndex));
+  });
+  const connectionsByComponent = components.map(
+    () => [] as MinigraphGraphData['connections'],
+  );
+  for (const connection of connections) {
+    const sourceComponent = componentIndexByAlias.get(connection.source);
+    const targetComponent = componentIndexByAlias.get(connection.target);
+    if (
+      sourceComponent !== undefined &&
+      sourceComponent === targetComponent
+    ) {
+      connectionsByComponent[sourceComponent].push(connection);
+    }
+  }
 
   // ── Step 4: BFS layout for each component, placed left-to-right ───────────
   const levelOf = new Map<string, number>();
@@ -400,7 +1018,7 @@ function computeLayout(
   let componentLevelOffset = 0;
   let componentXOffset = 0;
 
-  for (const component of components) {
+  for (const [componentIndex, component] of components.entries()) {
     const componentAliases = new Set(component.aliases);
     const componentSeeds = component.nodes
       .filter(n => inDegree.get(n.alias) === 0 || n.types.includes('entry_point') || isRootLikeNode(n))
@@ -420,8 +1038,9 @@ function computeLayout(
     // BFS to assign local levels within the component. This preserves the
     // original left-to-right topological flow, but prevents independent trees
     // from sharing the same column set.
-    while (queue.length > 0) {
-      const current = queue.shift()!;
+    let queueIndex = 0;
+    while (queueIndex < queue.length) {
+      const current = queue[queueIndex++];
       const currentLevel = localLevelOf.get(current) ?? 0;
       for (const neighbor of outEdges.get(current) ?? []) {
         // Skip cross-component edges defensively; components were built from
@@ -446,37 +1065,39 @@ function computeLayout(
       if (!localLevelOf.has(alias)) localLevelOf.set(alias, maxLocalLevel + 1);
     }
 
-    const byLocalLevel = new Map<number, string[]>();
-    for (const [alias, level] of localLevelOf) {
-      if (!byLocalLevel.has(level)) byLocalLevel.set(level, []);
-      byLocalLevel.get(level)!.push(alias);
-    }
+    const orderedLayers = minimizeCrossings(
+      localLevelOf,
+      connectionsByComponent[componentIndex],
+      backEdges,
+      nodeHeights,
+    );
 
     // Assign pixel positions for this component's flow — centred at y = 0 per
-    // local column. Per-node heights prevent overlap when nodes are taller than
-    // NODE_HEIGHT. componentXOffset gives each independent tree a fixed pixel
-    // gap from the previous tree instead of tying tree spacing to column count.
+    // local column. Virtual slots reserve candidate clearance for edges that
+    // span intermediate levels; actual Bezier/body scoring rejects collisions.
+    // componentXOffset gives each independent tree a fixed pixel gap from the
+    // previous tree instead of tying tree spacing to column count.
     let componentMaxX = componentXOffset;
-    for (const [localLevel, aliases] of [...byLocalLevel].sort(([a], [b]) => a - b)) {
-      const sortedAliases = aliases.slice().sort();
-      const totalHeight = sortedAliases.reduce(
-        (sum, alias) => sum + (nodeHeights.get(alias) ?? NODE_HEIGHT),
+    for (const [localLevel, slots] of [...orderedLayers].sort(([a], [b]) => a - b)) {
+      const totalHeight = slots.reduce(
+        (sum, slot) => sum + slot.height,
         0,
-      ) + Math.max(0, sortedAliases.length - 1) * ROW_GAP;
+      ) + Math.max(0, slots.length - 1) * ROW_GAP;
 
       let cursorY = -totalHeight / 2;
       const globalLevel = componentLevelOffset + localLevel;
       const x = componentXOffset + localLevel * (NODE_WIDTH + COL_GAP);
       componentMaxX = Math.max(componentMaxX, x);
-      sortedAliases.forEach((alias) => {
-        const nodeHeight = nodeHeights.get(alias) ?? NODE_HEIGHT;
-        levelOf.set(alias, globalLevel);
-        positions.set(alias, {
-          x,
-          y: cursorY,
-        });
-        cursorY += nodeHeight + ROW_GAP;
-      });
+      for (const slot of slots) {
+        if (slot.alias) {
+          levelOf.set(slot.alias, globalLevel);
+          positions.set(slot.alias, {
+            x,
+            y: cursorY,
+          });
+        }
+        cursorY += slot.height + ROW_GAP;
+      }
     }
 
     const componentMaxLevel = localLevelOf.size > 0 ? Math.max(...localLevelOf.values()) : 0;
@@ -533,8 +1154,10 @@ function computeLayout(
  */
 export function transformGraphData(
   data: MinigraphGraphData,
+  options: { supportsConnectionAuthoring?: boolean } = {},
 ): { nodes: Node<GraphNodeData>[]; edges: Edge<GraphEdgeData>[] } {
   const connections = data.connections ?? [];
+  const supportsConnectionAuthoring = options.supportsConnectionAuthoring === true;
 
   // ── Approximate node heights for layout ────────────────────────────────────
   // Count total outgoing/incoming to get rough handle counts.  The layout only
@@ -585,7 +1208,12 @@ export function transformGraphData(
   // entries to build handle arrays and a connectionIndex → handleId map
   // used when constructing ReactFlow edges.
 
-  interface SideEntry { connIndex: number; peerAlias: string; isBack: boolean }
+  interface SideEntry {
+    connIndex: number;
+    peerAlias: string;
+    isBack: boolean;
+    stableKey: string;
+  }
 
   const rightSide = new Map<string, SideEntry[]>(); // source (fwd out) + back-target (back in)
   const leftSide  = new Map<string, SideEntry[]>(); // target (fwd in)  + back-source (back out)
@@ -596,21 +1224,47 @@ export function transformGraphData(
   }
 
   for (const [i, conn] of connections.entries()) {
+    const stableKey = connectionStableKey(conn);
     if (backEdgeIndices.has(i)) {
       // Back-edge: source exits LEFT, target enters RIGHT
-      leftSide.get(conn.source)!.push({ connIndex: i, peerAlias: conn.target, isBack: true });
-      rightSide.get(conn.target)!.push({ connIndex: i, peerAlias: conn.source, isBack: true });
+      leftSide.get(conn.source)!.push({
+        connIndex: i,
+        peerAlias: conn.target,
+        isBack: true,
+        stableKey,
+      });
+      rightSide.get(conn.target)!.push({
+        connIndex: i,
+        peerAlias: conn.source,
+        isBack: true,
+        stableKey,
+      });
     } else {
       // Forward: source exits RIGHT, target enters LEFT
-      rightSide.get(conn.source)!.push({ connIndex: i, peerAlias: conn.target, isBack: false });
-      leftSide.get(conn.target)!.push({ connIndex: i, peerAlias: conn.source, isBack: false });
+      rightSide.get(conn.source)!.push({
+        connIndex: i,
+        peerAlias: conn.target,
+        isBack: false,
+        stableKey,
+      });
+      leftSide.get(conn.target)!.push({
+        connIndex: i,
+        peerAlias: conn.source,
+        isBack: false,
+        stableKey,
+      });
     }
   }
 
   // Sort each side by peer y-position so handle order matches spatial layout.
   const peerY = (alias: string) => positions.get(alias)?.y ?? 0;
-  for (const entries of rightSide.values()) entries.sort((a, b) => peerY(a.peerAlias) - peerY(b.peerAlias));
-  for (const entries of leftSide.values())  entries.sort((a, b) => peerY(a.peerAlias) - peerY(b.peerAlias));
+  const compareSideEntries = (a: SideEntry, b: SideEntry) =>
+    peerY(a.peerAlias) - peerY(b.peerAlias) ||
+    a.peerAlias.localeCompare(b.peerAlias) ||
+    a.stableKey.localeCompare(b.stableKey) ||
+    a.connIndex - b.connIndex;
+  for (const entries of rightSide.values()) entries.sort(compareSideEntries);
+  for (const entries of leftSide.values())  entries.sort(compareSideEntries);
 
   // Maps from connection index → handle ID, populated during node building.
   const connSourceHandle = new Map<number, string>();
@@ -660,6 +1314,10 @@ export function transformGraphData(
     return {
       id:       n.alias,
       type:     n.types[0] ?? 'default',
+      // React Flow otherwise consumes selection-key pointer events on nodes as
+      // the start of a pane selection box. This class keeps modifier-click
+      // node toggling available while Shift+drag from empty canvas box-selects.
+      className: 'nokey',
       position: positions.get(n.alias) ?? { x: 0, y: 0 },
       width:  NODE_WIDTH,
       height: nodeHeight,
@@ -672,6 +1330,7 @@ export function transformGraphData(
         targetHandles,
         backSourceHandles,
         backTargetHandles,
+        supportsConnectionAuthoring,
         minHeight:     nodeHeight,
       },
     };

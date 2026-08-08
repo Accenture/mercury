@@ -52,6 +52,16 @@ describe('parseNodeActionTextResult', () => {
     });
   });
 
+  it('parses accepted connection creation text', () => {
+    expect(parseNodeActionTextResult('node root connected to mapper')).toEqual({
+      status: 'accepted',
+      action: 'create-connection',
+      alias: 'root',
+      targetAlias: 'mapper',
+      message: 'node root connected to mapper',
+    });
+  });
+
   it('parses rejected and generic error text', () => {
     expect(parseNodeActionTextResult('node root already exists')).toMatchObject({
       status: 'rejected',
@@ -66,6 +76,19 @@ describe('parseNodeActionTextResult', () => {
     expect(parseNodeActionTextResult('ERROR: bad command')).toMatchObject({
       status: 'error',
       action: null,
+      alias: null,
+    });
+  });
+
+  it('parses connection backend rejections', () => {
+    expect(parseNodeActionTextResult('Source and target nodes must be different')).toMatchObject({
+      status: 'rejected',
+      action: 'create-connection',
+      alias: null,
+    });
+    expect(parseNodeActionTextResult('Syntax: connect {node-A} to {node-B} with {relation}')).toMatchObject({
+      status: 'rejected',
+      action: 'create-connection',
       alias: null,
     });
   });

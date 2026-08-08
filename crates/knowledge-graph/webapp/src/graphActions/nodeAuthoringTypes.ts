@@ -1,5 +1,5 @@
 export type NodeFormSource = 'empty-graph' | 'pane-context-menu' | 'edit-node';
-export type NodeAction = 'create-node' | 'edit-node' | 'delete-node';
+export type NodeAction = 'create-node' | 'edit-node' | 'delete-node' | 'create-connection';
 
 export interface PropertyRow {
   id: string;

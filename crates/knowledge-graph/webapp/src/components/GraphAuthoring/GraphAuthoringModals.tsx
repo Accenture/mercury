@@ -1,11 +1,13 @@
 import NodeDialog from '../NodeDialog/NodeDialog';
+import ConnectionDialog from '../ConnectionDialog/ConnectionDialog';
 import type { NodeFormState } from '../../graphActions/nodeAuthoringTypes';
+import type { ConnectionFormState } from '../../graphActions/connectionAuthoringTypes';
 import type { AuthoringState } from './useGraphAuthoring';
 
 interface GraphAuthoringModalsProps {
   state: AuthoringState;
   validationErrors: Record<string, string>;
-  onFormStateChange: (formState: NodeFormState) => void;
+  onFormStateChange: (formState: NodeFormState | ConnectionFormState) => void;
   onSubmit: () => void;
   onClose: () => void;
 }
@@ -26,6 +28,22 @@ export default function GraphAuthoringModals({
         ? 'disconnected'
         : null;
 
+  if (state.action === 'create-connection') {
+    return (
+      <ConnectionDialog
+        open
+        formState={state.formState}
+        phase={state.phase}
+        lockReason={lockReason}
+        serverMessage={state.serverMessage}
+        validationErrors={validationErrors}
+        onFormStateChange={(formState) => onFormStateChange(formState)}
+        onSubmit={onSubmit}
+        onClose={onClose}
+      />
+    );
+  }
+
   return (
     <NodeDialog
       open
@@ -36,7 +54,7 @@ export default function GraphAuthoringModals({
       lockReason={lockReason}
       serverMessage={state.serverMessage}
       validationErrors={validationErrors}
-      onFormStateChange={onFormStateChange}
+      onFormStateChange={(formState) => onFormStateChange(formState)}
       onSubmit={onSubmit}
       onClose={onClose}
     />

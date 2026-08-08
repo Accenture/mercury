@@ -2,8 +2,7 @@
  * All help markdown files bundled as raw strings via Vite's import.meta.glob.
  *
  * The path is relative to THIS file (src/data/helpContent.ts).
- * It resolves to crates/knowledge-graph/resources/help/ (the engine crate's
- * bundled resources — the Rust analog of the Java jar's classpath resources).
+ * It resolves to crates/knowledge-graph/resources/help/
  *
  * `eager: true`   — all files are included in the bundle; no async loading needed
  *                   (18 files, each < 10 KB — total overhead is negligible).

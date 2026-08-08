@@ -50,6 +50,7 @@ export interface UseWebSocketOptions {
 export interface UseWebSocketReturn {
   connected:        boolean;
   connecting:       boolean;
+  connectionEpoch:  number | null;
   messages:         { id: number; raw: string }[];
   command:          string;
   setCommand:       (value: string) => void;
@@ -117,7 +118,7 @@ export function useWebSocket({ wsPath, storageKeyHistory, payload, addToast, bus
   const ctx = useWebSocketContext();
 
   // Pull this playground's slot from the shared store.
-  const { phase, messages } = ctx.getSlot(wsPath);
+  const { phase, connectionEpoch, messages } = ctx.getSlot(wsPath);
   const connected  = phase === 'connected';
   const connecting = phase === 'connecting';
 
@@ -331,6 +332,7 @@ export function useWebSocket({ wsPath, storageKeyHistory, payload, addToast, bus
   return {
     connected,
     connecting,
+    connectionEpoch,
     messages,
     command,
     setCommand,

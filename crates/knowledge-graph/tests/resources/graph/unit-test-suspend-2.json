@@ -35,8 +35,7 @@
         ],
         "output": [
           "result.count -> model.a_count"
-        ],
-        "suspend": true
+        ]
       }
     },
     {
@@ -54,8 +53,7 @@
         ],
         "output": [
           "result.count -> model.b_count"
-        ],
-        "suspend": true
+        ]
       }
     },
     {

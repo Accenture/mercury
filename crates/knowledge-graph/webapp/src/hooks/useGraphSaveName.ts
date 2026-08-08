@@ -20,13 +20,10 @@ export interface UseGraphSaveNameReturn {
    */
   defaultName:      string;
   /**
-   * Call this after a successful save so the input remembers the chosen name
-   * for subsequent opens of the save form.
-   *
-   * When the name matches the current `untitled-{n}` slot, the slot is marked
-   * as consumed so `resetName` knows to advance the counter on the next clear.
+   * The name confirmed by the most recent successful graph export. Null means
+   * the current working graph has not been exported since its last mutation.
    */
-  setLastSavedName: (name: string) => void;
+  savedName:        string | null;
   /**
    * Call this when the user clears the console / working graph (e.g. via the
    * Clear button). Clears the imported- and last-saved names. The untitled
@@ -35,6 +32,102 @@ export interface UseGraphSaveNameReturn {
    * guaranteeing `untitled-{n}` only exists when `untitled-{n-1}` does (min 1).
    */
   resetName:        () => void;
+}
+
+export interface GraphSaveNameState {
+  importedName:          string | null;
+  lastSavedName:         string | null;
+  isSaved:               boolean;
+  untitledSlotConsumed:  boolean;
+}
+
+export type GraphSaveNameAction =
+  | { type: 'imported'; name: string }
+  | { type: 'exported'; name: string; consumesUntitled: boolean }
+  | { type: 'dirty' }
+  | { type: 'reset' };
+
+export const EMPTY_GRAPH_SAVE_NAME_STATE: GraphSaveNameState = {
+  importedName: null,
+  lastSavedName: null,
+  isSaved: false,
+  untitledSlotConsumed: false,
+};
+
+export function reduceGraphSaveNameState(
+  state: GraphSaveNameState,
+  action: GraphSaveNameAction,
+): GraphSaveNameState {
+  switch (action.type) {
+    case 'imported':
+      return {
+        ...state,
+        importedName: action.name,
+        lastSavedName: null,
+        isSaved: false,
+      };
+    case 'exported':
+      return {
+        ...state,
+        lastSavedName: action.name,
+        isSaved: true,
+        untitledSlotConsumed: state.untitledSlotConsumed || action.consumesUntitled,
+      };
+    case 'dirty':
+      return { ...state, isSaved: false };
+    case 'reset':
+      return { ...EMPTY_GRAPH_SAVE_NAME_STATE };
+  }
+}
+
+// Session-bound state survives Playground remounts during SPA navigation but
+// resets on hard refresh because this module is re-evaluated.
+interface CachedGraphSaveNameState {
+  connectionEpoch: number;
+  state: GraphSaveNameState;
+}
+
+const graphSaveNameStates = new Map<string, CachedGraphSaveNameState>();
+
+export function shouldRestoreGraphSaveNameState(
+  cachedEpoch: number | undefined,
+  connected: boolean,
+  connectionEpoch: number | null,
+): boolean {
+  return connected && connectionEpoch !== null && cachedEpoch === connectionEpoch;
+}
+
+interface GraphSaveNameEventHandlers {
+  onImported: (name: string) => void;
+  onExported: (name: string) => void;
+  onDirty:    () => void;
+  onReset:    () => void;
+}
+
+/** Subscribe the save-name state machine to the protocol events it owns. */
+export function subscribeGraphSaveNameEvents(
+  bus: ProtocolBus,
+  handlers: GraphSaveNameEventHandlers,
+): () => void {
+  const unsubscribeImport = bus.on('command.importGraph', event => {
+    handlers.onImported(event.graphName);
+  });
+  const unsubscribeExport = bus.on('graph.exported', event => {
+    handlers.onExported(event.graphName);
+  });
+  const unsubscribeMutation = bus.on('graph.mutation', () => {
+    handlers.onDirty();
+  });
+  const unsubscribeReset = bus.on('session.reset', () => {
+    handlers.onReset();
+  });
+
+  return () => {
+    unsubscribeImport();
+    unsubscribeExport();
+    unsubscribeMutation();
+    unsubscribeReset();
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -50,23 +143,24 @@ export interface UseGraphSaveNameReturn {
  *    `untitled-{n}` slot has been consumed by an actual save — clearing without
  *    ever saving reuses the same slot number, so numbers are never skipped.
  *  - `untitledSlotConsumed` tracks whether the current slot has been used.
- *    It is set to true only when setLastSavedName is called with a name that
- *    matches the active untitled fallback, and is reset to false on resetName().
- *  - `importedName` is derived reactively from the WebSocket message stream
- *    using a message-ID watermark (same pattern as useAutoMockUpload /
- *    useAutoGraphRefresh) so stale history is never replayed on mount.
- *  - `lastSavedName` is plain component state — it is intentionally NOT
- *    persisted to localStorage; it is reset on `resetName()` so a cleared
- *    graph starts fresh.
+ *  - `importedName` is derived reactively from `command.importGraph` events.
+ *  - Name and clean/dirty state live in a module-scoped map so they survive SPA
+ *    navigation but not a hard refresh. A mutation clears only the clean flag,
+ *    preserving the last export name as the next save-form default.
  *
  * @param storageKey  localStorage key for the untitled counter
  *                    (should be unique per playground, e.g.
  *                    `"minigraph-untitled-counter"`).
  * @param bus         The shared ProtocolBus instance for this playground.
+ * @param connected   Whether this playground currently has a live WebSocket
+ *                    session. A disconnect invalidates session-bound names.
+ * @param connectionEpoch Stable identity for the current WebSocket connection.
  */
 export function useGraphSaveName(
-  storageKey: string,
-  bus:        ProtocolBus,
+  storageKey:      string,
+  bus:             ProtocolBus,
+  connected:       boolean,
+  connectionEpoch: number | null,
 ): UseGraphSaveNameReturn {
 
   // ── Untitled counter ──────────────────────────────────────────────────────
@@ -74,63 +168,88 @@ export function useGraphSaveName(
   // lifetime.  Starts at 1 for a fresh localStorage (i.e. first ever save).
   const [untitledCounter, setUntitledCounter] = useLocalStorage<number>(storageKey, 1);
 
-  // ── Untitled slot consumed flag ───────────────────────────────────────────
-  // True only after setLastSavedName is called with a name that matches the
-  // current `untitled-{n}` fallback.  Tells resetName() whether to advance
-  // the counter.  Stored in a ref (not state) because it is write-only from
-  // the hook's perspective — it never drives a re-render on its own.
-  const untitledSlotConsumedRef = useRef(false);
+  // ── Session-bound name state ───────────────────────────────────────────────
+  const [nameState, setNameState] = useState<GraphSaveNameState>(
+    () => {
+      const cached = graphSaveNameStates.get(storageKey);
+      if (
+        cached &&
+        shouldRestoreGraphSaveNameState(
+          cached.connectionEpoch,
+          connected,
+          connectionEpoch,
+        )
+      ) {
+        return cached.state;
+      }
+      return { ...EMPTY_GRAPH_SAVE_NAME_STATE };
+    },
+  );
+  const nameStateRef = useRef(nameState);
 
-  // ── Imported name ─────────────────────────────────────────────────────────
-  // Updated whenever the user sends `import graph from {name}`.
-  // Cleared by resetName().
-  const [importedName, setImportedName] = useState<string | null>(null);
-
-  // ── Last-saved name ───────────────────────────────────────────────────────
-  // Updated by the caller via setLastSavedName after a successful save.
-  // Cleared by resetName().
-  const [lastSavedName, setLastSavedNameState] = useState<string | null>(null);
-
-  // ── Message-ID watermark ──────────────────────────────────────────────────
-  // Replaced by bus subscription — no watermark needed.
-
-  // ── Scan new messages for import-graph echoes ─────────────────────────────
-  useEffect(() => {
-    return bus.on('command.importGraph', (event) => {
-      setImportedName(event.graphName);
-      setLastSavedNameState(null);
-    });
-  }, [bus]);
-
-  // ── Public setters ────────────────────────────────────────────────────────
+  const updateNameState = useCallback((action: GraphSaveNameAction) => {
+    const next = reduceGraphSaveNameState(nameStateRef.current, action);
+    nameStateRef.current = next;
+    if (action.type === 'reset') {
+      graphSaveNameStates.delete(storageKey);
+    } else if (connectionEpoch !== null) {
+      graphSaveNameStates.set(storageKey, { connectionEpoch, state: next });
+    }
+    setNameState(next);
+  }, [connectionEpoch, storageKey]);
 
   const setLastSavedName = useCallback((name: string) => {
-    setLastSavedNameState(name);
-    // Mark the current untitled slot as consumed when the user saves with the
-    // untitled fallback name — but NOT when they rename it to something else.
-    // This is read by resetName() to decide whether to advance the counter.
-    if (name === `untitled-${untitledCounter}`) {
-      untitledSlotConsumedRef.current = true;
-    }
-  }, [untitledCounter]);
+    updateNameState({
+      type: 'exported',
+      name,
+      consumesUntitled: name === `untitled-${untitledCounter}`,
+    });
+  }, [untitledCounter, updateNameState]);
 
+  // ── Public reset ───────────────────────────────────────────────────────────
   const resetName = useCallback(() => {
-    setImportedName(null);
-    setLastSavedNameState(null);
-    // Only advance the counter when the current untitled slot was actually used
-    // as a save name.  Clearing without ever saving reuses the same slot so
-    // that `untitled-{n}` only exists in storage when `untitled-{n-1}` does.
-    if (untitledSlotConsumedRef.current) {
+    const cachedState = graphSaveNameStates.get(storageKey)?.state;
+    if (
+      nameStateRef.current.untitledSlotConsumed ||
+      cachedState?.untitledSlotConsumed
+    ) {
       setUntitledCounter(prev => prev + 1);
     }
-    untitledSlotConsumedRef.current = false;
-  }, [setUntitledCounter]);
+    updateNameState({ type: 'reset' });
+  }, [setUntitledCounter, storageKey, updateNameState]);
+
+  const activeConnectionEpochRef = useRef(connectionEpoch);
+  useEffect(() => {
+    const cachedEpoch = graphSaveNameStates.get(storageKey)?.connectionEpoch;
+    if (
+      !connected ||
+      activeConnectionEpochRef.current !== connectionEpoch ||
+      (cachedEpoch !== undefined && cachedEpoch !== connectionEpoch)
+    ) {
+      resetName();
+    }
+    activeConnectionEpochRef.current = connectionEpoch;
+  }, [connected, connectionEpoch, resetName, storageKey]);
+
+  // ── Protocol-driven saved state ───────────────────────────────────────────
+  useEffect(() => {
+    return subscribeGraphSaveNameEvents(bus, {
+      onImported: (name) => updateNameState({ type: 'imported', name }),
+      onExported: setLastSavedName,
+      onDirty: () => updateNameState({ type: 'dirty' }),
+      onReset: resetName,
+    });
+  }, [bus, resetName, setLastSavedName, updateNameState]);
 
   // ── Derived default name ──────────────────────────────────────────────────
   const defaultName =
-    lastSavedName  ??
-    importedName   ??
+    nameState.lastSavedName  ??
+    nameState.importedName   ??
     `untitled-${untitledCounter}`;
 
-  return { defaultName, setLastSavedName, resetName };
+  return {
+    defaultName,
+    savedName: nameState.isSaved ? nameState.lastSavedName : null,
+    resetName,
+  };
 }

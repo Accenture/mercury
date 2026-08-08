@@ -372,7 +372,7 @@ async fn walk_to(
             execution_complete(po, instance, &parent_span).await;
             Ok(())
         }
-        None if is_suspensible(&node) => {
+        None if has_suspend_edge(instance, &node) => {
             walk_to_suspend_node(platform, po, instance, &node, &parent_span).await;
             Ok(())
         }
@@ -380,12 +380,29 @@ async fn walk_to(
     }
 }
 
-/// A node marked with the reserved property `suspend=true` routes to the
-/// `suspend` node after its skill completes (only on the NEXT directive).
-fn is_suspensible(node: &Arc<SimpleNode>) -> bool {
-    node.get_property(crate::suspend::SUSPEND_ALIAS)
-        .map(|v| display(&v).eq_ignore_ascii_case("true"))
+/// A working node with a drawn edge to the reserved `suspend` node redirects there
+/// when its skill completes (edge mode, only on the NEXT directive) - the drawn edge
+/// is the declaration; the retired `suspend=true` property is ignored.
+fn has_suspend_edge(instance: &Arc<GraphInstance>, node: &Arc<SimpleNode>) -> bool {
+    instance
+        .graph
+        .get_forward_links(node.get_alias())
+        .map(|links| {
+            links
+                .iter()
+                .any(|n| n.get_alias() == crate::suspend::SUSPEND_ALIAS)
+        })
         .unwrap_or(false)
+}
+
+/// A suspension point with no drawn edge to the suspend node jumped there from a
+/// decision's IF-THEN-ELSE (jump mode): a resumed run RE-EXECUTES it against the
+/// new request input instead of continuing past it.
+fn is_jump_mode_checkpoint(instance: &Arc<GraphInstance>, alias: &str) -> bool {
+    match instance.graph.find_node_by_alias(alias) {
+        Ok(Some(node)) => !has_suspend_edge(instance, &node),
+        _ => false,
+    }
 }
 
 /// The quality gate already rejected suspension on routing skills, a missing
@@ -440,19 +457,30 @@ async fn resume_traversal(
 ) {
     match instance.graph.find_node_by_alias(alias) {
         Ok(Some(resumed)) => {
-            // the suspension point already ran before suspension - do not
-            // re-execute it
-            instance
-                .node_seen
-                .lock()
-                .expect("node seen")
-                .insert(alias.to_string(), true);
-            instance
-                .skill_run
-                .lock()
-                .expect("skill run")
-                .insert(alias.to_string(), true);
-            let _ = walk_next(platform, po, instance, &resumed, parent_span, true).await;
+            if is_jump_mode_checkpoint(instance, alias) {
+                // the decision jumped to the checkpoint: re-execute it against the
+                // new request input - its forward links are outcome alternatives,
+                // not branches (clear the marks restored from the suspension record
+                // so the walk dispatches)
+                instance.node_seen.lock().expect("node seen").remove(alias);
+                instance.skill_run.lock().expect("skill run").remove(alias);
+                let _ = walk(platform, po, instance, resumed, None, parent_span.clone()).await;
+            } else {
+                // the suspension point (drawn checkpoint edge) already ran before
+                // suspension - do not re-execute it; continue along its other
+                // forward links
+                instance
+                    .node_seen
+                    .lock()
+                    .expect("node seen")
+                    .insert(alias.to_string(), true);
+                instance
+                    .skill_run
+                    .lock()
+                    .expect("skill run")
+                    .insert(alias.to_string(), true);
+                let _ = walk_next(platform, po, instance, &resumed, parent_span, true).await;
+            }
         }
         _ => {
             send_error(
@@ -583,7 +611,7 @@ async fn next_or_jump(
     if let Some(alias) = next.strip_prefix(crate::suspend::RESUME_PREFIX) {
         resume_traversal(platform, po, instance, alias, parent_span).await;
     } else if next == NEXT {
-        if is_suspensible(&node) {
+        if has_suspend_edge(instance, &node) {
             walk_to_suspend_node(platform, po, instance, &node, parent_span).await;
         } else {
             let _ = walk_next(platform, po, instance, &node, parent_span, false).await;

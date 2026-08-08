@@ -4,7 +4,7 @@ import { resolveBundledHelpTopic } from '../localHelpCommand';
 // getHelpContent uses import.meta.glob (Vite-only) — mock at the module level.
 vi.mock('../../data/helpContent', () => ({
   getHelpContent: (topic: string): string | null => {
-    // Simulate the bundled topics that exist in src/main/resources/help/
+    // Simulate the bundled topics that exist in resources/help/
     const bundled = new Set(['', 'create', 'export', 'import', 'list',
       'tutorial 1', 'tutorial 2', 'tutorial 3', 'tutorial 4', 'tutorial 5', 'tutorial 6',
       'graph-api-fetcher', 'graph-js', 'graph-join', 'graph-extension', 'graph-data-mapper',

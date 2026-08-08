@@ -20,7 +20,7 @@
   {
     "name": "node connected to another",
     "raw": "Node foo connected to bar",
-    "expectedKinds": ["graph.mutation", "docs.response"],
+    "expectedKinds": ["graph.mutation", "minigraph.nodeAction.textResult", "docs.response"],
     "expectedProps": { "mutationType": "node-mutation" }
   },
   {

@@ -20,30 +20,40 @@ persists its workflow state - the "model" namespace - under the business correla
 run completes normally. A later request with the same correlation ID restores that state and
 continues past the checkpoint without re-executing it. Three vocabulary pieces make this work:
 
-1. the "suspend" node - a reserved node name (like root and end) with the "graph.suspend" skill;
-   traversal jumps to it by name. ONE suspend node serves every checkpoint in the graph.
-2. a suspensible node - any skilled node with the "suspend=true" property; it routes to the
-   suspend node after its skill completes
+1. the "suspend" node - a reserved node name (like root and end) with the "graph.suspend" skill.
+   ONE suspend node serves every checkpoint in the graph, reached two ways: a working node with
+   a DRAWN EDGE to it suspends when its skill completes (edge mode - the edge is the
+   declaration, no property needed), and a decision jumps to it by returning "suspend" from its
+   IF-THEN-ELSE (jump mode - the decision is RE-EXECUTED against the new input on every resume)
+2. a checkpoint node - any working node (graph.data.mapper here; graph.task, graph.api.fetcher
+   and graph.extension work the same way) that draws its checkpoint edge to "suspend" plus a
+   continuation edge to the next step; a resumed run continues along the continuation and never
+   re-executes the node
 3. the resume node - the "graph.resume" skill placed right after root; it restores a persisted
-   record and jumps past the LAST checkpoint, or lets a fresh transaction flow through - either
-   way it sets "model.run" to "resume" or "fresh" so the graph's own logic can react
+   record and continues at the LAST checkpoint's continuation (or re-executes a jump-mode
+   decision), or lets a fresh transaction flow through - either way it sets "model.run" to
+   "resume" or "fresh" so the graph's own logic can react
 
 The graph navigation is:
 
 ```
-root -> resume -> order (suspend=true) -> check-approval -> approval (suspend=true) -> delivery (suspend=true) -> ship -> end
-                                           |         \-> manager-reject -> end
-                                           +<- await-decision (suspend=true)
+root -> resume -> order -> check-approval -> approval -> delivery -> ship -> end
+                  (edge)       |      \-> manager-reject -> end     (order, approval and
+                               |                                     delivery draw edges
+                               +--jumps to suspend when no valid     to suspend)
+                                  decision - and re-decides on
+                                  every resume
 ```
 
-Each suspensible node captures its actor's input into the model and suspends; each following
+Each checkpoint node captures its actor's input into the model and suspends; each following
 run resumes one checkpoint further. The model is the workflow's durable memory - anything a
 later step needs must be mapped into "model.*" before the checkpoint. The manager's decision
 lands at a graph.math decision node on the order checkpoint's continuation with THREE
 outcomes: an approved decision routes to the next suspension point, an explicit rejection
 routes to a terminal node that reports the manager's reason (the workflow ends), and anything
-else - a missing or unrecognized decision - re-suspends through the await-decision node, so an
-invalid request can never end a long-running workflow by accident.
+else - a missing or unrecognized decision - jumps straight back to "suspend", so an invalid
+request can never end a long-running workflow by accident: the decision re-executes on the
+next resume and re-evaluates whatever arrives.
 
 Create the graph model
 ----------------------
@@ -85,12 +95,13 @@ THEN: reject
 ELSE: order
 ```
 
-Create the three checkpoint nodes. Each captures its actor's input into the model, stages a
-stage-specific reply for the caller (overriding the default suspended response), and carries
-"suspend=true" so traversal routes to the suspend node when it completes. A suspensible node
-is a complete working node - it executes its skill in full and may carry any non-routing
-skill (graph.data.mapper here; graph.task, graph.api.fetcher and graph.extension work the
-same way) - only its exit changes:
+Create the three checkpoint nodes. Each captures its actor's input into the model and stages a
+stage-specific reply for the caller (overriding the default suspended response). No property is
+needed: the drawn edge to the suspend node (you will connect it below) IS the suspension
+declaration. A checkpoint node is a complete working node - it executes its skill in full and
+may carry any non-routing skill (graph.data.mapper here; graph.task, graph.api.fetcher and
+graph.extension work the same way) - only its exit changes. The "Suspensible" type is purely
+visual - it picks the node color in the Playground:
 
 ```
 create node order
@@ -98,7 +109,6 @@ with type Suspensible
 with properties
 purpose=Capture the customer order, then suspend for the store manager
 skill=graph.data.mapper
-suspend=true
 mapping[]=input.body -> model.order
 mapping[]=text(order-submitted; waiting for store manager approval) -> output.body.stage
 mapping[]=model.run -> output.body.run
@@ -111,7 +121,6 @@ with type Suspensible
 with properties
 purpose=Capture the store manager approval, then suspend for the delivery department
 skill=graph.data.mapper
-suspend=true
 mapping[]=input.body -> model.approval
 mapping[]=text(approved; waiting for the delivery department to release the shipment) -> output.body.stage
 mapping[]=model.run -> output.body.run
@@ -124,25 +133,21 @@ with type Suspensible
 with properties
 purpose=Capture the shipment release, then suspend for shipment confirmation
 skill=graph.data.mapper
-suspend=true
 mapping[]=input.body -> model.delivery
 mapping[]=text(released; waiting for shipment confirmation) -> output.body.stage
 mapping[]=model.run -> output.body.run
 mapping[]=model.cid -> output.body.cid
 ```
 
-Create the manager decision. Why a separate decision node? A suspensible node always
-suspends: when its skill completes, traversal routes to the suspend node unconditionally -
-it cannot evaluate the input and choose not to suspend. Any decision must therefore be made
-BEFORE traversal reaches the next suspensible node. That is exactly where check-approval
-sits - on the order checkpoint's continuation - so the manager's input is evaluated first.
-Three outcomes: "approved" continues to the approval checkpoint (which then suspends for the
-delivery department), "rejected" ends the workflow with the manager's reason, and anything
-else re-suspends through await-decision so the workflow keeps waiting. The probe reuses the
-same null-safe idiom as "check-fresh"; the RESET statement clears the seen marks of both
-loop nodes - the traveler and executor never re-execute a node they have seen, so a wait
-loop that revisits check-approval on every resume must reset itself and its partner before
-each pass (an IF that jumps to a node returns immediately, so the RESET runs first):
+Create the manager decision. It sits on the order checkpoint's continuation, so every resumed
+run lands here with the manager's input. Three outcomes: "approved" continues to the approval
+checkpoint, "rejected" ends the workflow with the manager's reason, and anything else JUMPS to
+"suspend" - jump mode. A jump-mode decision draws NO edge to the suspend node (its drawn edges
+are outcome alternatives, and the gate rejects a decision-to-suspend edge); it is re-executed
+against the new request input on every resume, so the workflow simply keeps waiting until an
+explicit "approved" or "rejected" arrives - a wait loop with no extra nodes. The probe reuses
+the same null-safe idiom as "check-fresh". The awaiting reply is staged unconditionally before
+the IFs; the approval and rejection paths overwrite it downstream:
 
 ```
 create node check-approval
@@ -151,13 +156,15 @@ with properties
 purpose=Approved continues, rejected ends the workflow, anything else keeps waiting
 skill=graph.math
 statement[]=MAPPING: text(={input.body.decision}) -> model.approval_probe
-statement[]=RESET: check-approval await-decision
+statement[]=MAPPING: text(awaiting-decision; supply decision approved or rejected for the store manager) -> output.body.stage
+statement[]=MAPPING: model.run -> output.body.run
+statement[]=MAPPING: model.cid -> output.body.cid
 statement[]=IF: {model.approval_probe} == '=approved'
 THEN: approval
 ELSE: next
 statement[]=IF: {model.approval_probe} == '=rejected'
 THEN: manager-reject
-ELSE: await-decision
+ELSE: suspend
 ```
 
 ```
@@ -169,22 +176,6 @@ skill=graph.data.mapper
 mapping[]=text(rejected) -> output.body.stage
 mapping[]=input.body.reason -> output.body.reason
 mapping[]=model.order -> output.body.order
-mapping[]=model.run -> output.body.run
-mapping[]=model.cid -> output.body.cid
-```
-
-Create the wait node - a suspensible mapper whose continuation loops BACK to check-approval:
-an invalid or missing decision re-suspends the workflow and the next resume re-evaluates the
-decision, so only an explicit "approved" or "rejected" moves the workflow forward:
-
-```
-create node await-decision
-with type Suspensible
-with properties
-purpose=No valid decision yet: re-suspend and keep waiting for the store manager
-skill=graph.data.mapper
-suspend=true
-mapping[]=text(awaiting-decision; supply decision approved or rejected for the store manager) -> output.body.stage
 mapping[]=model.run -> output.body.run
 mapping[]=model.cid -> output.body.cid
 ```
@@ -232,8 +223,10 @@ ttl=1h
 create node end
 ```
 
-Connect the nodes. Every suspensible node draws BOTH edges - the checkpoint edge to "suspend"
-and the continuation edge to the next step - so the diagram tells the whole story:
+Connect the nodes. Every checkpoint node draws BOTH edges - the checkpoint edge to "suspend"
+(the suspension declaration) and the continuation edge to the next step (where a resumed run
+continues). The check-approval decision draws only its outcome edges - its waiting path is
+the jump inside the IF-THEN-ELSE:
 
 ```
 connect root to resume with then
@@ -244,9 +237,6 @@ connect order to suspend with checkpoint
 connect order to check-approval with next
 connect check-approval to approval with approved
 connect check-approval to manager-reject with rejected
-connect check-approval to await-decision with waiting
-connect await-decision to suspend with checkpoint
-connect await-decision to check-approval with next
 connect manager-reject to end with then
 connect approval to suspend with checkpoint
 connect approval to delivery with next
@@ -473,12 +463,13 @@ Summary
 -------
 In this session, we expressed a purchase workflow with three human checkpoints as four short
 graph runs keyed by one business correlation ID: one reserved "suspend" node served every
-checkpoint, each suspensible node captured its actor's input into the model and staged its own
-stage response, a graph.math decision at the manager's resumption point routed an approval to
-the next checkpoint, a rejection (with the manager's reason) to the end, and anything else
-back into a re-suspending wait loop (using RESET so the loop nodes can run again on every
-resume), input validation enforced the order-before-decision sequence, and the engine-managed
-"model.run" flag told every reply whether the run was fresh or resumed.
+checkpoint, each checkpoint node declared its suspension with a drawn edge (edge mode),
+captured its actor's input into the model and staged its own stage response, a graph.math
+decision at the manager's resumption point routed an approval to the next checkpoint, a
+rejection (with the manager's reason) to the end, and anything else jumped straight back to
+"suspend" (jump mode - the decision re-executes and re-decides on every resume, so no extra
+wait nodes are needed), input validation enforced the order-before-decision sequence, and the
+engine-managed "model.run" flag told every reply whether the run was fresh or resumed.
 
 Why suspend and resume?
 -----------------------

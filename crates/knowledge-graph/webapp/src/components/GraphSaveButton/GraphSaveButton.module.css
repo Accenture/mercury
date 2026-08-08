@@ -13,12 +13,29 @@
   color: var(--primary-color);
   cursor: pointer;
   white-space: nowrap;
+  min-width: 0;
   transition: background 0.15s, color 0.15s;
 }
 
 .saveBtn:hover:not(:disabled) {
   background: var(--primary-color);
   color: white;
+}
+
+.saveBtnSaved {
+  max-width: min(16rem, 24vw);
+  border-color: var(--success-strong);
+  color: var(--success-strong);
+}
+
+.saveBtnSaved:hover:not(:disabled) {
+  background: var(--success-strong);
+}
+
+.saveBtnLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .saveBtn:disabled {

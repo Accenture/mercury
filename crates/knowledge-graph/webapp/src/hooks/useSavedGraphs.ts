@@ -42,11 +42,10 @@ export interface UseSavedGraphsReturn {
  * isolated namespace (e.g. `"minigraph-saved-graphs"`).
  *
  * The hook is a pure data store — it knows nothing about WebSockets.
- * The save/load orchestration lives in Playground.tsx:
+ * The save/load orchestration lives in `useSavedGraphWorkflow`:
  *
- *  Save:  saveGraph(name) + ws.sendRawText(`export graph as ${name}`)
- *          → bookmark written to localStorage
- *          → server writes {name}.json to its temp directory
+ *  Save:  server confirms `export graph as {name}` with `graph.exported`
+ *          → saveGraph(name) writes the bookmark to localStorage
  *
  *  Load:  ws.sendRawText(`import graph from ${name}`)
  *          → server reads {name}.json from its temp directory

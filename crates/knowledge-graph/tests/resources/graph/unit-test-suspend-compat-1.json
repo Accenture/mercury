@@ -1,0 +1,62 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "compat: the retired suspend=true property with no drawn edge deploys with a WARN and never suspends",
+        "name": "unit-test-suspend-compat-1"
+      }
+    },
+    {
+      "alias": "step-1",
+      "types": [
+        "task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.counting.step",
+        "suspend": true,
+        "input": [
+          "text(compat-step) -> step",
+          "model.cid -> cid"
+        ],
+        "output": [
+          "text(finished) -> output.body.stage"
+        ],
+        "purpose": "the retired property is ignored - no drawn edge, so the node continues normally"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "step-1",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "step-1",
+      "target": "end",
+      "relations": [
+        {
+          "type": "next",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

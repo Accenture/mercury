@@ -15,7 +15,35 @@ the design rationale in [`docs/design/`](docs/design/).
 
 ### Changed
 
-1. **tutorial-14's manager approval step is now a real decision with three outcomes** (mirrored
+1. **Suspension is a destination: edge-mode checkpoints and jump-mode decisions replace the
+   `suspend=true` property (ADR-0011; mirrors the Java reference engine's ADR-0012 in
+   lock-step).** A suspension point is now declared by **how a node reaches the reserved
+   `suspend` node**, discriminated purely by graph shape. **Edge mode** — a working node with a
+   drawn edge to `suspend` redirects there when its skill completes; the edge is the
+   declaration, a continuation edge is mandatory (compiler-enforced, shape-only — no statement
+   inspection), and a resumed run continues along it without re-executing the node: byte-for-
+   byte the prior suspensible behavior, so **every valid earlier model deploys and behaves
+   identically unmodified** (the prior gate already required the checkpoint edge). **Jump
+   mode** — a `graph.math` decision returns `suspend` from its IF-THEN-ELSE and is
+   **re-executed against the new request input on every resume**, so it re-decides each time:
+   "keep waiting on an invalid decision" is now one jump with no auxiliary wait nodes and no
+   `RESET` bookkeeping (this replaces the wait-loop mechanics described in the entry below;
+   tutorial-14 is remodeled accordingly and its `await-decision` node is gone). The retired
+   `suspend=true` property is accepted and **ignored** for one deprecation window with a
+   compiler WARN. New compiler rules teach the grammar: a routing-skill node must not draw an
+   edge to `suspend` (a decision jumps instead), and the `suspend` node cannot be an exception
+   handler (`exception=suspend` rejected). A jump-only `suspend` node is anchored behind an
+   island (`root → island → suspend`) to satisfy the no-orphan rule — an island's outgoing
+   edges are never traversed. Also fixes a latent divergence: the documentation always said a
+   plain edge into `suspend` is a suspension point, but the walker previously fanned out
+   (checkpoint and continuation in parallel); the walker now honors the documented contract.
+   The persisted record contract and the store put/get contract are unchanged — records
+   written by earlier releases resume correctly. The graph model, gate rules, teaching errors
+   and AI-catalog suspend entries are identical to the Java engine's; covered by engine tests
+   for both modes, the deprecation-compat shapes, the new gate rules and a jump-mode wait loop
+   across consecutive suspensions.
+
+2. **tutorial-14's manager approval step is now a real decision with three outcomes** (mirrored
    from the Java reference engine, same-day). The purchase workflow's store manager can approve —
    the graph suspends for the delivery department as before — or **reject with a reason**: a
    `graph.math` decision at the manager's resumption point routes an explicit rejection to a

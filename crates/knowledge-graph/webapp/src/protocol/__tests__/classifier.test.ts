@@ -175,4 +175,61 @@ describe('classifier — invariants', () => {
       message: 'node root not found',
     }));
   });
+
+  it('emits connection success as both graph mutation and node-action text result', () => {
+    const events = classifyMessage(1, 'node root connected to mapper');
+    const kinds = events.map(e => e.kind);
+    expect(kinds).toContain('graph.mutation');
+    expect(kinds).toContain('minigraph.nodeAction.textResult');
+    expect(events).toContainEqual(expect.objectContaining({
+      kind: 'minigraph.nodeAction.textResult',
+      status: 'accepted',
+      action: 'create-connection',
+      alias: 'root',
+      targetAlias: 'mapper',
+      message: 'node root connected to mapper',
+    }));
+  });
+
+  it('emits session collaboration events from backend text', () => {
+    const started = classifyMessage(1, 'session ws-123456-1 started\nCompanion endpoint: /api/companion/ws-123456-1');
+    expect(started).toContainEqual(expect.objectContaining({
+      kind: 'minigraph.session.started',
+      sessionId: 'ws-123456-1',
+      companionEndpoint: '/api/companion/ws-123456-1',
+    }));
+
+    const status = classifyMessage(2, [
+      'Session ws-178443-2 started since 2026-06-02 10:20:32.054',
+      'subscribed to ws-111111-1',
+      'subscribed by [ws-485844-4, ws-222222-3]',
+    ].join('\n'));
+    expect(status).toContainEqual(expect.objectContaining({
+      kind: 'minigraph.session.status',
+      sessionId: 'ws-178443-2',
+      subscribedTo: 'ws-111111-1',
+      subscribers: ['ws-485844-4', 'ws-222222-3'],
+    }));
+
+    const subscribeResult = classifyMessage(3, 'Subscribed to ws-178443-2');
+    expect(subscribeResult).toContainEqual(expect.objectContaining({
+      kind: 'minigraph.session.commandResult',
+      command: 'subscribe',
+      status: 'accepted',
+      sessionId: 'ws-178443-2',
+    }));
+
+    const notification = classifyMessage(4, 'ws-485844-4 unsubscribed from your session');
+    expect(notification).toContainEqual(expect.objectContaining({
+      kind: 'minigraph.session.notification',
+      type: 'subscriber-left',
+      sessionId: 'ws-485844-4',
+    }));
+  });
+
+  it('does not classify session command echoes as session events', () => {
+    const events = classifyMessage(1, '> session subscribe ws-178443-2');
+    expect(events.map(e => e.kind)).not.toContain('minigraph.session.commandResult');
+    expect(events.map(e => e.kind)).toContain('command.echo');
+  });
 });

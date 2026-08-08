@@ -1,0 +1,161 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "jump-mode suspension: the gate decision jumps to the island-anchored suspend node and is re-executed on every resume",
+        "name": "unit-test-suspend-6"
+      }
+    },
+    {
+      "alias": "resume",
+      "types": [
+        "Resume"
+      ],
+      "properties": {
+        "skill": "graph.resume",
+        "task": "v1.file.state.store",
+        "purpose": "Restore workflow state if this transaction was suspended earlier"
+      }
+    },
+    {
+      "alias": "gate",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(={input.body.decision}) -> model.decision_probe",
+          "MAPPING: text(waiting) -> output.body.stage",
+          "MAPPING: model.run -> output.body.run",
+          "IF: {model.decision_probe} == '=go'\nTHEN: step-2\nELSE: suspend"
+        ],
+        "purpose": "jump mode: 'go' proceeds, anything else jumps to the checkpoint - re-executed against each new request on resume"
+      }
+    },
+    {
+      "alias": "step-2",
+      "types": [
+        "task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.counting.step",
+        "input": [
+          "text(go-step) -> step",
+          "model.cid -> cid"
+        ],
+        "output": [
+          "result -> output.body",
+          "model.run -> output.header.x-run"
+        ],
+        "purpose": "the continuing path after an approved decision"
+      }
+    },
+    {
+      "alias": "island",
+      "types": [
+        "island"
+      ],
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "anchor: keeps the jump-only suspend node non-orphan while plain traversal stops here"
+      }
+    },
+    {
+      "alias": "suspend",
+      "types": [
+        "Suspend"
+      ],
+      "properties": {
+        "skill": "graph.suspend",
+        "task": "v1.file.state.store",
+        "ttl": "30s",
+        "purpose": "reachable only by jumping from the gate decision"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "resume",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "resume",
+      "target": "gate",
+      "relations": [
+        {
+          "type": "fresh",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "gate",
+      "target": "step-2",
+      "relations": [
+        {
+          "type": "go",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "root",
+      "target": "island",
+      "relations": [
+        {
+          "type": "anchor",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "island",
+      "target": "suspend",
+      "relations": [
+        {
+          "type": "anchor",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "suspend",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "step-2",
+      "target": "end",
+      "relations": [
+        {
+          "type": "next",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}
