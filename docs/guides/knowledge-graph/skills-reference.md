@@ -329,11 +329,12 @@ ttl=2d
 ```
 
 The node carrying this skill **must be named `suspend`** — a reserved alias like `root`/`end`.
-Two ways in: a **working node with a drawn edge** to `suspend` suspends when its skill completes
-(edge mode — the edge is the declaration; a continuation edge is mandatory and the node is never
-re-executed on resume), and a **decision jumps** to it by returning `suspend` from its
-IF-THEN-ELSE (jump mode — the decision re-executes against the new input on every resume; it
-must not draw an edge to `suspend`). The retired `suspend=true` property is ignored (deprecation
+Two patterns reach it, named after the node that pauses: a **checkpoint node** — a working node
+with a drawn edge to `suspend` — pauses when its skill completes (the edge is the declaration; a
+continuation edge is mandatory and the node is never re-executed on resume), and a **decision
+node** pauses by returning `suspend` from its IF-THEN-ELSE (the decision re-executes against the
+new input on every resume; it must not draw an edge to `suspend`). The ADRs call these shapes
+*edge mode* and *jump mode*. The retired `suspend=true` property is ignored (deprecation
 WARN). `ttl` is **mandatory with no default** (duration syntax `20s/5m/2h/2d`) — it becomes the
 store record's expiry. Unless the graph staged its own `output.*`, the caller of the suspended
 run receives `{"type": "suspended", "cid": ...}`.
@@ -346,8 +347,8 @@ model **before** the checkpoint. Full story: [Workflow Suspension](workflow-susp
 ## graph.resume {#resume}
 
 Restores the workflow state persisted by [`graph.suspend`](#suspend) and continues traversal at
-the recorded suspension point — **past an edge-mode checkpoint without re-executing it**, or by
-**re-executing a jump-mode decision** against the new request input. Also a superset of
+the recorded suspension point — **past a checkpoint node without re-executing it**, or by
+**re-executing a decision node** against the new request input. Also a superset of
 `graph.task` — the `task` property names the store function (`type=get`, body `{cid}`),
 restoration is encapsulated, no mapping on the node.
 
