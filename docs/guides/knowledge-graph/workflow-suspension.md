@@ -123,7 +123,7 @@ until one moves the workflow forward:
 flowchart LR
     d{"decision"} -->|approved| a["next step"]
     d -->|rejected| t["terminal step"]
-    d -.->|"returns 'suspend' - waits, then<br>re-decides on the next request"| d
+    d -.->|"waiting..."| d
     r(["root"]) --> i["island"] --> s[["suspend"]]
 ```
 
