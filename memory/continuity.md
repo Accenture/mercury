@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.4** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-08 | agent: Claude Code (2026-08-08-022929)
+- **last_session:** 2026-08-08 | agent: Claude Code (2026-08-09-043233)
 - **last_review:** 2026-08-07 | through 2026-08-07-150018.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -166,6 +166,23 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [x] (lock-step — **MERGED 2026-08-08 as mercury PR #197, merge `79212bc0` carrying
+  `0530bd13`, CI green; rides the next release**; mirrors the Java engine's
+  [PR #267](https://github.com/Accenture/mercury-composable/pull/267), squash `e16f4b40`)
+  **graph.task `model.*` input staging (Event Script parity) + tutorial-13 as an HTTP
+  client by configuration + the default-Accept client ruling.** stage_model_variable in
+  skills.rs (guarded model.* RHS → state machine); tutorial-13/help byte-identical to
+  Java (async.http.request, dynamic variables, ${...} load-time substitution, explicit
+  headers.accept + headers.x-ttl); v1.hello.task mock retired; unit-test-task-6 gate
+  negative; playground dry-run twin (ephemeral-port harness re-points the
+  rest.server.port override at the bound port). **Eric's ruling: the async HTTP client
+  sends a default `Accept: */*` when the caller gives none** (Java reactor-netty parity;
+  both REST edges omit response content-type absent Accept, so the same model previously
+  decoded JSON on Java and returned bytes here); explicit accept never overridden,
+  wire-echo pinned both ways. Also repaired the INCREMENTS ledger (78/79 reconstructed,
+  tail re-ordered 76→83, Overview extended). Increment 83.
+  <!-- id: thread-graph-task-model-staging-rust | created: 2026-08-08 | last_used: 2026-08-08 | uses: 1 | tier: working | origin: 2026-08-09-043233 -->
 
 - [x] (release — SHIPPED AND PUBLISHED 2026-08-08, **lock-step with the Java engine
   at v4.11.4**) **v4.11.4 — the suspend/resume rationalization release.** Release
