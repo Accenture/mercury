@@ -15,7 +15,7 @@
 //
 
 //! End-to-end graph execution — parity ports of the Java `GraphTests`
-//! (tutorials 1/2/4/7/8/9/13) and `GraphTaskTest` (unit-test-task-1..5),
+//! (tutorials 1/2/4/7/8/9/13) and `GraphTaskTest` (unit-test-task-1..6),
 //! running the real `graph-executor` flow through the flow engine. Tutorials
 //! needing `graph.api.fetcher` / `graph.extension` join at K-5/K-6.
 //! Rust-supplement graphs (listed in `graphs.yaml` like everything else —
@@ -263,8 +263,8 @@ impl ComposableFunction for DemoPoJoTask {
     }
 }
 
-// `v1.hello.task`, `mock.mdm.profile`, and `mock.account.details` are now
-// provided by the engine's dev-gated mocks (`knowledge_graph::mock`, each
+// `mock.mdm.profile` and `mock.account.details` are provided by the engine's
+// dev-gated mocks (`knowledge_graph::mock`, each
 // `#[optional_service("app.env=dev")]`); with `app.env: dev` in this crate's
 // test `application.yml` they register automatically — no local copies needed.
 
@@ -1295,21 +1295,27 @@ async fn graphs_run_end_to_end_like_java(platform: &Platform) {
     let mm = body_map(&reply);
     assert_eq!(Some(Value::from(30.0)), mm.get_element("sum"));
 
-    // --- tutorial 13: graph.task invoking a composable function
+    // --- tutorial 13: graph.task invoking the AsyncHttpClient - the input
+    // mapping stages 'model.person_id' and resolves it as a dynamic variable
+    // in the url; success proves CompileGraph resolved ${rest.server.port:8080}
+    // when the deployed model was loaded
     let reply = run_graph(
         &platform,
         "tutorial-13",
-        serde_json::json!({"name": "world", "amount": 21}),
+        serde_json::json!({"person_id": 100}),
         serde_json::json!({}),
     )
     .await;
     let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("100")), mm.get_element("profile.id"));
+    assert_eq!(Some(Value::from("Peter")), mm.get_element("profile.name"));
     assert_eq!(
-        Some(Value::from("Hello, world")),
-        mm.get_element("greeting")
+        Some(Value::from("100 World Blvd")),
+        mm.get_element("profile.address")
     );
-    assert_eq!(Some(Value::from(42.0)), mm.get_element("doubled"));
-    assert_eq!(Some(Value::from("minigraph")), mm.get_element("app"));
+    // 'text(5000) -> headers.x-ttl' sets the HTTP timeout and rides the wire
+    // as the X-TTL request header - the mock echoes what it observed
+    assert_eq!(Some(Value::from("5000")), mm.get_element("observed_ttl"));
 }
 
 async fn graph_task_matches_java_semantics(platform: &Platform) {
@@ -1334,6 +1340,13 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
         mm.get_element("hello_header")
     );
     assert_eq!(Some(Value::from(200.0)), mm.get_element("doubled"));
+    // 'text(alpha) -> model.token' stages a model variable (Event Script
+    // parity) and the next entry references it as a dynamic variable into a
+    // composite body path
+    assert_eq!(
+        Some(Value::from("Bearer alpha")),
+        mm.get_element("received.nested.auth")
+    );
     // the function's response header maps to the graph output header
     assert_eq!(
         Some("demo"),
@@ -1403,6 +1416,39 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
     let text = event_script::conversions::to_json_string(reply.body());
     assert!(
         text.contains("does not exist"),
+        "unexpected error response: {text}"
+    );
+
+    // --- tutorial-13 negative: the mock mdm service throws for an unknown
+    // person id and the graph returns the HTTP error as its output
+    let reply = run_graph(
+        &platform,
+        "tutorial-13",
+        serde_json::json!({"person_id": 999}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_ne!(200, reply.status());
+    let text = event_script::conversions::to_json_string(reply.body());
+    assert!(
+        text.contains("Profile 999 not found"),
+        "unexpected error response: {text}"
+    );
+
+    // --- unit-test-task-6: an input mapping must not overwrite engine-managed
+    // model metadata - the deployment gate rejects the graph so it answers 404
+    // as if nonexistent (compiled-or-404)
+    let reply = run_graph(
+        &platform,
+        "unit-test-task-6",
+        serde_json::json!({"hello": "world"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(404, reply.status());
+    let text = event_script::conversions::to_json_string(reply.body());
+    assert!(
+        text.contains("not found"),
         "unexpected error response: {text}"
     );
 }

@@ -242,6 +242,10 @@ For `POST`, `PUT`, and `PATCH` (other methods send no body):
     The Java client serializes a map body as XML when the content type says so; the XML writer
     is not ported — a map body is always JSON. Set the `content-type` header accordingly.
 
+When the caller sets no `accept` header, the client sends a default `Accept: */*` — matching
+the Java engine's HTTP client behavior — so a JSON response decodes into a map either way.
+Declaring `headers.accept` explicitly remains the best practice.
+
 ### Response body decoding
 
 The reply envelope carries the HTTP status, all response headers, and a body decoded by the
@@ -270,6 +274,7 @@ tasks:
       - 'text(GET) -> method'
       - 'text(http://127.0.0.1:8085) -> host'
       - 'text(application/json) -> headers.accept'
+      - 'text(5000) -> headers.x-ttl'
       - 'input.query.x1 -> parameters.query.x1'
     process: 'async.http.request'
     description: 'Call the external endpoint'
@@ -282,6 +287,20 @@ tasks:
 `method`, `host`, and `url` are the required keys; `headers.*`, `parameters.query.*`,
 `parameters.path.*`, `body`, and `cookies.*` are optional. See the
 [Flow Schema Reference](flow-schema-reference.md) for the mapping syntax.
+
+### HTTP timeout (X-TTL)
+
+The flow's `ttl` (or a task-level `ttl` override) bounds the **event call** to the
+`async.http.request` function — it cannot reach inside the function to govern the HTTP
+operation itself. Set the HTTP timeout explicitly with the reserved `X-TTL` request header,
+expressed in **milliseconds** (`text(5000) -> headers.x-ttl`). Without it, the client uses
+its own 30-second default, decoupled from your flow deadline.
+
+The same header also rides the outgoing request on the wire, so a downstream Mercury service
+adopts it as its processing deadline — the end-to-end deadline propagation described in
+[REST Automation](rest-automation.md). Give the HTTP call a budget shorter than the calling
+flow or graph deadline, so an HTTP timeout surfaces as a catchable error in the caller
+instead of the caller itself expiring first.
 
 ## See also
 

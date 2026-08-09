@@ -51,11 +51,11 @@ fn manifest_listed_graphs_are_compiled() {
     assert!(!graphs::graph_exists("rust-no-purpose"));
     // 13 tutorials + 21 original fixtures + the 7 valid suspend fixtures
     // (incl. the jump-mode and retired-property compat shapes) + the 3 valid
-    // ttl fixtures (node-ttl ok + the 2 x-ttl wire echoes); the 12
+    // ttl fixtures (node-ttl ok + the 2 x-ttl wire echoes); the 13
     // deliberately-invalid fixtures
-    // (suspend err1-7, no-end, ttl err1-4) are rejected by the mandatory
-    // quality gate. Every graph a runtime test executes MUST be listed
-    // here - deployed execution is compiled-or-404 (no lazy load)
+    // (suspend err1-7, no-end, ttl err1-4, task-6) are rejected by the
+    // mandatory quality gate. Every graph a runtime test executes MUST be
+    // listed here - deployed execution is compiled-or-404 (no lazy load)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
@@ -104,6 +104,10 @@ fn invalid_manifest_graphs_are_not_compiled() {
         "unit-test-ttl-err2",
         "unit-test-ttl-err3",
         "unit-test-ttl-err4",
+        // a graph.task input[] entry writing to reserved model metadata
+        // (model.ttl) - the model-staging RHS is gate-checked like every
+        // other model-writing path
+        "unit-test-task-6",
     ] {
         assert!(
             !graphs::graph_exists(id),
@@ -133,6 +137,8 @@ fn node_ttl_placement_and_metadata_immutability_are_validated() {
         "unit-test-ttl-err2",
         "unit-test-ttl-err3",
         "unit-test-ttl-err4",
+        // graph.task input[] staging into reserved model metadata (model.ttl)
+        "unit-test-task-6",
     ] {
         assert!(
             model_validator::validate(&import(id)).is_err(),

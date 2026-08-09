@@ -33,13 +33,13 @@ use platform_core::{AppError, EventEnvelope, Platform, PostOffice};
 use rmpv::Value;
 
 use crate::common::{
-    combine, count_execute_statements, get_effective_ttl, get_else_statement, get_entries,
-    get_first_word, get_for_each_mapping, get_graph_instance, get_if_statement,
-    get_model_array_size, get_next_model_param_set, get_next_node, get_next_tag, get_node,
-    get_then_statement, handle_data_mapping_entry, invalid, perform_fetcher_output_mapping,
-    reset_nodes, split_blocks, substitute_var_if_any, COMPUTE_TAG, DELAY_TAG, ERROR, EXCEPTION,
-    EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO, NEXT, NODE, NODE_NAME, RESET_TAG, RESULT,
-    SINK, SKILL, STATUS, TARGET, TYPE,
+    assert_mutable_model_target, combine, count_execute_statements, get_effective_ttl,
+    get_else_statement, get_entries, get_first_word, get_for_each_mapping, get_graph_instance,
+    get_if_statement, get_model_array_size, get_next_model_param_set, get_next_node, get_next_tag,
+    get_node, get_then_statement, handle_data_mapping_entry, invalid,
+    perform_fetcher_output_mapping, reset_nodes, split_blocks, substitute_var_if_any, COMPUTE_TAG,
+    DELAY_TAG, ERROR, EXCEPTION, EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO, MODEL_NAMESPACE,
+    NEXT, NODE, NODE_NAME, RESET_TAG, RESULT, SINK, SKILL, STATUS, TARGET, TYPE,
 };
 use crate::math::ExpressionEngine;
 use crate::model::GraphInstance;
@@ -512,12 +512,38 @@ fn build_task_request(
         let lhs = substitute_var_if_any(entry[..sep].trim(), state)?;
         let rhs = entry[sep + MAP_TO.len()..].trim();
         let value = get_lhs_or_constant(&lhs, state).map_err(invalid)?;
-        body = stage_task_parameter(node_name, &mut request_headers, rhs, value, body)?;
+        if rhs.starts_with(MODEL_NAMESPACE) {
+            // Event Script parity: an input entry may stage a model variable that later
+            // entries reference as a dynamic variable, e.g. text(Bearer {model.token})
+            stage_model_variable(node_name, rhs, value, state)?;
+        } else {
+            body = stage_task_parameter(node_name, &mut request_headers, rhs, value, body)?;
+        }
     }
     for (key, value) in request_headers {
         request = request.set_header(&key, &value);
     }
     Ok(request.set_raw_body(body))
+}
+
+fn stage_model_variable(
+    node_name: &str,
+    rhs: &str,
+    value: Option<Value>,
+    state: &mut MultiLevelMap,
+) -> Result<(), AppError> {
+    assert_mutable_model_target(node_name, rhs)?;
+    match value {
+        Some(v) => state.set_element(rhs, v).map_err(invalid)?,
+        None => {
+            if rhs.ends_with(']') && rhs.contains('[') {
+                state.set_element(rhs, Value::Nil).map_err(invalid)?;
+            } else {
+                state.remove_element(rhs);
+            }
+        }
+    }
+    Ok(())
 }
 
 fn stage_task_parameter(
