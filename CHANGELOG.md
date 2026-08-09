@@ -38,7 +38,20 @@ the design rationale in [`docs/design/`](docs/design/).
 
 ### Changed
 
-1. **tutorial-13 now invokes the platform's AsyncHttpClient (`async.http.request`) instead of
+1. **The suspend/resume documentation now teaches two suspension patterns — the checkpoint
+   node and the decision node — named after the node that pauses.** The workflow-suspension
+   guide opens with the two situations the feature serves — waiting for another system (a
+   long batch job that calls back on completion, fully automatic) and waiting for a person
+   (an approval, missing information requested by email) — and describes each pattern in
+   plain language with a small diagram: a checkpoint does its work and pauses (never
+   re-executed on resume; a decision may sit in front of it when the pause is conditional),
+   while a decision chooses — continue, branch, or pause — and re-decides against the new
+   input on every resume. The former *edge mode* / *jump mode* names remain in the ADRs and
+   are noted once as engineering aliases. tutorial-14 help, the `graph.suspend` skill help
+   and the AI grammar (`minigraph-commands.json`) tell the same story; behavior is
+   unchanged.
+
+2. **tutorial-13 now invokes the platform's AsyncHttpClient (`async.http.request`) instead of
    a throwaway demo function.** The `graph.task` tutorial becomes a worked example of an HTTP
    client by configuration: the input mapping stages `model.person_id` from the request body,
    resolves it as a dynamic variable inside the `url`, uses `${rest.server.port:8080}`

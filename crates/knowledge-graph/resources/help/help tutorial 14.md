@@ -5,6 +5,14 @@ orders, the store manager approves (or rejects with a reason, which ends the wor
 delivery department releases the shipment, and the parcel ships to the customer. One graph
 model, four short runs, one correlation ID.
 
+When to use suspension
+----------------------
+Any multi-step process that must WAIT mid-way fits this pattern - waiting for a person (an
+approval, missing information requested by email) or waiting for another system (a batch job
+that takes hours and calls back when done). The workflow pauses instead of ending: its state
+is kept in an external store under the business correlation ID - the ticket or order number -
+and any application instance resumes it when the reply arrives.
+
 Pre-requisite
 -------------
 Workflow suspension persists state to an external store through two composable functions. This
@@ -21,26 +29,26 @@ run completes normally. A later request with the same correlation ID restores th
 continues past the checkpoint without re-executing it. Three vocabulary pieces make this work:
 
 1. the "suspend" node - a reserved node name (like root and end) with the "graph.suspend" skill.
-   ONE suspend node serves every checkpoint in the graph, reached two ways: a working node with
-   a DRAWN EDGE to it suspends when its skill completes (edge mode - the edge is the
-   declaration, no property needed), and a decision jumps to it by returning "suspend" from its
-   IF-THEN-ELSE (jump mode - the decision is RE-EXECUTED against the new input on every resume)
+   ONE suspend node serves every suspension point in the graph, reached two ways: a CHECKPOINT
+   NODE - a working node with a DRAWN EDGE to it - pauses when its skill completes (the edge is
+   the declaration, no property needed), and a DECISION NODE pauses by returning "suspend" from
+   its IF-THEN-ELSE (the decision is RE-EXECUTED against the new input on every resume)
 2. a checkpoint node - any working node (graph.data.mapper here; graph.task, graph.api.fetcher
    and graph.extension work the same way) that draws its checkpoint edge to "suspend" plus a
    continuation edge to the next step; a resumed run continues along the continuation and never
-   re-executes the node
+   re-executes the node. A checkpoint never decides - reaching it IS the decision to pause
 3. the resume node - the "graph.resume" skill placed right after root; it restores a persisted
-   record and continues at the LAST checkpoint's continuation (or re-executes a jump-mode
-   decision), or lets a fresh transaction flow through - either way it sets "model.run" to
-   "resume" or "fresh" so the graph's own logic can react
+   record and continues at the LAST suspension point: past a checkpoint along its continuation,
+   or by re-executing the decision that paused the workflow. A fresh transaction flows through -
+   either way it sets "model.run" to "resume" or "fresh" so the graph's own logic can react
 
 The graph navigation is:
 
 ```
 root -> resume -> order -> check-approval -> approval -> delivery -> ship -> end
-                  (edge)       |      \-> manager-reject -> end     (order, approval and
+              (checkpoint)     |      \-> manager-reject -> end     (order, approval and
                                |                                     delivery draw edges
-                               +--jumps to suspend when no valid     to suspend)
+                               +--returns 'suspend' when no valid    to suspend)
                                   decision - and re-decides on
                                   every resume
 ```
@@ -51,7 +59,7 @@ later step needs must be mapped into "model.*" before the checkpoint. The manage
 lands at a graph.math decision node on the order checkpoint's continuation with THREE
 outcomes: an approved decision routes to the next suspension point, an explicit rejection
 routes to a terminal node that reports the manager's reason (the workflow ends), and anything
-else - a missing or unrecognized decision - jumps straight back to "suspend", so an invalid
+else - a missing or unrecognized decision - returns "suspend" to pause again, so an invalid
 request can never end a long-running workflow by accident: the decision re-executes on the
 next resume and re-evaluates whatever arrives.
 
@@ -141,13 +149,13 @@ mapping[]=model.cid -> output.body.cid
 
 Create the manager decision. It sits on the order checkpoint's continuation, so every resumed
 run lands here with the manager's input. Three outcomes: "approved" continues to the approval
-checkpoint, "rejected" ends the workflow with the manager's reason, and anything else JUMPS to
-"suspend" - jump mode. A jump-mode decision draws NO edge to the suspend node (its drawn edges
-are outcome alternatives, and the gate rejects a decision-to-suspend edge); it is re-executed
-against the new request input on every resume, so the workflow simply keeps waiting until an
-explicit "approved" or "rejected" arrives - a wait loop with no extra nodes. The probe reuses
-the same null-safe idiom as "check-fresh". The awaiting reply is staged unconditionally before
-the IFs; the approval and rejection paths overwrite it downstream:
+checkpoint, "rejected" ends the workflow with the manager's reason, and anything else RETURNS
+"suspend" to pause - the decision pattern. A pausing decision draws NO edge to the suspend node
+(its drawn edges are outcome alternatives, and the gate rejects a decision-to-suspend edge); it
+is re-executed against the new request input on every resume, so the workflow simply keeps
+waiting until an explicit "approved" or "rejected" arrives - a wait loop with no extra nodes.
+The probe reuses the same null-safe idiom as "check-fresh". The awaiting reply is staged
+unconditionally before the IFs; the approval and rejection paths overwrite it downstream:
 
 ```
 create node check-approval
@@ -463,13 +471,13 @@ Summary
 -------
 In this session, we expressed a purchase workflow with three human checkpoints as four short
 graph runs keyed by one business correlation ID: one reserved "suspend" node served every
-checkpoint, each checkpoint node declared its suspension with a drawn edge (edge mode),
-captured its actor's input into the model and staged its own stage response, a graph.math
-decision at the manager's resumption point routed an approval to the next checkpoint, a
-rejection (with the manager's reason) to the end, and anything else jumped straight back to
-"suspend" (jump mode - the decision re-executes and re-decides on every resume, so no extra
-wait nodes are needed), input validation enforced the order-before-decision sequence, and the
-engine-managed "model.run" flag told every reply whether the run was fresh or resumed.
+checkpoint, each checkpoint node declared its suspension with a drawn edge, captured its
+actor's input into the model and staged its own stage response, a graph.math decision at the
+manager's resumption point routed an approval to the next checkpoint, a rejection (with the
+manager's reason) to the end, and anything else returned "suspend" to pause again (a pausing
+decision re-executes and re-decides on every resume, so no extra wait nodes are needed),
+input validation enforced the order-before-decision sequence, and the engine-managed
+"model.run" flag told every reply whether the run was fresh or resumed.
 
 Why suspend and resume?
 -----------------------

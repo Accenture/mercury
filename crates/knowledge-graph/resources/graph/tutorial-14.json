@@ -66,7 +66,7 @@
           "IF: {model.approval_probe} == '=approved'\nTHEN: approval\nELSE: next",
           "IF: {model.approval_probe} == '=rejected'\nTHEN: manager-reject\nELSE: suspend"
         ],
-        "purpose": "The store manager decides: approved continues to the delivery release, rejected ends the workflow with the manager's reason, and anything else jumps to the suspend checkpoint to keep waiting - a jump-mode decision is re-executed on every resume, so each new request is re-evaluated (the awaiting reply is staged first; the approval and rejection paths overwrite it)"
+        "purpose": "The store manager decides: approved continues to the delivery release, rejected ends the workflow with the manager's reason, and anything else returns 'suspend' to keep waiting - a pausing decision is re-executed on every resume, so each new request is re-evaluated (the awaiting reply is staged first; the approval and rejection paths overwrite it)"
       }
     },
     {

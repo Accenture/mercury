@@ -9,25 +9,29 @@ function, but the persistence envelope is assembled by the skill itself, so the 
 no input or output data mapping.
 
 The node carrying this skill MUST be named "suspend" - a reserved alias like "root" and
-"end". There is exactly one suspend node per graph, and there are two ways to reach it:
+"end". There is exactly one suspend node per graph, and two patterns reach it - named
+after the node that pauses:
 
-1. Edge mode - a working node with a DRAWN EDGE to the "suspend" node suspends when its
-   skill completes normally: the walker redirects to the checkpoint instead of following
+1. Checkpoint node - a working node with a DRAWN EDGE to the "suspend" node pauses when
+   its skill completes normally: the walker redirects to "suspend" instead of following
    the node's continuation edge. The drawn edge is the declaration - no node property is
    needed. The node must also have at least one other edge (the continuation): a resumed
-   run continues along it, and the node itself is never re-executed. An edge-mode node is
-   a complete working node - it executes its skill in full (input mapping, skill, output
-   mapping) before suspending, so it may carry any non-routing skill (graph.data.mapper,
-   graph.task, graph.api.fetcher, graph.extension), capture the actor's input into the
-   model, and stage the caller's reply in output.* - only its exit changes.
+   run continues along it, and the node itself is never re-executed. A checkpoint never
+   decides - reaching it IS the decision to pause. It is a complete working node: it
+   executes its skill in full (input mapping, skill, output mapping) before pausing, so
+   it may carry any non-routing skill (graph.data.mapper, graph.task, graph.api.fetcher,
+   graph.extension), capture the actor's input into the model, and stage the caller's
+   reply in output.* - only its exit changes.
 
-2. Jump mode - a decision (graph.math) reaches the checkpoint by returning "suspend"
-   from its IF-THEN-ELSE. On resume the decision is RE-EXECUTED against the new request
-   input, so it re-decides every time: an approval proceeds, a rejection terminates, and
-   anything else jumps back to "suspend" - a wait loop with no extra nodes. A decision
+2. Decision node - a decision (graph.math) pauses by returning "suspend" from its
+   IF-THEN-ELSE. On resume the decision is RE-EXECUTED against the new request input,
+   so it re-decides every time: an approval proceeds, a rejection terminates, and
+   anything else returns "suspend" again - a wait loop with no extra nodes. A decision
    must NOT draw an edge to the suspend node (its drawn edges are outcome alternatives,
    and the gate rejects the shape); it may stage the caller's waiting reply in output.*
    before its IFs - the outcome paths overwrite it.
+
+(The ADRs and compiler internals call these shapes "edge mode" and "jump mode".)
 
 When the suspend node is reachable only by jumps, anchor it behind an island so the graph
 has no orphan nodes: "root -> island -> suspend" - traversal stops at the island, so the
