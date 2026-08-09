@@ -98,9 +98,11 @@ with properties
 purpose=A fresh transaction must be an order submission
 skill=graph.math
 statement[]=MAPPING: text(={input.body.item}) -> model.order_probe
-statement[]=IF: {model.order_probe} == '=null'
+statement[]='''
+IF: {model.order_probe} == '=null'
 THEN: reject
 ELSE: order
+'''
 ```
 
 Create the three checkpoint nodes. Each captures its actor's input into the model and stages a
@@ -167,12 +169,16 @@ statement[]=MAPPING: text(={input.body.decision}) -> model.approval_probe
 statement[]=MAPPING: text(awaiting-decision; supply decision approved or rejected for the store manager) -> output.body.stage
 statement[]=MAPPING: model.run -> output.body.run
 statement[]=MAPPING: model.cid -> output.body.cid
-statement[]=IF: {model.approval_probe} == '=approved'
+statement[]='''
+IF: {model.approval_probe} == '=approved'
 THEN: approval
 ELSE: next
-statement[]=IF: {model.approval_probe} == '=rejected'
+'''
+statement[]='''
+IF: {model.approval_probe} == '=rejected'
 THEN: manager-reject
 ELSE: suspend
+'''
 ```
 
 ```
