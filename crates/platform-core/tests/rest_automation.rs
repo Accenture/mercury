@@ -286,11 +286,16 @@ impl ComposableFunction for EchoChainCaller {
             .as_str()
             .unwrap_or_default()
             .to_string();
-        let echo = automation::AsyncHttpRequest::new()
+        let mut echo = automation::AsyncHttpRequest::new()
             .set_method("GET")
             .set_url("/api/echo/headers")
-            .set_target_host(&format!("http://127.0.0.1:{port}"))
-            .set_header("accept", "application/json");
+            .set_target_host(&format!("http://127.0.0.1:{port}"));
+        // pass an accept header on the inner hop only when the outer request
+        // asks for one (?accept=...) — the default-accept pin needs a hop
+        // with none, while the explicit-accept pin proves no override
+        if let Some(accept) = request["parameters"]["query"]["accept"].as_str() {
+            echo = echo.set_header("accept", accept);
+        }
         let po = PostOffice::new(&self.platform);
         let response = po
             .request(
@@ -1214,6 +1219,48 @@ async fn async_http_client_stamps_trace_context_under_both_names() {
         json["headers"]["x-trace-context"].as_str(),
         Some(stamped),
         "the same W3C value must be stamped under the custom traceparent header name"
+    );
+}
+
+/// Best practice (maintainer ruling): the async HTTP client sends a default
+/// 'Accept: */*' when the caller gives none — the Java engine's reactor-netty
+/// client does this implicitly, and the REST edge negotiates the response
+/// content-type from Accept, so the default keeps JSON decoding identical on
+/// both engines. An explicit accept is never overridden.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn async_http_client_sends_default_accept_when_caller_gives_none() {
+    let server = server().await;
+    // the inner hop sets NO accept -> the client's default rides the wire
+    let (status, _, body) = http(
+        server.port,
+        "GET",
+        &format!("/api/echo/chain?port={}", server.port),
+        &[("Accept", "application/json")],
+        "",
+    )
+    .await;
+    assert_eq!(status, 200, "chain body: {body}");
+    let json: serde_json::Value = serde_json::from_str(&body).expect("json body");
+    assert_eq!(
+        json["headers"]["accept"].as_str(),
+        Some("*/*"),
+        "the client must send the default Accept when the caller gives none: {json}"
+    );
+    // an explicit accept on the inner hop wins - the default never overrides
+    let (status, _, body) = http(
+        server.port,
+        "GET",
+        &format!("/api/echo/chain?port={}&accept=text/plain", server.port),
+        &[("Accept", "application/json")],
+        "",
+    )
+    .await;
+    assert_eq!(status, 200, "chain body: {body}");
+    let json: serde_json::Value = serde_json::from_str(&body).expect("json body");
+    assert_eq!(
+        json["headers"]["accept"].as_str(),
+        Some("text/plain"),
+        "an explicit accept must never be overridden by the default: {json}"
     );
 }
 

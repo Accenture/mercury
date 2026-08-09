@@ -254,23 +254,35 @@ skill=graph.task
 task=<function-route>
 input[]=input.body -> *                  # '*' merges the mapped value into the request body
 input[]=text(minigraph) -> header.x-app  # 'header.{name}' sets a request header
+input[]=input.body.id -> model.id        # 'model.{key}' stages a state-machine variable
 output[]=result -> output.body
 ```
 
-Worked example (invoking a deployed demo function):
+Worked example (tutorial-13 — any registered route is callable, so `async.http.request` turns
+the node into an HTTP client by configuration):
 
 ```
 create node hello-task
 with type Task
 with properties
 skill=graph.task
-task=v1.hello.task
-input[]=input.body -> *
+task=async.http.request
+input[]=input.body.person_id -> model.person_id
+input[]=text(http://127.0.0.1:${rest.server.port:8080}) -> host
+input[]=text(/api/mdm/profile/{model.person_id}) -> url
+input[]=text(GET) -> method
+input[]=text(application/json) -> headers.accept
+input[]=text(5000) -> headers.x-ttl
 output[]=result -> output.body
 ```
 
 `input[]` entries apply **in order**, so field mappings after a `*` merge into the request body,
-and the body auto-converts when the function declares a PoJo input. The result lands at
+and the body auto-converts when the function declares a PoJo input. A `model.{key}` target stages
+a **state-machine variable** instead of a body field, and later entries can reference it as a
+**dynamic variable** — `{model.person_id}` above resolves inside the `text(...)` constant, the
+same idiom as Event Script. The `${rest.server.port:8080}` reference is **environment/config
+substitution**, resolved when the model is loaded (at deployment compile, and at `instantiate
+graph` for a dry-run) while the authored and exported model keeps the placeholder. The result lands at
 `{node}.result` and response headers at `{node}.header` — in `output[]` mappings, **`result`
 (bare) is the function's whole result** and `result.{key}` a field of it (same rule as
 `graph.extension`). Optional `for_each[]` with `concurrency`
@@ -280,7 +292,11 @@ and the body auto-converts when the function declares a PoJo input. The result l
 **Gotchas:** the `task` route must exist at runtime or the node fails fast; a call is bounded by
 `model.ttl` (default 30 s) — or by the node's optional `ttl` property (duration syntax, e.g.
 `10s`), which overrides the propagated value for this node only, the same deadline override as
-[`graph.api.fetcher`](#api-fetcher) and [`graph.extension`](#extension). For multi-step
+[`graph.api.fetcher`](#api-fetcher) and [`graph.extension`](#extension). That deadline bounds the
+**event call** only — it cannot reach inside a generic function, so a function with its own
+downstream timeout contract takes it from the input mapping: the AsyncHttpClient reads
+`headers.x-ttl` in **milliseconds** as its HTTP timeout (default 30 s when absent) and propagates
+it on the wire as the `X-TTL` header. For multi-step
 orchestration, prefer [`graph.extension`](#extension) — `graph.task` is for a single function
 call. Writing the function itself:
 [function AI agent guide](../event-driven/ai-agent-guide.md) (`#[preload]` + `ComposableFunction`).

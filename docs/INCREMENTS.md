@@ -92,6 +92,18 @@
 | 73 | CompileGraph is the mandatory deployment gate (compiled-or-404, ADR-0010): manifest-carried `location` (flows.yaml convention; `location.graph.deployed` retired), property-aware mapping rejection (bare `input` = fetcher vocabulary), `model_validator` reused by the playground `run` pre-run check, executor lazy load deleted, `model.run` reserved at compile + runtime | 2026-07-30 | — | 293 |
 | 74 | Redis state store crate `extensions/minigraph-state-redis` (app-only, never the engine): `v1.redis.persist.model` SETEX / `v1.redis.retrieve.model` GETDEL, lazy `ConnectionManager` (redis-rs, the Lettuce analog), `redis.*` config family, contract tests through the real client vs an in-process RESP2 double | 2026-07-30 | — | 294 |
 | 75 | tutorial-14 (verbatim) + suspension docs + ADR twins: the three-checkpoint purchase workflow e2e over the real client wire path, live four-run drive vs redis-standalone (reply shape, log-context business cid, store-under-skill span topology), workflow-suspension guide + ten-skill tables + help/catalog surfaces + CHANGELOG migration note, ADR-0009/0010 proposed | 2026-07-30 | — | 295 |
+| 76 | Version-aware Redis consume (v4.11.1 lock-step R1): GETDEL on 6.2+, atomic MULTI/EXEC GET+DEL below — INFO probe once per manager with a startup strategy statement; shared parameterized RESP2 double + a separate-process legacy suite driving the fallback for real at 5.0.14 | 2026-08-01 | — | * |
+| 77 | Event Script task-level `ttl` override (v4.11.1 lock-step R2): compile rules + `resolve_child_ttl` with the delay-aware WARN; `delay` honored on flow:// launches, deferred dispatches cancelled at `end_flow`; nine Java fixtures verbatim + catch/retry/delay e2e twins | 2026-08-01 | — | * |
+| 78 | minigraph node `ttl` + model-metadata immutability (v4.11.1 lock-step R3): `get_effective_ttl` at all four read sites; canonical `RESERVED_MODEL_METADATA` runtime guard on all four model-writing paths; validator gate/pre-run rules (three-skill node-ttl message, metadata immutability incl. MAPPING: lines) | 2026-08-01 | — | * |
+| 79 | Dry-run watcher + companion drain + fetcher x-ttl (v4.11.1 lock-step R4): run-level watcher at model.ttl (CAS claim_terminal, owner-tagged slot), drain sized from model.ttl with truncation = ok:false, fetcher x-ttl stamp + mock MDM echo; docs mirror incl. the deadline-propagation half-port fix | 2026-08-01 | — | * |
+| 80 | Adversarial review round (v4.11.1 lock-step R5): 14 confirmed findings resolved — x-ttl budget ceils to whole seconds via 32-bit parse, 30s drain fallback, gate-message parity, i32 ttl bound + saturating math, wire-strategy journal proofs on both redis paths, watcher-slot release pin | 2026-08-01 | — | * |
+| 81 | tutorial-14: the manager approval becomes a real decision — approve / reject-with-reason / re-suspend wait loop; RESET-before-IF idiom; three-outcome e2e + loop stability; decide-before-you-suspend rule stated across the grammar surfaces | 2026-08-07 | — | * |
+| 82 | Suspension is a destination (ADR-0011 amending ADR-0009; Java ADR-0012 twin): edge and jump modes replace suspend=true, shape-based gate rules + teaching errors, tutorial-14 remodel, fixtures byte-identical, webapp replaced from the Java repo's latest UI | 2026-08-07 | — | * |
+| 83 | graph.task `model.*` input staging (Event Script parity) + tutorial-13 as an HTTP client by configuration: async.http.request, dynamic variables, `${...}` load-time substitution, explicit `headers.x-ttl`; v1.hello.task retired; dry-run companion twin | 2026-08-08 | — | * |
+
+\* From increment 76 the workspace gate is reported as green test **suites** (58 at
+v4.11.x) rather than a single cumulative test count — the multi-crate workspace runs
+per-suite binaries.
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -2355,6 +2367,35 @@ parent's handler, the retry twin proves attempts=3/last_status=408/graceful give
 and both delay forms (numeric + model-variable) assert the deferred elapsed time.
 Workspace suites green / clippy 0 / fmt.
 
+## Increment 78 — minigraph node ttl + model-metadata immutability (2026-08-01)
+
+Lock-step half of the Java v4.11.1 graph-side deadline features. `get_effective_ttl`
+resolves a node's optional `ttl` (duration grammar, the suspend-node parser) over the
+propagated `model.ttl` at all four read sites (graph.extension, graph.api.fetcher,
+graph.task, and the suspend store call), so a shorter child deadline makes a child's
+timeout catchable in the calling graph. The canonical `RESERVED_MODEL_METADATA`
+runtime guard (`assert_mutable_model_target`) now covers all four model-writing paths —
+the graph layer's `model.*` RHS was previously UNGUARDED here, the same hole the Java
+review found — and `model_validator::validate()` enforces the node-ttl placement rule
+(a THREE-skill message — no `graph.js` in this port, a maintainer-ruled divergence) plus
+metadata immutability including `MAPPING:` statement lines at the CompileGraph gate and
+the playground pre-run check. All 42 manifest graphs of the day passed unchanged.
+
+## Increment 79 — dry-run watcher, companion drain, fetcher x-ttl + docs mirror (2026-08-01)
+
+Lock-step half of the Java v4.11.1 deadline-cleanup round. The traveler gains a
+run-level watcher at `model.ttl` carrying the Java review's correctness constraints by
+construction (CAS `claim_terminal` on every terminal path, owner-tagged watcher slot,
+disarm-before-reset, late-reply guard), so a hung dry-run ends with the canonical
+failure terminal instead of silence; the synchronous companion drain is sized from
+`model.ttl` and a truncated capture classifies as `ok:false`, never a silent success.
+The API fetcher stamps `x-ttl` on outbound requests (wire read-timeout aligned to the
+graph-side deadline) and the mock MDM service echoes the observed header for wire
+proofs. The docs mirror (8 files) rode with a docs-vs-code audit catch: deadline
+propagation was HALF-ported — the header view carried caller-wins x-ttl but the HTTP
+flow adapter derived its budget from the endpoint timeout — fixed with an HTTP-edge
+twin.
+
 ## Increment 80 — Adversarial review round: Java-parity hardening (2026-08-01)
 
 Four-lens review (concurrency/lifecycle, Java parity, correctness, test validity) with
@@ -2375,25 +2416,6 @@ findings confirmed as exact Java-parity residuals (documented, no change): the
 owner-token prefix window, the schedule-then-register deferred-dispatch window, and the
 unbounded-x-ttl divergence resolved by adopting Java's 32-bit parse. Workspace 58
 suites green / clippy 0 / fmt.
-
-## Increment 82 — suspension is a destination: edge and jump modes replace suspend=true (2026-08-07)
-
-Lock-step mirror of the Java reference engine's rationalization (Java PR #265, ADR-0012;
-this port's ADR-0011 amending ADR-0009). A suspension point is declared by graph shape:
-a working node with a drawn edge to `suspend` is an edge-mode checkpoint (redirect on
-`next`; resumed past, never re-executed; continuation edge mandatory), and a `graph.math`
-decision jumps to `suspend` from its IF-THEN-ELSE (jump mode; RE-EXECUTED against the new
-input on every resume — the wait loop with no auxiliary nodes and no RESET). The retired
-`suspend=true` property is a deprecation-WARN no-op; a routing-skill drawn edge to
-`suspend` and `exception=suspend` are rejected with teaching errors (Java-exact wording);
-a jump-only suspend node is island-anchored (`root → island → suspend`) for the no-orphan
-rule, with the island exempt from the continuation-edge rule (its edges are never
-traversed). Both walker lanes bifurcate resume by shape; the record and store contracts
-are unchanged (earlier records replay correctly). tutorial-14 remodeled byte-identical to
-Java (await-decision + RESET deleted); fixtures synced byte-identical incl. the jump-mode
-and retired-property compat shapes; the runtime suite gained the jump-mode re-execution
-loop and compat scenarios; docs/AI grammar rewritten as one story with the port's
-divergent passages preserved; webapp replaced from the Java repo's latest UI source.
 
 ## Increment 81 — tutorial-14: the manager approval becomes a real decision (2026-08-07)
 
@@ -2419,3 +2441,47 @@ grammar — a new design rule in the guide, the tutorial help, the AI grammar
 (minigraph-commands.json and the graph.suspend skill help) — and the validator/runtime
 error for suspend=true on a routing skill now explains the why and the fix instead of
 only the restriction (same wording as the Java engine).
+
+## Increment 82 — suspension is a destination: edge and jump modes replace suspend=true (2026-08-07)
+
+Lock-step mirror of the Java reference engine's rationalization (Java PR #265, ADR-0012;
+this port's ADR-0011 amending ADR-0009). A suspension point is declared by graph shape:
+a working node with a drawn edge to `suspend` is an edge-mode checkpoint (redirect on
+`next`; resumed past, never re-executed; continuation edge mandatory), and a `graph.math`
+decision jumps to `suspend` from its IF-THEN-ELSE (jump mode; RE-EXECUTED against the new
+input on every resume — the wait loop with no auxiliary nodes and no RESET). The retired
+`suspend=true` property is a deprecation-WARN no-op; a routing-skill drawn edge to
+`suspend` and `exception=suspend` are rejected with teaching errors (Java-exact wording);
+a jump-only suspend node is island-anchored (`root → island → suspend`) for the no-orphan
+rule, with the island exempt from the continuation-edge rule (its edges are never
+traversed). Both walker lanes bifurcate resume by shape; the record and store contracts
+are unchanged (earlier records replay correctly). tutorial-14 remodeled byte-identical to
+Java (await-decision + RESET deleted); fixtures synced byte-identical incl. the jump-mode
+and retired-property compat shapes; the runtime suite gained the jump-mode re-execution
+loop and compat scenarios; docs/AI grammar rewritten as one story with the port's
+divergent passages preserved; webapp replaced from the Java repo's latest UI source.
+
+## Increment 83 — graph.task model.* staging + tutorial-13 as an HTTP client by configuration (2026-08-08)
+
+Lock-step mirror of the Java reference engine's fix (Java PR #267). A `graph.task`
+`input[]` entry whose RHS starts with `model.` now stages a state-machine variable —
+guard-checked against reserved model metadata — instead of silently landing in the request
+body, so later entries can reference it as a dynamic variable (Event Script parity; the
+fetcher and extension input mappings already behaved this way — graph.task was the family
+outlier). tutorial-13 remodeled byte-identical to Java: `task=async.http.request` fetches a
+mock MDM profile, teaching model staging, `{model.person_id}` dynamic-variable resolution,
+`${rest.server.port:8080}` load-time substitution (the authored/exported model keeps the
+placeholder; `instantiate graph` resolves through the config reader exactly like the
+deployment compiler), the explicit `headers.x-ttl` HTTP timeout in milliseconds (the
+graph ttl bounds only the event call — X-TTL rides the wire, pinned by the mock's
+`observed_ttl` echo), and an explicit `headers.accept` as best practice. The accept probe
+surfaced a client-default divergence — the Java engine's reactor-netty sends an implicit
+`Accept: */*` while this port's client sent none, so the same model decoded JSON on one
+engine and returned raw bytes on the other — resolved by maintainer ruling: **the async
+HTTP client now sends a default `Accept: */*` when the caller gives none** (explicit
+accept never overridden; wire-echo pinned both ways in rest_automation).
+The `v1.hello.task` demo mock retired; unit-test-task-6 joins the
+deliberately-invalid manifest fixtures (an input mapping targeting `model.ttl` answers
+404); the playground suite gained the dry-run twin (import → instantiate → run through the
+sync companion, proving instantiate-time env-var resolution); help/catalog synced
+byte-identical; skills reference and HTTP-client guide teach the same story.

@@ -525,10 +525,11 @@
       ],
       "notes": [
         "task={route} of a composable function (TypedLambdaFunction registered with @PreLoad)",
-        "input[] entries apply in order; RHS '*' merges the mapped value into the request body, 'header.{name}' sets a request header, any other key sets a body field",
-        "request body auto-converts when the function declares a PoJo input; concurrency 1-30 (default 3)"
+        "input[] entries apply in order; RHS '*' merges the mapped value into the request body, 'header.{name}' sets a request header, 'model.{key}' stages a state-machine variable that later entries reference as a dynamic variable e.g. text(/api/mdm/profile/{model.person_id}) - engine-managed model metadata rejected, any other key sets a body field",
+        "request body auto-converts when the function declares a PoJo input; concurrency 1-30 (default 3)",
+        "any registered route is callable - e.g. task=async.http.request drives the platform AsyncHttpClient by configuration with body keys host/url/method/headers.{name}/body (tutorial-13); node/model ttl bounds only the event call, so set the HTTP timeout explicitly via headers.x-ttl in MILLISECONDS (also propagates the deadline on the wire)"
       ],
-      "example": "skill=graph.task\ntask=v1.hello.task\ninput[]=input.body -> *\ninput[]=text(minigraph) -> header.x-app\noutput[]=result -> output.body"
+      "example": "skill=graph.task\ntask=async.http.request\ninput[]=input.body.person_id -> model.person_id\ninput[]=text(http://127.0.0.1:${rest.server.port:8080}) -> host\ninput[]=text(/api/mdm/profile/{model.person_id}) -> url\ninput[]=text(GET) -> method\ninput[]=text(application/json) -> headers.accept\ninput[]=text(5000) -> headers.x-ttl\noutput[]=result -> output.body"
     },
     {
       "route": "graph.join",

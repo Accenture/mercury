@@ -686,6 +686,99 @@ async fn playground_command_grammar_and_companion() {
         );
     }
 
+    // --- tutorial-13 dry-run (Java CompanionSyncTest twin): 'instantiate graph'
+    // loads the model through the config reader, so ${rest.server.port:8080} in
+    // the task node's 'host' resolves to the application's actual port (success
+    // proves the 8080 default was NOT used), and the graph.task input mapping
+    // stages model.person_id for the {model.person_id} dynamic variable in the
+    // 'url'. Deployed execution of the same model is covered in graph_runtime.rs
+    // - the two lanes must behave the same.
+    let t13_in = "ws.100004.1.in";
+    let t13_out = "ws.100004.1.out";
+    let t13_id = "ws-100004-1";
+    let t13_lines: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    platform
+        .register(
+            t13_out,
+            Arc::new(Console {
+                lines: t13_lines.clone(),
+            }),
+            1,
+        )
+        .expect("tutorial-13 console route");
+    let _ = po
+        .send(
+            EventEnvelope::new()
+                .set_to(knowledge_graph::commands::ROUTE)
+                .set_raw_body(Value::Map(vec![
+                    (Value::from("type"), Value::from("open")),
+                    (Value::from("in"), Value::from(t13_in)),
+                ])),
+        )
+        .await;
+    tokio::time::sleep(Duration::from_millis(60)).await;
+    // this harness boots on an ephemeral port (rest.server.port=0 override), so
+    // point the SAME config key at the actual bound port: 'instantiate graph'
+    // resolves ${rest.server.port:8080} against the app config chain, exactly
+    // as a deployment environment injects the real value
+    let bound = platform_core::automation::server_address()
+        .expect("server bound")
+        .port();
+    overrides::set("rest.server.port", &bound.to_string());
+    // the tutorial model must come from the deployed classpath copy, not a
+    // stale export from an earlier manual run
+    let _ = std::fs::remove_file("/tmp/graph/tutorial-13.json");
+    command(&po, t13_in, t13_out, "import graph from tutorial-13").await;
+    assert!(
+        console_has(&t13_lines, "Graph model imported"),
+        "tutorial-13 import expected"
+    );
+    command(
+        &po,
+        t13_in,
+        t13_out,
+        "instantiate graph\nint(100) -> input.body.person_id",
+    )
+    .await;
+    assert!(
+        console_has(&t13_lines, "Graph instance created"),
+        "tutorial-13 instantiate expected"
+    );
+    let sync_t13 = platform_core::automation::AsyncHttpRequest::new()
+        .set_method("POST")
+        .set_target_host(&base_url())
+        .set_url(&format!("/api/companion/{t13_id}/sync"))
+        .set_header("content-type", "text/plain")
+        .set_body(Value::from("run"));
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(sync_t13.to_value()),
+            Duration::from_secs(35),
+        )
+        .await
+        .expect("sync tutorial-13 run request");
+    let t13_outcome = MultiLevelMap::from_value(reply.body().clone());
+    assert_eq!(
+        Some(Value::Boolean(true)),
+        t13_outcome.get_element("ok"),
+        "tutorial-13 dry-run must succeed: {:?}",
+        reply.body()
+    );
+    // the traversal's JSON payload arrives in 'result' (narration is 'output')
+    let t13_result = event_script::conversions::to_json_string(
+        &t13_outcome.get_element("result").unwrap_or(Value::Nil),
+    );
+    assert!(
+        t13_result.contains("Peter") && t13_result.contains("100 World Blvd"),
+        "tutorial-13 dry-run returns the fetched profile: {t13_result}"
+    );
+    assert!(
+        t13_result.contains("5000"),
+        "the mock echoes the X-TTL request header (observed_ttl): {t13_result}"
+    );
+
     // --- close the session
     let _ = po
         .send(

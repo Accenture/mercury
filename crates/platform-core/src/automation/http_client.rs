@@ -959,6 +959,13 @@ fn apply_headers(
             builder = builder.header(key.as_str(), value.trim());
         }
     }
+    // best practice (maintainer ruling): send a default 'Accept: */*' when the
+    // caller gives none — the Java engine's reactor-netty client does this
+    // implicitly, and the REST edge negotiates the response content-type from
+    // Accept, so the default keeps JSON decoding identical on both engines
+    if !merged.iter().any(|(k, _)| k.eq_ignore_ascii_case("accept")) {
+        builder = builder.header("accept", "*/*");
+    }
     // distributed trace propagation: this route is untraced by default
     // (skip.rpc.tracing, Java parity), so the trace rides the ENVELOPE and
     // the injected invocation headers, not the ambient trace state — exactly

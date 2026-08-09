@@ -52,7 +52,7 @@ pub const OUTPUT_HEADER_NAMESPACE: &str = "output.header";
 pub const NODE_NAME: &str = "node ";
 pub const NOT_FOUND: &str = " not found";
 
-const MODEL_NAMESPACE: &str = "model.";
+pub const MODEL_NAMESPACE: &str = "model.";
 const OUTPUT_NAMESPACE: &str = "output.";
 const OUTPUT_ARRAY: &str = "output[";
 const PLUGIN_PREFIX: &str = "f:";

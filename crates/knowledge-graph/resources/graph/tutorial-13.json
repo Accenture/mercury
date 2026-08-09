@@ -13,15 +13,19 @@
       ],
       "alias": "hello-task",
       "properties": {
-        "task": "v1.hello.task",
+        "task": "async.http.request",
         "input": [
-          "input.body -> *",
-          "text(minigraph) -> header.x-app"
+          "input.body.person_id -> model.person_id",
+          "text(http://127.0.0.1:${rest.server.port:8080}) -> host",
+          "text(/api/mdm/profile/{model.person_id}) -> url",
+          "text(GET) -> method",
+          "text(application/json) -> headers.accept",
+          "text(5000) -> headers.x-ttl"
         ],
         "output": [
           "result -> output.body"
         ],
-        "purpose": "Invoke the composable function v1.hello.task with the request body and a custom header",
+        "purpose": "Invoke AsyncHttpClient with route 'async.http.request' to fetch a user profile",
         "skill": "graph.task"
       }
     },

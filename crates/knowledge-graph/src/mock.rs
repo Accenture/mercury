@@ -15,12 +15,12 @@
 //
 
 //! Dev-only mock services — the Rust port of the Java
-//! `com.accenture.minigraph.mock` package (`MdmProfile`, `AccountDetails`,
-//! `HelloTask`). Each is gated by `#[optional_service("app.env=dev")]` (the
+//! `com.accenture.minigraph.mock` package (`MdmProfile`, `AccountDetails`).
+//! Each is gated by `#[optional_service("app.env=dev")]` (the
 //! Java `@OptionalService` annotation), so it registers **only** when
-//! `app.env=dev` — the data-dictionary / API-fetcher tutorials call these over
-//! HTTP as stand-in enterprise services. Profile/account fixtures ship in the
-//! engine crate's `resources/mock/`.
+//! `app.env=dev` — the data-dictionary / API-fetcher / graph-task tutorials
+//! call these over HTTP as stand-in enterprise services. Profile/account
+//! fixtures ship in the engine crate's `resources/mock/`.
 
 use std::collections::HashMap;
 
@@ -107,36 +107,6 @@ impl ComposableFunction for AccountDetails {
             &format!("account-{account_id}"),
             &format!("Account {account_id} not found"),
         )
-    }
-}
-
-/// Java `HelloTask` (`v1.hello.task`): the tutorial-13 demo task invoked through
-/// the `graph.task` skill.
-#[preload(route = "v1.hello.task", instances = 50)]
-#[optional_service("app.env=dev")]
-pub struct HelloTask;
-
-#[async_trait]
-impl ComposableFunction for HelloTask {
-    async fn handle_event(
-        &self,
-        headers: HashMap<String, String>,
-        input: EventEnvelope,
-        _instance: usize,
-    ) -> Result<EventEnvelope, AppError> {
-        let body: JsonValue = input.body_as().unwrap_or(JsonValue::Null);
-        let name = body
-            .get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or("stranger");
-        let mut result = serde_json::json!({"greeting": format!("Hello, {name}")});
-        if let Some(amount) = body.get("amount").and_then(|v| v.as_f64()) {
-            result["doubled"] = serde_json::json!(amount * 2.0);
-        }
-        if let Some(app) = headers.get("x-app") {
-            result["app"] = serde_json::json!(app);
-        }
-        EventEnvelope::new().set_body(result)
     }
 }
 
