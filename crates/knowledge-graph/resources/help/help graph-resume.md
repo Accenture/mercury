@@ -42,7 +42,9 @@ The following parameter is required in the properties of the node:
 
 1. task - the route name of the state-store function (e.g. "v1.redis.retrieve.model")
 
-The store function receives headers "type=get" and a body of {"cid": "..."} and returns
+The store function receives headers "type=get" and a body of {"cid": "...", "graph": "..."}
+(the running graph's ID scopes the lookup, so a resume only ever sees records written by its
+own graph - parent and subgraphs are self-contained) and returns
 the persisted record, or nothing (null or an empty map) when absent or expired.
 
 Example

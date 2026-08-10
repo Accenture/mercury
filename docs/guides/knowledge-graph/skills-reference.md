@@ -178,9 +178,15 @@ followed (a `3xx` is a non-failure: status and body are captured and traversal p
 via `feature[]=log-response-headers` at `{node}.header.response.{name}`.
 
 **Failure routing:** with `exception={handler-node}`, a failed call (HTTP ≥ 400) sets
-`{node}.status`/`{node}.error`, skips the `output[]` mappings, and **jumps to the handler**
-instead of aborting — the building block for bounded retry loops
-([full pattern](command-reference.md#failure-routing)). Without it, the run aborts.
+`{node}.status`/`{node}.error` (and `{node}.stack` when the failure carries one), skips the
+`output[]` mappings, and **jumps to the handler** instead of aborting — the building block for
+bounded retry loops ([full pattern](command-reference.md#failure-routing)). Without it, the run
+aborts. The jump also stages the **generic exception context** — `error.source` (the failing
+node's alias), `error.code`, `error.message` and `error.stack` when available — so **one
+island-anchored handler can serve every node's `exception=` route** without naming any failing
+node in its data mapping (`error` is a reserved alias; `inspect error` shows the context in a
+dry-run session). A shared handler is entered at most once per run unless RESET; deliberate
+re-entry loops use the bounded-retry idiom.
 
 **Deadline:** each call is bounded by the propagated `model.ttl` (default 30 s); the optional node
 `ttl` (duration syntax `<digits>` + `s`/`m`/`h`/`d`, e.g. `8s`) overrides it for this node's calls
@@ -238,6 +244,10 @@ output[]=result.sales_performance -> output.body.sales_performance
   time out first, so this node's `exception=` route catches the timeout and can retry within the
   parent graph's remaining budget (same parameter as [`graph.api.fetcher`](#api-fetcher) and
   [`graph.task`](#task)).
+- The delegated graph or flow **inherits the caller's business correlation ID** (`model.cid`),
+  the same way an Event Script sub-flow does — so a sub-graph that suspends persists its record
+  under the shared cid scoped by its own graph id, and re-invoking with the same cid resumes it
+  ([the orchestrator pattern](workflow-suspension.md#orchestrator-pattern)).
 
 This is the seam between the semantic layer and the composable (Event Script) layer beneath it —
 authoring the target flow: [Event Script AI agent guide](../event-script/ai-agent-guide.md) +
@@ -286,7 +296,9 @@ graph` for a dry-run) while the authored and exported model keeps the placeholde
 `{node}.result` and response headers at `{node}.header` — in `output[]` mappings, **`result`
 (bare) is the function's whole result** and `result.{key}` a field of it (same rule as
 `graph.extension`). Optional `for_each[]` with `concurrency`
-(1–30, default 3) iterates with bounded fork-join; `exception=<node>` routes failures
+(1–30, default 3) iterates with bounded fork-join; `exception=<node>` routes failures with the
+same generic `error.source`/`code`/`message`/`stack` context as
+[`graph.api.fetcher`](#api-fetcher), so one handler serves them all
 ([failure routing](command-reference.md#failure-routing)).
 
 **Gotchas:** the `task` route must exist at runtime or the node fails fast; a call is bounded by
@@ -319,8 +331,10 @@ sanctioned deadline mechanism, not rewriting `model.ttl`.
 Persists the workflow state of the running graph to an external state store and lets the run
 complete — the transaction resumes later through [`graph.resume`](#resume) with the same business
 correlation ID. A **superset of `graph.task`**: the `task` property names the pluggable store
-function, but the persistence envelope (`{cid, node, ttl, model, seen, run}`) is assembled by the
-skill itself — **no input/output mapping on the node**.
+function, but the persistence envelope (`{cid, graph, node, ttl, model, seen, run}`) is assembled
+by the skill itself — **no input/output mapping on the node**. The record is scoped by
+**graph + cid** (the Redis reference keys it `graph:{graph_id}:{cid}`), so one business
+transaction may suspend independently in each domain's graph and in each subgraph.
 
 ```
 skill=graph.suspend
@@ -349,7 +363,8 @@ model **before** the checkpoint. Full story: [Workflow Suspension](workflow-susp
 Restores the workflow state persisted by [`graph.suspend`](#suspend) and continues traversal at
 the recorded suspension point — **past a checkpoint node without re-executing it**, or by
 **re-executing a decision node** against the new request input. Also a superset of
-`graph.task` — the `task` property names the store function (`type=get`, body `{cid}`),
+`graph.task` — the `task` property names the store function (`type=get`, body `{cid, graph}` —
+the graph id scopes the lookup to this graph's own records),
 restoration is encapsulated, no mapping on the node.
 
 ```

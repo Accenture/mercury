@@ -90,7 +90,11 @@ Registered whenever the knowledge-graph crate is part of the application:
 
 The knowledge graph additionally reserves the node **alias** `suspend` (bound to the
 `graph.suspend` skill — traversal jumps to it by name, the `root`/`end` pattern), the node
-**property** `suspend`, and the engine-managed state key `model.run`. The
+**property** `suspend`, and the engine-managed state key `model.run`. The node alias `error`
+is likewise reserved: it is the **generic exception context namespace** (`error.source`,
+`error.code`, `error.message`, `error.stack`) staged when a failed node routes to its
+`exception=` handler — see
+[failure routing](knowledge-graph/command-reference.md#failure-routing). The
 `minigraph-state-redis` extension crate reserves `v1.redis.persist.model` /
 `v1.redis.retrieve.model` when an application links it — see
 [Workflow Suspension](knowledge-graph/workflow-suspension.md).

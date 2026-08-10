@@ -30,6 +30,10 @@ related:
 > - **The store is pluggable** — Redis ships as the `minigraph-state-redis` extension
 >   crate; any composable function honoring the [store contract](#state-store-contract)
 >   works.
+> - **It scales to complex processes** — records are scoped by **graph + correlation ID**,
+>   so every graph (a domain's own, or each subgraph behind an orchestrating parent)
+>   suspends and resumes independently under one shared business correlation ID
+>   ([the orchestrator pattern](#orchestrator-pattern)).
 
 ## When a workflow must wait
 
@@ -58,8 +62,8 @@ the run **ends** — the caller gets a `{"type": "suspended", "cid": ...}` reply
 workflow's durable memory (the `model` namespace) waits in the state store under the
 business correlation ID with a time-to-live you choose. The resumed run is an ordinary
 graph execution that happens to start with restored state. Because the record key is the
-correlation ID, a workflow suspended on one application instance can resume on **any**
-instance sharing the store.
+graph plus the correlation ID, a workflow suspended on one application instance can
+resume on **any** instance sharing the store.
 
 ## The three vocabulary pieces
 
@@ -356,14 +360,55 @@ curl -s -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
 - **The correlation ID is a resume capability.** Whoever presents it continues the
   workflow: protect resume-bearing endpoints with rest.yaml `authentication`, and use
   non-guessable IDs (the engine generates UUIDs when the caller supplies none).
-- **Suspension does not cross `graph.extension`.** The business correlation ID does not
-  propagate into delegated sub-graphs or flows today — design resumable workflows as
-  top-level graphs.
+- **Suspension is self-contained per graph.** Records are scoped by graph + cid, so a
+  resume only ever sees records written by its own graph — you cannot suspend in one
+  subgraph and resume in another. A delegated subgraph inherits the parent's business
+  correlation ID and is fully resumable on its own; the parent orchestrates —
+  see [the orchestrator pattern](#orchestrator-pattern).
 - Reserved model keys (`model.cid`, `model.instance`, `model.flow`, `model.ttl`,
   `model.trace`, `model.run`) are never persisted — the resumed run's own identity is
   authoritative. `model.run` is part of the read-only flow metadata family: `graph.resume`
   is its only writer, and the flow compiler rejects any data mapping that targets it
   (like the other reserved keys).
+
+## The orchestrator pattern {#orchestrator-pattern}
+
+A complex business process rarely pauses in one place. Model each processing path as its
+own subgraph and let a parent graph orchestrate:
+
+- The parent delegates each path with `graph.extension`. The child inherits the parent's
+  **business correlation ID** automatically — the same way an Event Script sub-flow
+  inherits `model.cid` — so a subgraph that suspends persists its record under its own
+  `graph` + the shared `cid`.
+- Each subgraph is a **complete resumable workflow on its own**: a `resume` node after
+  root, checkpoints or decisions where it must wait, records scoped to that subgraph.
+  Parent and subgraphs never collide, because every graph has its own record.
+- **A suspended subgraph replies like any suspended graph** — `{"type": "suspended",
+  "cid": ...}` (or whatever output it staged) — and that reply lands in the parent
+  extension node's `result`, so the parent can route on it with a decision. Probe the
+  possibly-absent key with the `=` guard (a completed path's reply has no `type`):
+
+```text
+statement[]=MAPPING: text(={model.path.type}) -> model.path_probe
+statement[]='''
+IF: {model.path_probe} == '=suspended'
+THEN: waiting
+ELSE: done
+'''
+```
+
+- **Re-invoking the parent with the same correlation ID resumes the paths**: each
+  subgraph's `resume` node finds its own record (or starts fresh), fast-forwards past its
+  checkpoint, and the parent assembles the results. A subgraph is also a deployed graph,
+  so a single path can be resumed directly at `POST /api/graph/{subgraph-id}` with the
+  same correlation ID — same capability rules as any resume endpoint.
+- **One record per graph per cid.** Invoke a suspendable subgraph once per correlation ID
+  per run — a `for_each` fan-out of the *same* subgraph under one cid would overwrite its
+  own record. Parallel paths belong in *different* subgraphs.
+
+The engine's reference models for this pattern are the `unit-test-orchestrator` /
+`unit-test-sub-suspend` pair in the knowledge-graph test resources, pinned end-to-end by
+the `graph_runtime` suite.
 
 ## The state store contract {#state-store-contract}
 
@@ -375,7 +420,8 @@ anything else plugs in the same way.
 
 ```json
 {
-  "cid":   "<business correlation ID - the retrieval key>",
+  "cid":   "<business correlation ID>",
+  "graph": "<the graph that suspended - cid + graph form the retrieval key>",
   "node":  "<the suspension point>",
   "ttl":   172800,
   "model": { "the model namespace minus reserved keys": "..." },
@@ -389,11 +435,19 @@ round-trip; note the platform's [serialization gotchas](../api-overview.md))
 and reply 2xx only when the record is durable — the reply is the acknowledgement
 `graph.suspend` requires before the graph completes; any error fails the suspension.
 
-**Retrieve** — invoked by `graph.resume`; headers `type=get`; body `{"cid": "..."}`.
-Return the stored record as-is, or **null / an empty map** when absent or expired — an
-absent record is the normal fresh-transaction case, never an error. Consume the record
-atomically on retrieval (or document your replay semantics). If the store has no native
-TTL, implement record expiry yourself.
+**Retrieve** — invoked by `graph.resume`; headers `type=get`; body
+`{"cid": "...", "graph": "..."}`. Return the stored record as-is, or **null / an empty
+map** when absent or expired — an absent record is the normal fresh-transaction case,
+never an error. Consume the record atomically on retrieval (or document your replay
+semantics). If the store has no native TTL, implement record expiry yourself.
+
+**Scope every record by `graph` + `cid`, never by `cid` alone.** The same business
+correlation ID legitimately suspends in more than one graph — one transaction may cross
+several domains' graphs, and an orchestrator's subgraphs each pause independently (see
+[the orchestrator pattern](#orchestrator-pattern)). A cid-only key would collapse all of
+them into one record. This also makes suspension **self-contained per graph** by
+construction: a resume only ever sees records written by its own graph — you cannot
+suspend in one subgraph and resume in another.
 
 The smallest possible reference implementation is the engine's test fixture — a temp-file
 store of ~60 lines (`FileStateStore` in the minigraph test sources).
@@ -401,7 +455,9 @@ store of ~60 lines (`FileStateStore` in the minigraph test sources).
 ## The Redis store module
 
 `extensions/minigraph-state-redis` ships `v1.redis.persist.model` (SETEX, native expiry)
-and `v1.redis.retrieve.model` (atomic consume-on-retrieve). The consume strategy is
+and `v1.redis.retrieve.model` (atomic consume-on-retrieve). Records are keyed
+`graph:{graph_id}:{cid}`, so each domain's graph and each subgraph suspends
+independently under a shared business correlation ID. The consume strategy is
 **version-aware**: native `GETDEL` on Redis 6.2+, or an equally atomic `MULTI/EXEC`
 `GET`+`DEL` transaction on older servers — detected once per connection from
 `INFO server` and stated in the startup log, since enterprise deployments rarely control

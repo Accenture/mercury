@@ -19,7 +19,9 @@
     "node_type": "a descriptive label; examples capitalize structural types (Root, End, Provider, Dictionary, Fetcher, Island)",
     "reserved_names": {
       "root": "the root/entry node must be named 'root'",
-      "end": "the end/exit node must be named 'end'"
+      "end": "the end/exit node must be named 'end'",
+      "error": "reserved for the exception context namespace (error.source/code/message/stack staged on exception= handler jumps)",
+      "_also_reserved": "the graph model rejects these aliases at node creation: input, output, model, response, result, parameter, none, next, api, error"
     },
     "property": "key=value; keys may be composite using dot-bracket notation",
     "composite_keys": "every mapping source and target addresses nested data with dot-bracket keys, INCLUDING numeric list indices on the target side ('fetch-one.result.profile -> output.body.profile[0]' sets list slot 0 - the deterministic post-join assembly idiom); a non-leaf (interior) path maps the WHOLE subtree ('response.profile -> result.profile' captures the entire object, 'response.accounts' an entire array)",
@@ -121,6 +123,12 @@
       "read": true,
       "write": "by skill",
       "meaning": "a Dictionary/Fetcher result set"
+    },
+    {
+      "name": "error.*",
+      "read": true,
+      "write": "by engine",
+      "meaning": "generic exception context staged when a failed node routes to its exception= handler: error.source (the failing node's alias), error.code, error.message, error.stack (when available) - lets one handler serve every node; transient per run (never persisted across suspension); 'error' is a reserved node alias; inspect with 'inspect error'"
     }
   ],
   "commands": [
@@ -474,7 +482,7 @@
         "concurrency 1-30 (default 3)",
         "dedup: identical requests (same provider + input parameters) are deduplicated WITHIN THE GRAPH INSTANCE; only SUCCESSFUL responses are cached (a failed call is never cached, so a retry after RESET: makes a real call)",
         "HTTP semantics: one Provider call is exactly ONE HTTP request - redirects are NEVER followed (a 3xx is a non-failure: status and body are captured and traversal proceeds; point the Provider url at the redirect target to land on it); {node}.status ALWAYS carries the HTTP status of the fetch, success included",
-        "exception={handler-node}: on a failed call (HTTP >= 400) the node's status/error are set, output[] mappings are SKIPPED, and traversal JUMPS to the handler instead of aborting (without exception=, the run aborts); wire the handler back (connect handler to fetcher with retry) and bound the retry loop - full pattern in command-reference.md#failure-routing",
+        "exception={handler-node}: on a failed call (HTTP >= 400) the node's status/error are set (plus {node}.stack when the failure carries one), output[] mappings are SKIPPED, and traversal JUMPS to the handler instead of aborting (without exception=, the run aborts); the jump also stages the generic exception context error.source/error.code/error.message/error.stack so ONE island-anchored handler can serve every node's exception= route without naming the failing node ('error' is a reserved alias; 'inspect error' shows the context); a node is visited at most once per run unless RESET - wire a retry handler back (connect handler to fetcher with retry) and bound the loop - full pattern in command-reference.md#failure-routing",
         "deadline: each call is bounded by the propagated model.ttl (default 30s) or the node ttl override; a deadline shorter than the graph's budget makes a slow provider time out FIRST so exception= routing handles it (the time-boxed half of a bounded retry loop); the effective deadline is stamped as the outbound x-ttl request header (wire read-timeout = deadline + 1s grace) - a Mercury callee honors the inbound x-ttl over its endpoint timeout (end-to-end deadline propagation)"
       ],
       "for_each": {
@@ -505,7 +513,9 @@
         "{graph-id} resolves among the DEPLOYED graph models (compiled at startup from resources/graph - the same ids callable at POST /api/graph/{graph-id}); a session draft is NOT addressable - export and deploy first; a missing id fails the node fast",
         "each input[] TARGET is a bare key that becomes the sub-graph's input.body.{key}",
         "the node's result.* namespace IS the sub-graph's output.body: 'result' (bare) = the whole response body, 'result.{key}' = a field of it",
-        "NO whole-body '*' target on graph.extension - map named keys (the '*' merge idiom is graph.task-only); the same contract applies to flow:// targets (named keys feed the flow's input.body; result.* is the flow's output.body)"
+        "NO whole-body '*' target on graph.extension - map named keys (the '*' merge idiom is graph.task-only); the same contract applies to flow:// targets (named keys feed the flow's input.body; result.* is the flow's output.body)",
+        "the delegated graph or flow INHERITS the caller's business correlation ID (model.cid), like an Event Script sub-flow - a delegated subgraph that suspends persists under the shared cid scoped by its own graph id, so re-invoking with the same cid resumes it (the orchestrator pattern: a parent graph delegates independently resumable subgraph paths)",
+        "exception={handler-node}: error.source is the extension node in THIS graph; failures inside the delegated subgraph or flow route to that graph's own handlers (suspension and error handling are self-contained per graph)"
       ],
       "example": "skill=graph.extension\nextension=evaluate-sales-performance\ninput[]=input.body.department_id -> id\noutput[]=result -> output.body"
     },
@@ -527,7 +537,8 @@
         "task={route} of a composable function (TypedLambdaFunction registered with @PreLoad)",
         "input[] entries apply in order; RHS '*' merges the mapped value into the request body, 'header.{name}' sets a request header, 'model.{key}' stages a state-machine variable that later entries reference as a dynamic variable e.g. text(/api/mdm/profile/{model.person_id}) - engine-managed model metadata rejected, any other key sets a body field",
         "request body auto-converts when the function declares a PoJo input; concurrency 1-30 (default 3)",
-        "any registered route is callable - e.g. task=async.http.request drives the platform AsyncHttpClient by configuration with body keys host/url/method/headers.{name}/body (tutorial-13); node/model ttl bounds only the event call, so set the HTTP timeout explicitly via headers.x-ttl in MILLISECONDS (also propagates the deadline on the wire)"
+        "any registered route is callable - e.g. task=async.http.request drives the platform AsyncHttpClient by configuration with body keys host/url/method/headers.{name}/body (tutorial-13); node/model ttl bounds only the event call, so set the HTTP timeout explicitly via headers.x-ttl in MILLISECONDS (also propagates the deadline on the wire)",
+        "exception={handler-node} routes failures with the same generic error.source/code/message/stack context as graph.api.fetcher, so one handler serves graph.task, fetcher and extension nodes alike - error.source tells them apart"
       ],
       "example": "skill=graph.task\ntask=async.http.request\ninput[]=input.body.person_id -> model.person_id\ninput[]=text(http://127.0.0.1:${rest.server.port:8080}) -> host\ninput[]=text(/api/mdm/profile/{model.person_id}) -> url\ninput[]=text(GET) -> method\ninput[]=text(application/json) -> headers.accept\ninput[]=text(5000) -> headers.x-ttl\noutput[]=result -> output.body"
     },
@@ -566,7 +577,7 @@
       ],
       "notes": [
         "the node MUST be named 'suspend' - a reserved alias like root/end (one per graph); reached by a checkpoint node's drawn edge (redirect after the skill completes; never re-executed on resume) or a decision node's IF-THEN-ELSE 'suspend' return (re-executed on resume); a decision must not draw an edge to it, and it cannot be an exception handler (exception=suspend is rejected)",
-        "superset of graph.task with NO input/output mapping: the skill assembles the persistence envelope {cid, node, ttl, model minus reserved keys, seen, run} and invokes the task= store function (type=put) with a synchronous ack - a failed persist fails the node",
+        "superset of graph.task with NO input/output mapping: the skill assembles the persistence envelope {cid, graph, node, ttl, model minus reserved keys, seen, run} and invokes the task= store function (type=put) with a synchronous ack - a failed persist fails the node; records are scoped by graph + cid (the Redis reference keys them graph:{graph_id}:{cid}), so one business transaction may suspend independently in each domain's graph and in each subgraph",
         "ttl is MANDATORY with no default (duration syntax 20s/5m/2h/2d) - it becomes the store record expiry",
         "stages a default {\"type\": \"suspended\", \"cid\": ...} reply when output.body is empty",
         "a suspension point must be the sole active branch - never between a fork and its join; only model.* survives suspension"
@@ -584,7 +595,7 @@
       ],
       "notes": [
         "restores the model + traversal bookkeeping persisted by graph.suspend for model.cid and continues at the suspension point: past a checkpoint node WITHOUT re-executing it (downstream joins still see pre-suspension branches), or by RE-EXECUTING a decision node against the new input",
-        "superset of graph.task with NO input/output mapping: invokes the task= store function (type=get, body {cid})",
+        "superset of graph.task with NO input/output mapping: invokes the task= store function (type=get, body {cid, graph}) - the running graph's id scopes the lookup, so a resume only ever sees records written by its own graph (parent and subgraphs are self-contained)",
         "no record = the NORMAL fresh-transaction case: traversal continues along the node's own forward path; either way the skill sets model.run to 'resume' or 'fresh' - the engine does not distinguish absent from expired, so fresh-vs-expired handling is application logic (e.g. a graph.math IF-THEN-ELSE on the forward path)",
         "the shipped stores consume the record atomically on retrieval - a duplicate resume behaves as a fresh run, never a double execution",
         "reserved model keys are never restored - the current run's identity is authoritative"

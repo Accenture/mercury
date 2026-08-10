@@ -55,6 +55,7 @@ pub const RESUME_PREFIX: &str = "resume:";
 const FROM: &str = "from";
 const TTL: &str = "ttl";
 const CID: &str = "cid";
+const GRAPH: &str = "graph";
 const MODEL: &str = "model";
 const MODEL_CID: &str = "model.cid";
 /// The engine-managed run flag (`"resume" | "fresh"`): graph.resume is its
@@ -392,8 +393,10 @@ pub async fn suspend(
     EventEnvelope::new().set_body(next)
 }
 
-/// The persistence envelope (headers `type=put`): `{cid, node, ttl, model,
-/// seen, run}` — model = the model namespace MINUS the reserved keys.
+/// The persistence envelope (headers `type=put`): `{cid, graph, node, ttl,
+/// model, seen, run}` — model = the model namespace MINUS the reserved keys.
+/// cid + graph form the retrieval key: the same business transaction may
+/// suspend independently in a parent graph and in each subgraph.
 fn persistence_envelope(
     instance: &GraphInstance,
     state: &MultiLevelMap,
@@ -414,6 +417,11 @@ fn persistence_envelope(
     };
     Value::Map(vec![
         (Value::from(CID), Value::from(cid)),
+        // cid + graph form the retrieval key (self-contained per graph)
+        (
+            Value::from(GRAPH),
+            Value::from(instance.graph_id.as_str()),
+        ),
         (Value::from(NODE), Value::from(from)),
         (Value::from(TTL), Value::from(ttl_seconds)),
         (Value::from(MODEL), model_copy),
@@ -486,10 +494,15 @@ pub async fn resume(
         .set_to(&ctx.route)
         .set_correlation_id(&uuid_simple())
         .set_header(TYPE, GET)
-        .set_raw_body(Value::Map(vec![(
-            Value::from(CID),
-            Value::from(cid.as_str()),
-        )]));
+        .set_raw_body(Value::Map(vec![
+            (Value::from(CID), Value::from(cid.as_str())),
+            // the graph id scopes the lookup: a resume only ever sees records
+            // written by its own graph (parent and subgraphs are self-contained)
+            (
+                Value::from(GRAPH),
+                Value::from(ctx.instance.graph_id.as_str()),
+            ),
+        ]));
     po.annotate_trace(TASK, &ctx.route);
     po.annotate_trace(CID, &cid);
     // issued within the skill's trace context — the store call's span chains

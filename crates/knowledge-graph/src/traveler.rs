@@ -349,6 +349,16 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
             emit_aborted(po, &instance).await;
         }
     } else if !instance.is_complete() {
+        if matches!(
+            (&process_status, &result_error),
+            (Some(Value::Integer(_)), Some(_))
+        ) {
+            // the node failed and routed to its exception= handler ('next' is the
+            // handler's alias): stage the generic exception context so one handler
+            // can serve any node. GraphExecutor keeps identical semantics.
+            let mut state = instance.state.lock().expect("graph state machine");
+            common::stage_error_context(&mut state, node_name);
+        }
         let next = display(response.body());
         decide_next(platform, po, &instance, node, &next).await;
     }

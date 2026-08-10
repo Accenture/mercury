@@ -5,8 +5,8 @@ Redis implementation of the knowledge graph's **suspend/resume state-store contr
 
 | Route | Contract | Redis operation |
 |---|---|---|
-| `v1.redis.persist.model` | headers `type=put`; body `{cid, node, ttl, model, seen, run}` | `SETEX graph:state:<cid>` (MsgPack bytes, native expiry) |
-| `v1.redis.retrieve.model` | headers `type=get`; body `{cid}` → record, or empty map when absent/expired | `GETDEL graph:state:<cid>` on Redis 6.2+, atomic `MULTI/EXEC` `GET`+`DEL` on older servers (atomic consume either way) |
+| `v1.redis.persist.model` | headers `type=put`; body `{cid, graph, node, ttl, model, seen, run}` | `SETEX graph:<graph_id>:<cid>` (MsgPack bytes, native expiry) |
+| `v1.redis.retrieve.model` | headers `type=get`; body `{cid, graph}` → record, or empty map when absent/expired | `GETDEL graph:<graph_id>:<cid>` on Redis 6.2+, atomic `MULTI/EXEC` `GET`+`DEL` on older servers (atomic consume either way) |
 
 Both functions are ordinary composable functions registered by `#[preload]` — **add this
 crate as a dependency of a graph application (e.g. the `minigraph-playground` example
@@ -37,9 +37,12 @@ ttl=2d
 - **Expiry is native**: the `ttl` from the suspend node becomes the Redis key TTL — no
   sweeper. An expired record simply reads as absent, which the resume skill treats as a
   fresh transaction.
+- **Scoped by graph + cid**: the key is `graph:<graph_id>:<cid>`, so the same business
+  correlation ID suspends independently in each domain's graph and in each subgraph (an
+  orchestrating parent and its subgraph paths never collide), and a resume only ever sees
+  records written by its own graph.
 - **Cross-instance by design**: any application instance sharing the same Redis can resume
-  a workflow suspended by another (`graph:state:` is one shared namespace keyed by the
-  business correlation ID).
+  a workflow suspended by another.
 - **Lazy connection**: the app boots normally without Redis; the first persist/retrieve
   connects (and fails loudly if Redis is unreachable). The `redis` crate's
   `ConnectionManager` reconnects automatically, and every round-trip is bounded by

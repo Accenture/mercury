@@ -1,0 +1,213 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "generic exception handler: one island-anchored handler serves two different failing nodes via the error.source/code/message/stack context",
+        "name": "unit-test-error-context"
+      }
+    },
+    {
+      "alias": "pick",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(={input.body.mode}) -> model.mode",
+          "IF: {model.mode} == '=http'\nTHEN: fetch-profile\nELSE: fail-task"
+        ],
+        "purpose": "route to one of two failing nodes so the handler's error.source distinguishes them"
+      }
+    },
+    {
+      "alias": "fetch-profile",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "async.http.request",
+        "exception": "probe-error",
+        "input": [
+          "text(http://127.0.0.1:${rest.server.port:8080}) -> host",
+          "text(/api/mdm/profile/100) -> url",
+          "text(GET) -> method",
+          "text(application/json) -> headers.accept",
+          "text(true) -> headers.x-exception",
+          "text(5000) -> headers.x-ttl"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "purpose": "an HTTP call by configuration that fails with 401 (the mock's simulated exception) - the exception routes to the shared handler"
+      }
+    },
+    {
+      "alias": "fail-task",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.demo.task",
+        "exception": "probe-error",
+        "input": [
+          "text(yes) -> exception"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "purpose": "a composable function that throws - the exception routes to the same shared handler"
+      }
+    },
+    {
+      "alias": "island",
+      "types": [
+        "Island"
+      ],
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "anchor: keeps the jump-only handler node non-orphan while plain traversal stops here"
+      }
+    },
+    {
+      "alias": "probe-error",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "error.source -> output.body.source",
+          "error.code -> output.body.code",
+          "error.message -> output.body.message",
+          "error.stack -> output.body.stack",
+          "text(handled) -> output.body.stage"
+        ],
+        "purpose": "the generic exception handler: it reads the error context without naming any failing node"
+      }
+    },
+    {
+      "alias": "relay",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.counting.step",
+        "input": [
+          "text(relay) -> step",
+          "model.cid -> cid"
+        ],
+        "output": [
+          "result.count -> output.body.relay_count"
+        ],
+        "purpose": "further processing after the handler - an exception handler node connects onward like any node"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "pick",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "root",
+      "target": "island",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "island",
+      "target": "probe-error",
+      "relations": [
+        {
+          "type": "anchor",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "pick",
+      "target": "fetch-profile",
+      "relations": [
+        {
+          "type": "http",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "pick",
+      "target": "fail-task",
+      "relations": [
+        {
+          "type": "task",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "fetch-profile",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "fail-task",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "probe-error",
+      "target": "relay",
+      "relations": [
+        {
+          "type": "continue",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "relay",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

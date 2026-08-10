@@ -6,6 +6,12 @@ inputs to the target, and the target's response body becomes this node's
 result. This is the seam between the knowledge-graph layer and the Event
 Script layer beneath it.
 
+The delegated graph or flow inherits the caller's business correlation ID (model.cid), the same
+way an Event Script sub-flow does. A delegated subgraph that suspends therefore persists its
+state under the shared business correlation ID scoped by its own graph ID - re-invoking with the
+same correlation ID resumes it. This makes a parent graph a natural orchestrator of independently
+resumable subgraph paths (see the workflow-suspension guide's orchestrator pattern).
+
 Route name
 ----------
 "graph.extension"
@@ -72,7 +78,12 @@ Notes
 - Failure routing: on failure, {node}.status and {node}.error are set and
   the output[] mappings are skipped. With exception={handler-node},
   traversal jumps to the handler instead of aborting; without it, the run
-  aborts. The bounded-retry pattern is shown under 'help graph-api-fetcher'.
+  aborts. The jump also stages the generic exception context
+  (error.source/code/message and error.stack when available) so ONE
+  island-anchored handler can serve every node - error.source is the
+  extension node in THIS graph; failures inside the delegated subgraph or
+  flow route to that graph's own handlers. The bounded-retry pattern and
+  the full error-context contract are shown under 'help graph-api-fetcher'.
 - for_each[]={array-source} -> model.{var} invokes the target once per
   element of a runtime list, with bounded parallel fan-out (concurrency
   1-30, default 3). The shared iteration rules are under

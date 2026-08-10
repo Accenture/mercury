@@ -1,0 +1,142 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "orchestrator pattern: the parent delegates a processing path to a subgraph that may suspend independently, then routes on the subgraph's reply",
+        "name": "unit-test-orchestrator"
+      }
+    },
+    {
+      "alias": "call-path",
+      "types": [
+        "Extension"
+      ],
+      "properties": {
+        "skill": "graph.extension",
+        "extension": "unit-test-sub-suspend",
+        "input": [
+          "input.body.item -> item"
+        ],
+        "output": [
+          "result -> model.path"
+        ],
+        "purpose": "delegate one processing path to the subgraph - the business correlation ID is inherited, so the subgraph suspends and resumes under its own graph-scoped record"
+      }
+    },
+    {
+      "alias": "route",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(={model.path.type}) -> model.path_probe",
+          "IF: {model.path_probe} == '=suspended'\nTHEN: waiting\nELSE: done"
+        ],
+        "purpose": "the orchestrator routes on the subgraph's reply: the '=' probe guard makes the possibly-absent 'type' key safe to compare (a completed path's reply has no 'type')"
+      }
+    },
+    {
+      "alias": "waiting",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "model.path -> output.body",
+          "text(waiting) -> output.body.stage"
+        ],
+        "purpose": "tell the caller the path is suspended - re-invoke with the same correlation ID to continue"
+      }
+    },
+    {
+      "alias": "done",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "model.path -> output.body",
+          "text(done) -> output.body.stage"
+        ],
+        "purpose": "the path completed - relay its result"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "call-path",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "call-path",
+      "target": "route",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "route",
+      "target": "waiting",
+      "relations": [
+        {
+          "type": "suspended",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "route",
+      "target": "done",
+      "relations": [
+        {
+          "type": "completed",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "waiting",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "done",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

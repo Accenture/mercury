@@ -51,15 +51,16 @@ fn manifest_listed_graphs_are_compiled() {
     assert!(!graphs::graph_exists("rust-no-purpose"));
     // 13 tutorials + 21 original fixtures + the 7 valid suspend fixtures
     // (incl. the jump-mode and retired-property compat shapes) + the 3 valid
-    // ttl fixtures (node-ttl ok + the 2 x-ttl wire echoes); the 13
+    // ttl fixtures (node-ttl ok + the 2 x-ttl wire echoes) + the generic
+    // exception-context fixture + the orchestrator pair; the 14
     // deliberately-invalid fixtures
-    // (suspend err1-7, no-end, ttl err1-4, task-6) are rejected by the
-    // mandatory quality gate. Every graph a runtime test executes MUST be
-    // listed here - deployed execution is compiled-or-404 (no lazy load)
+    // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias) are rejected
+    // by the mandatory quality gate. Every graph a runtime test executes MUST
+    // be listed here - deployed execution is compiled-or-404 (no lazy load)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        44,
+        47,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
@@ -76,6 +77,11 @@ fn valid_suspend_resume_graphs_are_compiled() {
     // a graph.task node may declare a child-call deadline (ttl in the
     // suspend grammar) - the gate accepts it
     assert!(graphs::graph_exists("unit-test-ttl-ok"));
+    // the generic exception-context fixture and the orchestrator pair pass
+    // the gate (the subgraph is a complete resumable workflow on its own)
+    assert!(graphs::graph_exists("unit-test-error-context"));
+    assert!(graphs::graph_exists("unit-test-orchestrator"));
+    assert!(graphs::graph_exists("unit-test-sub-suspend"));
 }
 
 #[test]
@@ -108,6 +114,10 @@ fn invalid_manifest_graphs_are_not_compiled() {
         // (model.ttl) - the model-staging RHS is gate-checked like every
         // other model-writing path
         "unit-test-task-6",
+        // a node aliased 'error' shadows the exception-context namespace
+        // (error.source/code/message/stack) - the graph model itself rejects
+        // reserved aliases at node creation, so the gate rejection is inherited
+        "unit-test-error-alias",
     ] {
         assert!(
             !graphs::graph_exists(id),

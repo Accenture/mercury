@@ -22,11 +22,13 @@
 //! annotation inventory — the Java "include the jar" deployment story):
 //!
 //! - **`v1.redis.persist.model`** (`type=put`) — stores the persistence
-//!   envelope `{cid, node, ttl, model, seen, run}` opaquely (MsgPack bytes)
-//!   under the business correlation ID with the requested time-to-live
-//!   (Redis SETEX — expiry is native, no sweeper needed). A 2xx reply is the
-//!   durability acknowledgement the `graph.suspend` skill requires before
-//!   the graph run completes.
+//!   envelope `{cid, graph, node, ttl, model, seen, run}` opaquely (MsgPack
+//!   bytes) under the key `graph:{graph_id}:{cid}` with the requested
+//!   time-to-live (Redis SETEX — expiry is native, no sweeper needed). The
+//!   graph ID scopes the record so the same business correlation ID may
+//!   suspend independently in each domain's graph and in each subgraph. A
+//!   2xx reply is the durability acknowledgement the `graph.suspend` skill
+//!   requires before the graph run completes.
 //! - **`v1.redis.retrieve.model`** (`type=get`) — returns the persisted
 //!   record, or an empty map when absent-or-expired (a fresh transaction is
 //!   the normal case, not an error). The record is CONSUMED atomically on
@@ -51,7 +53,7 @@ use async_trait::async_trait;
 use platform_core::{preload, AppError, ComposableFunction, EventEnvelope};
 use rmpv::Value;
 
-use connection::KEY_PREFIX;
+use connection::store_key;
 
 /// The persist route (`graph.suspend`'s `task`).
 pub const PERSIST_ROUTE: &str = "v1.redis.persist.model";
@@ -62,6 +64,7 @@ const TYPE: &str = "type";
 const PUT: &str = "put";
 const GET: &str = "get";
 const CID: &str = "cid";
+const GRAPH: &str = "graph";
 const TTL: &str = "ttl";
 
 /// `v1.redis.persist.model` — the PERSIST half of the state-store contract,
@@ -84,7 +87,8 @@ impl ComposableFunction for PersistModel {
         if headers.get(TYPE).map(String::as_str) != Some(PUT) {
             return Err(AppError::new(400, "Type must be put"));
         }
-        let cid = required_cid(input.body())?;
+        let cid = required_field(input.body(), CID)?;
+        let graph_id = required_field(input.body(), GRAPH)?;
         let ttl_seconds = match map_get(input.body(), TTL) {
             Some(Value::Integer(n)) => n.as_i64().unwrap_or(0),
             _ => 0,
@@ -96,13 +100,13 @@ impl ComposableFunction for PersistModel {
         let mut redis = connection::manager().await?;
         with_deadline(
             redis::cmd("SETEX")
-                .arg(format!("{KEY_PREFIX}{cid}"))
+                .arg(store_key(&graph_id, &cid))
                 .arg(ttl_seconds)
                 .arg(bytes)
                 .query_async::<()>(&mut redis),
         )
         .await?;
-        log::info!("Persisted workflow state for cid {cid}, ttl={ttl_seconds}s");
+        log::info!("Persisted workflow state for graph {graph_id}, cid {cid}, ttl={ttl_seconds}s");
         Ok(EventEnvelope::new()
             .set_raw_body(Value::Map(vec![(Value::from("stored"), Value::from(true))])))
     }
@@ -129,9 +133,10 @@ impl ComposableFunction for RetrieveModel {
         if headers.get(TYPE).map(String::as_str) != Some(GET) {
             return Err(AppError::new(400, "Type must be get"));
         }
-        let cid = required_cid(input.body())?;
+        let cid = required_field(input.body(), CID)?;
+        let graph_id = required_field(input.body(), GRAPH)?;
         let mut redis = connection::manager().await?;
-        let key = format!("{KEY_PREFIX}{cid}");
+        let key = store_key(&graph_id, &cid);
         let data: Option<Vec<u8>> = if connection::native_getdel() {
             with_deadline(redis::cmd("GETDEL").arg(&key).query_async(&mut redis)).await?
         } else {
@@ -155,25 +160,27 @@ impl ComposableFunction for RetrieveModel {
         match data {
             None => Ok(EventEnvelope::new().set_raw_body(Value::Map(vec![]))),
             Some(bytes) => {
-                log::info!("Restored workflow state for cid {cid}");
+                log::info!("Restored workflow state for graph {graph_id}, cid {cid}");
                 Ok(EventEnvelope::new().set_raw_body(unpack(&bytes)))
             }
         }
     }
 }
 
-/// Extract the mandatory non-blank `cid` (Java: "Missing cid").
-fn required_cid(body: &Value) -> Result<String, AppError> {
-    match map_get(body, CID) {
+/// Extract a mandatory non-blank field (Java: "Missing cid" / "Missing graph").
+/// A cid-only record would collapse every graph's records into one shared key
+/// space, so both store functions fail fast when `graph` is absent.
+fn required_field(body: &Value, name: &str) -> Result<String, AppError> {
+    match map_get(body, name) {
         Some(Value::String(text)) => {
-            let cid = text.as_str().unwrap_or_default().trim();
-            if cid.is_empty() {
-                Err(AppError::new(400, "Missing cid"))
+            let value = text.as_str().unwrap_or_default().trim();
+            if value.is_empty() {
+                Err(AppError::new(400, format!("Missing {name}")))
             } else {
-                Ok(cid.to_string())
+                Ok(value.to_string())
             }
         }
-        _ => Err(AppError::new(400, "Missing cid")),
+        _ => Err(AppError::new(400, format!("Missing {name}"))),
     }
 }
 

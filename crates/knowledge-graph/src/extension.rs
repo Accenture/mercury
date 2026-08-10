@@ -141,7 +141,8 @@ async fn call_extension(
     };
     log::info!("Call extension {extension}, ttl={ttl}");
     po.annotate_trace("extension", extension);
-    let forward = build_forward(&node_name, extension, parameters, ttl)?;
+    let business_cid = get_business_cid(instance);
+    let forward = build_forward(&node_name, extension, parameters, ttl, business_cid.as_deref())?;
     let response = call_flow(po, forward, ttl).await;
     let mut state = instance.state.lock().expect("graph state machine");
     state
@@ -188,6 +189,7 @@ async fn call_extension_with_fork_join(
     ));
     let concurrency = if given < 0 { 3 } else { given }.clamp(1, 30) as usize;
     po.annotate_trace("extension", extension);
+    let business_cid = get_business_cid(instance);
     let forwards = {
         let mut state = instance.state.lock().expect("graph state machine");
         let api_params = state
@@ -219,6 +221,7 @@ async fn call_extension_with_fork_join(
                 extension,
                 Value::Map(parameters),
                 timeout,
+                business_cid.as_deref(),
             )?);
         }
         state
@@ -266,14 +269,37 @@ async fn call_extension_with_fork_join(
     Ok(())
 }
 
+/// The caller's business correlation-id (model.cid), trimmed — `None` when
+/// absent or blank. Both engines trim identically so the store key space
+/// stays one key per business transaction per graph.
+fn get_business_cid(instance: &Arc<GraphInstance>) -> Option<String> {
+    let state = instance.state.lock().expect("graph state machine");
+    match state.get_element("model.cid") {
+        Some(Value::String(s)) => {
+            let trimmed = s.as_str().unwrap_or_default().trim().to_string();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed)
+            }
+        }
+        _ => None,
+    }
+}
+
 /// Build the flow-launch envelope: `flow://<id>` targets that flow directly;
 /// a graph id rides the `graph-executor` flow with `path_parameter.graph_id`
-/// (Java parity — the sub-graph runs as its own flow instance).
+/// (Java parity — the sub-graph runs as its own flow instance). The child
+/// flow or graph inherits the caller's business correlation-id (model.cid),
+/// exactly like an Event Script sub-flow launch — so a subgraph that suspends
+/// can be resumed under the same business transaction id (its store record is
+/// keyed by graph + cid, never by a per-call random id).
 fn build_forward(
     node_name: &str,
     extension: &str,
     parameters: Value,
     ttl: i64,
+    business_cid: Option<&str>,
 ) -> Result<EventEnvelope, AppError> {
     let body = match parameters {
         v @ Value::Map(_) => v,
@@ -298,11 +324,15 @@ fn build_forward(
         ));
         GRAPH_EXECUTOR_FLOW.to_string()
     };
-    Ok(EventEnvelope::new()
+    let mut forward = EventEnvelope::new()
         .set_to(event_script::manager::SERVICE_NAME)
         .set_header("flow_id", &flow_id)
         .set_correlation_id(&uuid::Uuid::new_v4().simple().to_string())
-        .set_raw_body(Value::Map(dataset)))
+        .set_raw_body(Value::Map(dataset));
+    if let Some(cid) = business_cid {
+        forward = forward.set_header(event_script::manager::BUSINESS_CORRELATION_ID, cid);
+    }
+    Ok(forward)
 }
 
 struct FlowResponse {

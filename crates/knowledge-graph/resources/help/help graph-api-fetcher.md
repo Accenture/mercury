@@ -95,12 +95,38 @@ Failure routing (exception)
 ---------------------------
 On a failed call (HTTP status >= 400):
 
-- {node}.status and {node}.error are set (the engine's error record)
+- {node}.status and {node}.error are set (the engine's error record; {node}.stack is
+  added when the failure carries a stack trace)
 - the output[] mappings are SKIPPED
 - with exception={handler-node}, traversal JUMPS to the handler; without
   it, the run ABORTS and the error is returned to the caller.
 
-The handler is typically a graph.math decision node that inspects the
+When traversal jumps to the handler, the engine also stages a generic exception context that
+does not name the failing node:
+
+- error.source  - the failing node's alias
+- error.code    - the status code
+- error.message - the error message
+- error.stack   - the stack trace, when the failure carries one
+
+so ONE handler node can serve the "exception" route of every node in the graph. A generic
+handler reads the context in its data mapping without naming any failing node:
+
+```
+mapping[]=error.source -> output.body.failed_at
+mapping[]=error.code -> output.body.status
+mapping[]=error.message -> output.body.message
+```
+
+Anchor a shared handler from an island (root -> island -> handler): the handler is reached by
+jumping, so the island keeps it non-orphan while plain traversal stops at the island. A handler
+node may also connect onward to more nodes for sophisticated recovery (e.g. a graph.task
+invoking a composable function). Note that a node is visited at most once per run unless RESET,
+so if two parallel branches fail together, only the first jump enters a shared handler. The
+alias 'error' is reserved for this namespace - probe it in a dry-run session with
+"inspect error".
+
+A retry handler is typically a graph.math decision node that inspects the
 fetcher's status/error, counts attempts, and retries with a bound:
 
 ```

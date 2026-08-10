@@ -98,8 +98,24 @@ from the "x-ttl" key-value under "headers" in milliseconds, e.g. `text(5000) -> 
 Exception handling
 ------------------
 If the function throws an exception (e.g. AppException with a status code) or the call times out,
-the "error" and "status" parameters of the node are set. When the node has an "exception" property,
-the graph jumps to that error handler node. Otherwise, the error is returned as the graph output.
+the "error" and "status" parameters of the node are set (plus "stack" when the failure carries a
+stack trace). When the node has an "exception" property, the graph jumps to that error handler
+node. Otherwise, the error is returned as the graph output.
+
+When traversal jumps to the handler, the engine also stages a generic exception context that
+does not name the failing node:
+
+- error.source  - the failing node's alias
+- error.code    - the status code
+- error.message - the error message
+- error.stack   - the stack trace, when the failure carries one
+
+so ONE handler node can serve the "exception" route of every node in the graph - a graph.task
+node, an API fetcher and an extension can all share the same handler, and error.source tells
+them apart. Anchor a shared handler from an island (root -> island -> handler) because it is
+reached by jumping, and note that a node is visited at most once per run unless RESET. The
+alias 'error' is reserved for this namespace - probe it in a dry-run session with
+"inspect error". See "describe skill graph.api.fetcher" for the canonical bounded-retry handler.
 
 Example
 -------

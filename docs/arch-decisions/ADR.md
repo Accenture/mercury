@@ -26,6 +26,76 @@ or *Deprecated* (no longer relevant), with its text left in place.
 
 ---
 
+## ADR-0013 — Generic exception context: one handler serves every `exception=` route {#adr-0013}
+**Status:** Proposed · **Date:** 2026-08-10 · **Serves:** vision-mercury · **Formalizes:** field-graph-scoped-state-and-error-context-rust
+<!-- id: adr-0013 | status: proposed -->
+
+**Abstract.** When a failed node routes to its `exception=` handler, the walkers
+(executor and traveler — one staging site each, covering every skill) stage a **generic
+exception context** in the state machine: `error.source` (the failing node's alias),
+`error.code`, `error.message`, and `error.stack` when the failing record carries one
+(this engine has no native stack-trace transport — a documented port divergence; the
+"when available" contract holds on both engines). The names follow **Event Script's flow
+exception contract** (`error.code/message/stack`) so both orchestration layers share one
+vocabulary; `source` is the graph-side addition, since a graph handler — unlike a flow's
+— is a node that many other nodes may name. The per-node error record
+(`{node}.status`/`{node}.error`) is unchanged, so existing handlers keep working. `error`
+is a **reserved node alias** (it always was, in the graph model's reserved-name list) —
+the namespace is a first-class state-machine citizen like `model`, inspectable in a
+dry-run with `inspect error`. A shared handler is island-anchored
+(`root → island → handler`, the ADR-0011 anchoring idiom) because exception routing is a
+jump; it is entered at most once per run unless RESET, and it may connect onward to
+further processing nodes.
+
+**Rationale.** The field demo showed graphs cluttered with per-fetcher handler clones —
+structurally forced, because the engine staged failures only under the failing node's own
+scratch (`{node}.status`/`{node}.error`), so a handler's data mapping had to name its
+failing node statically. Staging at the walkers' exception choke points (rather than in
+each skill) covers `graph.api.fetcher`, `graph.task`, `graph.extension` and the
+suspend/resume store failures in one move, with no per-skill drift. For an extension
+node, `error.source` is the extension node in the parent graph — failures inside a
+delegated subgraph route to that subgraph's own handlers, composing with ADR-0012's
+self-containment. Event Script parity naming was chosen over graph-local naming
+(`error.status`/`error.error`) for cross-layer consistency and because `error.error`
+reads badly. The context is transient per run and never persisted across suspension.
+
+## ADR-0012 — A business transaction spans graphs: workflow-state records are scoped by graph + cid, and delegation inherits the correlation ID {#adr-0012}
+**Status:** Proposed · **Date:** 2026-08-10 · **Serves:** vision-mercury · **Formalizes:** field-graph-scoped-state-and-error-context-rust · **Amends:** ADR-0009, ADR-0011
+<!-- id: adr-0012 | status: proposed -->
+
+**Abstract.** The suspend/resume state-store contract is scoped by **graph + cid**: the
+persistence envelope gains a `graph` field (`{cid, graph, node, ttl, model, seen, run}`),
+the retrieve body becomes `{cid, graph}`, and the Redis reference implementation keys
+records `graph:{graph_id}:{cid}` (formerly `graph:state:{cid}`). Key composition remains
+store-internal, but every store MUST scope by both — a cid-only key collapses all of a
+transaction's suspensions into one record. Complementarily, **`graph.extension` stamps
+the parent's business correlation ID** (`model.cid`) on the delegated call — both a graph
+id and a `flow://` target, both branches (single and `for_each`) — exactly as an Event
+Script sub-flow launch already did, closing the asymmetry where a subgraph's `model.cid`
+was an unusable per-call random UUID. Together these make suspension **self-contained per
+graph by construction**: one business transaction may suspend independently in each
+domain's graph and in each subgraph, a resume only ever sees its own graph's records, and
+an orchestrator parent can delegate independently resumable subgraph paths (the
+documented orchestrator pattern, pinned by the `unit-test-orchestrator` /
+`unit-test-sub-suspend` reference models). **Breaking change** (accepted, dev-phase — no
+legacy fallback): records persisted under the old key are invisible after upgrade and
+resume behaves as fresh; custom stores must adopt the `graph` field.
+
+**Rationale.** The field demo drove both halves: the same business correlation ID is used
+across multiple domains, so `graph:state:{cid}` collided across domains sharing a Redis —
+and their orchestrator use case (a parent graph delegating suspend/resume per processing
+path) was structurally impossible, for two independent reasons the code study confirmed:
+the key collision, and `graph.extension` minting a random UUID per call with no
+business-cid header, so a subgraph's resume could never find its record even with scoped
+keys. The graph ID is unique per domain, so `graph + cid` addresses both the domain and
+the subgraph requirement with one convention. Scoping is enforced in the contract (the
+reference stores fail fast on a missing `graph`) rather than by engine-composed opaque
+keys, keeping key layout a store concern. The `for_each` caveat is documented, not
+enforced: one graph × one cid = one record, so a suspendable subgraph is invoked once per
+cid per run. ADR-0009's cid-as-capability note extends naturally: one cid now unlocks
+resume in every graph that suspended under it, scoped per graph id, with endpoint
+authentication unchanged.
+
 ## ADR-0011 — Suspension is a destination: edge-mode checkpoints and jump-mode decisions replace the `suspend=true` property {#adr-0011}
 **Status:** Accepted · **Date:** 2026-08-07T22:50:34.000Z · **Serves:** vision-mercury · **Formalizes:** suspend-resume-rationalization-rust · **Amends:** ADR-0009
 <!-- id: adr-0011 | status: accepted | formalizes: suspend-resume-rationalization-rust -->
