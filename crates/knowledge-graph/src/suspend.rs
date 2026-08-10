@@ -418,10 +418,7 @@ fn persistence_envelope(
     Value::Map(vec![
         (Value::from(CID), Value::from(cid)),
         // cid + graph form the retrieval key (self-contained per graph)
-        (
-            Value::from(GRAPH),
-            Value::from(instance.graph_id.as_str()),
-        ),
+        (Value::from(GRAPH), Value::from(instance.graph_id.as_str())),
         (Value::from(NODE), Value::from(from)),
         (Value::from(TTL), Value::from(ttl_seconds)),
         (Value::from(MODEL), model_copy),

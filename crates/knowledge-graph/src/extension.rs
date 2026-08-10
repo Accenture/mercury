@@ -142,7 +142,13 @@ async fn call_extension(
     log::info!("Call extension {extension}, ttl={ttl}");
     po.annotate_trace("extension", extension);
     let business_cid = get_business_cid(instance);
-    let forward = build_forward(&node_name, extension, parameters, ttl, business_cid.as_deref())?;
+    let forward = build_forward(
+        &node_name,
+        extension,
+        parameters,
+        ttl,
+        business_cid.as_deref(),
+    )?;
     let response = call_flow(po, forward, ttl).await;
     let mut state = instance.state.lock().expect("graph state machine");
     state

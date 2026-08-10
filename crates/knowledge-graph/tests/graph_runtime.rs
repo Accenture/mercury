@@ -2234,7 +2234,6 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
     );
 }
 
-
 /// The field scenario (Java `sameCorrelationIdSuspendsIndependentlyPerGraph`):
 /// one business transaction suspends in more than one graph - each record is
 /// scoped by graph + cid, so a shared business correlation ID never collides
@@ -2268,7 +2267,10 @@ async fn same_cid_suspends_independently_per_graph(platform: &Platform) {
     // resuming one graph consumes only its own record
     let done = run_graph_cid(platform, "unit-test-suspend-1", cid, serde_json::json!({})).await;
     assert_eq!(200, done.status(), "resume: {:?}", done.body());
-    assert_eq!(Some(Value::from("two")), body_map(&done).get_element("step"));
+    assert_eq!(
+        Some(Value::from("two")),
+        body_map(&done).get_element("step")
+    );
     assert!(!store_file("unit-test-suspend-1", cid).exists());
     assert!(
         store_file("unit-test-suspend-5", cid).exists(),
@@ -2312,7 +2314,10 @@ async fn orchestrator_parent_drives_suspending_subgraph_path(platform: &Platform
         Some(Value::from("unit-test-sub-suspend")),
         stored.get_element("data.graph")
     );
-    assert_eq!(Some(Value::from("prepare")), stored.get_element("data.node"));
+    assert_eq!(
+        Some(Value::from("prepare")),
+        stored.get_element("data.node")
+    );
     assert_eq!(
         Some(Value::from("widget-7")),
         stored.get_element("data.model.item")
@@ -2396,7 +2401,10 @@ async fn generic_exception_context_serves_every_node(platform: &Platform) {
     assert_eq!(200, response.status(), "http mode: {:?}", response.body());
     let body = body_map(&response);
     assert_eq!(Some(Value::from("handled")), body.get_element("stage"));
-    assert_eq!(Some(Value::from("fetch-profile")), body.get_element("source"));
+    assert_eq!(
+        Some(Value::from("fetch-profile")),
+        body.get_element("source")
+    );
     assert_eq!(Some(Value::from(401)), body.get_element("code"));
     let message =
         event_script::conversions::display(&body.get_element("message").unwrap_or(Value::Nil));
@@ -2421,7 +2429,6 @@ async fn generic_exception_context_serves_every_node(platform: &Platform) {
     let text = event_script::conversions::display(rejected.body());
     assert!(text.contains("not found"), "unexpected: {text}");
 }
-
 
 /// The dry-run twin of the generic exception context (Java
 /// `CompanionSyncTest.dryRunStagesErrorContextAndInspectErrorShowsIt`): the

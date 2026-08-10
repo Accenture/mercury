@@ -174,7 +174,9 @@ async fn redis_state_store_contract() {
     {
         let key = scoped_key(GRAPH_ID, &cid).into_bytes();
         let map = raw_store.lock().expect("raw store");
-        let entry = map.get(&key).expect("record stored under graph:{graph_id}:{cid}");
+        let entry = map
+            .get(&key)
+            .expect("record stored under graph:{graph_id}:{cid}");
         let remaining = entry
             .expires_at
             .expect("expiry must be set")
@@ -369,8 +371,14 @@ async fn redis_state_store_contract() {
             }
         }
     }
-    assert_eq!(200, request(&po, PERSIST_ROUTE, "put", parent).await.status());
-    assert_eq!(200, request(&po, PERSIST_ROUTE, "put", child).await.status());
+    assert_eq!(
+        200,
+        request(&po, PERSIST_ROUTE, "put", parent).await.status()
+    );
+    assert_eq!(
+        200,
+        request(&po, PERSIST_ROUTE, "put", child).await.status()
+    );
     let restored_child = request(&po, RETRIEVE_ROUTE, "get", get_body("shipping-path", &cid)).await;
     assert_eq!(
         Some(&Value::from("carrier-checkpoint")),
