@@ -457,6 +457,7 @@ async fn graph_runtime_end_to_end() {
     orchestrator_parent_drives_suspending_subgraph_path(&platform).await;
     generic_exception_context_serves_every_node(&platform).await;
     statement_commands_resolve_dynamic_variables(&platform).await;
+    successful_retry_resolves_the_error_context(&platform).await;
     suspend_resume_x_run_over_the_real_http_stack(&platform).await;
     suspend_resume_store_calls_chain_to_their_skill_spans(&platform).await;
     rejected_deployed_graph_is_not_executable(&platform).await;
@@ -470,6 +471,7 @@ async fn graph_runtime_end_to_end() {
     companion_sync_pre_run_check_rejects_broken_suspend_contract(&platform).await;
     companion_sync_instantiate_creates_model_cid(&platform).await;
     companion_sync_inspect_error_shows_context(&platform).await;
+    companion_sync_inspect_error_reports_recovery(&platform).await;
     math_for_each_blocks_and_iteration(&platform).await;
     join_barrier_waits_for_a_retrying_branch(&platform).await;
     chained_join_counts_only_a_fired_upstream_join(&platform).await;
@@ -2576,6 +2578,133 @@ async fn statement_commands_resolve_dynamic_variables(platform: &Platform) {
     assert_eq!(
         Some(Value::from("static")),
         body_map(&reply).get_element("route_taken")
+    );
+}
+
+/// Java `GraphErrorContextTest.successfulRetryResolvesTheErrorContext`: the
+/// generic one-shot handler disarms the simulated exception and retries via
+/// RESET:/NEXT: {error.source}; when the retried source succeeds, the walker
+/// resolves the virtual 'error' node - code=200, source kept, details gone.
+async fn successful_retry_resolves_the_error_context(platform: &Platform) {
+    let cid = "wf-error-recovery-013";
+    let reply = run_graph_cid(
+        platform,
+        "unit-test-error-recovery",
+        cid,
+        serde_json::json!({"start": true}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "recovery: {:?}", reply.body());
+    let body = body_map(&reply);
+    assert_eq!(
+        Some(Value::from("Peter")),
+        body.get_element("name"),
+        "the retry must deliver the real result"
+    );
+    assert_eq!(Some(Value::from(200)), body.get_element("recovered_code"));
+    assert_eq!(
+        Some(Value::from("work")),
+        body.get_element("recovered_source")
+    );
+    assert_eq!(
+        None,
+        body.get_element("stale_message"),
+        "the failure message must be removed on recovery"
+    );
+}
+
+/// Java `CompanionSyncTest.successfulRetryResolvesErrorContextInDryRun`:
+/// tutorial-12's generic handler recovers the fetcher in the dry-run lane and
+/// 'inspect error' reports the RECOVERY, not the stale failure.
+async fn companion_sync_inspect_error_reports_recovery(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let sid = "ws-770014-1";
+    let in_route = "ws.770014.1.in";
+
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+            ])),
+    )
+    .await
+    .expect("open dispatched");
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(knowledge_graph::commands::has_session(sid), "session open");
+
+    async fn sync_cmd(platform: &Platform, sid: &str, command: &str) -> serde_json::Value {
+        let event = EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (
+                rmpv::Value::from("parameters"),
+                rmpv::Value::Map(vec![(
+                    rmpv::Value::from("path"),
+                    rmpv::Value::Map(vec![(rmpv::Value::from("id"), rmpv::Value::from(sid))]),
+                )]),
+            ),
+            (rmpv::Value::from("body"), rmpv::Value::from(command)),
+            (rmpv::Value::from("method"), rmpv::Value::from("POST")),
+        ]));
+        let resp = knowledge_graph::rest::post_companion_command_sync(platform, event)
+            .await
+            .expect("sync endpoint returns Ok");
+        let json = event_script::conversions::to_json_string(resp.body());
+        serde_json::from_str(&json).expect("response body is JSON")
+    }
+
+    let temp = std::path::Path::new("/tmp/graph/tutorial-12.json");
+    if temp.exists() {
+        std::fs::remove_file(temp).expect("stale temp copy removed");
+    }
+    let imported = sync_cmd(platform, sid, "import graph from tutorial-12").await;
+    assert_eq!(
+        imported["ok"],
+        serde_json::json!(true),
+        "import: {imported}"
+    );
+    let instantiated = sync_cmd(
+        platform,
+        sid,
+        "instantiate graph\nint(100) -> input.body.person_id\nboolean(true) -> input.body.exception",
+    )
+    .await;
+    assert_eq!(
+        instantiated["ok"],
+        serde_json::json!(true),
+        "instantiate: {instantiated}"
+    );
+    let ran = sync_cmd(platform, sid, "run").await;
+    assert_eq!(ran["ok"], serde_json::json!(true), "dry-run: {ran}");
+    assert_eq!(
+        "Peter",
+        ran["result"][0]["output"]["body"]["name"]
+            .as_str()
+            .unwrap_or(""),
+        "the retried fetcher must deliver the profile: {ran}"
+    );
+    // the virtual 'error' node reports the RECOVERY, not the stale failure
+    let inspected = sync_cmd(platform, sid, "inspect error").await;
+    assert_eq!(
+        inspected["ok"],
+        serde_json::json!(true),
+        "inspect error: {inspected}"
+    );
+    let outcome = &inspected["result"][0]["outcome"];
+    assert_eq!(200, outcome["code"].as_i64().unwrap_or(0), "{inspected}");
+    assert_eq!(
+        "fetcher",
+        outcome["source"].as_str().unwrap_or(""),
+        "{inspected}"
+    );
+    assert!(
+        outcome["message"].is_null(),
+        "the failure message must be removed on recovery: {inspected}"
     );
 }
 

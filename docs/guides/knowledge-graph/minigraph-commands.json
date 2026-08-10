@@ -128,7 +128,7 @@
       "name": "error.*",
       "read": true,
       "write": "by engine",
-      "meaning": "generic exception context staged when a failed node routes to its exception= handler: error.source (the failing node's alias), error.code, error.message, error.stack (when available) - lets one handler serve every node; transient per run (never persisted across suspension); 'error' is a reserved node alias; inspect with 'inspect error'"
+      "meaning": "generic exception context staged when a failed node routes to its exception= handler: error.source (the failing node's alias), error.code, error.message, error.stack (when available) - lets one handler serve every node; when the failing source is later retried successfully the context RESOLVES (code=200, source kept, message/stack removed; the source match keeps parallel branches safe) - so empty = nothing failed, {source, code 200} = recovered, full = outstanding failure; transient per run (never persisted across suspension); 'error' is a reserved node alias; inspect with 'inspect error'"
     }
   ],
   "commands": [

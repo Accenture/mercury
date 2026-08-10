@@ -37,7 +37,12 @@ the design rationale in [`docs/design/`](docs/design/).
    suspend/resume store calls all route through the same staging. The per-node record
    (`{node}.status`/`{node}.error`) is unchanged, so existing handlers keep working.
    The `error` namespace is inspectable in a dry-run session via `inspect error` — the
-   node alias `error` has always been reserved by the graph model. (ADR-0013)
+   node alias `error` has always been reserved by the graph model. The context also
+   **reports recovery**: when the failing `error.source` is later retried successfully,
+   `error.code` becomes 200 with the source kept and the failure details removed (the
+   source match keeps parallel branches safe) — empty means nothing failed,
+   `{source, code: 200}` means recovered, a full context means an outstanding failure.
+   (ADR-0013)
 
 2. **The orchestrator pattern: a parent graph delegates independently resumable subgraph
    paths.** `graph.extension` now stamps the caller's business correlation ID
