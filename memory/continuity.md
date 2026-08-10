@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.4** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-09 | agent: Claude Code (2026-08-09-164019)
+- **last_session:** 2026-08-10 | agent: Claude Code (2026-08-10-190550)
 - **last_review:** 2026-08-07 | through 2026-08-07-150018.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -166,6 +166,35 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [x] (feature — **MERGED 2026-08-10 as mercury PR #200, merge `283d41e2`** carrying
+  `24eeef89` + the `cargo fmt` follow-up `7dadd1ff` — the first CI run FAILED the
+  Format check because the scripted test edits weren't rustfmt-clean (this repo's gate
+  is tests + clippy + FMT; run all three locally); CI green on re-run (test job 2m25s).
+  Mirrors Java
+  [PR #271](https://github.com/Accenture/mercury-composable/pull/271) squash `adfb2a0d`
+  + polish PR #272 squash `0612ec6d`, both merged same day — **COMPLETE ON BOTH
+  ENGINES; both ride the next release.** Rust ADR-0012/ADR-0013 accepted via the merge.)
+  **Graph-scoped workflow state + generic exception context (field
+  review follow-ups), Increment 84.** The suspend/resume store contract is scoped by
+  graph + cid: envelope {cid, graph, node, ttl, model, seen, run}, get body {cid, graph},
+  Redis key `graph:{graph_id}:{cid}` (formerly `graph:state:{cid}` — BREAKING, flag-day
+  per Eric's R1; both store functions reject a missing graph; version-aware
+  GETDEL/MULTI-EXEC consume unchanged, re-proven on the RESP double).
+  `graph.extension`'s `build_forward` stamps the caller's model.cid as the
+  `correlation_id` header (Event Script sub-flow parity) — the orchestrator pattern
+  (parent delegating independently resumable subgraph paths) pinned by the
+  byte-identical unit-test-orchestrator/unit-test-sub-suspend pair + per-graph isolation
+  scenario. Generic exception context: `stage_error_context` in common.rs staged at both
+  walker choke points (error.source/code/message; **error.stack only when a record
+  carries one — this engine has NO native stack-trace transport, a documented port
+  divergence**); 'error' was always reserved in the graph model (RESERVED_NAMES) so no
+  gate change; `inspect error` works by construction; the alias fixture joins the
+  compiled-or-404 negatives (compiler counts 47 valid / 14 invalid). Rust ADR-0012 +
+  ADR-0013 proposed (Java twins ADR-0013/ADR-0014 — the numbering skew continues). Gate:
+  58 suites / 305 tests green, clippy clean, webapp 212/212 (bundle regenerated for six
+  help pages — three byte-copied, three adapted to port variants).
+  <!-- id: thread-graph-scoped-state-and-error-context-rust | created: 2026-08-10 | last_used: 2026-08-10 | uses: 1 | tier: working | origin: 2026-08-10-190550 -->
 
 - [x] (release — SHIPPED 2026-08-09, **lock-step with the Java engine at v4.11.5**)
   **v4.11.5 — the graph.task parity + teaching-surfaces release.** Release PR #199 merge
