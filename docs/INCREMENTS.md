@@ -102,6 +102,7 @@
 | 83 | graph.task `model.*` input staging (Event Script parity) + tutorial-13 as an HTTP client by configuration: async.http.request, dynamic variables, `${...}` load-time substitution, explicit `headers.x-ttl`; v1.hello.task retired; dry-run companion twin | 2026-08-08 | — | * |
 | 84 | Graph-scoped workflow state (`graph:{graph_id}:{cid}`, BREAKING) + business-cid inheritance through graph.extension (the orchestrator pattern) + the generic exception context (error.source/code/message) with `inspect error`; ADR-0012/ADR-0013 proposed | 2026-08-10 | — | * |
 | 85 | Dynamic variables in every statement command (NEXT:/THEN:/ELSE: targets, RESET: entries, DELAY: values) — the generic retry handler via `{error.source}`; tutorial-12 genericized | 2026-08-10 | — | * |
+| 86 | The virtual 'error' node reports recovery: a successful retry of error.source resolves the context (code=200, source kept, details removed; source match keeps parallel branches safe) | 2026-08-10 | — | * |
 
 \* From increment 76 the workspace gate is reported as green test **suites** (58 at
 v4.11.x) rather than a single cumulative test count — the multi-crate workspace runs
@@ -2542,3 +2543,21 @@ graph.js (retired), so the rule lands in the math statement executor only. Docs:
 statement grammar and the failure-routing generic handler in the command reference,
 graph-math and fetcher help, tutorial-12 help, skills reference, the AI catalog;
 webapp bundle regenerated.
+
+## Increment 86 — the error context reports recovery (2026-08-10)
+
+Lock-step mirror of the Java engine's refinement, from Eric's tutorial-12 regression
+pass: after a generic handler successfully retried the fetcher, `inspect error` still
+showed the stale failure (code 401) while the node itself reported 200. Now, when a node
+with `exception=` completes without error and it is the recorded `error.source`, the
+walkers resolve the context — `error.code` becomes 200, `error.source` stays (the
+recovered node), and the failure details (message, stack) are removed
+(`resolve_error_context` in common.rs, called from both walkers' success branches). The
+virtual `error` node has three distinguishable states: empty = nothing failed this run;
+`{source, code 200}` = recovered; a full context = an outstanding failure. The source
+match keeps parallel branches safe — one node's success never clears a different node's
+outstanding failure. Pinned by the byte-identical `unit-test-error-recovery` fixture
+(generic one-shot handler disarms and retries via RESET:/NEXT: {error.source}; a report
+mapper reads the resolved context) in the executor lane and a tutorial-12 companion
+dry-run in the traveler lane. Docs: failure routing in the command reference, inspect and
+tutorial-12 and fetcher help, the AI catalog; webapp bundle regenerated.

@@ -56,6 +56,9 @@ graphs:
   - 'unit-test-sub-suspend'
   # every statement command resolves dynamic variables: THEN: {model.hop} + DELAY: {model.backoff}
   - 'unit-test-dynamic-jump'
+  # the virtual 'error' node reports recovery: a successful retry of error.source resolves
+  # the context to {source, code 200} with the failure details removed
+  - 'unit-test-error-recovery'
   # the suspend-err graphs are deliberately invalid: CompileGraph must reject every
   # one of them, and a rejected graph answers HTTP-404 (compiled or 404)
   - 'unit-test-ttl-ok'

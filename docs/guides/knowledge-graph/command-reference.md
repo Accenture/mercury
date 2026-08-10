@@ -513,6 +513,15 @@ recovery. A node is visited at most once per run unless RESET, so concurrent bra
 collapse into the first jump. `error` is a **reserved node alias** for this namespace —
 `inspect error` shows the staged context in a dry-run session.
 
+**The context reports recovery.** When a node with `exception=` later completes *without*
+error and it is the recorded `error.source`, the engine resolves the context: `error.code`
+becomes `200`, `error.source` stays (the recovered node), and the failure details
+(`error.message`, `error.stack`) are removed. The virtual `error` node therefore has three
+distinguishable states — **empty** (nothing failed this run), **`{source, code: 200}`**
+(`source` failed and was successfully retried), and **`{source, code, message…}`** (an
+outstanding failure). The source match is what makes this safe with parallel branches: one
+node's success never clears a *different* node's outstanding failure.
+
 Wire a retry handler back explicitly (e.g. `connect error-handler to fetcher with retry`) — no
 node left unconnected. The canonical **bounded-retry** pattern combines the pieces (see the
 [statement grammar](#math-statements)) — and because **every statement command resolves

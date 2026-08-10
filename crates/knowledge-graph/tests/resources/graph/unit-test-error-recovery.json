@@ -1,0 +1,161 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "the virtual 'error' node reports recovery: after the failing source retries successfully, error.code becomes 200, error.source stays, and the failure details are removed",
+        "name": "unit-test-error-recovery"
+      }
+    },
+    {
+      "alias": "seed",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(true) -> model.exc"
+        ],
+        "purpose": "arm the simulated exception for the first attempt"
+      }
+    },
+    {
+      "alias": "work",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "async.http.request",
+        "exception": "fix",
+        "input": [
+          "text(http://127.0.0.1:${rest.server.port:8080}) -> host",
+          "text(/api/mdm/profile/100) -> url",
+          "text(GET) -> method",
+          "text(application/json) -> headers.accept",
+          "model.exc -> headers.x-exception",
+          "text(5000) -> headers.x-ttl"
+        ],
+        "output": [
+          "result.profile -> model.profile"
+        ],
+        "purpose": "fails with 401 while the simulated exception is armed, succeeds on the retry"
+      }
+    },
+    {
+      "alias": "island",
+      "types": [
+        "Island"
+      ],
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "anchor: keeps the jump-only handler node non-orphan while plain traversal stops here"
+      }
+    },
+    {
+      "alias": "fix",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "RESET: {error.source}, fix",
+          "MAPPING: text(false) -> model.exc",
+          "NEXT: {error.source}",
+          "DELAY: 25"
+        ],
+        "purpose": "the generic one-shot recovery handler: disarm the exception and retry whichever node routed here"
+      }
+    },
+    {
+      "alias": "report",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "model.profile.name -> output.body.name",
+          "error.code -> output.body.recovered_code",
+          "error.source -> output.body.recovered_source",
+          "error.message -> output.body.stale_message"
+        ],
+        "purpose": "reads the resolved error context after the successful retry - the stale message must be gone"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "seed",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "root",
+      "target": "island",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "island",
+      "target": "fix",
+      "relations": [
+        {
+          "type": "anchor",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "seed",
+      "target": "work",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "work",
+      "target": "report",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "report",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

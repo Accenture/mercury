@@ -598,6 +598,23 @@ pub fn stage_error_context(state: &mut MultiLevelMap, source: &str) {
     }
 }
 
+/// A node with an exception= handler completed without error: if it is the
+/// recorded error.source, the failure it staged has been RECOVERED - mark the
+/// context resolved (error.code=200, error.source kept as the recovered node)
+/// and drop the failure details (message and stack). The virtual 'error' node
+/// then has three distinguishable states: empty = nothing failed this run;
+/// {source, code 200} = source failed and recovered; {source, code, message} =
+/// an outstanding failure. A different node's outstanding failure is never
+/// touched - the source would not match, which keeps parallel branches safe.
+/// (Java `GraphLambdaFunction.resolveErrorContext`.)
+pub fn resolve_error_context(state: &mut MultiLevelMap, node_name: &str) {
+    if state.get_element(ERROR_SOURCE) == Some(Value::from(node_name)) {
+        let _ = state.set_element(ERROR_CODE, Value::from(200));
+        state.remove_element(ERROR_MESSAGE);
+        state.remove_element(ERROR_STACK);
+    }
+}
+
 pub fn get_error_map(error: Option<Value>, target: Option<Value>) -> Value {
     let mut result: Vec<(Value, Value)> = Vec::new();
     if let Some(Value::String(_)) = &target {

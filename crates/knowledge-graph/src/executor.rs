@@ -222,6 +222,7 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
             state.get_element(&format!("{node_name}.{}", common::ERROR)),
         )
     };
+    let error_handler = node.get_property(EXCEPTION);
     // mark the skill complete only when it did NOT fail (status + error set,
     // e.g. an exception-routed fetcher): a join barrier counts skill_run, so
     // a failed branch must not satisfy the barrier while it retries.
@@ -235,8 +236,12 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
             .lock()
             .expect("skill run")
             .insert(node_name.to_string(), true);
+        if error_handler.is_some() {
+            // a retried error.source succeeded - mark the exception context resolved
+            let mut state = instance.state.lock().expect("graph state machine");
+            common::resolve_error_context(&mut state, node_name);
+        }
     }
-    let error_handler = node.get_property(EXCEPTION);
     if let (Some(Value::Integer(rc)), Some(error), None) =
         (&process_status, &result_error, &error_handler)
     {
