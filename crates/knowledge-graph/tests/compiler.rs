@@ -52,7 +52,8 @@ fn manifest_listed_graphs_are_compiled() {
     // 13 tutorials + 21 original fixtures + the 7 valid suspend fixtures
     // (incl. the jump-mode and retired-property compat shapes) + the 3 valid
     // ttl fixtures (node-ttl ok + the 2 x-ttl wire echoes) + the generic
-    // exception-context fixture + the orchestrator pair; the 14
+    // exception-context fixture + the orchestrator pair + the dynamic-jump
+    // fixture (THEN:/DELAY: dynamic variables); the 14
     // deliberately-invalid fixtures
     // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias) are rejected
     // by the mandatory quality gate. Every graph a runtime test executes MUST
@@ -60,7 +61,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        47,
+        48,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );

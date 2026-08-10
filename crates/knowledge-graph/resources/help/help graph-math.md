@@ -103,6 +103,23 @@ Traversal control
   wipe - an IF on a just-wiped variable (e.g. {fetcher.status} after
   RESET: fetcher) aborts the run, so a defensive status check goes before it.
 
+Dynamic variables in statement commands
+---------------------------------------
+Every statement command resolves {dynamic variables}, not only expressions. A NEXT: or THEN:/ELSE:
+jump target, a RESET: list entry and a DELAY: value may each be a {namespace.key} reference
+resolved at execution time. This is what makes a GENERIC error handler possible - it retries
+whichever node routed to it without naming any node:
+
+```
+statement[]=RESET: {error.source}, error-handler
+statement[]=NEXT: {error.source}
+statement[]=DELAY: {model.backoff}
+```
+
+An unresolved variable renders "null": a RESET: entry is then a safe no-op, a DELAY: is skipped,
+and a jump target fails the run loudly ("Next node 'null' does not exist") - correct for a jump,
+so seed the variable before relying on it. See tutorial 12 for the full generic retry handler.
+
 Iterating lists (for_each)
 --------------------------
 for_each[] turns part of the statement list into a loop. Each entry has the

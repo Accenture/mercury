@@ -723,6 +723,23 @@ pub fn get_next_tag(tag: &str, command: &str) -> Option<String> {
     None
 }
 
+/// The `NEXT:` jump target with dynamic variables resolved - every statement
+/// command resolves {dynamic variables}, so a generic error handler can jump
+/// back to the failing node via `NEXT: {error.source}`. An unresolved variable
+/// renders "null" and fails the jump loudly at traversal time
+/// (Java `getNext(tag, command, stateMachine)`).
+pub fn get_next_tag_resolved(
+    tag: &str,
+    command: &str,
+    state: &MultiLevelMap,
+) -> Result<Option<String>, AppError> {
+    if tag == NEXT_TAG {
+        let resolved = substitute_var_if_any(command, state)?;
+        return Ok(get_next_tag(tag, &resolved));
+    }
+    Ok(None)
+}
+
 /// Inline `EXECUTE:` statement merge (Java `combine` + `mergeStatements`).
 /// Note the Java behavior: merged lines are lowercased.
 pub fn combine(

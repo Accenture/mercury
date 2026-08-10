@@ -15,6 +15,16 @@ the design rationale in [`docs/design/`](docs/design/).
 
 ### Added
 
+0. **Dynamic variables now resolve in every statement command — completing the generic
+   error handler.** `NEXT:` and `THEN:`/`ELSE:` jump targets, `RESET:` list entries and
+   `DELAY:` values in `graph.math` statements resolve `{namespace.key}` references at
+   execution time, so a generic handler can retry *whichever node routed to it*:
+   `RESET: {error.source}, error-handler` + `NEXT: {error.source}` (and pace with a
+   computed `DELAY: {model.backoff}`). Previously only `MAPPING`/`COMPUTE` expressions and
+   `IF` conditions substituted. An unresolved variable renders `null`: a `RESET:` entry is
+   a safe no-op, a `DELAY:` is skipped, and a jump target fails the run loudly.
+   tutorial-12's error-handler and clear-exception nodes now teach the generic idiom.
+
 1. **Generic exception context for `exception=` handlers — one handler can serve every
    node.** When a failed node routes to its exception handler, the engine now stages
    `error.source` (the failing node's alias), `error.code`, `error.message`, and

@@ -1,0 +1,138 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "every statement command resolves dynamic variables: a THEN: jump target and a DELAY: value from the model",
+        "name": "unit-test-dynamic-jump"
+      }
+    },
+    {
+      "alias": "prep",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "input.body.hop -> model.hop",
+          "int(15) -> model.backoff"
+        ],
+        "purpose": "stage the jump target and the computed backoff as model variables"
+      }
+    },
+    {
+      "alias": "gate",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "DELAY: {model.backoff}",
+          "IF: {model.hop} == 'stage-b'\nTHEN: {model.hop}\nELSE: plain"
+        ],
+        "purpose": "jump to a dynamically named node with a dynamically computed delay"
+      }
+    },
+    {
+      "alias": "stage-b",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(dynamic) -> output.body.route_taken",
+          "gate.delay -> output.body.applied_delay"
+        ],
+        "purpose": "the dynamically addressed target - it also reports the delay the gate applied"
+      }
+    },
+    {
+      "alias": "plain",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(static) -> output.body.route_taken"
+        ],
+        "purpose": "the literal alternative"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "prep",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "prep",
+      "target": "gate",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "gate",
+      "target": "stage-b",
+      "relations": [
+        {
+          "type": "dynamic",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "gate",
+      "target": "plain",
+      "relations": [
+        {
+          "type": "static",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "stage-b",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "plain",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

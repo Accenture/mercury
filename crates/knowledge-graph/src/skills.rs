@@ -35,8 +35,8 @@ use rmpv::Value;
 use crate::common::{
     assert_mutable_model_target, combine, count_execute_statements, get_effective_ttl,
     get_else_statement, get_entries, get_first_word, get_for_each_mapping, get_graph_instance,
-    get_if_statement, get_model_array_size, get_next_model_param_set, get_next_node, get_next_tag,
-    get_node, get_then_statement, handle_data_mapping_entry, invalid,
+    get_if_statement, get_model_array_size, get_next_model_param_set, get_next_node,
+    get_next_tag_resolved, get_node, get_then_statement, handle_data_mapping_entry, invalid,
     perform_fetcher_output_mapping, reset_nodes, split_blocks, substitute_var_if_any, COMPUTE_TAG,
     DELAY_TAG, ERROR, EXCEPTION, EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO, MODEL_NAMESPACE,
     NEXT, NODE, NODE_NAME, RESET_TAG, RESULT, SINK, SKILL, STATUS, TARGET, TYPE,
@@ -221,7 +221,7 @@ fn execute_statements(
             }
         }
         process_commands(&tag, command, node_name, instance, state)?;
-        if let Some(next) = get_next_tag(&tag, command) {
+        if let Some(next) = get_next_tag_resolved(&tag, command, state)? {
             jump = Some(next);
         }
     }
@@ -244,10 +244,14 @@ fn process_commands(
         handle_data_mapping_entry(node_name, &command, state, &instance.graph)?;
     }
     if tag == RESET_TAG {
-        reset_nodes(&command, instance, state);
+        // dynamic variables resolve in every statement command - a generic error
+        // handler resets the failing node via 'RESET: {error.source}, error-handler'
+        let resolved = substitute_var_if_any(&command, state)?;
+        reset_nodes(&resolved, instance, state);
     }
     if tag == DELAY_TAG {
-        let delay = str2long(&command);
+        // e.g. a computed backoff: 'DELAY: {model.backoff}'
+        let delay = str2long(&substitute_var_if_any(&command, state)?);
         if delay >= 0 {
             state
                 .set_element(&format!("{node_name}.delay"), Value::from(delay))
@@ -304,8 +308,10 @@ fn evaluate(
     state: &mut MultiLevelMap,
 ) -> Result<Option<String>, AppError> {
     let if_statement = get_if_statement(lines);
-    let then_full = get_then_statement(lines);
-    let else_full = get_else_statement(lines);
+    // jump targets resolve dynamic variables like every other statement position,
+    // e.g. 'THEN: {error.source}' jumps back to the failing node
+    let then_full = substitute_var_if_any(get_then_statement(lines).trim(), state)?;
+    let else_full = substitute_var_if_any(get_else_statement(lines).trim(), state)?;
     let then_statement = get_first_word(then_full.trim());
     let else_statement = get_first_word(else_full.trim());
     if if_statement.is_empty() || then_statement.is_empty() || else_statement.is_empty() {
