@@ -10,7 +10,7 @@
         "statement": [
           "MAPPING: boolean(false) -> model.exception",
           "MAPPING: int(0) -> model.attempts",
-          "RESET: fetcher, clear-exception"
+          "RESET: {error.source}, clear-exception"
         ]
       }
     },
@@ -38,12 +38,12 @@
       "properties": {
         "skill": "graph.math",
         "statement": [
-          "IF: {fetcher.status} == 200\nTHEN: end\nELSE: next",
+          "IF: {error.code} == 200\nTHEN: end\nELSE: next",
           "MAPPING: f:defaultValue(model.attempts, int(0)) -> model.attempts",
           "MAPPING: f:add(model.attempts, int(1)) -> model.attempts",
           "IF: {model.attempts} >= 3\nTHEN: clear-exception\nELSE: next",
-          "RESET: fetcher, error-handler",
-          "NEXT: fetcher",
+          "RESET: {error.source}, error-handler",
+          "NEXT: {error.source}",
           "DELAY: 50"
         ]
       }

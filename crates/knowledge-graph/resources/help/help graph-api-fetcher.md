@@ -134,7 +134,7 @@ create node error-handler
 with type Decision
 with properties
 skill=graph.math
-statement[]=RESET: fetcher, error-handler
+statement[]=RESET: {error.source}, error-handler
 statement[]=MAPPING: f:defaultValue(model.attempts, int(0)) -> model.attempts
 statement[]=MAPPING: f:add(model.attempts, int(1)) -> model.attempts
 statement[]='''
@@ -142,9 +142,13 @@ IF: {model.attempts} >= 3
 THEN: recovery-node
 ELSE: next
 '''
-statement[]=NEXT: fetcher
+statement[]=NEXT: {error.source}
 statement[]=DELAY: 50
 ```
+
+The handler is fully GENERIC: every statement command resolves {dynamic variables}, so
+RESET: {error.source} and NEXT: {error.source} retry whichever node routed here - one handler
+serves every fetcher and task in the graph. See tutorial 12 for the full walkthrough.
 
 RESET comes first among the action statements so it runs on every path (a
 taken IF jump ends the list) - the attempt counters live in the "model"

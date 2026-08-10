@@ -456,6 +456,7 @@ async fn graph_runtime_end_to_end() {
     same_cid_suspends_independently_per_graph(&platform).await;
     orchestrator_parent_drives_suspending_subgraph_path(&platform).await;
     generic_exception_context_serves_every_node(&platform).await;
+    statement_commands_resolve_dynamic_variables(&platform).await;
     suspend_resume_x_run_over_the_real_http_stack(&platform).await;
     suspend_resume_store_calls_chain_to_their_skill_spans(&platform).await;
     rejected_deployed_graph_is_not_executable(&platform).await;
@@ -2536,6 +2537,45 @@ async fn companion_sync_inspect_error_shows_context(platform: &Platform) {
         "just a test",
         context["outcome"]["message"].as_str().unwrap_or(""),
         "context: {inspected}"
+    );
+}
+
+/// Java `DynamicStatementTargetTest`: every statement command resolves
+/// {dynamic variables} - RESET:/NEXT: are pinned end-to-end by tutorial-12's
+/// generic error handler (RESET:/NEXT: {error.source}); this pins the
+/// remaining positions - a THEN: jump target and a DELAY: value from the model.
+async fn statement_commands_resolve_dynamic_variables(platform: &Platform) {
+    // the gate jumps to 'THEN: {model.hop}' with 'DELAY: {model.backoff}'
+    let reply = run_graph(
+        platform,
+        "unit-test-dynamic-jump",
+        serde_json::json!({"hop": "stage-b"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "dynamic: {:?}", reply.body());
+    let body = body_map(&reply);
+    assert_eq!(
+        Some(Value::from("dynamic")),
+        body.get_element("route_taken")
+    );
+    assert_eq!(
+        Some(Value::from(15)),
+        body.get_element("applied_delay"),
+        "DELAY: {{model.backoff}} must resolve to the staged value"
+    );
+    // an unmatched condition takes the literal alternative
+    let reply = run_graph(
+        platform,
+        "unit-test-dynamic-jump",
+        serde_json::json!({"hop": "nowhere"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "static: {:?}", reply.body());
+    assert_eq!(
+        Some(Value::from("static")),
+        body_map(&reply).get_element("route_taken")
     );
 }
 

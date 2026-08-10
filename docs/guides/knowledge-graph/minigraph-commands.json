@@ -439,7 +439,8 @@
         "NEXT: takes a NODE NAME (not a connection/relation label) — unconditional jump applied AFTER the whole statement list completes (later statements still run; the last NEXT wins)",
         "DELAY: {ms} pauses AFTER this node completes, deferring the walk to the next node (paces retries)",
         "BEGIN/END delimit the loop body for for_each[] iteration — they are NOT IF-block braces (without for_each[] they are accepted and ignored)",
-        "a node with only MAPPING statements is rejected — use graph.data.mapper instead"
+        "a node with only MAPPING statements is rejected — use graph.data.mapper instead",
+        "every statement command resolves {dynamic variables}, not only expressions: NEXT:/THEN:/ELSE: jump targets, RESET: entries and DELAY: values may each be a {namespace.key} reference resolved at execution time - e.g. the generic error handler retries via RESET: {error.source}, error-handler + NEXT: {error.source}, and DELAY: {model.backoff} paces with a computed backoff; an unresolved variable renders 'null' (RESET no-op, DELAY skipped, jump fails the run loudly)"
       ],
       "for_each": {
         "entry": "for_each[]=source -> model.{var}   (RHS MUST be a model.* key)",
@@ -459,7 +460,8 @@
       "retired": true,
       "notes": [
         "RETIRED in this Rust port (disabled for security); the runtime rejects it: 'Skill graph.js is retired for security reasons - use graph.math or graph.task instead'",
-        "do NOT author graph.js nodes — use graph.math for inline compute/branch, or graph.task for anything richer"
+        "do NOT author graph.js nodes — use graph.math for inline compute/branch, or graph.task for anything richer",
+        "statement commands resolve {dynamic variables} - the same rule as graph.math (NEXT:/THEN:/ELSE: targets, RESET: entries, DELAY: values)"
       ]
     },
     {
@@ -482,7 +484,7 @@
         "concurrency 1-30 (default 3)",
         "dedup: identical requests (same provider + input parameters) are deduplicated WITHIN THE GRAPH INSTANCE; only SUCCESSFUL responses are cached (a failed call is never cached, so a retry after RESET: makes a real call)",
         "HTTP semantics: one Provider call is exactly ONE HTTP request - redirects are NEVER followed (a 3xx is a non-failure: status and body are captured and traversal proceeds; point the Provider url at the redirect target to land on it); {node}.status ALWAYS carries the HTTP status of the fetch, success included",
-        "exception={handler-node}: on a failed call (HTTP >= 400) the node's status/error are set (plus {node}.stack when the failure carries one), output[] mappings are SKIPPED, and traversal JUMPS to the handler instead of aborting (without exception=, the run aborts); the jump also stages the generic exception context error.source/error.code/error.message/error.stack so ONE island-anchored handler can serve every node's exception= route without naming the failing node ('error' is a reserved alias; 'inspect error' shows the context); a node is visited at most once per run unless RESET - wire a retry handler back (connect handler to fetcher with retry) and bound the loop - full pattern in command-reference.md#failure-routing",
+        "exception={handler-node}: on a failed call (HTTP >= 400) the node's status/error are set (plus {node}.stack when the failure carries one), output[] mappings are SKIPPED, and traversal JUMPS to the handler instead of aborting (without exception=, the run aborts); the jump also stages the generic exception context error.source/error.code/error.message/error.stack so ONE island-anchored handler can serve every node's exception= route without naming the failing node ('error' is a reserved alias; 'inspect error' shows the context); a node is visited at most once per run unless RESET - wire a retry handler back (connect handler to fetcher with retry) and bound the loop - full pattern in command-reference.md#failure-routing; the canonical bounded-retry handler is fully generic - RESET: {error.source}, error-handler + NEXT: {error.source} retries whichever node routed here (tutorial-12)",
         "deadline: each call is bounded by the propagated model.ttl (default 30s) or the node ttl override; a deadline shorter than the graph's budget makes a slow provider time out FIRST so exception= routing handles it (the time-boxed half of a bounded retry loop); the effective deadline is stamped as the outbound x-ttl request header (wire read-timeout = deadline + 1s grace) - a Mercury callee honors the inbound x-ttl over its endpoint timeout (end-to-end deadline propagation)"
       ],
       "for_each": {

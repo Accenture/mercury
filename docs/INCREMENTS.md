@@ -101,6 +101,7 @@
 | 82 | Suspension is a destination (ADR-0011 amending ADR-0009; Java ADR-0012 twin): edge and jump modes replace suspend=true, shape-based gate rules + teaching errors, tutorial-14 remodel, fixtures byte-identical, webapp replaced from the Java repo's latest UI | 2026-08-07 | — | * |
 | 83 | graph.task `model.*` input staging (Event Script parity) + tutorial-13 as an HTTP client by configuration: async.http.request, dynamic variables, `${...}` load-time substitution, explicit `headers.x-ttl`; v1.hello.task retired; dry-run companion twin | 2026-08-08 | — | * |
 | 84 | Graph-scoped workflow state (`graph:{graph_id}:{cid}`, BREAKING) + business-cid inheritance through graph.extension (the orchestrator pattern) + the generic exception context (error.source/code/message) with `inspect error`; ADR-0012/ADR-0013 proposed | 2026-08-10 | — | * |
+| 85 | Dynamic variables in every statement command (NEXT:/THEN:/ELSE: targets, RESET: entries, DELAY: values) — the generic retry handler via `{error.source}`; tutorial-12 genericized | 2026-08-10 | — | * |
 
 \* From increment 76 the workspace gate is reported as green test **suites** (58 at
 v4.11.x) rather than a single cumulative test count — the multi-crate workspace runs
@@ -2522,3 +2523,22 @@ Docs mirrored from the reference engine: workflow-suspension guide (at-a-glance 
 bullet, the orchestrator-pattern section, the store contract), failure routing in the
 command reference (the error.* table), skills reference, six help pages, the AI grammar
 catalog, the reserved-names guide, and the Redis store README; webapp bundle regenerated.
+
+## Increment 85 — dynamic variables in every statement command (2026-08-10)
+
+Lock-step mirror of the Java reference engine's fix, found by Eric's regression pass on
+the generic error handler. `RESET:` lists, `NEXT:` targets, `THEN:`/`ELSE:` jump targets
+and `DELAY:` values in `graph.math` statements now resolve `{dynamic variables}` at
+execution time — previously only `MAPPING`/`COMPUTE` expressions and `IF` conditions
+substituted, so `RESET: {error.source}` silently reset an unknown alias and
+`NEXT: {error.source}` failed the jump, forcing per-node handler clones despite the
+Increment 84 context. One substituting `get_next_tag_resolved` in common.rs plus per-tag
+substitution in `process_commands` and `evaluate` (skills.rs); an unresolved variable
+renders "null" (RESET no-op, DELAY skipped, jump fails loudly). tutorial-12's
+error-handler and clear-exception teach the generic idiom (fixture byte-identical with
+the Java engine; its e2e now pins RESET/NEXT substitution), and the new
+`unit-test-dynamic-jump` fixture pins THEN:/DELAY: substitution. This engine has no
+graph.js (retired), so the rule lands in the math statement executor only. Docs: the
+statement grammar and the failure-routing generic handler in the command reference,
+graph-math and fetcher help, tutorial-12 help, skills reference, the AI catalog;
+webapp bundle regenerated.

@@ -515,14 +515,16 @@ collapse into the first jump. `error` is a **reserved node alias** for this name
 
 Wire a retry handler back explicitly (e.g. `connect error-handler to fetcher with retry`) — no
 node left unconnected. The canonical **bounded-retry** pattern combines the pieces (see the
-[statement grammar](#math-statements)):
+[statement grammar](#math-statements)) — and because **every statement command resolves
+`{dynamic variables}`**, the handler is fully generic: it retries *whichever node routed here*
+via `{error.source}`, never naming a node:
 
 ```
 create node error-handler
 with type Decision
 with properties
 skill=graph.math
-statement[]=RESET: fetcher, error-handler
+statement[]=RESET: {error.source}, error-handler
 statement[]=MAPPING: f:defaultValue(model.attempts, int(0)) -> model.attempts
 statement[]=MAPPING: f:add(model.attempts, int(1)) -> model.attempts
 statement[]='''
@@ -530,16 +532,18 @@ IF: {model.attempts} >= 3
 THEN: recovery-node
 ELSE: next
 '''
-statement[]=NEXT: fetcher
+statement[]=NEXT: {error.source}
 statement[]=DELAY: 50
 ```
 
-The handler **resets the fetcher and itself first** (the placement rule above — it then runs on
-every path, including the recovery jump), counts attempts (`f:defaultValue` + `f:add` on the
+The handler **resets the failing node and itself first** (the placement rule above — it then runs
+on every path, including the recovery jump), counts attempts (`f:defaultValue` + `f:add` on the
 `model.*` namespace, which `RESET` never touches), exits to a recovery node at the bound (a taken
 `IF` jump ends the list), otherwise jumps back and paces the retry with a delay — staying under
-the engine's loop guard. If the handler also carries a defensive check on the failed node's
-status, that check must come **before** the `RESET` (it reads state the reset wipes).
+the engine's loop guard. The `DELAY` value may itself be dynamic (`DELAY: {model.backoff}`) for
+a computed backoff, and a `THEN:`/`ELSE:` target may be dynamic too. If the handler also carries
+a defensive check on the failing status (`IF: {error.code} == 200`), that check must come
+**before** the `RESET` (it reads state the reset wipes). tutorial-12 walks this exact handler.
 
 ## Island — the knowledge layer (required) {#island}
 
@@ -681,6 +685,15 @@ ELSE: lt-path
   **not** `IF`-block braces) — see [for_each](#math-for-each).
 - `DELAY: {milliseconds}` — pause **after this node completes**, deferring the walk to the next
   node (paces retries; simulates a slow service).
+
+**Every statement command resolves `{dynamic variables}`** — not just expressions. A `NEXT:` or
+`THEN:`/`ELSE:` jump target, a `RESET:` list entry, and a `DELAY:` value may each be a
+`{namespace.key}` reference resolved at execution time: `NEXT: {error.source}` jumps back to
+whichever node routed to this handler ([failure routing](#failure-routing)),
+`RESET: {error.source}, error-handler` resets it, and `DELAY: {model.backoff}` paces with a
+computed backoff. An unresolved variable renders `null`: a `RESET:` entry is then a safe no-op,
+a `DELAY:` is skipped, and a jump target **fails the run loudly** (*Next node 'null' does not
+exist*) — correct for a jump, so seed the variable before relying on it.
 
 ### `for_each[]` — iterate a statement block over lists {#math-for-each}
 

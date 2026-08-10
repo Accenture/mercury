@@ -132,28 +132,38 @@ always a value of 400 or higher — does not abort the graph traversal: the engi
 "status" and "error" variables, skips its output mappings, and routes the flow to the named error
 handler.
 
+This handler is GENERIC: it never names the failing node. When a failed node routes to its
+"exception" handler, the engine stages the exception context in the state machine —
+error.source (the failing node's alias), error.code (the status code), error.message and
+error.stack when available — and every statement command resolves {dynamic variables}, so the
+handler reads and jumps back through the context ('inspect error' shows it in a dry-run
+session; the node alias "error" is reserved for this namespace).
+
 The handler's statements run in order:
 
-1. The first IF tests "fetcher.status". It is good practice to test for exactly 200 so an
+1. The first IF tests "{error.code}". It is good practice to test for exactly 200 so an
    unintended configuration error cannot slip through. On HTTP-200 the THEN branch jumps to the
    end node — a taken node-jump ends the statement list immediately. Otherwise the ELSE branch
    resolves to "next" and falls through to the following statements.
 2. RESET comes **first among the action statements**: it clears the run-once guard and state of a
-   comma-separated list of nodes so they can be executed again — here the fetcher and the
-   error-handler itself (a node may reset itself because the run-once mark is set before its
-   statements execute). Placing RESET early guarantees it runs on every path — a later taken IF
-   jump would skip it — and everything the node stores afterwards (such as the pending DELAY)
-   survives the self-wipe. Keep RESET **after** any check that reads state it would wipe: the
-   status IF above must run first, because RESET clears "fetcher.status" and an IF on a wiped
-   variable aborts the run.
+   comma-separated list of nodes so they can be executed again — here "{error.source}" (whichever
+   node routed here) and the error-handler itself (a node may reset itself because the run-once
+   mark is set before its statements execute). Placing RESET early guarantees it runs on every
+   path — a later taken IF jump would skip it — and everything the node stores afterwards (such
+   as the pending DELAY) survives the self-wipe. Keep RESET **after** any check that reads state
+   it would wipe: the status IF above must run first, because RESET clears the failing node's
+   "status" and an IF on a wiped variable aborts the run (the staged "error.*" context itself is
+   not node state, so it survives).
 3. The two MAPPING statements increment the retry counter "model.attempts" (`f:defaultValue()`
    seeds it to 0 on the first pass). The "model" namespace is not touched by RESET.
 4. The second IF bounds the retry loop: after 3 attempts it jumps to the "clear-exception" node.
-5. "NEXT: fetcher" tells the traversal system to jump to the fetcher node. Unlike a taken IF jump,
-   NEXT does not stop the statement list — the jump is applied after the whole list completes.
+5. "NEXT: {error.source}" tells the traversal system to jump back to the failing node — whichever
+   node routed here. Unlike a taken IF jump, NEXT does not stop the statement list — the jump is
+   applied after the whole list completes.
 6. "DELAY: 50" pauses for 50 milliseconds after this node completes, before the next retry. Pacing
    retries is a best practice: it avoids very rapid retries that can cause a "recovery storm" — an
-   unintended denial-of-service attack on the target service.
+   unintended denial-of-service attack on the target service. (A DELAY value may also be a dynamic
+   variable, e.g. "DELAY: {model.backoff}" for a computed backoff.)
 
 ```
 create node error-handler
@@ -161,11 +171,11 @@ with type Decision
 with properties
 skill=graph.math
 statement[]='''
-IF: {fetcher.status} == 200
+IF: {error.code} == 200
 THEN: end
 ELSE: next
 '''
-statement[]=RESET: fetcher, error-handler
+statement[]=RESET: {error.source}, error-handler
 statement[]=MAPPING: f:defaultValue(model.attempts, int(0)) -> model.attempts
 statement[]=MAPPING: f:add(model.attempts, int(1)) -> model.attempts
 statement[]='''
@@ -173,23 +183,24 @@ IF: {model.attempts} >= 3
 THEN: clear-exception
 ELSE: next
 '''
-statement[]=NEXT: fetcher
+statement[]=NEXT: {error.source}
 statement[]=DELAY: 50
 ```
 
 Create the clear-exception node
 -------------------------------
 In the clear-exception node, the RESET comes first (nothing before it reads node state), clearing
-the fetcher and the clear-exception node itself so that the system can execute them again. You
-then set the variable "model.exception" to false so that the mock service returns a normal
-response instead of an exception, and clear "model.attempts" to zero.
+the failing node — again via the dynamic "{error.source}" reference, since the exception context
+stays readable for the rest of the run — and the clear-exception node itself so that the system
+can execute them again. You then set the variable "model.exception" to false so that the mock
+service returns a normal response instead of an exception, and clear "model.attempts" to zero.
 
 ```
 create node clear-exception
 with type Decision
 with properties
 skill=graph.math
-statement[]=RESET: fetcher, clear-exception
+statement[]=RESET: {error.source}, clear-exception
 statement[]=MAPPING: boolean(false) -> model.exception
 statement[]=MAPPING: int(0) -> model.attempts
 ```

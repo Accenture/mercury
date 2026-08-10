@@ -54,6 +54,8 @@ graphs:
   # under its own graph-scoped record with the inherited business correlation ID
   - 'unit-test-orchestrator'
   - 'unit-test-sub-suspend'
+  # every statement command resolves dynamic variables: THEN: {model.hop} + DELAY: {model.backoff}
+  - 'unit-test-dynamic-jump'
   # the suspend-err graphs are deliberately invalid: CompileGraph must reject every
   # one of them, and a rejected graph answers HTTP-404 (compiled or 404)
   - 'unit-test-ttl-ok'

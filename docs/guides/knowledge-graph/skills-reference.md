@@ -95,7 +95,11 @@ ELSE: low-price
 
 `{variable}` resolves a value from `input.*`, `model.*`, or a node property into the expression.
 An `IF` returning a node name **overrides** natural traversal; returning `next` keeps it.
-`NEXT:`/`DELAY:` control flow and timing.
+`NEXT:`/`DELAY:` control flow and timing. **Every statement command resolves
+`{dynamic variables}`** — jump targets (`NEXT:`, `THEN:`/`ELSE:`), `RESET:` entries and `DELAY:`
+values included — which is what makes the generic error handler possible
+(`NEXT: {error.source}` retries whichever node routed here;
+[failure routing](command-reference.md#failure-routing)).
 
 **Iterating lists (`for_each[]`):** each `source -> model.{var}` entry whose source is a **list**
 becomes an iteration array (parallel lists advance in lockstep and must agree on length; scalars
