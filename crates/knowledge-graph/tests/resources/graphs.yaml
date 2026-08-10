@@ -44,6 +44,16 @@ graphs:
   - 'unit-test-suspend-5'
   - 'unit-test-suspend-6'
   - 'unit-test-suspend-compat-1'
+  # generic exception handler: one island-anchored handler reads error.source/code/
+  # message/stack for two different failing nodes
+  - 'unit-test-error-context'
+  # deliberately invalid: a node takes the reserved alias 'error' (the exception-context
+  # namespace) - CompileGraph must reject it and requests answer 404
+  - 'unit-test-error-alias'
+  # orchestrator pattern: the parent delegates to a subgraph that suspends and resumes
+  # under its own graph-scoped record with the inherited business correlation ID
+  - 'unit-test-orchestrator'
+  - 'unit-test-sub-suspend'
   # the suspend-err graphs are deliberately invalid: CompileGraph must reject every
   # one of them, and a rejected graph answers HTTP-404 (compiled or 404)
   - 'unit-test-ttl-ok'

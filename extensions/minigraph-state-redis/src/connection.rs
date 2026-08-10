@@ -40,7 +40,15 @@ use tokio::sync::OnceCell;
 
 /// One shared namespace so a workflow suspended by one application instance
 /// can resume on any other instance sharing the same Redis.
-pub(crate) const KEY_PREFIX: &str = "graph:state:";
+const KEY_NAMESPACE: &str = "graph:";
+
+/// Compose the store key: `graph:{graph_id}:{cid}`. The graph ID scopes the
+/// record, so the same business correlation ID may suspend independently in
+/// each domain's graph and in each subgraph - and a resume only ever sees its
+/// own graph's record.
+pub(crate) fn store_key(graph_id: &str, cid: &str) -> String {
+    format!("{KEY_NAMESPACE}{graph_id}:{cid}")
+}
 
 const REDIS_VERSION: &str = "redis_version:";
 const UNKNOWN: &str = "unknown";

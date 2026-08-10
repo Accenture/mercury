@@ -41,13 +41,16 @@ use rmpv::Value;
 /// store for the suspend/resume engine tests — MsgPack wrapper
 /// `{expires_at, data}` under /tmp/suspend-resume, DELETE-ON-READ
 /// (consume-on-retrieve: at-most-once resume), expiry honored on read.
+/// Like the Redis reference implementation, records are scoped by
+/// graph + cid so the same business transaction may suspend independently
+/// in a parent graph and in each subgraph.
 #[preload(route = "v1.file.state.store", instances = 10)]
 struct FileStateStore;
 
 const STORE_DIR: &str = "/tmp/suspend-resume";
 
-fn store_file(cid: &str) -> std::path::PathBuf {
-    let safe: String = cid
+fn store_file(graph_id: &str, cid: &str) -> std::path::PathBuf {
+    let safe: String = format!("{graph_id}:{cid}")
         .chars()
         .map(|c| {
             if c.is_alphanumeric() || c == '-' || c == '_' {
@@ -92,7 +95,19 @@ impl ComposableFunction for FileStateStore {
             .get_element("cid")
             .map(|v| event_script::conversions::display(&v))
             .unwrap_or_default();
-        let file = store_file(&cid);
+        // fail fast like the Redis reference implementation - a missing graph id
+        // would collapse every graph's records into one shared key space
+        let graph_id = match request.get_element("graph") {
+            Some(v) => {
+                let text = event_script::conversions::display(&v);
+                if text.trim().is_empty() {
+                    return Err(AppError::new(400, "Missing graph"));
+                }
+                text
+            }
+            None => return Err(AppError::new(400, "Missing graph")),
+        };
+        let file = store_file(&graph_id, &cid);
         match headers.get("type").map(String::as_str) {
             Some("put") => {
                 let ttl_seconds = match request.get_element("ttl") {
@@ -438,6 +453,9 @@ async fn graph_runtime_end_to_end() {
     graph_extension_matches_java_semantics(&platform).await;
     activated_hello_graphs_match_java_semantics(&platform).await;
     suspend_resume_matches_java_semantics(&platform).await;
+    same_cid_suspends_independently_per_graph(&platform).await;
+    orchestrator_parent_drives_suspending_subgraph_path(&platform).await;
+    generic_exception_context_serves_every_node(&platform).await;
     suspend_resume_x_run_over_the_real_http_stack(&platform).await;
     suspend_resume_store_calls_chain_to_their_skill_spans(&platform).await;
     rejected_deployed_graph_is_not_executable(&platform).await;
@@ -450,6 +468,7 @@ async fn graph_runtime_end_to_end() {
     companion_sync_contract_gaps_closed(&platform).await;
     companion_sync_pre_run_check_rejects_broken_suspend_contract(&platform).await;
     companion_sync_instantiate_creates_model_cid(&platform).await;
+    companion_sync_inspect_error_shows_context(&platform).await;
     math_for_each_blocks_and_iteration(&platform).await;
     join_barrier_waits_for_a_retrying_branch(&platform).await;
     chained_join_counts_only_a_fired_upstream_join(&platform).await;
@@ -1912,10 +1931,15 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
     // the persisted record has the documented envelope shape and no reserved
     // model keys
     let record = MultiLevelMap::from_value(unpack_value(
-        &std::fs::read(store_file(cid)).expect("suspension record file"),
+        &std::fs::read(store_file("unit-test-suspend-1", cid)).expect("suspension record file"),
     ));
     assert_eq!(Some(Value::from("step-1")), record.get_element("data.node"));
     assert_eq!(Some(Value::from(cid)), record.get_element("data.cid"));
+    // cid + graph form the retrieval key: the record carries the graph that suspended
+    assert_eq!(
+        Some(Value::from("unit-test-suspend-1")),
+        record.get_element("data.graph")
+    );
     assert_eq!(
         Some(Value::from(1)),
         record.get_element("data.model.step1_count")
@@ -1953,7 +1977,7 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
         "graph.resume must flag the resumed condition"
     );
     assert!(
-        !store_file(cid).exists(),
+        !store_file("unit-test-suspend-1", cid).exists(),
         "the record must be consumed on resume"
     );
 
@@ -2066,7 +2090,7 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
     let cid = "wf-suspend-forge-006";
     let first = run_graph_cid(platform, "unit-test-suspend-1", cid, serde_json::json!({})).await;
     assert_eq!(200, first.status());
-    let file = store_file(cid);
+    let file = store_file("unit-test-suspend-1", cid);
     let mut record = MultiLevelMap::from_value(unpack_value(
         &std::fs::read(&file).expect("record to forge"),
     ));
@@ -2135,7 +2159,7 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
     assert_eq!(Some(Value::from("fresh")), waiting1.get_element("run"));
     // the persisted suspension point is the DECISION that jumped
     let record = MultiLevelMap::from_value(unpack_value(
-        &std::fs::read(store_file(cid)).expect("jump record"),
+        &std::fs::read(store_file("unit-test-suspend-6", cid)).expect("jump record"),
     ));
     assert_eq!(Some(Value::from("gate")), record.get_element("data.node"));
     // run 2: still no decision - the gate re-executes and re-suspends (before
@@ -2157,7 +2181,7 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
         "the second wait is a resumed run"
     );
     let record2 = MultiLevelMap::from_value(unpack_value(
-        &std::fs::read(store_file(cid)).expect("re-suspension record"),
+        &std::fs::read(store_file("unit-test-suspend-6", cid)).expect("re-suspension record"),
     ));
     assert_eq!(
         Some(Value::from("gate")),
@@ -2184,7 +2208,7 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
     );
     assert_eq!(1, step_count("go-step", cid));
     assert!(
-        !store_file(cid).exists(),
+        !store_file("unit-test-suspend-6", cid).exists(),
         "the record must be consumed on the final resume"
     );
 
@@ -2205,8 +2229,313 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
     );
     assert_eq!(1, step_count("compat-step", cid));
     assert!(
-        !store_file(cid).exists(),
+        !store_file("unit-test-suspend-compat-1", cid).exists(),
         "the retired property must not suspend"
+    );
+}
+
+/// The field scenario (Java `sameCorrelationIdSuspendsIndependentlyPerGraph`):
+/// one business transaction suspends in more than one graph - each record is
+/// scoped by graph + cid, so a shared business correlation ID never collides
+/// across domains or subgraphs.
+async fn same_cid_suspends_independently_per_graph(platform: &Platform) {
+    let cid = "wf-suspend-isolation-009";
+    let r1 = run_graph_cid(platform, "unit-test-suspend-1", cid, serde_json::json!({})).await;
+    assert_eq!(
+        Some(Value::from("suspended")),
+        body_map(&r1).get_element("type")
+    );
+    let r2 = run_graph_cid(platform, "unit-test-suspend-5", cid, serde_json::json!({})).await;
+    assert_eq!(
+        Some(Value::from("suspended")),
+        body_map(&r2).get_element("type")
+    );
+    let record1 = MultiLevelMap::from_value(unpack_value(
+        &std::fs::read(store_file("unit-test-suspend-1", cid)).expect("suspend-1 record"),
+    ));
+    assert_eq!(
+        Some(Value::from("unit-test-suspend-1")),
+        record1.get_element("data.graph")
+    );
+    let record5 = MultiLevelMap::from_value(unpack_value(
+        &std::fs::read(store_file("unit-test-suspend-5", cid)).expect("suspend-5 record"),
+    ));
+    assert_eq!(
+        Some(Value::from("unit-test-suspend-5")),
+        record5.get_element("data.graph")
+    );
+    // resuming one graph consumes only its own record
+    let done = run_graph_cid(platform, "unit-test-suspend-1", cid, serde_json::json!({})).await;
+    assert_eq!(200, done.status(), "resume: {:?}", done.body());
+    assert_eq!(
+        Some(Value::from("two")),
+        body_map(&done).get_element("step")
+    );
+    assert!(!store_file("unit-test-suspend-1", cid).exists());
+    assert!(
+        store_file("unit-test-suspend-5", cid).exists(),
+        "another graph's record for the same cid must survive"
+    );
+}
+
+/// The orchestrator pattern (Java `orchestratorParentDrivesSuspendingSubgraphPath`):
+/// the parent delegates a processing path to a subgraph via graph.extension;
+/// the subgraph inherits the business correlation ID, suspends at its own
+/// checkpoint under graph:{subgraph}:{cid}, and the parent routes on the
+/// suspended reply. Re-invoking the parent with the same cid resumes the
+/// subgraph past its checkpoint.
+async fn orchestrator_parent_drives_suspending_subgraph_path(platform: &Platform) {
+    let cid = "wf-orchestrator-010";
+    // run 1: the subgraph reaches its checkpoint - the parent reports 'waiting'
+    let first = run_graph_cid(
+        platform,
+        "unit-test-orchestrator",
+        cid,
+        serde_json::json!({"item": "widget-7"}),
+    )
+    .await;
+    assert_eq!(200, first.status(), "run 1: {:?}", first.body());
+    let waiting = body_map(&first);
+    assert_eq!(Some(Value::from("waiting")), waiting.get_element("stage"));
+    assert_eq!(Some(Value::from("suspended")), waiting.get_element("type"));
+    assert_eq!(
+        Some(Value::from(cid)),
+        waiting.get_element("cid"),
+        "the subgraph must suspend under the business cid, not a per-call random id"
+    );
+    assert_eq!(1, step_count("sub", cid));
+    // the parent's business correlation ID propagated into the subgraph's task
+    assert_eq!(Some(cid.to_string()), step_business_cid("sub", cid));
+    // the record is scoped by the SUBGRAPH's id and only that record exists
+    let stored = MultiLevelMap::from_value(unpack_value(
+        &std::fs::read(store_file("unit-test-sub-suspend", cid)).expect("subgraph record"),
+    ));
+    assert_eq!(
+        Some(Value::from("unit-test-sub-suspend")),
+        stored.get_element("data.graph")
+    );
+    assert_eq!(
+        Some(Value::from("prepare")),
+        stored.get_element("data.node")
+    );
+    assert_eq!(
+        Some(Value::from("widget-7")),
+        stored.get_element("data.model.item")
+    );
+    assert!(
+        !store_file("unit-test-orchestrator", cid).exists(),
+        "the parent did not suspend - only the subgraph's record exists"
+    );
+    // run 2 with the same cid: the subgraph resumes past its checkpoint
+    let second = run_graph_cid(
+        platform,
+        "unit-test-orchestrator",
+        cid,
+        serde_json::json!({"item": "ignored-on-resume"}),
+    )
+    .await;
+    assert_eq!(200, second.status(), "run 2: {:?}", second.body());
+    let done = body_map(&second);
+    assert_eq!(Some(Value::from("done")), done.get_element("stage"));
+    assert_eq!(Some(Value::from("resume")), done.get_element("run"));
+    assert_eq!(Some(Value::from(cid)), done.get_element("cid_check"));
+    assert_eq!(
+        Some(Value::from("widget-7")),
+        done.get_element("item"),
+        "the restored model must carry the original item"
+    );
+    assert_eq!(Some(Value::from(1)), done.get_element("result.prior"));
+    assert_eq!(
+        1,
+        step_count("sub", cid),
+        "the checkpoint step must not re-execute"
+    );
+    assert_eq!(1, step_count("deliver", cid));
+    assert!(
+        !store_file("unit-test-sub-suspend", cid).exists(),
+        "the record must be consumed on resume"
+    );
+}
+
+/// Java `GraphErrorContextTest`: when a failed node routes to its exception=
+/// handler, the walker stages error.source/code/message (and error.stack when
+/// the failure carries one - this engine has no native stack-trace transport,
+/// a documented port divergence), so ONE island-anchored handler serves every
+/// node without naming any failing node in its data mapping. Also pins the
+/// reserved 'error' alias rejection (compiled-or-404).
+async fn generic_exception_context_serves_every_node(platform: &Platform) {
+    // a failing composable function (v1.demo.task throws 400 "just a test")
+    let cid = "wf-error-context-011";
+    let response = run_graph_cid(
+        platform,
+        "unit-test-error-context",
+        cid,
+        serde_json::json!({"mode": "task"}),
+    )
+    .await;
+    assert_eq!(200, response.status(), "task mode: {:?}", response.body());
+    let body = body_map(&response);
+    assert_eq!(Some(Value::from("handled")), body.get_element("stage"));
+    // the handler reads the generic context - it never names the failing node
+    assert_eq!(Some(Value::from("fail-task")), body.get_element("source"));
+    assert_eq!(Some(Value::from(400)), body.get_element("code"));
+    let message =
+        event_script::conversions::display(&body.get_element("message").unwrap_or(Value::Nil));
+    assert!(
+        message.contains("just a test"),
+        "unexpected message: {message}"
+    );
+    // an exception handler node connects onward like any node
+    assert_eq!(Some(Value::from(1)), body.get_element("relay_count"));
+    assert_eq!(1, step_count("relay", cid));
+
+    // the SAME handler serves a failing HTTP call (the mock's x-exception -> 401)
+    let cid2 = "wf-error-context-012";
+    let response = run_graph_cid(
+        platform,
+        "unit-test-error-context",
+        cid2,
+        serde_json::json!({"mode": "http"}),
+    )
+    .await;
+    assert_eq!(200, response.status(), "http mode: {:?}", response.body());
+    let body = body_map(&response);
+    assert_eq!(Some(Value::from("handled")), body.get_element("stage"));
+    assert_eq!(
+        Some(Value::from("fetch-profile")),
+        body.get_element("source")
+    );
+    assert_eq!(Some(Value::from(401)), body.get_element("code"));
+    let message =
+        event_script::conversions::display(&body.get_element("message").unwrap_or(Value::Nil));
+    assert!(
+        message.contains("simulated exception"),
+        "unexpected message: {message}"
+    );
+    assert_eq!(1, step_count("relay", cid2));
+
+    // a node aliased 'error' shadows the exception-context namespace - the
+    // graph model rejects the reserved alias, so the gate rejection is
+    // inherited and the endpoint answers 404 as if nonexistent
+    let alias_cid = uuid::Uuid::new_v4().simple().to_string();
+    let rejected = run_graph_cid(
+        platform,
+        "unit-test-error-alias",
+        &alias_cid,
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(404, rejected.status(), "alias: {:?}", rejected.body());
+    let text = event_script::conversions::display(rejected.body());
+    assert!(text.contains("not found"), "unexpected: {text}");
+}
+
+/// The dry-run twin of the generic exception context (Java
+/// `CompanionSyncTest.dryRunStagesErrorContextAndInspectErrorShowsIt`): the
+/// traveler stages error.source/code/message when a failed node routes to its
+/// exception= handler, and 'inspect error' shows the staged context - the
+/// 'error' namespace is a first-class state-machine citizen like 'model', so
+/// the inspect command needs no special case.
+async fn companion_sync_inspect_error_shows_context(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let sid = "ws-770013-1";
+    let in_route = "ws.770013.1.in";
+
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+            ])),
+    )
+    .await
+    .expect("open dispatched");
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(knowledge_graph::commands::has_session(sid), "session open");
+
+    async fn sync_cmd(platform: &Platform, sid: &str, command: &str) -> serde_json::Value {
+        let event = EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (
+                rmpv::Value::from("parameters"),
+                rmpv::Value::Map(vec![(
+                    rmpv::Value::from("path"),
+                    rmpv::Value::Map(vec![(rmpv::Value::from("id"), rmpv::Value::from(sid))]),
+                )]),
+            ),
+            (rmpv::Value::from("body"), rmpv::Value::from(command)),
+            (rmpv::Value::from("method"), rmpv::Value::from("POST")),
+        ]));
+        let resp = knowledge_graph::rest::post_companion_command_sync(platform, event)
+            .await
+            .expect("sync endpoint returns Ok");
+        let json = event_script::conversions::to_json_string(resp.body());
+        serde_json::from_str(&json).expect("response body is JSON")
+    }
+
+    // the model must come from the deployed classpath copy, not a stale export
+    let temp = std::path::Path::new("/tmp/graph/unit-test-error-context.json");
+    if temp.exists() {
+        std::fs::remove_file(temp).expect("stale temp copy removed");
+    }
+    let imported = sync_cmd(platform, sid, "import graph from unit-test-error-context").await;
+    assert_eq!(
+        imported["ok"],
+        serde_json::json!(true),
+        "import must succeed: {imported}"
+    );
+    let instantiated = sync_cmd(
+        platform,
+        sid,
+        "instantiate graph\ntext(task) -> input.body.mode\ntext(dry-err-1) -> model.cid",
+    )
+    .await;
+    assert_eq!(
+        instantiated["ok"],
+        serde_json::json!(true),
+        "instantiate -> ok:true: {instantiated}"
+    );
+    let ran = sync_cmd(platform, sid, "run").await;
+    assert_eq!(ran["ok"], serde_json::json!(true), "dry-run: {ran}");
+    let result = &ran["result"][0];
+    assert_eq!(
+        "handled",
+        result["output"]["body"]["stage"].as_str().unwrap_or(""),
+        "dry-run output: {ran}"
+    );
+    assert_eq!(
+        "fail-task",
+        result["output"]["body"]["source"].as_str().unwrap_or(""),
+        "dry-run output: {ran}"
+    );
+    // 'inspect error' returns the staged context - same mechanics as 'inspect model'
+    let inspected = sync_cmd(platform, sid, "inspect error").await;
+    assert_eq!(
+        inspected["ok"],
+        serde_json::json!(true),
+        "inspect error: {inspected}"
+    );
+    let context = &inspected["result"][0];
+    assert_eq!("error", context["inspect"].as_str().unwrap_or(""));
+    assert_eq!(
+        "fail-task",
+        context["outcome"]["source"].as_str().unwrap_or(""),
+        "context: {inspected}"
+    );
+    assert_eq!(
+        400,
+        context["outcome"]["code"].as_i64().unwrap_or(0),
+        "context: {inspected}"
+    );
+    assert_eq!(
+        "just a test",
+        context["outcome"]["message"].as_str().unwrap_or(""),
+        "context: {inspected}"
     );
 }
 

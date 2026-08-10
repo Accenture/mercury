@@ -100,6 +100,7 @@
 | 81 | tutorial-14: the manager approval becomes a real decision — approve / reject-with-reason / re-suspend wait loop; RESET-before-IF idiom; three-outcome e2e + loop stability; decide-before-you-suspend rule stated across the grammar surfaces | 2026-08-07 | — | * |
 | 82 | Suspension is a destination (ADR-0011 amending ADR-0009; Java ADR-0012 twin): edge and jump modes replace suspend=true, shape-based gate rules + teaching errors, tutorial-14 remodel, fixtures byte-identical, webapp replaced from the Java repo's latest UI | 2026-08-07 | — | * |
 | 83 | graph.task `model.*` input staging (Event Script parity) + tutorial-13 as an HTTP client by configuration: async.http.request, dynamic variables, `${...}` load-time substitution, explicit `headers.x-ttl`; v1.hello.task retired; dry-run companion twin | 2026-08-08 | — | * |
+| 84 | Graph-scoped workflow state (`graph:{graph_id}:{cid}`, BREAKING) + business-cid inheritance through graph.extension (the orchestrator pattern) + the generic exception context (error.source/code/message) with `inspect error`; ADR-0012/ADR-0013 proposed | 2026-08-10 | — | * |
 
 \* From increment 76 the workspace gate is reported as green test **suites** (58 at
 v4.11.x) rather than a single cumulative test count — the multi-crate workspace runs
@@ -2485,3 +2486,39 @@ deliberately-invalid manifest fixtures (an input mapping targeting `model.ttl` a
 404); the playground suite gained the dry-run twin (import → instantiate → run through the
 sync companion, proving instantiate-time env-var resolution); help/catalog synced
 byte-identical; skills reference and HTTP-client guide teach the same story.
+
+## Increment 84 — graph-scoped workflow state + the generic exception context (2026-08-10)
+
+Lock-step mirror of the Java reference engine's field-review follow-ups (Java PR #271).
+Two features driven by the field team's suspend/resume demo review:
+
+**Graph-scoped workflow state (ADR-0012, BREAKING).** The suspend/resume store contract
+is scoped by graph + cid: the persistence envelope gains `graph`
+(`{cid, graph, node, ttl, model, seen, run}`), the retrieve body becomes `{cid, graph}`,
+and the Redis store keys records `graph:{graph_id}:{cid}` (both store functions reject a
+request without `graph`; the version-aware GETDEL / MULTI-EXEC consume is unchanged and
+re-proven on the RESP double). `graph.extension` now inherits the caller's business
+correlation ID exactly like an Event Script sub-flow launch — one `build_forward` change
+covers both the single and `for_each` branches and both target protocols — closing the
+asymmetry where a subgraph's `model.cid` was a per-call random UUID. Suspension is
+self-contained per graph by construction, enabling the **orchestrator pattern** (a parent
+graph delegating independently resumable subgraph paths), pinned end-to-end by the new
+`unit-test-orchestrator` / `unit-test-sub-suspend` reference pair plus a per-graph
+record-isolation scenario sharing one cid across two graphs.
+
+**Generic exception context (ADR-0013).** When a failed node routes to its `exception=`
+handler, both walkers stage `error.source` / `error.code` / `error.message` (and
+`error.stack` when a record carries one — this engine has no native stack-trace
+transport, a documented port divergence) via one shared `stage_error_context`, so one
+island-anchored handler serves every node's `exception=` route without naming the failing
+node. Pinned by the `unit-test-error-context` fixture (one handler serving a failing
+`v1.demo.task` at 400 and a failing `async.http.request` at 401, distinguished by
+`error.source`, with onward handler continuation) and the companion dry-run twin
+(`inspect error` returns the staged context — the `error` namespace is a first-class
+state-machine citizen, which is why the alias has always been reserved). The reserved
+alias `error` joins the deliberately-invalid manifest fixtures (compiled-or-404).
+
+Docs mirrored from the reference engine: workflow-suspension guide (at-a-glance scoping
+bullet, the orchestrator-pattern section, the store contract), failure routing in the
+command reference (the error.* table), skills reference, six help pages, the AI grammar
+catalog, the reserved-names guide, and the Redis store README; webapp bundle regenerated.

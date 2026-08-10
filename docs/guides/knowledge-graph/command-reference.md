@@ -201,8 +201,9 @@ inspect {namespace.key}    # read a value from the state machine
 ```
 
 ```
-inspect output               # a whole namespace: input | output | model
+inspect output               # a whole namespace: input | output | model | error
 inspect output.body.name     # a specific composite key
+inspect error                # the exception context after a failed node routed to its handler
 ```
 
 > **Placeholder convention:** `{…}` in the syntax lines above (e.g. `{node}`,
@@ -488,13 +489,32 @@ output[]=result.detail -> model.account_details
 `graph.api.fetcher`, `graph.task`, and `graph.extension` accept an optional
 `exception={handler-node}` property. On a **failed** call (HTTP status ≥ 400, or a task error):
 
-- the node's `{node}.status` and `{node}.error` are set (the engine's error record);
+- the node's `{node}.status` and `{node}.error` are set (the engine's error record, plus
+  `{node}.stack` when the failure carries a stack trace);
 - the node's `output[]` mappings are **skipped**;
 - traversal **jumps to the named handler node** instead of aborting. Without `exception=`, the
   run **aborts** on failure.
 
-Wire the handler back explicitly (e.g. `connect error-handler to fetcher with retry`) — no node
-left unconnected. The canonical **bounded-retry** pattern combines the pieces (see the
+The jump also stages a **generic exception context** that no handler has to know the failing
+node to read:
+
+| key             | value                                      |
+|-----------------|--------------------------------------------|
+| `error.source`  | the failing node's alias                   |
+| `error.code`    | the status code                            |
+| `error.message` | the error message                          |
+| `error.stack`   | the stack trace, when the failure has one  |
+
+so **one handler can serve every node's `exception=` route**: map `error.source` /
+`error.code` / `error.message` in its data mapping instead of `{failing-node}.status`. Anchor a
+shared handler from an island (`root -> island -> handler`) — it is reached by jumping, and the
+island keeps it non-orphan. A handler may connect onward to more nodes for sophisticated
+recovery. A node is visited at most once per run unless RESET, so concurrent branch failures
+collapse into the first jump. `error` is a **reserved node alias** for this namespace —
+`inspect error` shows the staged context in a dry-run session.
+
+Wire a retry handler back explicitly (e.g. `connect error-handler to fetcher with retry`) — no
+node left unconnected. The canonical **bounded-retry** pattern combines the pieces (see the
 [statement grammar](#math-statements)):
 
 ```

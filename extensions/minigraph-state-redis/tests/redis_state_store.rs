@@ -44,7 +44,13 @@ use rmpv::Value;
 use minigraph_state_redis::{PERSIST_ROUTE, RETRIEVE_ROUTE};
 
 const TIMEOUT: Duration = Duration::from_secs(8);
-const KEY_PREFIX: &str = "graph:state:";
+const GRAPH_ID: &str = "order-workflow";
+
+/// The scoped store key: records live under `graph:{graph_id}:{cid}` so the
+/// same business correlation ID suspends independently in every graph.
+fn scoped_key(graph_id: &str, cid: &str) -> String {
+    format!("graph:{graph_id}:{cid}")
+}
 
 #[main_application]
 struct RedisStoreTestApp;
@@ -69,6 +75,7 @@ fn sample_envelope(cid: &str, ttl_seconds: i64) -> Value {
     ]);
     Value::Map(vec![
         (Value::from("cid"), Value::from(cid)),
+        (Value::from("graph"), Value::from(GRAPH_ID)),
         (Value::from("node"), Value::from("step-1")),
         (Value::from("ttl"), Value::from(ttl_seconds)),
         (Value::from("model"), model),
@@ -124,6 +131,13 @@ fn is_empty_map(value: &Value) -> bool {
     matches!(value, Value::Map(entries) if entries.is_empty())
 }
 
+fn get_body(graph_id: &str, cid: &str) -> Value {
+    Value::Map(vec![
+        (Value::from("cid"), Value::from(cid)),
+        (Value::from("graph"), Value::from(graph_id)),
+    ])
+}
+
 // One test function on purpose (the repo convention): the platform boots
 // ONCE per process, so all contract scenarios run sequentially against the
 // same runtime and the same test double.
@@ -158,9 +172,11 @@ async fn redis_state_store_contract() {
     );
     // native expiry is set on the wire-visible record
     {
-        let key = format!("{KEY_PREFIX}{cid}").into_bytes();
+        let key = scoped_key(GRAPH_ID, &cid).into_bytes();
         let map = raw_store.lock().expect("raw store");
-        let entry = map.get(&key).expect("record stored under graph:state:cid");
+        let entry = map
+            .get(&key)
+            .expect("record stored under graph:{graph_id}:{cid}");
         let remaining = entry
             .expires_at
             .expect("expiry must be set")
@@ -171,13 +187,7 @@ async fn redis_state_store_contract() {
         );
     }
     // retrieve returns the record with full fidelity, including binary values
-    let restored = request(
-        &po,
-        RETRIEVE_ROUTE,
-        "get",
-        Value::Map(vec![(Value::from("cid"), Value::from(cid.as_str()))]),
-    )
-    .await;
+    let restored = request(&po, RETRIEVE_ROUTE, "get", get_body(GRAPH_ID, &cid)).await;
     assert_eq!(200, restored.status());
     assert_eq!(
         Some(&Value::from("step-1")),
@@ -200,13 +210,7 @@ async fn redis_state_store_contract() {
         get_element(restored.body(), &["run", "step-1"])
     );
     // the record is consumed atomically - a duplicate resume finds nothing
-    let again = request(
-        &po,
-        RETRIEVE_ROUTE,
-        "get",
-        Value::Map(vec![(Value::from("cid"), Value::from(cid.as_str()))]),
-    )
-    .await;
+    let again = request(&po, RETRIEVE_ROUTE, "get", get_body(GRAPH_ID, &cid)).await;
     assert_eq!(200, again.status());
     assert!(
         is_empty_map(again.body()),
@@ -217,7 +221,7 @@ async fn redis_state_store_contract() {
         !raw_store
             .lock()
             .expect("raw store")
-            .contains_key(&format!("{KEY_PREFIX}{cid}").into_bytes()),
+            .contains_key(&scoped_key(GRAPH_ID, &cid).into_bytes()),
         "GETDEL must delete the key"
     );
     // the journal PROVES the strategy: detection probed INFO, native GETDEL
@@ -243,10 +247,7 @@ async fn redis_state_store_contract() {
         &po,
         RETRIEVE_ROUTE,
         "get",
-        Value::Map(vec![(
-            Value::from("cid"),
-            Value::from(uuid::Uuid::new_v4().simple().to_string()),
-        )]),
+        get_body(GRAPH_ID, &uuid::Uuid::new_v4().simple().to_string()),
     )
     .await;
     assert_eq!(200, absent.status());
@@ -257,13 +258,7 @@ async fn redis_state_store_contract() {
     let short = request(&po, PERSIST_ROUTE, "put", sample_envelope(&cid, 1)).await;
     assert_eq!(200, short.status());
     tokio::time::sleep(Duration::from_millis(1300)).await;
-    let gone = request(
-        &po,
-        RETRIEVE_ROUTE,
-        "get",
-        Value::Map(vec![(Value::from("cid"), Value::from(cid.as_str()))]),
-    )
-    .await;
+    let gone = request(&po, RETRIEVE_ROUTE, "get", get_body(GRAPH_ID, &cid)).await;
     assert_eq!(200, gone.status());
     assert!(is_empty_map(gone.body()), "the record must expire natively");
 
@@ -302,10 +297,7 @@ async fn redis_state_store_contract() {
         &po,
         PERSIST_ROUTE,
         "put",
-        Value::Map(vec![(
-            Value::from("cid"),
-            Value::from(uuid::Uuid::new_v4().simple().to_string()),
-        )]),
+        get_body(GRAPH_ID, &uuid::Uuid::new_v4().simple().to_string()),
     )
     .await;
     assert_ne!(200, invalid.status());
@@ -313,5 +305,95 @@ async fn redis_state_store_contract() {
         body_text(&invalid).contains("Invalid ttl"),
         "unexpected: {}",
         body_text(&invalid)
+    );
+
+    // 8) a missing graph id is rejected on both sides - a cid-only record
+    // would collapse every graph's records into one shared key space
+    let no_graph_put = request(
+        &po,
+        PERSIST_ROUTE,
+        "put",
+        Value::Map(vec![
+            (
+                Value::from("cid"),
+                Value::from(uuid::Uuid::new_v4().simple().to_string()),
+            ),
+            (Value::from("ttl"), Value::from(30)),
+        ]),
+    )
+    .await;
+    assert_ne!(200, no_graph_put.status());
+    assert!(
+        body_text(&no_graph_put).contains("Missing graph"),
+        "unexpected: {}",
+        body_text(&no_graph_put)
+    );
+    let no_graph_get = request(
+        &po,
+        RETRIEVE_ROUTE,
+        "get",
+        Value::Map(vec![(
+            Value::from("cid"),
+            Value::from(uuid::Uuid::new_v4().simple().to_string()),
+        )]),
+    )
+    .await;
+    assert_ne!(200, no_graph_get.status());
+    assert!(
+        body_text(&no_graph_get).contains("Missing graph"),
+        "unexpected: {}",
+        body_text(&no_graph_get)
+    );
+
+    // 9) the field scenario: one business transaction suspends in more than
+    // one graph - records are scoped by graph + cid, so consuming one graph's
+    // record leaves the other's untouched
+    let cid = uuid::Uuid::new_v4().simple().to_string();
+    let mut parent = sample_envelope(&cid, 30);
+    if let Value::Map(entries) = &mut parent {
+        for (k, v) in entries.iter_mut() {
+            if k.as_str() == Some("graph") {
+                *v = Value::from("orchestrator");
+            }
+            if k.as_str() == Some("node") {
+                *v = Value::from("dispatch");
+            }
+        }
+    }
+    let mut child = sample_envelope(&cid, 30);
+    if let Value::Map(entries) = &mut child {
+        for (k, v) in entries.iter_mut() {
+            if k.as_str() == Some("graph") {
+                *v = Value::from("shipping-path");
+            }
+            if k.as_str() == Some("node") {
+                *v = Value::from("carrier-checkpoint");
+            }
+        }
+    }
+    assert_eq!(
+        200,
+        request(&po, PERSIST_ROUTE, "put", parent).await.status()
+    );
+    assert_eq!(
+        200,
+        request(&po, PERSIST_ROUTE, "put", child).await.status()
+    );
+    let restored_child = request(&po, RETRIEVE_ROUTE, "get", get_body("shipping-path", &cid)).await;
+    assert_eq!(
+        Some(&Value::from("carrier-checkpoint")),
+        get_element(restored_child.body(), &["node"])
+    );
+    assert!(
+        raw_store
+            .lock()
+            .expect("raw store")
+            .contains_key(&scoped_key("orchestrator", &cid).into_bytes()),
+        "the parent record must survive the subgraph's resume"
+    );
+    let restored_parent = request(&po, RETRIEVE_ROUTE, "get", get_body("orchestrator", &cid)).await;
+    assert_eq!(
+        Some(&Value::from("dispatch")),
+        get_element(restored_parent.body(), &["node"])
     );
 }

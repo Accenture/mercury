@@ -43,6 +43,15 @@ pub const IN: &str = "in";
 pub const TYPE: &str = "type";
 pub const STATUS: &str = "status";
 pub const ERROR: &str = "error";
+pub const STACK: &str = "stack";
+// generic exception context, staged by the walkers when a failed node routes to its
+// exception= handler - so one island-anchored handler can serve any node. 'error' is
+// a reserved node alias for this reason, and the names follow Event Script's flow
+// exception contract (error.code/message/stack) plus the originating node
+pub const ERROR_SOURCE: &str = "error.source";
+pub const ERROR_CODE: &str = "error.code";
+pub const ERROR_MESSAGE: &str = "error.message";
+pub const ERROR_STACK: &str = "error.stack";
 pub const HEADER: &str = "header";
 pub const RESULT: &str = "result";
 pub const TARGET: &str = "target";
@@ -562,6 +571,33 @@ fn set_fetcher_output_entry(
 
 /// Normalize an error payload into the `{target?, type, message}` map or a
 /// pass-through of a map-shaped error (Java `getErrorMap`).
+/// Stage the generic exception context for an exception-handler jump: Event Script
+/// parity names (error.code/message/stack) plus the originating node in 'error.source',
+/// so one island-anchored handler can serve every node's exception= route without
+/// naming the failing node in its data mapping. Reads the failing node's scratch
+/// entries staged by the skill. Inspectable in a dry-run session via 'inspect error'.
+/// (Java `GraphLambdaFunction.stageErrorContext`.)
+pub fn stage_error_context(state: &mut MultiLevelMap, source: &str) {
+    let _ = state.set_element(ERROR_SOURCE, Value::from(source));
+    let code = state
+        .get_element(&format!("{source}.{STATUS}"))
+        .unwrap_or(Value::Nil);
+    let _ = state.set_element(ERROR_CODE, code);
+    let message = state
+        .get_element(&format!("{source}.{ERROR}"))
+        .unwrap_or(Value::Nil);
+    let _ = state.set_element(ERROR_MESSAGE, message);
+    match state.get_element(&format!("{source}.{STACK}")) {
+        Some(stack) => {
+            let _ = state.set_element(ERROR_STACK, stack);
+        }
+        None => {
+            // never let a previous failure's stack masquerade as this one's
+            state.remove_element(ERROR_STACK);
+        }
+    }
+}
+
 pub fn get_error_map(error: Option<Value>, target: Option<Value>) -> Value {
     let mut result: Vec<(Value, Value)> = Vec::new();
     if let Some(Value::String(_)) = &target {

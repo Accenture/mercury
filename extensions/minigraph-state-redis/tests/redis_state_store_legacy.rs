@@ -39,7 +39,12 @@ use rmpv::Value;
 use minigraph_state_redis::{PERSIST_ROUTE, RETRIEVE_ROUTE};
 
 const TIMEOUT: Duration = Duration::from_secs(8);
-const KEY_PREFIX: &str = "graph:state:";
+const GRAPH_ID: &str = "order-workflow";
+
+/// The scoped store key: records live under `graph:{graph_id}:{cid}`.
+fn scoped_key(graph_id: &str, cid: &str) -> String {
+    format!("graph:{graph_id}:{cid}")
+}
 
 #[main_application]
 struct RedisLegacyTestApp;
@@ -92,6 +97,7 @@ async fn transactional_consume_on_servers_older_than_6_2() {
     let cid = uuid::Uuid::new_v4().simple().to_string();
     let envelope = Value::Map(vec![
         (Value::from("cid"), Value::from(cid.as_str())),
+        (Value::from("graph"), Value::from(GRAPH_ID)),
         (Value::from("node"), Value::from("step-1")),
         (Value::from("ttl"), Value::from(30)),
         (
@@ -110,7 +116,10 @@ async fn transactional_consume_on_servers_older_than_6_2() {
         &po,
         RETRIEVE_ROUTE,
         "get",
-        Value::Map(vec![(Value::from("cid"), Value::from(cid.as_str()))]),
+        Value::Map(vec![
+            (Value::from("cid"), Value::from(cid.as_str())),
+            (Value::from("graph"), Value::from(GRAPH_ID)),
+        ]),
     )
     .await;
     assert_eq!(200, restored.status());
@@ -133,7 +142,10 @@ async fn transactional_consume_on_servers_older_than_6_2() {
         &po,
         RETRIEVE_ROUTE,
         "get",
-        Value::Map(vec![(Value::from("cid"), Value::from(cid.as_str()))]),
+        Value::Map(vec![
+            (Value::from("cid"), Value::from(cid.as_str())),
+            (Value::from("graph"), Value::from(GRAPH_ID)),
+        ]),
     )
     .await;
     assert_eq!(200, again.status());
@@ -146,7 +158,7 @@ async fn transactional_consume_on_servers_older_than_6_2() {
         !raw_store
             .lock()
             .expect("raw store")
-            .contains_key(&format!("{KEY_PREFIX}{cid}").into_bytes()),
+            .contains_key(&scoped_key(GRAPH_ID, &cid).into_bytes()),
         "the transaction must delete the key"
     );
 
@@ -155,10 +167,13 @@ async fn transactional_consume_on_servers_older_than_6_2() {
         &po,
         RETRIEVE_ROUTE,
         "get",
-        Value::Map(vec![(
-            Value::from("cid"),
-            Value::from(uuid::Uuid::new_v4().simple().to_string()),
-        )]),
+        Value::Map(vec![
+            (
+                Value::from("cid"),
+                Value::from(uuid::Uuid::new_v4().simple().to_string()),
+            ),
+            (Value::from("graph"), Value::from(GRAPH_ID)),
+        ]),
     )
     .await;
     assert_eq!(200, absent.status());

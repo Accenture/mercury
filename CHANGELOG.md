@@ -11,6 +11,48 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Unreleased
+
+### Added
+
+1. **Generic exception context for `exception=` handlers — one handler can serve every
+   node.** When a failed node routes to its exception handler, the engine now stages
+   `error.source` (the failing node's alias), `error.code`, `error.message`, and
+   `error.stack` (when the failure carries one — this engine has no native stack-trace
+   transport, so the key appears on cross-engine records only) in the state machine —
+   the same `error.code/message/stack` vocabulary as Event Script's flow exception
+   handlers, plus `source` — so one island-anchored handler node serves the whole graph
+   without naming any failing node in its data mapping. `graph.api.fetcher`,
+   `graph.task` (including `task=async.http.request`), `graph.extension` and the
+   suspend/resume store calls all route through the same staging. The per-node record
+   (`{node}.status`/`{node}.error`) is unchanged, so existing handlers keep working.
+   The `error` namespace is inspectable in a dry-run session via `inspect error` — the
+   node alias `error` has always been reserved by the graph model. (ADR-0013)
+
+2. **The orchestrator pattern: a parent graph delegates independently resumable subgraph
+   paths.** `graph.extension` now stamps the caller's business correlation ID
+   (`model.cid`) on the delegated call — both graph and `flow://` targets — exactly
+   as an Event Script sub-flow launch already did. A delegated subgraph that suspends
+   persists its record under the shared business correlation ID scoped by its own graph
+   ID, so re-invoking the parent (or the subgraph directly) with the same correlation ID
+   resumes it. Documented in the workflow-suspension guide with the reference model pair
+   `unit-test-orchestrator` / `unit-test-sub-suspend`. (ADR-0012)
+
+### Changed
+
+1. **BREAKING: the suspend/resume state-store contract is scoped by graph + cid.** The
+   persistence envelope gains a `graph` field (`{cid, graph, node, ttl, model, seen,
+   run}`), the retrieve body becomes `{cid, graph}`, and the Redis store keys records
+   `graph:{graph_id}:{cid}` (formerly `graph:state:{cid}`) — so the same business
+   correlation ID suspends independently in each domain's graph and in each subgraph, and
+   a resume only ever sees records written by its own graph. **Upgrade note:** records
+   persisted under the old key are not visible after the upgrade — a resume behaves as a
+   fresh transaction (the same observable behavior as an expired record). Let suspended
+   workflows complete before upgrading, or accept the fresh start; custom store
+   implementations must adopt the `graph` field (the shipped stores reject a request
+   without it). (ADR-0012)
+
+---
 ## Version 4.11.5, 8/9/2026
 
 ### Added

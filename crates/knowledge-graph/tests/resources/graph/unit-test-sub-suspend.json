@@ -1,0 +1,147 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "a processing path invoked by an orchestrator parent: it inherits the parent's business correlation ID and suspends at its own checkpoint under a graph-scoped record",
+        "name": "unit-test-sub-suspend"
+      }
+    },
+    {
+      "alias": "resume",
+      "types": [
+        "Resume"
+      ],
+      "properties": {
+        "skill": "graph.resume",
+        "task": "v1.file.state.store",
+        "purpose": "Restore this path's workflow state if a suspension record exists for graph + cid"
+      }
+    },
+    {
+      "alias": "prepare",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.counting.step",
+        "input": [
+          "text(sub) -> step",
+          "model.cid -> cid",
+          "input.body.item -> model.item"
+        ],
+        "output": [
+          "result.count -> model.prep_count"
+        ],
+        "purpose": "the working step before the checkpoint - counting proves it is not re-executed on resume, and its recorded business cid proves the parent's cid propagated"
+      }
+    },
+    {
+      "alias": "suspend",
+      "types": [
+        "Suspend"
+      ],
+      "properties": {
+        "skill": "graph.suspend",
+        "task": "v1.file.state.store",
+        "ttl": "30s",
+        "purpose": "Persist this path's workflow state under graph:unit-test-sub-suspend:{cid}"
+      }
+    },
+    {
+      "alias": "deliver",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.counting.step",
+        "input": [
+          "text(deliver) -> step",
+          "model.cid -> cid",
+          "model.prep_count -> prior"
+        ],
+        "output": [
+          "result -> output.body.result",
+          "model.run -> output.body.run",
+          "model.cid -> output.body.cid_check",
+          "model.item -> output.body.item"
+        ],
+        "purpose": "the continuation after the checkpoint - it reports the restored model and the business cid back to the orchestrator"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "resume",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "resume",
+      "target": "prepare",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "prepare",
+      "target": "suspend",
+      "relations": [
+        {
+          "type": "checkpoint",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "prepare",
+      "target": "deliver",
+      "relations": [
+        {
+          "type": "resumed",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "suspend",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "deliver",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

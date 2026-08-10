@@ -69,7 +69,8 @@ The following parameters are required in the properties of the node:
 The store function receives headers "type=put" and a body of:
 
 {
-  "cid":   "<business correlation ID - the retrieval key>",
+  "cid":   "<business correlation ID>",
+  "graph": "<the graph that suspended - cid + graph form the retrieval key>",
   "node":  "<the suspension point - the node that routed here>",
   "ttl":   <seconds>,
   "model": { the model namespace minus the per-run reserved keys },
@@ -77,8 +78,11 @@ The store function receives headers "type=put" and a body of:
   "run":   { traversal bookkeeping }
 }
 
-The store must acknowledge with a 2xx reply before the graph completes - a failed store
-call fails the node (the optional "exception" property routes it to a handler node).
+The record is scoped by graph + cid (the Redis reference implementation keys it
+"graph:{graph_id}:{cid}"), so the same business transaction may suspend independently in
+each domain's graph and in each subgraph, and a resume only ever sees its own graph's
+record. The store must acknowledge with a 2xx reply before the graph completes - a failed
+store call fails the node (the optional "exception" property routes it to a handler node).
 
 Example
 -------

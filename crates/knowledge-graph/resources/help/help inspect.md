@@ -10,8 +10,13 @@ inspect {key}
 ```
 
 `{key}` is a placeholder - substitute your key and do not type the braces.
-A whole namespace (input | output | model) is also valid, e.g.
+A whole namespace (input | output | model | error) is also valid, e.g.
 'inspect output'.
+
+After a failed node routes to its exception handler, 'inspect error' shows the staged
+exception context - error.source (the failing node), error.code, error.message and
+error.stack when available. The 'error' namespace is a first-class state-machine
+citizen like 'model', which is why 'error' is a reserved node alias.
 
 Example
 -------
@@ -21,6 +26,8 @@ inspect input.body.user_id
 inspect model.some_variable
 inspect output.body.some_key
 inspect book.price
+inspect error
+inspect error.source
 ```
 
 Notes
