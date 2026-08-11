@@ -473,7 +473,7 @@ async fn graph_runtime_end_to_end() {
     companion_sync_inspect_error_shows_context(&platform).await;
     companion_sync_inspect_error_reports_recovery(&platform).await;
     companion_dry_run_resumes_across_instantiations(&platform).await;
-    companion_unnamed_suspend_graph_rejected_at_instantiation(&platform).await;
+    companion_unnamed_draft_resumes_across_instantiations(&platform).await;
     math_for_each_blocks_and_iteration(&platform).await;
     join_barrier_waits_for_a_retrying_branch(&platform).await;
     chained_join_counts_only_a_fired_upstream_join(&platform).await;
@@ -2838,10 +2838,13 @@ async fn companion_dry_run_resumes_across_instantiations(platform: &Platform) {
     );
 }
 
-/// Java `CompanionSyncTest.unnamedSuspendGraphIsRejectedAtInstantiation`: a
-/// suspend/resume model whose root has no `name` is REJECTED at instantiation
-/// (a silent ephemeral fallback would break the resume mechanism invisibly).
-async fn companion_unnamed_suspend_graph_rejected_at_instantiation(platform: &Platform) {
+/// Java `CompanionSyncTest.unnamedDraftResumesAcrossInstantiations`: the nameless
+/// twin - a draft sketched in the playground has no root `name` yet and must still
+/// suspend and resume, scoped under the stable constant `untitled`. This is the
+/// branch the regression lived in: the identity only has to be STABLE across
+/// instantiations, so anything per-instantiation writes a suspension no later run
+/// can read and silently restarts fresh instead of resuming.
+async fn companion_unnamed_draft_resumes_across_instantiations(platform: &Platform) {
     let po = PostOffice::new(platform);
     let sid = "ws-770016-1";
     let in_route = "ws.770016.1.in";
@@ -2883,25 +2886,94 @@ async fn companion_unnamed_suspend_graph_rejected_at_instantiation(platform: &Pl
         serde_json::from_str(&json).expect("response body is JSON")
     }
 
-    sync_cmd(platform, sid, "create node root\nwith type Root").await;
-    sync_cmd(platform, sid, "create node end\nwith type End").await;
-    sync_cmd(
+    let cid = "dry-run-untitled-1";
+    // consume-on-retrieve makes a leftover record indistinguishable from this test's own
+    let record = store_file("untitled", cid);
+    if record.exists() {
+        std::fs::remove_file(&record).expect("stale store record removed");
+    }
+    // sketch a suspend/resume draft with NO name on the root - the edge-mode shape:
+    // a drawn edge into the suspend node, plus the mandatory continuation edge
+    for command in [
+        "create node root\nwith type Root",
+        "create node end\nwith type End",
+        "create node resume\nwith type Resume\nwith properties\nskill=graph.resume\n\
+         task=v1.file.state.store",
+        "create node step-1\nwith type Suspensible\nwith properties\nskill=graph.task\n\
+         task=v1.counting.step\ninput[]=text(u-one) -> step\ninput[]=model.cid -> cid\n\
+         output[]=result.count -> model.step1_count",
+        "create node suspend\nwith type Suspend\nwith properties\nskill=graph.suspend\n\
+         task=v1.file.state.store\nttl=30s",
+        "create node step-2\nwith type Task\nwith properties\nskill=graph.task\n\
+         task=v1.counting.step\ninput[]=text(u-two) -> step\ninput[]=model.cid -> cid\n\
+         input[]=model.step1_count -> prior\noutput[]=result -> output.body",
+        "connect root to resume with test",
+        "connect resume to step-1 with test",
+        "connect step-1 to suspend with checkpoint",
+        "connect step-1 to step-2 with approved",
+        "connect suspend to end with test",
+        "connect step-2 to end with test",
+    ] {
+        sync_cmd(platform, sid, command).await;
+    }
+
+    // run 1: the nameless draft suspends at the checkpoint
+    let instantiated = sync_cmd(
         platform,
         sid,
-        "create node resume\nwith type Resume\nwith properties\nskill=graph.resume\ntask=v1.file.state.store",
+        &format!("instantiate graph\ntext({cid}) -> model.cid"),
     )
     .await;
-    sync_cmd(platform, sid, "connect root to resume with then").await;
-    sync_cmd(platform, sid, "connect resume to end with then").await;
-    let rejected = sync_cmd(platform, sid, "instantiate graph").await;
-    let text = rejected.to_string();
-    assert!(
-        text.contains("needs a stable identity"),
-        "the guard must teach the fix (name the root node): {rejected}"
+    assert_eq!(
+        instantiated["ok"],
+        serde_json::json!(true),
+        "a nameless draft must instantiate: {instantiated}"
+    );
+    let first = sync_cmd(platform, sid, "run").await;
+    assert_eq!(first["ok"], serde_json::json!(true), "run 1: {first}");
+    assert_eq!(
+        1,
+        step_count("u-one", cid),
+        "step-1 executes on the fresh run"
+    );
+    assert_eq!(
+        0,
+        step_count("u-two", cid),
+        "the suspension stops before step-2"
     );
     assert!(
-        !text.contains("Graph instance created"),
-        "no instance may be created for an unnamed suspend/resume model: {rejected}"
+        record.exists(),
+        "a nameless draft must persist under the stable 'untitled' scope, not a \
+         per-instantiation handle"
+    );
+
+    // run 2: a NEW instantiation with the same business cid resumes past the checkpoint
+    let again = sync_cmd(
+        platform,
+        sid,
+        &format!("instantiate graph\ntext({cid}) -> model.cid"),
+    )
+    .await;
+    assert_eq!(
+        again["ok"],
+        serde_json::json!(true),
+        "re-instantiate: {again}"
+    );
+    let second = sync_cmd(platform, sid, "run").await;
+    assert_eq!(second["ok"], serde_json::json!(true), "run 2: {second}");
+    assert_eq!(
+        1,
+        step_count("u-one", cid),
+        "the checkpoint must not re-execute"
+    );
+    assert_eq!(
+        1,
+        step_count("u-two", cid),
+        "the continuation must run on resume"
+    );
+    assert!(
+        !record.exists(),
+        "the record is consumed on resume (at-most-once)"
     );
 }
 
