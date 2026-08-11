@@ -472,6 +472,8 @@ async fn graph_runtime_end_to_end() {
     companion_sync_instantiate_creates_model_cid(&platform).await;
     companion_sync_inspect_error_shows_context(&platform).await;
     companion_sync_inspect_error_reports_recovery(&platform).await;
+    companion_dry_run_resumes_across_instantiations(&platform).await;
+    companion_unnamed_suspend_graph_rejected_at_instantiation(&platform).await;
     math_for_each_blocks_and_iteration(&platform).await;
     join_barrier_waits_for_a_retrying_branch(&platform).await;
     chained_join_counts_only_a_fired_upstream_join(&platform).await;
@@ -2708,6 +2710,201 @@ async fn companion_sync_inspect_error_reports_recovery(platform: &Platform) {
     );
 }
 
+/// Java `CompanionSyncTest.dryRunResumesAcrossInstantiations` - the dry-run
+/// twin of the field regression that surfaced on tutorial-14: the store
+/// contract scopes records by graph + cid, so the dry-run instance must
+/// present the model's stable identity (root name); an ephemeral
+/// per-instantiation handle writes the suspension under a key no later
+/// instantiation can ever read, and every resume silently restarts fresh.
+async fn companion_dry_run_resumes_across_instantiations(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let sid = "ws-770015-1";
+    let in_route = "ws.770015.1.in";
+
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+            ])),
+    )
+    .await
+    .expect("open dispatched");
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(knowledge_graph::commands::has_session(sid), "session open");
+
+    async fn sync_cmd(platform: &Platform, sid: &str, command: &str) -> serde_json::Value {
+        let event = EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (
+                rmpv::Value::from("parameters"),
+                rmpv::Value::Map(vec![(
+                    rmpv::Value::from("path"),
+                    rmpv::Value::Map(vec![(rmpv::Value::from("id"), rmpv::Value::from(sid))]),
+                )]),
+            ),
+            (rmpv::Value::from("body"), rmpv::Value::from(command)),
+            (rmpv::Value::from("method"), rmpv::Value::from("POST")),
+        ]));
+        let resp = knowledge_graph::rest::post_companion_command_sync(platform, event)
+            .await
+            .expect("sync endpoint returns Ok");
+        let json = event_script::conversions::to_json_string(resp.body());
+        serde_json::from_str(&json).expect("response body is JSON")
+    }
+
+    // the model must import from the deployed classpath copy, and a leftover
+    // store record would fake a resume (consume-on-retrieve)
+    let temp = std::path::Path::new("/tmp/graph/unit-test-suspend-1.json");
+    if temp.exists() {
+        std::fs::remove_file(temp).expect("stale temp copy removed");
+    }
+    let cid = "dry-run-scope-1";
+    let record = store_file("unit-test-suspend-1", cid);
+    if record.exists() {
+        std::fs::remove_file(&record).expect("stale store record removed");
+    }
+    let imported = sync_cmd(platform, sid, "import graph from unit-test-suspend-1").await;
+    assert_eq!(
+        imported["ok"],
+        serde_json::json!(true),
+        "import: {imported}"
+    );
+
+    // run 1: fresh transaction suspends at the checkpoint, persisted under graph + cid
+    let instantiated = sync_cmd(
+        platform,
+        sid,
+        &format!("instantiate graph\ntext({cid}) -> model.cid"),
+    )
+    .await;
+    assert_eq!(
+        instantiated["ok"],
+        serde_json::json!(true),
+        "instantiate: {instantiated}"
+    );
+    let first = sync_cmd(platform, sid, "run").await;
+    assert_eq!(first["ok"], serde_json::json!(true), "run 1: {first}");
+    assert_eq!(
+        1,
+        step_count("one", cid),
+        "step-1 executes on the fresh run"
+    );
+    assert_eq!(
+        0,
+        step_count("two", cid),
+        "the suspension stops before step-2"
+    );
+    // the KEY pin: the record must be scoped by the model's stable name, so a
+    // later instantiation (or the production executor) can find it
+    assert!(
+        record.exists(),
+        "the suspension must persist under the model's stable identity, \
+         not an ephemeral per-instantiation handle"
+    );
+
+    // run 2: a NEW instantiation with the same business cid resumes past the checkpoint
+    let again = sync_cmd(
+        platform,
+        sid,
+        &format!("instantiate graph\ntext({cid}) -> model.cid"),
+    )
+    .await;
+    assert_eq!(
+        again["ok"],
+        serde_json::json!(true),
+        "re-instantiate: {again}"
+    );
+    let second = sync_cmd(platform, sid, "run").await;
+    assert_eq!(second["ok"], serde_json::json!(true), "run 2: {second}");
+    assert_eq!(
+        1,
+        step_count("one", cid),
+        "the checkpoint must not re-execute"
+    );
+    assert_eq!(
+        1,
+        step_count("two", cid),
+        "the continuation must run on resume"
+    );
+    assert!(
+        !record.exists(),
+        "the record is consumed on resume (at-most-once)"
+    );
+}
+
+/// Java `CompanionSyncTest.unnamedSuspendGraphIsRejectedAtInstantiation`: a
+/// suspend/resume model whose root has no `name` is REJECTED at instantiation
+/// (a silent ephemeral fallback would break the resume mechanism invisibly).
+async fn companion_unnamed_suspend_graph_rejected_at_instantiation(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let sid = "ws-770016-1";
+    let in_route = "ws.770016.1.in";
+
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+            ])),
+    )
+    .await
+    .expect("open dispatched");
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(knowledge_graph::commands::has_session(sid), "session open");
+
+    async fn sync_cmd(platform: &Platform, sid: &str, command: &str) -> serde_json::Value {
+        let event = EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (
+                rmpv::Value::from("parameters"),
+                rmpv::Value::Map(vec![(
+                    rmpv::Value::from("path"),
+                    rmpv::Value::Map(vec![(rmpv::Value::from("id"), rmpv::Value::from(sid))]),
+                )]),
+            ),
+            (rmpv::Value::from("body"), rmpv::Value::from(command)),
+            (rmpv::Value::from("method"), rmpv::Value::from("POST")),
+        ]));
+        let resp = knowledge_graph::rest::post_companion_command_sync(platform, event)
+            .await
+            .expect("sync endpoint returns Ok");
+        let json = event_script::conversions::to_json_string(resp.body());
+        serde_json::from_str(&json).expect("response body is JSON")
+    }
+
+    sync_cmd(platform, sid, "create node root\nwith type Root").await;
+    sync_cmd(platform, sid, "create node end\nwith type End").await;
+    sync_cmd(
+        platform,
+        sid,
+        "create node resume\nwith type Resume\nwith properties\nskill=graph.resume\ntask=v1.file.state.store",
+    )
+    .await;
+    sync_cmd(platform, sid, "connect root to resume with then").await;
+    sync_cmd(platform, sid, "connect resume to end with then").await;
+    let rejected = sync_cmd(platform, sid, "instantiate graph").await;
+    let text = rejected.to_string();
+    assert!(
+        text.contains("needs a stable identity"),
+        "the guard must teach the fix (name the root node): {rejected}"
+    );
+    assert!(
+        !text.contains("Graph instance created"),
+        "no instance may be created for an unnamed suspend/resume model: {rejected}"
+    );
+}
+
 /// Find a mutable reference to a nested map's entry list by literal keys.
 fn get_map_mut<'a>(value: &'a mut Value, path: &[&str]) -> Option<&'a mut Vec<(Value, Value)>> {
     let mut current = value;
@@ -2809,7 +3006,14 @@ async fn companion_sync_pre_run_check_rejects_broken_suspend_contract(platform: 
         serde_json::from_str(&json).expect("response body is JSON")
     }
 
-    sync_cmd(platform, sid, "create node root\nwith type Root").await;
+    // the root carries a name so the STABLE-IDENTITY instantiate guard passes and the
+    // run reaches the pre-run check this test pins
+    sync_cmd(
+        platform,
+        sid,
+        "create node root\nwith type Root\nwith properties\nname=unit-test-prerun-check",
+    )
+    .await;
     sync_cmd(platform, sid, "create node end\nwith type End").await;
     sync_cmd(
         platform,
