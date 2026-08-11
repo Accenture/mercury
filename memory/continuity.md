@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.4** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-10 | agent: Claude Code (2026-08-10-190550)
+- **last_session:** 2026-08-10 | agent: Claude Code (2026-08-10-224037)
 - **last_review:** 2026-08-07 | through 2026-08-07-150018.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -166,6 +166,43 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [x] (release — SHIPPED AND PUBLISHED 2026-08-10, **both repos in lock-step at
+  v4.11.6**) **v4.11.6 — the field-review follow-ups release.** Rust: release PR #203 merge `c008d11b` carrying
+  `a3ae466f` (merge tree verified identical to the gated commit), CI green (test 2m18s +
+  authoritative recheck), workspace Cargo.toml + Cargo.lock + CHANGELOG cut, gate =
+  58 suites / 305 tests + clippy 0 + `cargo fmt --check` (exit codes verified unpiped),
+  tag `v4.11.6` on the merge, dereference-verified. Java:
+  [PR #275](https://github.com/Accenture/mercury-composable/pull/275) squash `c29915ee`,
+  tag on the squash. Contents: graph-scoped workflow state (BREAKING store key
+  `graph:{graph_id}:{cid}` — the CHANGELOG's `### Changed` LEADS with the upgrade note)
+  + generic exception context incl. recovery + orchestrator pattern + dynamic statement
+  variables. Both GitHub releases PUBLISHED by Eric 2026-08-10.
+  <!-- id: thread-release-4-11-6-rust | created: 2026-08-10 | last_used: 2026-08-10 | uses: 1 | tier: working | origin: 2026-08-10-224037 -->
+
+- [x] (feature+fix — **MERGED 2026-08-10 as mercury PR #201, merge `354c1134`** carrying
+  `7d2da900`, CI green on the first run incl. the Format check (test job 2m9s); mirrors
+  the Java engine's same-day fix, merged as
+  [PR #273](https://github.com/Accenture/mercury-composable/pull/273) squash `96d9c35f`
+  — **COMPLETE ON BOTH ENGINES**; rides v4.11.6. Increment 85.) **Dynamic
+  variables in every statement command — completing the generic error handler — PLUS the
+  recovery semantics follow-up (**MERGED as PR #202, merge `213b739a`** carrying
+  `6c7cf134`, CI green; Java twin
+  [PR #274](https://github.com/Accenture/mercury-composable/pull/274) squash `5a01c0c6`;
+  Increment 86 — shipped in v4.11.6 same day, see [[thread-release-4-11-6-rust]]): a successful retry of error.source
+  RESOLVES the virtual 'error' node (code=200, source kept, details removed; source match
+  keeps parallel branches safe) — pinned by unit-test-error-recovery + a tutorial-12
+  companion dry-run; 58/305 + clippy + fmt.** Eric's
+  regression pass found RESET:/NEXT: took targets literally; now NEXT:/THEN:/ELSE:
+  targets, RESET: entries and DELAY: values resolve {namespace.key} at execution time
+  (`get_next_tag_resolved` + per-tag substitution in skills.rs; unresolved → "null":
+  RESET no-op, DELAY skipped, jump fails loudly). No graph.js on this engine (retired) —
+  math executor only. tutorial-12 genericized (fixture byte-identical; help adapted in
+  the port's structure); unit-test-dynamic-jump pins THEN:/DELAY:. Gate: 58 suites /
+  305 tests, clippy clean, fmt clean (verified by real exit code — a piped `head` masked
+  the first check), webapp 212/212.
+  Relates [[thread-graph-scoped-state-and-error-context-rust]].
+  <!-- id: thread-dynamic-statement-targets-rust | created: 2026-08-10 | last_used: 2026-08-10 | uses: 1 | tier: working | origin: 2026-08-10-224037 -->
 
 - [x] (feature — **MERGED 2026-08-10 as mercury PR #200, merge `283d41e2`** carrying
   `24eeef89` + the `cargo fmt` follow-up `7dadd1ff` — the first CI run FAILED the
