@@ -98,7 +98,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "benchmark-reporter"
-version = "4.11.8"
+version = "4.11.9"
 dependencies = [
  "async-trait",
  "log",
@@ -333,7 +333,7 @@ dependencies = [
 
 [[package]]
 name = "event-script"
-version = "4.11.8"
+version = "4.11.9"
 dependencies = [
  "async-trait",
  "base64",
@@ -353,7 +353,7 @@ dependencies = [
 
 [[package]]
 name = "event-script-macros"
-version = "4.11.8"
+version = "4.11.9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -467,7 +467,7 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "hello-flow"
-version = "4.11.8"
+version = "4.11.9"
 dependencies = [
  "async-trait",
  "event-script",
@@ -480,7 +480,7 @@ dependencies = [
 
 [[package]]
 name = "hello-world"
-version = "4.11.8"
+version = "4.11.9"
 dependencies = [
  "async-trait",
  "log",
@@ -736,7 +736,7 @@ dependencies = [
 
 [[package]]
 name = "knowledge-graph"
-version = "4.11.8"
+version = "4.11.9"
 dependencies = [
  "async-trait",
  "chrono",
@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "knowledge-graph-macros"
-version = "4.11.8"
+version = "4.11.9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -798,7 +798,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "minigraph-playground"
-version = "4.11.8"
+version = "4.11.9"
 dependencies = [
  "async-trait",
  "event-script",
@@ -813,7 +813,7 @@ dependencies = [
 
 [[package]]
 name = "minigraph-state-redis"
-version = "4.11.8"
+version = "4.11.9"
 dependencies = [
  "async-trait",
  "log",
@@ -985,7 +985,7 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 
 [[package]]
 name = "platform-core"
-version = "4.11.8"
+version = "4.11.9"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -1016,7 +1016,7 @@ dependencies = [
 
 [[package]]
 name = "platform-macros"
-version = "4.11.8"
+version = "4.11.9"
 dependencies = [
  "proc-macro2",
  "quote",
