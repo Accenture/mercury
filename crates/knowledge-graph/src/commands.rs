@@ -50,6 +50,7 @@ const NODE_NAME: &str = "node ";
 const NOT_FOUND: &str = " not found";
 const SESSION_TAG: &str = "Session ";
 const UNTYPED: &str = "untyped";
+const UNTITLED: &str = "untitled";
 const EXPIRY_MS: i64 = 20 * 1000;
 const MAX_BUFFER_SIZE: usize = 62 * 1024;
 const MAPPING_PROPERTIES: &[&str] = &["mapping", "input", "output", "for_each"];
@@ -1996,34 +1997,18 @@ async fn handle_import_node(
 }
 
 /// The suspend/resume store contract scopes records by graph + cid, so a dry-run instance
-/// must carry the model's STABLE identity - the root node's `name` property, which the
-/// export path keeps in sync with the graph's file/deployment id - never a per-instantiation
-/// handle (an ephemeral id makes every resume look up a key no suspend ever wrote, so a
-/// suspended dry-run workflow could only ever restart fresh). A draft whose root has no name
-/// yet has no stable identity to scope by: it keeps a unique playground handle, and
-/// `handle_instantiate` REJECTS it when the model uses suspend/resume - a silent ephemeral
-/// fallback there would break the resume mechanism invisibly.
+/// must carry an identity that is STABLE across instantiations - the root node's `name`
+/// property, which the export path keeps in sync with the graph's file/deployment id, or the
+/// constant `untitled` for a draft that has not been named yet. Never a per-instantiation
+/// handle: an ephemeral id makes every resume look up a key no suspend ever wrote, so a
+/// suspended dry-run workflow could only ever restart fresh.
 fn stable_graph_identity(graph: &MiniGraph) -> String {
-    root_name(graph).unwrap_or_else(|| format!("playground-{}", uuid::Uuid::new_v4().simple()))
-}
-
-/// The root node's non-blank `name` property, if any.
-fn root_name(graph: &MiniGraph) -> Option<String> {
     graph
         .get_root_node()
         .and_then(|root| root.get_property("name"))
         .and_then(|v| v.as_str().map(str::to_string))
         .filter(|name| !name.trim().is_empty())
-}
-
-/// True when any node carries the graph.suspend or graph.resume skill.
-fn uses_suspension(graph: &MiniGraph) -> bool {
-    graph.get_nodes().iter().any(|node| {
-        matches!(
-            node.get_property("skill").as_ref().and_then(|v| v.as_str()),
-            Some("graph.suspend") | Some("graph.resume")
-        )
-    })
+        .unwrap_or_else(|| UNTITLED.to_string())
 }
 
 async fn handle_instantiate(
@@ -2035,15 +2020,6 @@ async fn handle_instantiate(
     let Some(graph) = session::get_graph_model(in_route) else {
         return Ok(());
     };
-    // a suspend/resume model without a stable identity cannot be dry-run: its
-    // suspension record would be invisible to every later instantiation
-    if root_name(&graph).is_none() && uses_suspension(&graph) {
-        return Err(invalid(
-            "This graph model uses suspend/resume, so its workflow state needs a stable \
-             identity. Add a 'name' property to the root node (name=<graph-name>), then \
-             instantiate again.",
-        ));
-    }
     model::remove_instance(in_route);
     let filename = session::temp_graph_name(in_route);
     let file = temp_dir().join(format!("{filename}.json"));
