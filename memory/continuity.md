@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.4** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-11 | agent: Claude Code (2026-08-11-051701)
+- **last_session:** 2026-08-11 | agent: Claude Code (2026-08-11-220612)
 - **last_review:** 2026-08-07 | through 2026-08-07-150018.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -176,6 +176,31 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   squash `92dd64a8`, tag on the squash. Sole content:
   [[thread-dry-run-graph-scope-fix-rust]] (PR #204). PUBLISHED by Eric 2026-08-10.
   <!-- id: thread-release-4-11-8-rust | created: 2026-08-11 | last_used: 2026-08-11 | uses: 1 | tier: working | origin: 2026-08-11-051701 -->
+
+- [x] (release — SHIPPED 2026-08-11, **both repos in lock-step at v4.11.9**; cut FOR FIELD
+  DEPLOYMENT) **v4.11.9 — the dry-run graph identity simplification.** Rust: release PR #207 merge
+  `27fa527e` carrying `40f99dc8` (tree verified), CI green (test 2m20s), Cargo.toml + lock +
+  CHANGELOG, gate 58/305 + clippy 0 + fmt clean, tag `v4.11.9` on the merge, dereference-verified.
+  Java: [PR #281](https://github.com/Accenture/mercury-composable/pull/281) squash `eff46c5f`,
+  tag on the squash; its prep added a live drive of both the named and `untitled` paths against
+  the built artifacts. Sole content: [[thread-untitled-dry-run-identity-rust]] (PR #206).
+  Remaining: Eric publishes.
+  <!-- id: thread-release-4-11-9-rust | created: 2026-08-11 | last_used: 2026-08-11 | uses: 1 | tier: working | origin: 2026-08-11-220612 -->
+
+- [x] (fix — **MERGED 2026-08-11 as mercury PR #206, merge `3bdcd3b3` carrying `a901b1b7`
+  (tree verified), CI green (test 2m17s); Java twin
+  [PR #280](https://github.com/Accenture/mercury-composable/pull/280) squash `68cd9d28`;
+  rides the next release.**) **Dry-run graph identity simplified: an
+  unnamed draft is scoped `untitled` instead of rejected.** The store contract needs the dry-run
+  identity to be STABLE ACROSS INSTANTIATIONS, not derived from the model name — so v4.11.8's
+  rejection guard was only defending against its own ephemeral `playground-{uuid}` fallback.
+  `stable_graph_identity` → root name or `const UNTITLED`; guard, `root_name`, `uses_suspension`
+  and the orphaned mirror test deleted. New twin pin
+  (`companion_unnamed_draft_resumes_across_instantiations`, edge-mode draft sketched via companion
+  commands) is **mutation-proven** against a per-instantiation handle. CHANGELOG `## Unreleased`
+  (published v4.11.8 section untouched). Gates: 58/305 + clippy 0 + fmt clean.
+  Relates [[thread-dry-run-graph-scope-fix-rust]].
+  <!-- id: thread-untitled-dry-run-identity-rust | created: 2026-08-11 | last_used: 2026-08-11 | uses: 1 | tier: working | origin: 2026-08-11-220612 -->
 
 - [x] (fix — **MERGED 2026-08-11 as mercury PR #204, merge `f5256ecc` carrying `8fc45b94`
   (tree verified identical), CI green (test 2m8s + authoritative recheck); Java twin
