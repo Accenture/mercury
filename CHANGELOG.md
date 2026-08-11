@@ -11,19 +11,23 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
-## Unreleased
+## Version 4.11.6, 8/10/2026
+
+### Changed
+
+1. **BREAKING: the suspend/resume state-store contract is scoped by graph + cid.** The
+   persistence envelope gains a `graph` field (`{cid, graph, node, ttl, model, seen,
+   run}`), the retrieve body becomes `{cid, graph}`, and the Redis store keys records
+   `graph:{graph_id}:{cid}` (formerly `graph:state:{cid}`) — so the same business
+   correlation ID suspends independently in each domain's graph and in each subgraph, and
+   a resume only ever sees records written by its own graph. **Upgrade note:** records
+   persisted under the old key are not visible after the upgrade — a resume behaves as a
+   fresh transaction (the same observable behavior as an expired record). Let suspended
+   workflows complete before upgrading, or accept the fresh start; custom store
+   implementations must adopt the `graph` field (the shipped stores reject a request
+   without it). (ADR-0012)
 
 ### Added
-
-0. **Dynamic variables now resolve in every statement command — completing the generic
-   error handler.** `NEXT:` and `THEN:`/`ELSE:` jump targets, `RESET:` list entries and
-   `DELAY:` values in `graph.math` statements resolve `{namespace.key}` references at
-   execution time, so a generic handler can retry *whichever node routed to it*:
-   `RESET: {error.source}, error-handler` + `NEXT: {error.source}` (and pace with a
-   computed `DELAY: {model.backoff}`). Previously only `MAPPING`/`COMPUTE` expressions and
-   `IF` conditions substituted. An unresolved variable renders `null`: a `RESET:` entry is
-   a safe no-op, a `DELAY:` is skipped, and a jump target fails the run loudly.
-   tutorial-12's error-handler and clear-exception nodes now teach the generic idiom.
 
 1. **Generic exception context for `exception=` handlers — one handler can serve every
    node.** When a failed node routes to its exception handler, the engine now stages
@@ -53,19 +57,15 @@ the design rationale in [`docs/design/`](docs/design/).
    resumes it. Documented in the workflow-suspension guide with the reference model pair
    `unit-test-orchestrator` / `unit-test-sub-suspend`. (ADR-0012)
 
-### Changed
-
-1. **BREAKING: the suspend/resume state-store contract is scoped by graph + cid.** The
-   persistence envelope gains a `graph` field (`{cid, graph, node, ttl, model, seen,
-   run}`), the retrieve body becomes `{cid, graph}`, and the Redis store keys records
-   `graph:{graph_id}:{cid}` (formerly `graph:state:{cid}`) — so the same business
-   correlation ID suspends independently in each domain's graph and in each subgraph, and
-   a resume only ever sees records written by its own graph. **Upgrade note:** records
-   persisted under the old key are not visible after the upgrade — a resume behaves as a
-   fresh transaction (the same observable behavior as an expired record). Let suspended
-   workflows complete before upgrading, or accept the fresh start; custom store
-   implementations must adopt the `graph` field (the shipped stores reject a request
-   without it). (ADR-0012)
+3. **Dynamic variables now resolve in every statement command — completing the generic
+   error handler.** `NEXT:` and `THEN:`/`ELSE:` jump targets, `RESET:` list entries and
+   `DELAY:` values in `graph.math` statements resolve `{namespace.key}` references at
+   execution time, so a generic handler can retry *whichever node routed to it*:
+   `RESET: {error.source}, error-handler` + `NEXT: {error.source}` (and pace with a
+   computed `DELAY: {model.backoff}`). Previously only `MAPPING`/`COMPUTE` expressions and
+   `IF` conditions substituted. An unresolved variable renders `null`: a `RESET:` entry is
+   a safe no-op, a `DELAY:` is skipped, and a jump target fails the run loudly.
+   tutorial-12's error-handler and clear-exception nodes now teach the generic idiom.
 
 ---
 ## Version 4.11.5, 8/9/2026
