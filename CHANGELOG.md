@@ -11,7 +11,10 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
-## Unreleased
+## Version 4.11.8, 8/10/2026
+
+> Version 4.11.7 was a Java-only release (the Kafka flow adapter's `group.protocol=auto`),
+> so this engine steps from 4.11.6 directly to 4.11.8 to stay in version lock-step.
 
 ### Fixed
 
