@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.4** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-10 | agent: Claude Code (2026-08-10-224037)
+- **last_session:** 2026-08-11 | agent: Claude Code (2026-08-11-051701)
 - **last_review:** 2026-08-07 | through 2026-08-07-150018.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -166,6 +166,32 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [x] (release — SHIPPED 2026-08-10 local / 2026-08-11 UTC, **both repos in lock-step at
+  v4.11.8**) **v4.11.8 — the dry-run suspend/resume regression-fix release.** Rust: release
+  PR #205 merge `d16d68f0` carrying `5b659e50` (tree verified), CI green (test 2m34s +
+  recheck), Cargo.toml 4.11.6→4.11.8 + Cargo.lock + CHANGELOG (with the v4.11.7-was-Java-only
+  step note), gate 58/305 + clippy 0 + fmt clean, tag `v4.11.8` on the merge,
+  dereference-verified. Java: [PR #279](https://github.com/Accenture/mercury-composable/pull/279)
+  squash `92dd64a8`, tag on the squash. Sole content:
+  [[thread-dry-run-graph-scope-fix-rust]] (PR #204). Remaining: Eric publishes.
+  <!-- id: thread-release-4-11-8-rust | created: 2026-08-11 | last_used: 2026-08-11 | uses: 1 | tier: working | origin: 2026-08-11-051701 -->
+
+- [x] (fix — **MERGED 2026-08-11 as mercury PR #204, merge `f5256ecc` carrying `8fc45b94`
+  (tree verified identical), CI green (test 2m8s + authoritative recheck); Java twin
+  [PR #278](https://github.com/Accenture/mercury-composable/pull/278) `573c62aa`;
+  rides the next release.**) **v4.11.6 regression: dry-run suspend/resume
+  never resumed — the playground lane's ephemeral `playground-{uuid}` graph id broke the
+  graph-scoped store key** (`graph:{graph_id}:{cid}` never matched across instantiations;
+  executor lane unaffected — stable deployed id). Fix: dry-run identity = root node's `name`
+  property; **unnamed root + suspend/resume model REJECTED at instantiation with a teaching
+  message (Eric's ruling — a silent fallback would break resume invisibly)**; guard-first (no
+  side effects on rejection). Pins: resume-across-instantiations (store_file key pin + step
+  counters + consume-on-retrieve) + the rejection; pre-run-check scratch graph gained a root
+  name. Gates: 58/305 + clippy 0 + fmt clean. Porting gotcha recorded: scripted guard landed at
+  the wrong `remove_instance` occurrence first — anchor on unique context.
+  Relates [[thread-graph-scoped-state-and-error-context-rust]].
+  <!-- id: thread-dry-run-graph-scope-fix-rust | created: 2026-08-11 | last_used: 2026-08-11 | uses: 1 | tier: working | origin: 2026-08-11-051701 -->
 
 - [x] (release — SHIPPED AND PUBLISHED 2026-08-10, **both repos in lock-step at
   v4.11.6**) **v4.11.6 — the field-review follow-ups release.** Rust: release PR #203 merge `c008d11b` carrying
