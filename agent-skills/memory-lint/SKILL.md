@@ -1,6 +1,6 @@
 ---
 name: memory-lint
-description: Deterministic integrity check for the agent-memory layer. Use after a memory review, before committing memory/ changes, or in CI to catch decay miscounts — facts archived while still referenced, an id in both continuity and the archive, tier or supersession drift. The agent judges meaning; the script does the counting.
+description: Deterministic integrity check for the agent-memory layer. Use after a memory review, before committing memory/ changes, or in CI to catch decay miscounts — facts archived while still referenced, an id in both continuity and the archive, tier or supersession drift — and leaked secrets or PII (credentials, tokens, emails, home paths) in committed memory files. The agent judges meaning; the script does the counting.
 provenance: agent-memory-builtin
 ---
 
@@ -64,6 +64,17 @@ script, so the riskiest operation is verified against observable evidence.
      the reference log (review steps 2–3 — apply events / re-tier — were skipped), excluding `core`,
      `superseded`, never-referenced facts, and **pinned `- [ ]` open threads** (their tier label isn't
      enforced — pinned-ness protects them; v4.26.1). Clear it with the **`refresh-metadata`** skill (or a review).
+   - *advisory* — **`[secret-material]`**: credential or PII shapes in any committed memory surface —
+     `memory/*.md`, `memory/sessions/`, **and** `memory/archive/` (where pasted output lives): known
+     token formats (AWS / GitHub / GitLab / Slack / Google keys, private-key blocks, JWTs),
+     credential-key assignments with literal values (e.g. a rendered JAAS / `clientSecret` line —
+     template placeholders and `(REDACTED)` are recognized as safe), emails (public `noreply` / `git@`
+     forms excluded), SSN and payment-card shapes (Luhn-verified), and absolute home paths (write `~`).
+     The report **never echoes the matched value** (that would amplify the leak into terminals and CI
+     logs). Redact the hit to `(REDACTED)`; if it was a live credential, **rotate it** — git history
+     still holds the original. Waive a deliberately-quoted example (e.g. a log documenting a cleanup)
+     by tagging that line `lint:allow-secret-material`. (Field incident, reported 2026-08-13: a client
+     repo's DLP scanner caught a live OAuth client secret pasted into a committed session log.)
 3. **ERROR** (exit 1) → fix per `DECAY.md` / `REVIEW.md`: reactivate an over-archived fact (move it
    back into `continuity.md`), de-duplicate, or repair a link. **WARN** is advisory — the next review
    may act on it.

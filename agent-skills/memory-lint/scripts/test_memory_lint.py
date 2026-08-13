@@ -384,5 +384,136 @@ class TestStaleMetadata(unittest.TestCase):
         self.assertEqual(memory_lint.check_stale_metadata(cont, {"open-fact"}, refs, self.STEMS, 3, 2, 4), [])
 
 
+class TestSecretMaterial(unittest.TestCase):
+    # (10) [secret-material]: committed memory surfaces must not carry credentials/PII
+    # (field incident: a rendered kafka JAAS secret pasted into a session log, caught by a
+    # client-side DLP scanner). Advisory; must NEVER echo the matched value into the report.
+    @staticmethod
+    def _setup(root, files):
+        mem = os.path.join(root, "memory")
+        os.makedirs(mem, exist_ok=True)
+        defaults = {"continuity.md": "# c\nclean\n"}
+        for rel, body in {**defaults, **files}.items():
+            full = os.path.join(mem, rel)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "w", encoding="utf-8") as f:
+                f.write(body)
+
+    def test_credential_assignment_flagged_value_not_echoed(self):
+        secret = "Zq1~pw88LmNo44Xy"  # NOT a real credential — test fixture
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "sessions/2026-08-06-120000.md":
+                    f"# Session\n```\nbearer.auth.client.secret={secret}\n```\n",
+            })
+            w = memory_lint.check_secret_material(root)
+            self.assertEqual(len(w), 1)
+            self.assertIn("[secret-material]", w[0])
+            self.assertIn("memory/sessions/2026-08-06-120000.md:3", w[0])
+            self.assertIn("credential-assignment", w[0])
+            self.assertIn("key 'bearer.auth.client.secret'", w[0])
+            self.assertNotIn(secret, w[0])  # the report must never amplify the secret
+
+    def test_placeholders_and_number_shapes_not_flagged(self):
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "sessions/2026-08-06-120000.md": "\n".join([
+                    "# Session",
+                    "clientSecret='${KAFKA_CLIENT_SECRET}'",
+                    "password: (REDACTED)",
+                    "api_key: <your-key-here>",
+                    "client_secret: {{VAULT_REF}}",
+                    "access_token: 2026-08-06-153509",
+                    "max_tokens_password: 128000000",
+                    "password=changeme-please",
+                ]) + "\n",
+            })
+            self.assertEqual(memory_lint.check_secret_material(root), [])
+
+    def test_known_token_shapes_flagged(self):
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "sessions/2026-08-06-120000.md": "\n".join([
+                    "# Session",
+                    "pushed with ghp_" + "A1b2C3d4" * 5,          # github-token (fixture)
+                    "aws key AKIA" + "ABCDEFGHIJKLMNOP",           # aws-access-key-id (fixture)
+                    "-----BEGIN RSA PRIVATE KEY-----",             # private-key-block
+                ]) + "\n",
+            })
+            cats = "\n".join(memory_lint.check_secret_material(root))
+            self.assertIn("github-token", cats)
+            self.assertIn("aws-access-key-id", cats)
+            self.assertIn("private-key-block", cats)
+
+    def test_email_pii_flagged_public_forms_excluded(self):
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "sessions/2026-08-06-120000.md": "\n".join([
+                    "# Session",
+                    "contact jane.doe@some-client-corp.com about rotation",
+                    "Co-Authored-By: Claude Code <noreply@anthropic.com>",
+                    "tagger 12345+acn-user@users.noreply.github.com",
+                    "remote git@github.com:acn-ericlaw/agent-memory.git",
+                    "docs use alice@example.com",
+                ]) + "\n",
+            })
+            w = memory_lint.check_secret_material(root)
+            self.assertEqual(len(w), 1)
+            self.assertIn("email", w[0])
+            self.assertIn("(1 hit(s)", w[0])
+
+    def test_ssn_card_luhn_and_dates_not_confused(self):
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "sessions/2026-08-06-120000.md": "\n".join([
+                    "# Session",
+                    "ssn 123-45-6789 leaked",                # ssn
+                    "card 4539 1488 0343 6467 on file",      # payment-card (Luhn-valid test number)
+                    "dated 2026-08-06, stem 2026-08-06-153509, v4.33.0",  # none of these
+                    "not a card: 1234 5678 9012 3456",       # Luhn-invalid → not flagged
+                ]) + "\n",
+            })
+            cats = "\n".join(memory_lint.check_secret_material(root))
+            self.assertIn("ssn", cats)
+            self.assertIn("payment-card", cats)
+            self.assertIn("(1 hit(s)", [x for x in memory_lint.check_secret_material(root) if "payment-card" in x][0])
+
+    def test_home_path_flagged_ci_users_excluded(self):
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "continuity.md": "# c\n- repo: /Users/janedoe/projects/foo\n",
+                "sessions/2026-08-06-120000.md": "# Session\nCI ran in /home/runner/work and ~/sandbox/foo\n",
+            })
+            w = memory_lint.check_secret_material(root)
+            self.assertEqual(len(w), 1)
+            self.assertIn("home-path", w[0])
+            self.assertIn("memory/continuity.md:2", w[0])
+
+    def test_waiver_line_and_placeholder_home_paths_not_flagged(self):
+        # A log DOCUMENTING a leak cleanup legitimately quotes the patterns — the explicit
+        # line waiver keeps the advisory signal, not noise; `/Users/...` is a placeholder.
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "sessions/2026-08-06-120000.md": "\n".join([
+                    "# Session",
+                    "the leaked line was password=Qq77RrSs99TtUu11 <!-- lint:allow-secret-material -->",
+                    "docs quote `/Users/...` as the placeholder form",
+                ]) + "\n",
+            })
+            self.assertEqual(memory_lint.check_secret_material(root), [])
+
+    def test_archive_scanned_and_counts_aggregated(self):
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "archive/2026-Q2.md": "# a\npassword=hunter2hunter2\napi_key=Zx9LmQw22TtYy88Kk\n"
+                                       "client_secret=Pp44RrSs66UuVv00\n",
+            })
+            w = memory_lint.check_secret_material(root)
+            self.assertEqual(len(w), 1)  # one report per file per category
+            self.assertIn("credential-assignment", w[0])
+            self.assertIn("(3 hit(s), first at line 2)", w[0])
+            self.assertIn("memory/archive/2026-Q2.md:2", w[0])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -42,7 +42,7 @@ Live project state. Update every session.
 - project:        string
 - status:         string
 - last_enabled:   YYYY-MM-DD
-- last_session:   YYYY-MM-DD | agent: string          (or "none yet")
+- last_session:   YYYY-MM-DD | agent: string          (or "none yet" — legacy: pre-4.32.1 enables only; a fresh enable points this at its first enable session log)
 - last_review:    YYYY-MM-DD | through <session-file>  (or "none yet")
 - last_invariant_check: YYYY-MM-DD | through <session-file>  (or "none yet") — see REVIEW.md step 6
 - last_harvest:   YYYY-MM-DD | through <session-file>  (optional; omit until first run) — when the `harvest-knowledge` skill last folded docs into memory; it reads this to scope the next harvest and stamps it on completion
@@ -142,6 +142,12 @@ context is date-only and produces a non-conforming `YYYY-MM-DD.md` name if used
 directly. Colons omitted for cross-platform filename compatibility. Filenames sort lexicographically = chronologically, so the
 most recent log is always the last file — unambiguous even with multiple
 contributors on the same day.
+
+**Never write secrets or PII into a session log** — logs are committed and shared. Redact
+pasted output (credentials, tokens, emails, home paths — write `~`) to `(REDACTED)` before
+persisting; if a secret was committed anyway, rotate it — git history keeps the original.
+Redaction is the one sanctioned edit to an otherwise-immutable log; `memory-lint` flags
+detectable shapes (`[secret-material]`, waivable per-line with `lint:allow-secret-material`).
 
 ```
 # Session (YYYY-MM-DDThh:mm:ss.mmmZ)

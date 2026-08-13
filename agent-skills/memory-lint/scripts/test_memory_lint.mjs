@@ -17,6 +17,7 @@ import {
   check_continuity_health,
   sessions_since_review,
   check_stale_metadata,
+  check_secret_material,
 } from "./memory-lint.mjs";
 
 // (8) advisory cadence/size triggers (v4.24.0). cont is a Map; cont.size is the fact count.
@@ -449,4 +450,165 @@ test("check_stale_metadata: a pinned thread's tier is not flagged (v4.26.1)", ()
   const cont = new Map([["open-fact", { tier: "working", created: "2026-01-01" }]]);
   const refs = [new Set(["open-fact"]), new Set(["open-fact"]), new Set()];
   assert.deepEqual(check_stale_metadata(cont, new Set(["open-fact"]), refs, STALE_STEMS, 3, 2, 4), []);
+});
+
+// (10) [secret-material]: committed memory surfaces must not carry credentials/PII
+// (field incident: a rendered kafka JAAS secret pasted into a session log, caught by a
+// client-side DLP scanner). Advisory; must NEVER echo the matched value into the report.
+function secretSetup(files) {
+  const root = mkdtempSync(join(tmpdir(), "memlint-"));
+  const all = { "continuity.md": "# c\nclean\n", ...files };
+  for (const [rel, body] of Object.entries(all)) {
+    const full = join(root, "memory", rel);
+    mkdirSync(join(full, ".."), { recursive: true });
+    writeFileSync(full, body);
+  }
+  return root;
+}
+
+test("check_secret_material flags a credential assignment and never echoes the value", () => {
+  const secret = "Zq1~pw88LmNo44Xy"; // NOT a real credential — test fixture
+  const root = secretSetup({
+    "sessions/2026-08-06-120000.md": `# Session\n\`\`\`\nbearer.auth.client.secret=${secret}\n\`\`\`\n`,
+  });
+  try {
+    const w = check_secret_material(root);
+    assert.equal(w.length, 1);
+    assert.ok(w[0].includes("[secret-material]"));
+    assert.ok(w[0].includes("memory/sessions/2026-08-06-120000.md:3"));
+    assert.ok(w[0].includes("credential-assignment"));
+    assert.ok(w[0].includes("key 'bearer.auth.client.secret'"));
+    assert.ok(!w[0].includes(secret)); // the report must never amplify the secret
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("check_secret_material: placeholders and number shapes are not flagged", () => {
+  const root = secretSetup({
+    "sessions/2026-08-06-120000.md": [
+      "# Session",
+      "clientSecret='${KAFKA_CLIENT_SECRET}'",
+      "password: (REDACTED)",
+      "api_key: <your-key-here>",
+      "client_secret: {{VAULT_REF}}",
+      "access_token: 2026-08-06-153509",
+      "max_tokens_password: 128000000",
+      "password=changeme-please",
+    ].join("\n") + "\n",
+  });
+  try {
+    assert.deepEqual(check_secret_material(root), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("check_secret_material flags known token shapes", () => {
+  const root = secretSetup({
+    "sessions/2026-08-06-120000.md": [
+      "# Session",
+      "pushed with ghp_" + "A1b2C3d4".repeat(5), // github-token (fixture)
+      "aws key AKIA" + "ABCDEFGHIJKLMNOP",        // aws-access-key-id (fixture)
+      "-----BEGIN RSA PRIVATE KEY-----",          // private-key-block
+    ].join("\n") + "\n",
+  });
+  try {
+    const cats = check_secret_material(root).join("\n");
+    assert.ok(cats.includes("github-token"));
+    assert.ok(cats.includes("aws-access-key-id"));
+    assert.ok(cats.includes("private-key-block"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("check_secret_material flags email PII, excludes public forms", () => {
+  const root = secretSetup({
+    "sessions/2026-08-06-120000.md": [
+      "# Session",
+      "contact jane.doe@some-client-corp.com about rotation",
+      "Co-Authored-By: Claude Code <noreply@anthropic.com>",
+      "tagger 12345+acn-user@users.noreply.github.com",
+      "remote git@github.com:acn-ericlaw/agent-memory.git",
+      "docs use alice@example.com",
+    ].join("\n") + "\n",
+  });
+  try {
+    const w = check_secret_material(root);
+    assert.equal(w.length, 1);
+    assert.ok(w[0].includes("email"));
+    assert.ok(w[0].includes("(1 hit(s)"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("check_secret_material: ssn + Luhn-valid card flagged; dates and Luhn-fails are not", () => {
+  const root = secretSetup({
+    "sessions/2026-08-06-120000.md": [
+      "# Session",
+      "ssn 123-45-6789 leaked",               // ssn
+      "card 4539 1488 0343 6467 on file",     // payment-card (Luhn-valid test number)
+      "dated 2026-08-06, stem 2026-08-06-153509, v4.33.0", // none of these
+      "not a card: 1234 5678 9012 3456",      // Luhn-invalid → not flagged
+    ].join("\n") + "\n",
+  });
+  try {
+    const all = check_secret_material(root);
+    const cats = all.join("\n");
+    assert.ok(cats.includes("ssn"));
+    assert.ok(cats.includes("payment-card"));
+    assert.ok(all.find((x) => x.includes("payment-card")).includes("(1 hit(s)"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("check_secret_material flags absolute home paths, excludes CI users", () => {
+  const root = secretSetup({
+    "continuity.md": "# c\n- repo: /Users/janedoe/projects/foo\n",
+    "sessions/2026-08-06-120000.md": "# Session\nCI ran in /home/runner/work and ~/sandbox/foo\n",
+  });
+  try {
+    const w = check_secret_material(root);
+    assert.equal(w.length, 1);
+    assert.ok(w[0].includes("home-path"));
+    assert.ok(w[0].includes("memory/continuity.md:2"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("check_secret_material scans archive/ and aggregates counts per file+category", () => {
+  const root = secretSetup({
+    "archive/2026-Q2.md":
+      "# a\npassword=hunter2hunter2\napi_key=Zx9LmQw22TtYy88Kk\nclient_secret=Pp44RrSs66UuVv00\n",
+  });
+  try {
+    const w = check_secret_material(root);
+    assert.equal(w.length, 1); // one report per file per category
+    assert.ok(w[0].includes("credential-assignment"));
+    assert.ok(w[0].includes("(3 hit(s), first at line 2)"));
+    assert.ok(w[0].includes("memory/archive/2026-Q2.md:2"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("check_secret_material: waiver line and placeholder home paths are not flagged", () => {
+  // A log DOCUMENTING a leak cleanup legitimately quotes the patterns — the explicit
+  // line waiver keeps the advisory signal, not noise; `/Users/...` is a placeholder.
+  const root = secretSetup({
+    "sessions/2026-08-06-120000.md": [
+      "# Session",
+      "the leaked line was password=Qq77RrSs99TtUu11 <!-- lint:allow-secret-material -->",
+      "docs quote `/Users/...` as the placeholder form",
+    ].join("\n") + "\n",
+  });
+  try {
+    assert.deepEqual(check_secret_material(root), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

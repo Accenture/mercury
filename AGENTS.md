@@ -89,6 +89,16 @@ expected (the decay math counts log files — `DECAY.md` §4).
    Include a `## Memory References` section listing the fact ids you referenced,
    created (born `tier: working`), or reactivated. This is the event log the review
    ritual reads — see `DECAY.md`.
+   **Never write secrets or PII into `memory/`** — session logs and continuity are committed
+   and shared, so anything pasted into them ships to every clone and CI log. Before persisting
+   pasted command/smoke-test output, redact credential material (rendered secrets and tokens,
+   `Authorization`/JAAS lines) and personal data (names, emails, phone or account numbers,
+   absolute home paths — write `~`) down to `(REDACTED)`; template placeholders like `${VAR}`
+   are already safe to keep. If a secret does land in a committed file, redacting is **not**
+   un-leaking: treat it as exposed and **rotate it** — git history still holds the original
+   (history cleanup is a separate, human-led step). `memory-lint` flags detectable shapes as
+   `[secret-material]`; tag a deliberately-quoted example line with `lint:allow-secret-material`
+   to waive it. Redaction is the one sanctioned edit to an otherwise-immutable session log.
 2. **Update** `memory/continuity.md`:
    - Set `last_session` to today's date and your agent name.
    - Keep **`status` a short current-state line — never a changelog.** Don't accrete

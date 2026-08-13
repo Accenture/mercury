@@ -408,6 +408,129 @@ export function check_continuity_health(cont, sessions, cont_text, cont_lines, r
   return out;
 }
 
+// (10) [secret-material] — committed memory surfaces must not carry credentials or PII.
+// Field incident (reported 2026-08-13, a client repo's DLP scanner): smoke-test output pasted into a
+// session log leaked a live OAuth client secret — session logs are committed & shared, so
+// anything pasted into them ships to every clone. This check is the deterministic backstop
+// behind the AGENTS.md redaction rule. Advisory (WARN): the script detects *shapes*; whether
+// a hit is a real secret stays human/agent judgment. Unlike check 7 it DOES scan sessions/
+// and archive/ — that's where pasted output lives — and it never echoes the matched value
+// (a lint line quoting the secret would just amplify the leak into terminals and CI logs).
+const SECRET_VALUE_PATTERNS = [
+  ["aws-access-key-id", /\bAKIA[0-9A-Z]{16}\b/],
+  ["github-token", /\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})\b/],
+  ["gitlab-token", /\bglpat-[A-Za-z0-9_-]{20,}\b/],
+  ["slack-token", /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/],
+  ["google-api-key", /\bAIza[0-9A-Za-z_-]{35}\b/],
+  ["private-key-block", /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
+  ["jwt", /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/],
+];
+// Credential-KEY assignment with a literal value (clientSecret='…', password: …, api_key=…).
+// Keyed on the *name*, not the value shape — this is what catches a rendered JAAS line.
+const ASSIGNMENT_RE = new RegExp(
+  String.raw`\b([A-Za-z0-9_.\-]*(?:secret|password|passwd|credential|api[_.\-]?key|apikey` +
+    String.raw`|access[_.\-]?token|auth[_.\-]?token|bearer[_.\-]?token)[A-Za-z0-9_.\-]*)` +
+    String.raw`\s*[=:]\s*(['"]?)([^\s'"]{8,})\2`,
+  "gi"
+);
+const PLACEHOLDER_VALUE_RE = /redacted|changeme|change-me|placeholder|example|sample|dummy|your[-_]|xxxx|\btodo\b/i;
+const EMAIL_RE = /\b([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b/g;
+const SSN_RE = /\b\d{3}-\d{2}-\d{4}\b/;
+const E164_RE = /\+\d{10,15}\b/;
+const CARD_RE = /\b(?:\d{4}[ -]){3}\d{4}\b|\b\d{13,19}\b/g;
+const HOME_PATH_RE = /(?:\/Users\/|\/home\/|[A-Za-z]:\\Users\\)([A-Za-z0-9._-]{2,})/g;
+const HOME_OK = new Set(["runner", "user", "username", "vsts_azpcontainer"]); // well-known CI users, not PII
+
+function is_placeholder_value(v) {
+  // Values that are templates, redactions, or number/date/version shapes — not secrets.
+  if ("${<%(*".includes(v[0])) return true; // ${VAR} / $(cmd) / {{tpl}} / <angle> / %fmt / (REDACTED) / ***
+  if (/^[\d.\-:/T]+$/.test(v)) return true; // timestamps, dates, versions, counts (max_tokens: 128000, …)
+  return PLACEHOLDER_VALUE_RE.test(v);
+}
+
+function is_public_email(local, domain) {
+  const l = local.toLowerCase();
+  const d = domain.toLowerCase();
+  return (
+    l === "git" || l === "noreply" || l === "no-reply" || l.endsWith("+noreply") ||
+    d.includes("noreply") || d.startsWith("example.") || d.includes(".example") ||
+    d.endsWith(".invalid") || d.endsWith(".test") || d.endsWith(".local") || d.endsWith(".localhost")
+  );
+}
+
+function luhn_ok(digits) {
+  let total = 0;
+  const rev = [...digits].reverse();
+  for (let i = 0; i < rev.length; i++) {
+    let d = Number.parseInt(rev[i], 10);
+    if (i % 2 === 1) d = d * 2 > 9 ? d * 2 - 9 : d * 2;
+    total += d;
+  }
+  return total % 10 === 0;
+}
+
+export function check_secret_material(root) {
+  const mem = join(root, "memory");
+  const files = [];
+  const addDir = (dir, prefix) => {
+    if (!existsSync(dir)) return;
+    for (const n of readdirSync(dir).filter((x) => x.endsWith(".md")).sort(byCodePoint)) {
+      const fp = join(dir, n);
+      if (statSync(fp).isFile()) files.push([fp, `${prefix}${n}`]);
+    }
+  };
+  addDir(mem, "memory/");
+  addDir(join(mem, "sessions"), "memory/sessions/");
+  addDir(join(mem, "archive"), "memory/archive/");
+
+  const out = [];
+  for (const [path, rel] of files) {
+    const found = new Map(); // category -> [first_line, count, detail]
+    const tally = (cat, line_no, detail = "") => {
+      if (found.has(cat)) found.get(cat)[1] += 1;
+      else found.set(cat, [line_no, 1, detail]);
+    };
+
+    const lines = read_text(path).split(/\r\n|\r|\n/);
+    for (let idx = 0; idx < lines.length; idx++) {
+      const line = lines[idx];
+      const i = idx + 1;
+      // Explicit waiver for deliberately-quoted examples (a log *documenting* a leak
+      // cleanup legitimately quotes the patterns). Tag the line, all categories skip it:
+      if (line.includes("lint:allow-secret-material")) continue;
+      for (const [cat, rx] of SECRET_VALUE_PATTERNS) {
+        if (rx.test(line)) tally(cat, i);
+      }
+      for (const m of line.matchAll(ASSIGNMENT_RE)) {
+        if (!is_placeholder_value(m[3])) tally("credential-assignment", i, ` key '${m[1]}'`);
+      }
+      for (const m of line.matchAll(EMAIL_RE)) {
+        if (!is_public_email(m[1], m[2])) tally("email", i);
+      }
+      if (SSN_RE.test(line)) tally("ssn", i);
+      if (E164_RE.test(line)) tally("phone-e164", i);
+      for (const m of line.matchAll(CARD_RE)) {
+        const digits = m[0].replaceAll(/[ -]/g, "");
+        if (digits.length >= 13 && digits.length <= 19 && luhn_ok(digits)) tally("payment-card", i);
+      }
+      for (const m of line.matchAll(HOME_PATH_RE)) {
+        // need a letter/digit in the username — `/Users/...` is a placeholder, not a path
+        if (!HOME_OK.has(m[1].toLowerCase()) && /[A-Za-z0-9]/.test(m[1])) tally("home-path", i);
+      }
+    }
+
+    for (const cat of [...found.keys()].sort(byCodePoint)) {
+      const [line_no, count, detail] = found.get(cat);
+      out.push(
+        `[secret-material] ${rel}:${line_no} ${cat}${detail} (${count} hit(s), first at line ${line_no}) — memory/ is ` +
+          "committed & shared: redact to (REDACTED); if a live credential, rotate it " +
+          "and treat git history as exposed (see the AGENTS.md redaction rule)"
+      );
+    }
+  }
+  return out;
+}
+
 function report({ cont, arch, sessions, acw, aw, warns, errors, strict }) {
   console.log(
     `memory-lint: ${cont.size} continuity facts, ${arch.size} archived, ` +
@@ -467,6 +590,7 @@ export function main(argv) {
       w.review_every, w.continuity_max_facts, w.continuity_max_lines, pinned, archivable
     ),
     ...check_stale_metadata(cont, pinned, refs, stems, w.working_window, acw, aw),
+    ...check_secret_material(root),
   ];
 
   return report({ cont, arch, sessions, acw, aw, warns, errors, strict });

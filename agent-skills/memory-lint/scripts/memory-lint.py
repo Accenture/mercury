@@ -393,6 +393,125 @@ def check_continuity_health(cont, sessions, cont_text, cont_lines, re_every, max
     return out
 
 
+# (10) [secret-material] — committed memory surfaces must not carry credentials or PII.
+# Field incident (reported 2026-08-13, a client repo's DLP scanner): smoke-test output pasted into a
+# session log leaked a live OAuth client secret — session logs are committed & shared, so
+# anything pasted into them ships to every clone. This check is the deterministic backstop
+# behind the AGENTS.md redaction rule. Advisory (WARN): the script detects *shapes*; whether
+# a hit is a real secret stays human/agent judgment. Unlike check 7 it DOES scan sessions/
+# and archive/ — that's where pasted output lives — and it never echoes the matched value
+# (a lint line quoting the secret would just amplify the leak into terminals and CI logs).
+SECRET_VALUE_PATTERNS = [
+    ("aws-access-key-id", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    ("github-token", re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})\b")),
+    ("gitlab-token", re.compile(r"\bglpat-[A-Za-z0-9_-]{20,}\b")),
+    ("slack-token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b")),
+    ("google-api-key", re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b")),
+    ("private-key-block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
+    ("jwt", re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b")),
+]
+# Credential-KEY assignment with a literal value (clientSecret='…', password: …, api_key=…).
+# Keyed on the *name*, not the value shape — this is what catches a rendered JAAS line.
+ASSIGNMENT_RE = re.compile(
+    r"(?i)\b([A-Za-z0-9_.\-]*(?:secret|password|passwd|credential|api[_.\-]?key|apikey"
+    r"|access[_.\-]?token|auth[_.\-]?token|bearer[_.\-]?token)[A-Za-z0-9_.\-]*)"
+    r"\s*[=:]\s*(['\"]?)([^\s'\"]{8,})\2"
+)
+PLACEHOLDER_VALUE_RE = re.compile(
+    r"(?i)(redacted|changeme|change-me|placeholder|example|sample|dummy|your[-_]|xxxx|\btodo\b)"
+)
+EMAIL_RE = re.compile(r"\b([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b")
+SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
+E164_RE = re.compile(r"\+\d{10,15}\b")
+CARD_RE = re.compile(r"\b(?:\d{4}[ -]){3}\d{4}\b|\b\d{13,19}\b")
+HOME_PATH_RE = re.compile(r"(?:/Users/|/home/|[A-Za-z]:\\Users\\)([A-Za-z0-9._-]{2,})")
+_HOME_OK = {"runner", "user", "username", "vsts_azpcontainer"}  # well-known CI users, not PII
+
+
+def _is_placeholder_value(v):
+    """Values that are templates, redactions, or number/date/version shapes — not secrets."""
+    if v[0] in "${<%(*":
+        return True  # ${VAR} / $(cmd) / {{tpl}} / <angle> / %fmt / (REDACTED) / ***
+    if re.fullmatch(r"[\d.\-:/T]+", v):
+        return True  # timestamps, dates, versions, counts (max_tokens: 128000, …)
+    return bool(PLACEHOLDER_VALUE_RE.search(v))
+
+
+def _is_public_email(local, domain):
+    l, d = local.lower(), domain.lower()
+    return (
+        l in ("git", "noreply", "no-reply") or l.endswith("+noreply")
+        or "noreply" in d or d.startswith("example.") or ".example" in d
+        or d.endswith((".invalid", ".test", ".local", ".localhost"))
+    )
+
+
+def _luhn_ok(digits):
+    total = 0
+    for i, ch in enumerate(reversed(digits)):
+        d = int(ch)
+        if i % 2 == 1:
+            d = d * 2 - 9 if d * 2 > 9 else d * 2
+        total += d
+    return total % 10 == 0
+
+
+def check_secret_material(root):
+    mem = os.path.join(root, "memory")
+    files = (
+        sorted(glob.glob(os.path.join(mem, "*.md")))
+        + sorted(glob.glob(os.path.join(mem, "sessions", "*.md")))
+        + sorted(glob.glob(os.path.join(mem, "archive", "*.md")))
+    )
+    out = []
+    for path in files:
+        rel = os.path.relpath(path, root).replace(os.sep, "/")
+        found = {}  # category -> [first_line, count, detail]
+
+        def tally(cat, line_no, detail=""):
+            if cat in found:
+                found[cat][1] += 1
+            else:
+                found[cat] = [line_no, 1, detail]
+
+        for i, line in enumerate(read_text(path).splitlines(), 1):
+            # Explicit waiver for deliberately-quoted examples (a log *documenting* a leak
+            # cleanup legitimately quotes the patterns). Tag the line, all categories skip it:
+            if "lint:allow-secret-material" in line:
+                continue
+            for cat, rx in SECRET_VALUE_PATTERNS:
+                if rx.search(line):
+                    tally(cat, i)
+            for m in ASSIGNMENT_RE.finditer(line):
+                if not _is_placeholder_value(m.group(3)):
+                    tally("credential-assignment", i, f" key '{m.group(1)}'")
+            for m in EMAIL_RE.finditer(line):
+                if not _is_public_email(m.group(1), m.group(2)):
+                    tally("email", i)
+            if SSN_RE.search(line):
+                tally("ssn", i)
+            if E164_RE.search(line):
+                tally("phone-e164", i)
+            for m in CARD_RE.finditer(line):
+                digits = re.sub(r"[ -]", "", m.group(0))
+                if 13 <= len(digits) <= 19 and _luhn_ok(digits):
+                    tally("payment-card", i)
+            for m in HOME_PATH_RE.finditer(line):
+                # need a letter/digit in the username — `/Users/...` is a placeholder, not a path
+                if m.group(1).lower() not in _HOME_OK and re.search(r"[A-Za-z0-9]", m.group(1)):
+                    tally("home-path", i)
+
+        for cat in sorted(found):
+            line_no, count, detail = found[cat]
+            hits = f"{count} hit(s), first at line {line_no}"
+            out.append(
+                f"[secret-material] {rel}:{line_no} {cat}{detail} ({hits}) — memory/ is "
+                "committed & shared: redact to (REDACTED); if a live credential, rotate it "
+                "and treat git history as exposed (see the AGENTS.md redaction rule)"
+            )
+    return out
+
+
 def report(cont, arch, sessions, acw, aw, warns, errors, strict):
     print(
         f"memory-lint: {len(cont)} continuity facts, {len(arch)} archived, "
@@ -448,6 +567,7 @@ def main():
             pinned, archivable,
         )
         + check_stale_metadata(cont, pinned, refs, stems, w["working_window"], acw, aw)
+        + check_secret_material(root)
     )
 
     return report(cont, arch, sessions, acw, aw, warns, errors, strict)
