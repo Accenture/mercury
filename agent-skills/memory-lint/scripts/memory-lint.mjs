@@ -430,7 +430,10 @@ const SECRET_VALUE_PATTERNS = [
 const ASSIGNMENT_RE = new RegExp(
   String.raw`\b([A-Za-z0-9_.\-]*(?:secret|password|passwd|credential|api[_.\-]?key|apikey` +
     String.raw`|access[_.\-]?token|auth[_.\-]?token|bearer[_.\-]?token)[A-Za-z0-9_.\-]*)` +
-    String.raw`\s*[=:]\s*(['"]?)([^\s'"]{8,})\2`,
+    // Backtick is a value delimiter alongside quotes: every scanned surface is markdown, where
+    // assignments are typically quoted as inline code (`key=VALUE`) — without this, the closing
+    // backtick rides into the captured value and defeats the enum-constant exclusion (v4.33.2).
+    String.raw`\s*[=:]\s*(['"\`]?)([^\s'"\`]{8,})\2`,
   "gi"
 );
 const PLACEHOLDER_VALUE_RE = /redacted|changeme|change-me|placeholder|example|sample|dummy|your[-_]|xxxx|\btodo\b/i;
@@ -445,6 +448,11 @@ function is_placeholder_value(v) {
   // Values that are templates, redactions, or number/date/version shapes — not secrets.
   if ("${<%(*".includes(v[0])) return true; // ${VAR} / $(cmd) / {{tpl}} / <angle> / %fmt / (REDACTED) / ***
   if (/^[\d.\-:/T]+$/.test(v)) return true; // timestamps, dates, versions, counts (max_tokens: 128000, …)
+  // An ALL-CAPS identifier is a config enum constant (OAUTHBEARER, SASL_SSL, STATIC_TOKEN, …),
+  // not a secret: real credentials carry mixed case/symbols, and the famous uppercase-only
+  // shapes (e.g. AWS access-key ids) are caught by the value-shape patterns independently of
+  // the assignment check. (First field false positive: mercury-composable, 2026-08-13.)
+  if (/^[A-Z][A-Z0-9_]{2,}$/.test(v)) return true;
   return PLACEHOLDER_VALUE_RE.test(v);
 }
 

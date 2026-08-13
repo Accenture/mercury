@@ -415,7 +415,10 @@ SECRET_VALUE_PATTERNS = [
 ASSIGNMENT_RE = re.compile(
     r"(?i)\b([A-Za-z0-9_.\-]*(?:secret|password|passwd|credential|api[_.\-]?key|apikey"
     r"|access[_.\-]?token|auth[_.\-]?token|bearer[_.\-]?token)[A-Za-z0-9_.\-]*)"
-    r"\s*[=:]\s*(['\"]?)([^\s'\"]{8,})\2"
+    # Backtick is a value delimiter alongside quotes: every scanned surface is markdown, where
+    # assignments are typically quoted as inline code (`key=VALUE`) — without this, the closing
+    # backtick rides into the captured value and defeats the enum-constant exclusion (v4.33.2).
+    r"\s*[=:]\s*(['\"`]?)([^\s'\"`]{8,})\2"
 )
 PLACEHOLDER_VALUE_RE = re.compile(
     r"(?i)(redacted|changeme|change-me|placeholder|example|sample|dummy|your[-_]|xxxx|\btodo\b)"
@@ -434,6 +437,12 @@ def _is_placeholder_value(v):
         return True  # ${VAR} / $(cmd) / {{tpl}} / <angle> / %fmt / (REDACTED) / ***
     if re.fullmatch(r"[\d.\-:/T]+", v):
         return True  # timestamps, dates, versions, counts (max_tokens: 128000, …)
+    # An ALL-CAPS identifier is a config enum constant (OAUTHBEARER, SASL_SSL, STATIC_TOKEN, …),
+    # not a secret: real credentials carry mixed case/symbols, and the famous uppercase-only
+    # shapes (e.g. AWS access-key ids) are caught by the value-shape patterns independently of
+    # the assignment check. (First field false positive: mercury-composable, 2026-08-13.)
+    if re.fullmatch(r"[A-Z][A-Z0-9_]{2,}", v):
+        return True
     return bool(PLACEHOLDER_VALUE_RE.search(v))
 
 

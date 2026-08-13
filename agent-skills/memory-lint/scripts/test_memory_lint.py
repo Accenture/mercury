@@ -502,6 +502,28 @@ class TestSecretMaterial(unittest.TestCase):
             })
             self.assertEqual(memory_lint.check_secret_material(root), [])
 
+    def test_all_caps_enum_constants_not_flagged(self):
+        # First field FP (mercury-composable, 2026-08-13): config docs quoted in a session log —
+        # a credential-keyed property set to an ALL-CAPS enum constant is a source TYPE, not a
+        # credential — including the markdown inline-code form (`key=VALUE`), where the closing
+        # backtick must not ride into the value (v4.33.2, the form the real field line used).
+        # Mixed-case values on the same key class must still flag, backticked or bare.
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "sessions/2026-08-13-120000.md": "\n".join([
+                    "# Session",
+                    "bearer.auth.credentials.source: OAUTHBEARER",
+                    "sasl.password.mode=STATIC_TOKEN",
+                    "markdown form: `bearer.auth.credentials.source=OAUTHBEARER` + `bearer.auth.issuer.endpoint.url` /",
+                    "still real: client_secret=Zq1pw88LmNo44Xy",
+                    "backticked real: `api_key=Qw9RtYu88LmPo44Xz`",
+                ]) + "\n",
+            })
+            w = memory_lint.check_secret_material(root)
+            self.assertEqual(len(w), 1)
+            self.assertIn("key 'client_secret'", w[0])
+            self.assertIn("(2 hit(s)", w[0])
+
     def test_archive_scanned_and_counts_aggregated(self):
         with tempfile.TemporaryDirectory() as root:
             self._setup(root, {
