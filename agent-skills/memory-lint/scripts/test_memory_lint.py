@@ -631,5 +631,73 @@ class TestSecretMaterial(unittest.TestCase):
             self.assertIn("memory/archive/2026-Q2.md:2", w[0])
 
 
+class TestScanFilesMode(unittest.TestCase):
+    # (v4.34.0) `--scan-files`: credential-class scan of arbitrary config files — the
+    # pre-commit hook / CI-wrapper surface behind the field incident (a Postman JSON and an
+    # OpenShift YAML with live credentials, committed outside memory/).
+    def _env_value(self, name, value):
+        previous = os.environ.get(name)
+        self.addCleanup(
+            lambda: os.environ.pop(name, None)
+            if previous is None
+            else os.environ.__setitem__(name, previous)
+        )
+        os.environ[name] = value
+        return os.environ[name]
+
+    def _secret(self, name):
+        import hashlib
+        digest = hashlib.sha256(name.encode("utf-8")).hexdigest()
+        material = "".join(ch.upper() if i % 2 else ch for i, ch in enumerate(digest))
+        return self._env_value(name, material[:24])
+
+    def test_scan_files_is_credential_class_only(self):
+        secret = self._secret("AGENT_MEMORY_TEST_SCANFILES")
+        with tempfile.TemporaryDirectory() as root:
+            props = os.path.join(root, "src", "app.properties")
+            os.makedirs(os.path.dirname(props))
+            with open(props, "w", encoding="utf-8") as f:
+                f.write(f"spring.datasource.password={secret}\n")
+            pj = os.path.join(root, "package.json")
+            with open(pj, "w", encoding="utf-8") as f:
+                f.write('{"author": "Dev One <dev.one@some-client-corp.com>"}\n')
+            w = memory_lint.scan_secret_files([props, pj])
+            self.assertEqual(len(w), 1)  # the email is a memory-layer check, not a config one
+            self.assertIn("credential-assignment", w[0])
+            self.assertIn(props.replace(os.sep, "/"), w[0])
+            self.assertNotIn(secret, w[0])  # never echo the value
+
+    def test_scan_files_config_placeholder_forms_not_flagged(self):
+        # The four FP classes from the 661-file field probe (2026-08-14) must stay quiet:
+        # single-brace JAAS template, template-with-placeholder-default, test-affixed fixture,
+        # dotted route reference in an authorization value — plus a GH-Actions expression.
+        with tempfile.TemporaryDirectory() as root:
+            cfg = os.path.join(root, "conf.yaml")
+            with open(cfg, "w", encoding="utf-8") as f:
+                f.write("\n".join([
+                    "#sasl.jaas.config=…PlainLoginModule required username={CHANGE_THIS} password={CHANGE_THIS};",
+                    "authorization: '${DEMO_PEER_TOKEN:demo}'",
+                    "bearer.auth.client.secret=test-secret",
+                    '- "authorization: v1.basic.auth"',
+                    "api_key: ${{secrets.SR_KEY}}",
+                ]) + "\n")
+            self.assertEqual(memory_lint.scan_secret_files([cfg]), [])
+
+    def test_scan_files_postman_split_form(self):
+        # Postman's `"key": "client_secret", "value": "…"` convention — the literal incident
+        # artifact class; a `{{variable}}` reference stays a placeholder.
+        secret = self._secret("AGENT_MEMORY_TEST_POSTMAN")
+        with tempfile.TemporaryDirectory() as root:
+            col = os.path.join(root, "collection.json")
+            with open(col, "w", encoding="utf-8") as f:
+                f.write('{"key": "client_secret", "value": "' + secret + '"},\n'
+                        '{"key": "client_secret", "value": "{{client_secret}}"}\n')
+            w = memory_lint.scan_secret_files([col])
+            self.assertEqual(len(w), 1)
+            self.assertIn("key 'client_secret'", w[0])
+            self.assertIn("(1 hit(s)", w[0])
+            self.assertNotIn(secret, w[0])
+
+
 if __name__ == "__main__":
     unittest.main()

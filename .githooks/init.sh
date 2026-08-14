@@ -19,10 +19,10 @@ else
   echo "  (no sync-adapters skill present; skipped)"
 fi
 
-echo "agent-memory init: (2/2) activating the post-commit hook (core.hooksPath)…"
+echo "agent-memory init: (2/2) activating the git hooks (pre-commit secret guard + post-commit ritual capture)…"
 if [ -d .githooks ]; then
   git config core.hooksPath .githooks
   echo "  core.hooksPath = $(git config core.hooksPath)"
 fi
 
-echo "agent-memory init: done — adapters synced + post-commit hook active. (On GitHub / GitLab.com, CI runs server-side regardless.)"
+echo "agent-memory init: done — adapters synced + git hooks active. (On GitHub / GitLab.com, CI runs server-side regardless.)"

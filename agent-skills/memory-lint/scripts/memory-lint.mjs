@@ -9,11 +9,13 @@
 // guarantee should not depend on which runtime the machine happens to have.
 //
 // Usage:  node memory-lint.mjs [--root PATH] [--strict]
+//         node memory-lint.mjs --scan-files FILE...   (credential-class [secret-material]
+//         scan of arbitrary config files; exit 1 on findings)
 // Exit:   0 = clean (no errors), 1 = integrity error(s) (or warnings under
 //         --strict), 2 = could not locate the memory/ layer.
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
-import { resolve, dirname, join, basename } from "node:path";
+import { resolve, dirname, join, basename, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ID_RE = /[a-z][a-z0-9]*(?:-[a-z0-9]+)+/g;
@@ -136,10 +138,15 @@ export function load_windows(root) {
 function parse_args(args) {
   const strict = args.includes("--strict");
   let root_arg = null;
+  let scan_files = null;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--root" && i + 1 < args.length) root_arg = args[i + 1];
+    if (args[i] === "--scan-files") {
+      scan_files = args.slice(i + 1); // everything after the flag is a path
+      break;
+    }
   }
-  return { strict, root_arg };
+  return { strict, root_arg, scan_files };
 }
 
 export function load_repo(root) {
@@ -436,17 +443,42 @@ const ASSIGNMENT_RE = new RegExp(
     // Backtick is a value delimiter alongside quotes: every scanned surface is markdown, where
     // assignments are typically quoted as inline code (`key=VALUE`) — without this, the closing
     // backtick rides into the captured value and defeats the enum-constant exclusion (v4.33.2).
-    String.raw`\s*[=:]\s*(['"\`]?)([^\s'"\`]{8,})\2`,
+    // Semicolon is a value delimiter too: JAAS/properties lines terminate with `;`
+    // (`password={CHANGE_THIS};`) and it otherwise rides into the value, defeating the
+    // placeholder rules (field probe 2026-08-14). A real secret containing `;` still flags on
+    // its captured prefix.
+    String.raw`\s*[=:]\s*(['"\`]?)([^\s'"\`;]{8,})\2`,
   "gi"
 );
 const AUTHORIZATION_RE =
   /\b((?:proxy[_.\-]?)?authorization)\s*:\s*(?:(?:bearer|basic)\s+)?(['"`]?)([^\s'"`]{8,})\2/gi;
+// An authorization VALUE that is a dotted lowercase identifier (`v1.basic.auth`) is a
+// service/route/handler reference, never a token — real credentials carry uppercase, digit
+// runs, or symbols beyond dots (field probe 2026-08-14: mercury REST configs). Case-sensitive
+// on purpose: any uppercase keeps it flagged.
+const ROUTE_REF_RE = /^[a-z][a-z0-9_-]*(?:\.[a-z0-9_-]+)+$/;
+// Postman collections split the pair: `"key": "client_secret", "value": "…"` — the credential
+// key is itself the VALUE of a "key" field (the field-incident artifact class, 2026-08-14).
+const POSTMAN_KV_RE = new RegExp(
+  String.raw`"key"\s*:\s*"([^"]*(?:secret|password|passwd|credential|api[_.\-]?key|apikey` +
+    String.raw`|access[_.\-]?token|auth[_.\-]?token|bearer[_.\-]?token|authorization)[^"]*)"` +
+    String.raw`\s*,\s*"(?:value|src)"\s*:\s*"([^"]{8,})"`,
+  "gi"
+);
 const PLACEHOLDER_VALUE_RE =
-  /^(?:redacted|changeme|change-me|placeholder|example|sample|dummy|todo|x{4,}|your[-_][A-Za-z0-9_.\-]+|(?:changeme|change-me|example|sample|dummy|placeholder)[-_][A-Za-z0-9_.\-]+|[A-Za-z0-9_.\-]+[-_](?:changeme|change-me|example|sample|dummy|placeholder))$/i;
+  /^(?:redacted|changeme|change-me|placeholder|example|sample|dummy|demo|test|todo|x{4,}|your[-_][A-Za-z0-9_.\-]+|(?:changeme|change-me|example|sample|dummy|demo|test|placeholder)[-_][A-Za-z0-9_.\-]+|[A-Za-z0-9_.\-]+[-_](?:changeme|change-me|example|sample|dummy|demo|test|placeholder))$/i;
 // Accept a bare or dotted reference with no fallback (`${VAR}`, `${VAR:}`, `${a.b}`).
-// A non-empty default may itself be a rendered secret, so `${VAR:-secret}` must flag.
+// A non-empty default may itself be a rendered secret, so `${VAR:-secret}` must flag —
+// except when the fallback is provably a placeholder (see TEMPLATE_DEFAULT_RE below).
+// Also: GitHub-Actions expressions (`${{ secrets.X }}`) and single-brace placeholders
+// (`{CHANGE_THIS}` — the commented-JAAS-template form, field probe 2026-08-14).
 const TEMPLATE_VALUE_RE =
-  /^(?:\$\{[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*:?\}|\$\([^)]+\)|\{\{[^{}]+\}\}|<[A-Za-z0-9_.:\-]+>|%\([A-Za-z_][A-Za-z0-9_]*\)s|\(REDACTED\)|\*+)$/i;
+  /^(?:\$\{[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*:?\}|\$\{\{[^{}]+\}\}|\{[^{}\s]+\}|\$\([^)]+\)|\{\{[^{}]+\}\}|<[A-Za-z0-9_.:\-]+>|%\([A-Za-z_][A-Za-z0-9_]*\)s|\(REDACTED\)|\*+)$/i;
+// A template reference WITH a non-empty fallback: safe only when the fallback itself is
+// provably a placeholder — under the 8-char value floor, or passing the placeholder word
+// rules (`${DEMO_PEER_TOKEN:demo}`, field probe 2026-08-14). `${CLIENT_SECRET:-Real…}` with a
+// credential-shaped fallback keeps flagging (the v4.33.4 rule).
+const TEMPLATE_DEFAULT_RE = /^\$\{[A-Za-z_][A-Za-z0-9_.]*:-?([^{}]+)\}$/;
 const ENUM_KEY_RE = /(?:^|[_.\-])(?:source|type|mode|mechanism|strategy)$/i;
 const EMAIL_RE = /\b([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b/g;
 const SSN_RE = /\b\d{3}-\d{2}-\d{4}\b/;
@@ -458,6 +490,10 @@ const HOME_OK = new Set(["runner", "user", "username", "vsts_azpcontainer"]); //
 function is_placeholder_value(key, v) {
   // Values that are templates, redactions, or number/date/version shapes — not secrets.
   if (TEMPLATE_VALUE_RE.test(v)) return true;
+  const m = TEMPLATE_DEFAULT_RE.exec(v);
+  if (m && (m[1].length < 8 || is_placeholder_value(key, m[1]))) {
+    return true; // template whose non-empty fallback is itself provably a placeholder
+  }
   if (/^[\d.\-:/T]+$/.test(v)) return true; // timestamps, dates, versions, counts (max_tokens: 128000, …)
   // ALL-CAPS is safe only on keys that explicitly describe an enum dimension. Treating every
   // uppercase value as an enum lets ordinary uppercase passwords and opaque secrets bypass the
@@ -503,51 +539,82 @@ export function check_secret_material(root) {
 
   const out = [];
   for (const [path, rel] of files) {
-    const found = new Map(); // category -> [first_line, count, detail]
-    const tally = (cat, line_no, detail = "") => {
-      if (found.has(cat)) found.get(cat)[1] += 1;
-      else found.set(cat, [line_no, 1, detail]);
-    };
+    out.push(...scan_lines(path, rel, false, MEMORY_TAIL));
+  }
+  return out;
+}
 
-    const lines = read_text(path).split(/\r\n|\r|\n/);
-    for (let idx = 0; idx < lines.length; idx++) {
-      const line = lines[idx];
-      const i = idx + 1;
-      // Explicit waiver for deliberately-quoted examples (a log *documenting* a leak
-      // cleanup legitimately quotes the patterns). Tag the line, all categories skip it:
-      if (line.includes("lint:allow-secret-material")) continue;
-      for (const [cat, rx] of SECRET_VALUE_PATTERNS) {
-        if (rx.test(line)) tally(cat, i);
-      }
-      for (const m of line.matchAll(ASSIGNMENT_RE)) {
-        if (!is_placeholder_value(m[1], m[3])) tally("credential-assignment", i, ` key '${m[1]}'`);
-      }
-      for (const m of line.matchAll(AUTHORIZATION_RE)) {
-        if (!is_placeholder_value(m[1], m[3])) tally("authorization-header", i);
-      }
-      for (const m of line.matchAll(EMAIL_RE)) {
-        if (!is_public_email(m[1], m[2])) tally("email", i);
-      }
-      if (SSN_RE.test(line)) tally("ssn", i);
-      if (E164_RE.test(line)) tally("phone-e164", i);
-      for (const m of line.matchAll(CARD_RE)) {
-        const digits = m[0].replaceAll(/[ -]/g, "");
-        if (digits.length >= 13 && digits.length <= 19 && luhn_ok(digits)) tally("payment-card", i);
-      }
-      for (const m of line.matchAll(HOME_PATH_RE)) {
-        // need a letter/digit in the username — `/Users/...` is a placeholder, not a path
-        if (!HOME_OK.has(m[1].toLowerCase()) && /[A-Za-z0-9]/.test(m[1])) tally("home-path", i);
-      }
-    }
+const MEMORY_TAIL =
+  "— memory/ is committed & shared: redact to (REDACTED); if a live credential, rotate it " +
+  "and treat git history as exposed (see the AGENTS.md redaction rule)";
+const CONFIG_TAIL =
+  "— committed config is shared: redact or move the value out of the file; if it is a live " +
+  "credential, rotate it and treat git history as exposed (see the AGENTS.md redaction rule)";
 
-    for (const cat of [...found.keys()].sort(byCodePoint)) {
-      const [line_no, count, detail] = found.get(cat);
-      out.push(
-        `[secret-material] ${rel}:${line_no} ${cat}${detail} (${count} hit(s), first at line ${line_no}) — memory/ is ` +
-          "committed & shared: redact to (REDACTED); if a live credential, rotate it " +
-          "and treat git history as exposed (see the AGENTS.md redaction rule)"
-      );
+function scan_lines(path, rel, credential_only, tail) {
+  // One file's [secret-material] scan. credential_only=true is the config-file profile:
+  // token shapes, assignments, Authorization headers, private keys — NOT the PII classes
+  // (email/SSN/card/phone/home-path), which are memory-layer checks: config files
+  // legitimately carry contact emails and paths; credential material is never legitimate.
+  const found = new Map(); // category -> [first_line, count, detail]
+  const tally = (cat, line_no, detail = "") => {
+    if (found.has(cat)) found.get(cat)[1] += 1;
+    else found.set(cat, [line_no, 1, detail]);
+  };
+
+  const lines = read_text(path).split(/\r\n|\r|\n/);
+  for (let idx = 0; idx < lines.length; idx++) {
+    const line = lines[idx];
+    const i = idx + 1;
+    // Explicit waiver for deliberately-quoted examples (a log *documenting* a leak
+    // cleanup legitimately quotes the patterns). Tag the line, all categories skip it:
+    if (line.includes("lint:allow-secret-material")) continue;
+    for (const [cat, rx] of SECRET_VALUE_PATTERNS) {
+      if (rx.test(line)) tally(cat, i);
     }
+    for (const m of line.matchAll(ASSIGNMENT_RE)) {
+      if (!is_placeholder_value(m[1], m[3])) tally("credential-assignment", i, ` key '${m[1]}'`);
+    }
+    for (const m of line.matchAll(POSTMAN_KV_RE)) {
+      if (!is_placeholder_value(m[1], m[2])) tally("credential-assignment", i, ` key '${m[1]}'`);
+    }
+    for (const m of line.matchAll(AUTHORIZATION_RE)) {
+      if (ROUTE_REF_RE.test(m[3])) continue; // dotted lowercase service/route reference, not a token
+      if (!is_placeholder_value(m[1], m[3])) tally("authorization-header", i);
+    }
+    if (credential_only) continue;
+    for (const m of line.matchAll(EMAIL_RE)) {
+      if (!is_public_email(m[1], m[2])) tally("email", i);
+    }
+    if (SSN_RE.test(line)) tally("ssn", i);
+    if (E164_RE.test(line)) tally("phone-e164", i);
+    for (const m of line.matchAll(CARD_RE)) {
+      const digits = m[0].replaceAll(/[ -]/g, "");
+      if (digits.length >= 13 && digits.length <= 19 && luhn_ok(digits)) tally("payment-card", i);
+    }
+    for (const m of line.matchAll(HOME_PATH_RE)) {
+      // need a letter/digit in the username — `/Users/...` is a placeholder, not a path
+      if (!HOME_OK.has(m[1].toLowerCase()) && /[A-Za-z0-9]/.test(m[1])) tally("home-path", i);
+    }
+  }
+
+  const out = [];
+  for (const cat of [...found.keys()].sort(byCodePoint)) {
+    const [line_no, count, detail] = found.get(cat);
+    out.push(`[secret-material] ${rel}:${line_no} ${cat}${detail} (${count} hit(s), first at line ${line_no}) ${tail}`);
+  }
+  return out;
+}
+
+export function scan_secret_files(paths) {
+  // `--scan-files` mode (v4.34.0): credential-class scan of arbitrary config files —
+  // used by the pre-commit hook on staged .json/.yml/.yaml/.properties/.env/.toml/.ini
+  // blobs and by the forge CI wrappers on changed files. Paths are reported as given;
+  // missing paths are skipped (a staged blob mirror owns existence).
+  const out = [];
+  for (const p of paths) {
+    if (!existsSync(p) || !statSync(p).isFile()) continue;
+    out.push(...scan_lines(p, p.split(sep).join("/"), true, CONFIG_TAIL));
   }
   return out;
 }
@@ -573,7 +640,14 @@ function report({ cont, arch, sessions, acw, aw, warns, errors, strict }) {
 
 export function main(argv) {
   const args = argv ?? process.argv.slice(2);
-  const { strict, root_arg } = parse_args(args);
+  const { strict, root_arg, scan_files } = parse_args(args);
+  if (scan_files !== null) {
+    // --scan-files mode: credential-class scan of the given paths, nothing else.
+    // Exit 1 when findings exist (the calling wrapper owns advisory-vs-block semantics).
+    const findings = scan_secret_files(scan_files);
+    for (const line of findings) console.log("WARN  " + line);
+    return findings.length ? 1 : 0;
+  }
   const root = find_root(root_arg || process.cwd());
   if (!root) {
     console.error("memory-lint: could not find memory/continuity.md");

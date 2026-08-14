@@ -32,7 +32,13 @@ script, so the riskiest operation is verified against observable evidence.
    python3 agent-skills/memory-lint/scripts/memory-lint.py    # Python 3 (>= 3.8)
    node    agent-skills/memory-lint/scripts/memory-lint.mjs    # Node (>= 18)
    ```
-   Flags: `--strict` (also fail on warnings), `--root PATH` (point at a specific repo).
+   Flags: `--strict` (also fail on warnings), `--root PATH` (point at a specific repo), and
+   `--scan-files FILE...` (v4.34.0 — a standalone **credential-class** `[secret-material]` scan of
+   arbitrary config files: token shapes, credential-key assignments, Authorization headers, private
+   keys — no PII classes, since config files legitimately carry contact emails and paths; exit 1 on
+   findings, values never echoed. This mode powers the `.githooks/pre-commit` secret guard and the
+   CI floor's changed-config scan; the committed `.agent/secret-scan-ignore` handles JSON/properties
+   exemptions at the caller level).
    *Run the test suite (the cross-runtime contract — both implementations pass the same fixtures):*
    ```bash
    python3 -m unittest agent-skills/memory-lint/scripts/test_memory_lint.py

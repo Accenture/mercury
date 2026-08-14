@@ -7,6 +7,8 @@ meaning, this script does the counting. Pure Python 3 stdlib; no dependencies.
 
 Usage:
     python3 memory-lint.py [--root PATH] [--strict]
+    python3 memory-lint.py --scan-files FILE...   # credential-class [secret-material] scan
+                                                  # of arbitrary (config) files; exit 1 on findings
 
 Exit: 0 = clean (no errors), 1 = integrity error(s) (or warnings under --strict),
 2 = could not locate the memory/ layer.
@@ -127,10 +129,14 @@ def load_windows(root):
 def parse_args(args):
     strict = "--strict" in args
     root_arg = None
+    scan_files = None
     for i, a in enumerate(args):
         if a == "--root" and i + 1 < len(args):
             root_arg = args[i + 1]
-    return strict, root_arg
+        if a == "--scan-files":
+            scan_files = args[i + 1:]  # everything after the flag is a path
+            break
+    return strict, root_arg, scan_files
 
 
 def load_repo(root):
@@ -421,26 +427,51 @@ ASSIGNMENT_RE = re.compile(
     # Backtick is a value delimiter alongside quotes: every scanned surface is markdown, where
     # assignments are typically quoted as inline code (`key=VALUE`) — without this, the closing
     # backtick rides into the captured value and defeats the enum-constant exclusion (v4.33.2).
-    r"\s*[=:]\s*(['\"`]?)([^\s'\"`]{8,})\2"
+    # Semicolon is a value delimiter too: JAAS/properties lines terminate with `;`
+    # (`password={CHANGE_THIS};`) and it otherwise rides into the value, defeating the
+    # placeholder rules (field probe 2026-08-14). A real secret containing `;` still flags on
+    # its captured prefix.
+    r"\s*[=:]\s*(['\"`]?)([^\s'\"`;]{8,})\2"
 )
 AUTHORIZATION_RE = re.compile(
     r"(?i)\b((?:proxy[_.\-]?)?authorization)\s*:\s*"
     r"(?:(?:bearer|basic)\s+)?(['\"`]?)([^\s'\"`]{8,})\2"
 )
+# An authorization VALUE that is a dotted lowercase identifier (`v1.basic.auth`) is a
+# service/route/handler reference, never a token — real credentials carry uppercase, digits
+# runs, or symbols beyond dots (field probe 2026-08-14: mercury REST configs). Case-sensitive
+# on purpose: any uppercase keeps it flagged.
+ROUTE_REF_RE = re.compile(r"[a-z][a-z0-9_-]*(?:\.[a-z0-9_-]+)+")
+# Postman collections split the pair: `"key": "client_secret", "value": "…"` — the credential
+# key is itself the VALUE of a "key" field (the field-incident artifact class, 2026-08-14).
+POSTMAN_KV_RE = re.compile(
+    r"(?i)\"key\"\s*:\s*\"([^\"]*(?:secret|password|passwd|credential|api[_.\-]?key|apikey"
+    r"|access[_.\-]?token|auth[_.\-]?token|bearer[_.\-]?token|authorization)[^\"]*)\""
+    r"\s*,\s*\"(?:value|src)\"\s*:\s*\"([^\"]{8,})\""
+)
 PLACEHOLDER_VALUE_RE = re.compile(
-    r"(?i)(?:redacted|changeme|change-me|placeholder|example|sample|dummy|todo|x{4,}"
+    r"(?i)(?:redacted|changeme|change-me|placeholder|example|sample|dummy|demo|test|todo|x{4,}"
     r"|your[-_][A-Za-z0-9_.\-]+"
-    r"|(?:changeme|change-me|example|sample|dummy|placeholder)[-_][A-Za-z0-9_.\-]+"
-    r"|[A-Za-z0-9_.\-]+[-_](?:changeme|change-me|example|sample|dummy|placeholder))"
+    r"|(?:changeme|change-me|example|sample|dummy|demo|test|placeholder)[-_][A-Za-z0-9_.\-]+"
+    r"|[A-Za-z0-9_.\-]+[-_](?:changeme|change-me|example|sample|dummy|demo|test|placeholder))"
 )
 TEMPLATE_VALUE_RE = re.compile(
     # Accept a bare or dotted reference with no fallback (`${VAR}`, `${VAR:}`, `${a.b}`).
-    # A non-empty default may itself be a rendered secret, so `${VAR:-secret}` must flag.
+    # A non-empty default may itself be a rendered secret, so `${VAR:-secret}` must flag —
+    # except when the fallback is provably a placeholder (see _TEMPLATE_DEFAULT_RE below).
     r"(?:\$\{[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*:?\}"
+    # GitHub-Actions expressions (`${{ secrets.X }}`) and single-brace placeholders
+    # (`{CHANGE_THIS}` — the commented-JAAS-template form, field probe 2026-08-14):
+    r"|\$\{\{[^{}]+\}\}|\{[^{}\s]+\}"
     r"|\$\([^)]+\)|\{\{[^{}]+\}\}"
     r"|<[A-Za-z0-9_.:\-]+>|%\([A-Za-z_][A-Za-z0-9_]*\)s|\(REDACTED\)|\*+)",
     re.IGNORECASE,
 )
+# A template reference WITH a non-empty fallback: safe only when the fallback itself is
+# provably a placeholder — under the 8-char value floor, or passing the placeholder word
+# rules (`${DEMO_PEER_TOKEN:demo}`, field probe 2026-08-14). `${CLIENT_SECRET:-Real…}` with a
+# credential-shaped fallback keeps flagging (the v4.33.4 rule).
+_TEMPLATE_DEFAULT_RE = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_.]*:-?([^{}]+)\}")
 ENUM_KEY_RE = re.compile(r"(?i)(?:^|[_.\-])(?:source|type|mode|mechanism|strategy)$")
 EMAIL_RE = re.compile(r"\b([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b")
 SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
@@ -454,6 +485,9 @@ def _is_placeholder_value(key, v):
     """Values that are templates, redactions, or number/date/version shapes — not secrets."""
     if TEMPLATE_VALUE_RE.fullmatch(v):
         return True
+    m = _TEMPLATE_DEFAULT_RE.fullmatch(v)
+    if m and (len(m.group(1)) < 8 or _is_placeholder_value(key, m.group(1))):
+        return True  # template whose non-empty fallback is itself provably a placeholder
     if re.fullmatch(r"[\d.\-:/T]+", v):
         return True  # timestamps, dates, versions, counts (max_tokens: 128000, …)
     # ALL-CAPS is safe only on keys that explicitly describe an enum dimension. Treating every
@@ -483,6 +517,74 @@ def _luhn_ok(digits):
     return total % 10 == 0
 
 
+_MEMORY_TAIL = (
+    "— memory/ is committed & shared: redact to (REDACTED); if a live credential, rotate it "
+    "and treat git history as exposed (see the AGENTS.md redaction rule)"
+)
+_CONFIG_TAIL = (
+    "— committed config is shared: redact or move the value out of the file; if it is a live "
+    "credential, rotate it and treat git history as exposed (see the AGENTS.md redaction rule)"
+)
+
+
+def _scan_lines(path, rel, credential_only, tail):
+    """One file's [secret-material] scan. credential_only=True is the config-file profile:
+    token shapes, assignments, Authorization headers, private keys — NOT the PII classes
+    (email/SSN/card/phone/home-path), which are memory-layer checks: config files
+    legitimately carry contact emails and paths; credential material is never legitimate."""
+    found = {}  # category -> [first_line, count, detail]
+
+    def tally(cat, line_no, detail=""):
+        if cat in found:
+            found[cat][1] += 1
+        else:
+            found[cat] = [line_no, 1, detail]
+
+    for i, line in enumerate(read_text(path).splitlines(), 1):
+        # Explicit waiver for deliberately-quoted examples (a log *documenting* a leak
+        # cleanup legitimately quotes the patterns). Tag the line, all categories skip it:
+        if "lint:allow-secret-material" in line:
+            continue
+        for cat, rx in SECRET_VALUE_PATTERNS:
+            if rx.search(line):
+                tally(cat, i)
+        for m in ASSIGNMENT_RE.finditer(line):
+            if not _is_placeholder_value(m.group(1), m.group(3)):
+                tally("credential-assignment", i, f" key '{m.group(1)}'")
+        for m in POSTMAN_KV_RE.finditer(line):
+            if not _is_placeholder_value(m.group(1), m.group(2)):
+                tally("credential-assignment", i, f" key '{m.group(1)}'")
+        for m in AUTHORIZATION_RE.finditer(line):
+            if ROUTE_REF_RE.fullmatch(m.group(3)):
+                continue  # dotted lowercase service/route reference, not a token
+            if not _is_placeholder_value(m.group(1), m.group(3)):
+                tally("authorization-header", i)
+        if credential_only:
+            continue
+        for m in EMAIL_RE.finditer(line):
+            if not _is_public_email(m.group(1), m.group(2)):
+                tally("email", i)
+        if SSN_RE.search(line):
+            tally("ssn", i)
+        if E164_RE.search(line):
+            tally("phone-e164", i)
+        for m in CARD_RE.finditer(line):
+            digits = re.sub(r"[ -]", "", m.group(0))
+            if 13 <= len(digits) <= 19 and _luhn_ok(digits):
+                tally("payment-card", i)
+        for m in HOME_PATH_RE.finditer(line):
+            # need a letter/digit in the username — `/Users/...` is a placeholder, not a path
+            if m.group(1).lower() not in _HOME_OK and re.search(r"[A-Za-z0-9]", m.group(1)):
+                tally("home-path", i)
+
+    out = []
+    for cat in sorted(found):
+        line_no, count, detail = found[cat]
+        hits = f"{count} hit(s), first at line {line_no}"
+        out.append(f"[secret-material] {rel}:{line_no} {cat}{detail} ({hits}) {tail}")
+    return out
+
+
 def check_secret_material(root):
     mem = os.path.join(root, "memory")
     files = (
@@ -493,52 +595,20 @@ def check_secret_material(root):
     out = []
     for path in files:
         rel = os.path.relpath(path, root).replace(os.sep, "/")
-        found = {}  # category -> [first_line, count, detail]
+        out.extend(_scan_lines(path, rel, False, _MEMORY_TAIL))
+    return out
 
-        def tally(cat, line_no, detail=""):
-            if cat in found:
-                found[cat][1] += 1
-            else:
-                found[cat] = [line_no, 1, detail]
 
-        for i, line in enumerate(read_text(path).splitlines(), 1):
-            # Explicit waiver for deliberately-quoted examples (a log *documenting* a leak
-            # cleanup legitimately quotes the patterns). Tag the line, all categories skip it:
-            if "lint:allow-secret-material" in line:
-                continue
-            for cat, rx in SECRET_VALUE_PATTERNS:
-                if rx.search(line):
-                    tally(cat, i)
-            for m in ASSIGNMENT_RE.finditer(line):
-                if not _is_placeholder_value(m.group(1), m.group(3)):
-                    tally("credential-assignment", i, f" key '{m.group(1)}'")
-            for m in AUTHORIZATION_RE.finditer(line):
-                if not _is_placeholder_value(m.group(1), m.group(3)):
-                    tally("authorization-header", i)
-            for m in EMAIL_RE.finditer(line):
-                if not _is_public_email(m.group(1), m.group(2)):
-                    tally("email", i)
-            if SSN_RE.search(line):
-                tally("ssn", i)
-            if E164_RE.search(line):
-                tally("phone-e164", i)
-            for m in CARD_RE.finditer(line):
-                digits = re.sub(r"[ -]", "", m.group(0))
-                if 13 <= len(digits) <= 19 and _luhn_ok(digits):
-                    tally("payment-card", i)
-            for m in HOME_PATH_RE.finditer(line):
-                # need a letter/digit in the username — `/Users/...` is a placeholder, not a path
-                if m.group(1).lower() not in _HOME_OK and re.search(r"[A-Za-z0-9]", m.group(1)):
-                    tally("home-path", i)
-
-        for cat in sorted(found):
-            line_no, count, detail = found[cat]
-            hits = f"{count} hit(s), first at line {line_no}"
-            out.append(
-                f"[secret-material] {rel}:{line_no} {cat}{detail} ({hits}) — memory/ is "
-                "committed & shared: redact to (REDACTED); if a live credential, rotate it "
-                "and treat git history as exposed (see the AGENTS.md redaction rule)"
-            )
+def scan_secret_files(paths):
+    """`--scan-files` mode (v4.34.0): credential-class scan of arbitrary config files —
+    used by the pre-commit hook on staged .json/.yml/.yaml/.properties/.env/.toml/.ini
+    blobs and by the forge CI wrappers on changed files. Paths are reported as given;
+    missing paths are skipped (a staged blob mirror owns existence)."""
+    out = []
+    for p in paths:
+        if not os.path.isfile(p):
+            continue
+        out.extend(_scan_lines(p, p.replace(os.sep, "/"), True, _CONFIG_TAIL))
     return out
 
 
@@ -562,7 +632,14 @@ def report(cont, arch, sessions, acw, aw, warns, errors, strict):
 
 
 def main():
-    strict, root_arg = parse_args(sys.argv[1:])
+    strict, root_arg, scan_files = parse_args(sys.argv[1:])
+    if scan_files is not None:
+        # --scan-files mode: credential-class scan of the given paths, nothing else.
+        # Exit 1 when findings exist (the calling wrapper owns advisory-vs-block semantics).
+        findings = scan_secret_files(scan_files)
+        for line in findings:
+            print("WARN  " + line)
+        return 1 if findings else 0
     root = find_root(root_arg or os.getcwd())
     if not root:
         print("memory-lint: could not find memory/continuity.md", file=sys.stderr)

@@ -737,3 +737,66 @@ test("check_secret_material: all-caps enum constants are key-scoped", () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+// (v4.34.0) `--scan-files`: credential-class scan of arbitrary config files — the
+// pre-commit hook / CI-wrapper surface behind the field incident (a Postman JSON and an
+// OpenShift YAML with live credentials, committed outside memory/).
+import { scan_secret_files } from "./memory-lint.mjs";
+
+test("scan_secret_files is credential-class only", () => {
+  const secret = fixtureSecret("AGENT_MEMORY_TEST_SCANFILES");
+  const root = mkdtempSync(join(tmpdir(), "memlint-"));
+  try {
+    mkdirSync(join(root, "src"), { recursive: true });
+    const props = join(root, "src", "app.properties");
+    writeFileSync(props, `spring.datasource.password=${secret}\n`);
+    const pj = join(root, "package.json");
+    writeFileSync(pj, '{"author": "Dev One <dev.one@some-client-corp.com>"}\n');
+    const w = scan_secret_files([props, pj]);
+    assert.equal(w.length, 1); // the email is a memory-layer check, not a config one
+    assert.ok(w[0].includes("credential-assignment"));
+    assert.ok(!w[0].includes(secret)); // never echo the value
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("scan_secret_files: config placeholder forms are not flagged", () => {
+  // The four FP classes from the 661-file field probe (2026-08-14) must stay quiet:
+  // single-brace JAAS template, template-with-placeholder-default, test-affixed fixture,
+  // dotted route reference in an authorization value — plus a GH-Actions expression.
+  const root = mkdtempSync(join(tmpdir(), "memlint-"));
+  try {
+    const cfg = join(root, "conf.yaml");
+    writeFileSync(cfg, [
+      "#sasl.jaas.config=…PlainLoginModule required username={CHANGE_THIS} password={CHANGE_THIS};",
+      "authorization: '${DEMO_PEER_TOKEN:demo}'",
+      "bearer.auth.client.secret=test-secret",
+      '- "authorization: v1.basic.auth"',
+      "api_key: ${{secrets.SR_KEY}}",
+    ].join("\n") + "\n");
+    assert.deepEqual(scan_secret_files([cfg]), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("scan_secret_files: Postman split key/value form", () => {
+  // Postman's `"key": "client_secret", "value": "…"` convention — the literal incident
+  // artifact class; a `{{variable}}` reference stays a placeholder.
+  const secret = fixtureSecret("AGENT_MEMORY_TEST_POSTMAN");
+  const root = mkdtempSync(join(tmpdir(), "memlint-"));
+  try {
+    const col = join(root, "collection.json");
+    writeFileSync(col,
+      '{"key": "client_secret", "value": "' + secret + '"},\n' +
+      '{"key": "client_secret", "value": "{{client_secret}}"}\n');
+    const w = scan_secret_files([col]);
+    assert.equal(w.length, 1);
+    assert.ok(w[0].includes("key 'client_secret'"));
+    assert.ok(w[0].includes("(1 hit(s)"));
+    assert.ok(!w[0].includes(secret));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

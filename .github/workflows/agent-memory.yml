@@ -50,3 +50,36 @@ jobs:
           else
             echo "ritual check: ok"
           fi
+
+      - name: changed-config secret scan (advisory, v4.34.0)
+        run: |
+          # Push-time sibling of the pre-commit secret guard: credential-class scan of the
+          # config files this push/PR changed (.json/.yml/.yaml/.properties/.toml/.ini/.env*).
+          # Catches --no-verify bypasses and clones that never activated local hooks.
+          [ -f agent-skills/memory-lint/scripts/memory-lint.py ] || { echo "memory-lint not installed; skipping."; exit 0; }
+          base="${{ github.event.pull_request.base.sha }}"
+          [ -n "$base" ] || base="${{ github.event.before }}"
+          case "$base" in ''|0000000000000000000000000000000000000000) base="$(git rev-parse --verify --quiet HEAD~1 2>/dev/null || echo '')";; esac
+          [ -n "$base" ] || { echo "no base ref; skipping config secret scan"; exit 0; }
+          cfgs="$(git diff --name-only --diff-filter=ACMR "$base" HEAD 2>/dev/null | grep -E '(\.(json|ya?ml|properties|toml|ini|env))$|(^|/)\.env(\.[^/]+)?$' || true)"
+          if [ -n "$cfgs" ] && [ -f .agent/secret-scan-ignore ]; then
+            # committed, human-audited exemptions (formats that can't carry the inline waiver)
+            cfgs="$(printf '%s\n' "$cfgs" | while IFS= read -r f; do
+              [ -n "$f" ] || continue
+              keep=1
+              while IFS= read -r pat || [ -n "$pat" ]; do
+                case "$pat" in ''|'#'*) continue ;; esac
+                case "$f" in $pat) keep=0; break ;; esac
+              done < .agent/secret-scan-ignore
+              [ "$keep" = "1" ] && printf '%s\n' "$f"
+            done)"
+          fi
+          [ -z "$cfgs" ] && { echo "no changed config files; skipping."; exit 0; }
+          out="$(printf '%s\n' "$cfgs" | tr '\n' '\0' | xargs -0 python3 agent-skills/memory-lint/scripts/memory-lint.py --scan-files 2>/dev/null || true)"
+          if [ -n "$out" ]; then
+            printf '%s\n' "$out"
+            echo "::warning title=agent-memory secret scan::possible credential material in changed config files (see log above)"
+            [ "${AGENT_MEMORY_STRICT:-0}" = "1" ] && exit 1 || true
+          else
+            echo "config secret scan: ok"
+          fi

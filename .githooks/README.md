@@ -2,7 +2,9 @@
 
 These are **committed, vendor-neutral git hooks** that reinforce the after-session ritual for *any*
 agent (Claude, Copilot, Kiro, …) — because everyone commits, regardless of which AI did the work. They
-are **advisory** (never block) and the **tool runs nothing itself**: git invokes them in your env at your
+are **advisory by default** — the pre-commit secret guard alone **enforces** (findings block the
+commit; a deliberate, scoped exception, because secrets carry irreversible after-the-fact cost) —
+and the **tool runs nothing itself**: git invokes them in your env at your
 opt-in (`no-build-step-agent-run`). See `docs/optional-ritual-hook.md` and `DECAY.md` for the rationale.
 
 ## First-run init (one command)
@@ -25,6 +27,28 @@ enforced even on a clone where the local hook was never activated. (Honest limit
 an Azure DevOps pipeline is inert until its one-time `az pipelines create` binding.)
 
 ## Hooks
+
+- **`pre-commit`** (v4.34.0) — the **`[secret-material]` guard**: before the commit exists, scans the
+  **staged content** (the index, not the worktree — exactly what this commit would publish; a
+  pre-existing finding elsewhere never gates an unrelated commit) of **two surfaces**:
+  `memory/**.md` (the full profile — credentials + PII) and **config files** — `.json` / `.yml` /
+  `.yaml` / `.properties` / `.toml` / `.ini` / `.env*` anywhere in the repo, credential-class checks
+  only (token shapes, key assignments, Authorization headers, private keys; config files
+  legitimately carry contact emails and paths). The config surface exists because of a real
+  incident: live credentials entered a repo inside a Postman JSON and an OpenShift YAML, then
+  contaminated a session log downstream. Findings print with the linter's non-echoing report plus
+  redaction/waiver/rotation guidance. **Enforcing by default** — findings **block the commit**
+  (secrets are the one category with irreversible after-the-fact cost); opt down to warn-only with
+  `AGENT_MEMORY_SECRET_GUARD=advisory` (env, or `git config agent-memory.secretguard advisory`);
+  one-off bypass: `git commit --no-verify`.
+  Waivers: tag the line `lint:allow-secret-material` where the format has comments (markdown,
+  YAML, TOML, INI); JSON has no comments and a `.properties` same-line comment corrupts the value —
+  list those files in the committed, human-audited **`.agent/secret-scan-ignore`** (shell-glob per
+  line; exempts config files only, never `memory/`). Runs on python3 or node, whichever exists —
+  with neither, it skips with a note. Why it exists: the ritual rule covers agents at write time
+  and the CI floor covers pushes, but by push time the remote already has the secret and redaction
+  is not un-leaking (rotation is) — this is the **one placement that prevents instead of detects**
+  (see the AGENTS.md redaction rule).
 
 - **`post-commit`** — after a commit: re-syncs skill adapters if a skill changed; and if the commit did
   real work but carried no session log, ensures the session is captured — **once per working session, not

@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# agent-memory pre-commit hook — opt-in [secret-material] guard on STAGED files (v4.34.0).
+#
+# The one placement that PREVENTS a committed secret instead of detecting it after the fact:
+# the ritual rule covers agents at write time, and the CI floor covers pushes — but by push
+# time the remote already has the secret, and redaction is not un-leaking (rotation is; see
+# the AGENTS.md redaction rule). A human teammate committing directly meets no earlier check;
+# this hook is that check. Field origin (2026-08-14): the credentials that later contaminated
+# a session log entered the repo inside a Postman JSON and an OpenShift YAML — so the guard
+# covers BOTH surfaces:
+#
+#   1) staged memory/**.md            — the full [secret-material] profile (credentials + PII);
+#   2) staged config files            — .json / .yml / .yaml / .properties / .toml / .ini /
+#      .env and .env.* — credential-class checks only (token shapes, assignments,
+#      Authorization headers, private keys): config files legitimately carry contact emails
+#      and paths; credential material is never legitimate.
+#
+# Scope is the INDEX (git show :path) — exactly what this commit would publish, and only what
+# THIS commit stages: a pre-existing finding elsewhere never gates an unrelated commit.
+# ENFORCED BY DEFAULT (maintainer decision, 2026-08-14): findings BLOCK the commit — secrets
+# are the one category with irreversible after-the-fact cost (rotation + history exposure), and
+# an advisory default lets an inattentive commit ride all the way to the remote. This is the
+# deliberate, scoped exception to the trigger layer's advisory doctrine. Escapes, in order of
+# preference: FIX the file (move the value to an env var / placeholder); tag a deliberately-
+# quoted example line with `lint:allow-secret-material` (markdown/YAML/TOML/INI comments); list
+# JSON/.properties files (which can't carry an inline tag) in the committed, human-audited
+# `.agent/secret-scan-ignore` (shell-glob per line, `#` comments — exempts CONFIG files only,
+# never memory/); bypass ONCE with `git commit --no-verify`; or opt the whole guard down to
+# warn-only with AGENT_MEMORY_SECRET_GUARD=advisory (env or `git config
+# agent-memory.secretguard advisory`). Activated by the same `git config core.hooksPath
+# .githooks` as post-commit (init.sh — no new setup). The tool runs nothing itself — git
+# invokes this in your env at your opt-in (`no-build-step-agent-run`). Bash 3.2-compatible.
+
+[ -f memory/continuity.md ] || exit 0            # only act in an agent-memory repo
+git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1 && exit 0   # skip merge commits
+
+staged_all="$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)"
+[ -z "$staged_all" ] && exit 0
+staged_mem="$(printf '%s\n' "$staged_all" | grep -E '^memory/.*\.md$' || true)"
+staged_cfg="$(printf '%s\n' "$staged_all" | grep -E '(\.(json|ya?ml|properties|toml|ini|env))$|(^|/)\.env(\.[^/]+)?$' || true)"
+[ -z "$staged_mem" ] && [ -z "$staged_cfg" ] && exit 0
+
+# Committed, human-audited exemptions for formats that can't carry the inline waiver tag
+# (JSON has no comments; a .properties same-line comment corrupts the value). Config files only.
+if [ -n "$staged_cfg" ] && [ -f .agent/secret-scan-ignore ]; then
+  kept=""
+  skipped=0
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    ign=0
+    while IFS= read -r pat || [ -n "$pat" ]; do
+      case "$pat" in ''|'#'*) continue ;; esac
+      # shellcheck disable=SC2254  # unquoted on purpose: shell-glob match
+      case "$f" in $pat) ign=1; break ;; esac
+    done < .agent/secret-scan-ignore
+    if [ "$ign" = "1" ]; then skipped=$((skipped + 1)); else kept="$kept$f
+"; fi
+  done <<EOF
+$staged_cfg
+EOF
+  staged_cfg="$kept"
+  if [ "$skipped" -gt 0 ]; then
+    echo "agent-memory pre-commit: $skipped staged config file(s) exempted via .agent/secret-scan-ignore" >&2
+  fi
+  [ -z "$staged_mem" ] && [ -z "$staged_cfg" ] && exit 0
+fi
+
+REPO_ROOT="$(pwd)"
+if command -v python3 >/dev/null 2>&1 && [ -f agent-skills/memory-lint/scripts/memory-lint.py ]; then
+  RUNTIME="python3"; SCRIPT="$REPO_ROOT/agent-skills/memory-lint/scripts/memory-lint.py"
+elif command -v node >/dev/null 2>&1 && [ -f agent-skills/memory-lint/scripts/memory-lint.mjs ]; then
+  RUNTIME="node"; SCRIPT="$REPO_ROOT/agent-skills/memory-lint/scripts/memory-lint.mjs"
+else
+  echo "agent-memory pre-commit: memory-lint or a runtime (python3/node) is missing — staged-secret scan skipped (advisory)." >&2
+  exit 0
+fi
+
+# Mirror the staged blobs (index content, not the worktree) into a temp tree so the linter's
+# report paths match the real repo paths; the hook consumes only [secret-material] lines
+# (script-owned result — the same pattern as the forge CI wrappers).
+tmp="$(mktemp -d 2>/dev/null)" || exit 0
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$tmp/memory"
+printf '# staged-scan stub\n' > "$tmp/memory/continuity.md"   # root marker; overwritten if continuity itself is staged
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  mkdir -p "$tmp/$(dirname "$f")"
+  git show ":$f" > "$tmp/$f" 2>/dev/null || true
+done <<EOF
+$staged_mem
+$staged_cfg
+EOF
+
+findings="$("$RUNTIME" "$SCRIPT" --root "$tmp" 2>/dev/null | grep -F '[secret-material]' || true)"
+if [ -n "$staged_cfg" ]; then
+  set --
+  while IFS= read -r f; do
+    [ -n "$f" ] && set -- "$@" "$f"
+  done <<EOF
+$staged_cfg
+EOF
+  cfg_findings="$(cd "$tmp" && "$RUNTIME" "$SCRIPT" --scan-files "$@" 2>/dev/null | grep -F '[secret-material]' || true)"
+  if [ -n "$cfg_findings" ]; then
+    findings="${findings:+$findings
+}$cfg_findings"
+  fi
+fi
+
+if [ -n "$findings" ]; then
+  echo "agent-memory pre-commit: possible secret/PII material in STAGED files:" >&2
+  printf '%s\n' "$findings" >&2
+  echo "  -> fix it: redact or move the value out of the file; tag a deliberately-quoted example" >&2
+  echo "     line with lint:allow-secret-material (JSON/properties: list the file in" >&2
+  echo "     .agent/secret-scan-ignore); a credential that already reached a remote must be ROTATED." >&2
+  mode="${AGENT_MEMORY_SECRET_GUARD:-$(git config --get agent-memory.secretguard 2>/dev/null || true)}"
+  if [ "$mode" = "advisory" ]; then
+    echo "  (AGENT_MEMORY_SECRET_GUARD=advisory — warn-only mode; commit proceeds)" >&2
+    exit 0
+  fi
+  echo "COMMIT BLOCKED — the secret guard is enforcing (default). One-off bypass:" >&2
+  echo "  git commit --no-verify    (or opt down: AGENT_MEMORY_SECRET_GUARD=advisory)" >&2
+  exit 1
+fi
+exit 0
