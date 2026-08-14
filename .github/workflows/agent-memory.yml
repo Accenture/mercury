@@ -25,7 +25,9 @@ jobs:
       - name: memory-lint (deterministic integrity check)
         run: |
           if [ -f agent-skills/memory-lint/scripts/memory-lint.py ]; then
-            python3 agent-skills/memory-lint/scripts/memory-lint.py || {
+            # --strict makes warnings observable to this wrapper; the wrapper then preserves
+            # advisory-by-default behavior or fails when AGENT_MEMORY_STRICT=1.
+            python3 agent-skills/memory-lint/scripts/memory-lint.py --strict || {
               echo "::warning title=memory-lint::memory-lint reported issues (see log above)"
               [ "${AGENT_MEMORY_STRICT:-0}" = "1" ] && exit 1 || true
             }

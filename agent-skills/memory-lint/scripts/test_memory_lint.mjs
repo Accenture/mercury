@@ -492,9 +492,15 @@ test("check_secret_material: placeholders and number shapes are not flagged", ()
       "password: (REDACTED)",
       "api_key: <your-key-here>",
       "client_secret: {{VAULT_REF}}",
+      "client_secret: placeholder-value",
       "access_token: 2026-08-06-153509",
       "max_tokens_password: 128000000",
       "password=changeme-please",
+      // env-var references with default-value / dotted forms are placeholders too
+      // (field FP, mercury-composable 2026-08-13 — line quoted VERBATIM below):
+      "  (`redis.host`/`redis.port`/`redis.password=${REDIS_PASSWORD:}`/`redis.ssl`/`redis.database`/`redis.timeout.ms`)",
+      "client_secret: ${vault.paths.kafka}",
+      "password=${REDIS_URL:-redis://localhost}",
     ].join("\n") + "\n",
   });
   try {
@@ -613,7 +619,31 @@ test("check_secret_material: waiver line and placeholder home paths are not flag
   }
 });
 
-test("check_secret_material: all-caps enum constants are not flagged", () => {
+test("check_secret_material: quoted assignments, Authorization, and embedded placeholders flag", () => {
+  const root = secretSetup({
+    "sessions/2026-08-13-120000.md": [
+      "# Session",
+      '{"client_secret": "AbCdEfGhIjKlMnOp"}',
+      "Authorization: Bearer QwErTyUiOpAsDfGh",
+      "client_secret=dummyButRealSecret123",
+      "client_secret=$AbCdEfGhIjKlMnOp",
+    ].join("\n") + "\n",
+  });
+  try {
+    const w = check_secret_material(root);
+    assert.equal(w.length, 2);
+    const joined = w.join("\n");
+    assert.ok(joined.includes("credential-assignment"));
+    assert.ok(joined.includes("(3 hit(s)"));
+    assert.ok(joined.includes("authorization-header"));
+    assert.ok(!joined.includes("AbCdEfGhIjKlMnOp"));
+    assert.ok(!joined.includes("QwErTyUiOpAsDfGh"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("check_secret_material: all-caps enum constants are key-scoped", () => {
   // First field FP (mercury-composable, 2026-08-13): config docs quoted in a session log —
   // a credential-keyed property set to an ALL-CAPS enum constant is a source TYPE, not a
   // credential — including the markdown inline-code form (`key=VALUE`), where the closing
@@ -627,13 +657,14 @@ test("check_secret_material: all-caps enum constants are not flagged", () => {
       "markdown form: `bearer.auth.credentials.source=OAUTHBEARER` + `bearer.auth.issuer.endpoint.url` /",
       "still real: client_secret=Zq1pw88LmNo44Xy",
       "backticked real: `api_key=Qw9RtYu88LmPo44Xz`",
+      "uppercase real: client_secret=ABCDEFGHIJKLMNOPQRSTUV",
     ].join("\n") + "\n",
   });
   try {
     const w = check_secret_material(root);
     assert.equal(w.length, 1);
     assert.ok(w[0].includes("key 'client_secret'"));
-    assert.ok(w[0].includes("(2 hit(s)"));
+    assert.ok(w[0].includes("(3 hit(s)"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

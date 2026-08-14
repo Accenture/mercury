@@ -67,8 +67,9 @@ script, so the riskiest operation is verified against observable evidence.
    - *advisory* — **`[secret-material]`**: credential or PII shapes in any committed memory surface —
      `memory/*.md`, `memory/sessions/`, **and** `memory/archive/` (where pasted output lives): known
      token formats (AWS / GitHub / GitLab / Slack / Google keys, private-key blocks, JWTs),
-     credential-key assignments with literal values (e.g. a rendered JAAS / `clientSecret` line —
-     template placeholders and `(REDACTED)` are recognized as safe), emails (public `noreply` / `git@`
+     credential-key assignments with literal values (including quoted JSON/YAML keys) and
+     Authorization headers (e.g. rendered JAAS / `clientSecret` / bearer lines — anchored template
+     placeholders and `(REDACTED)` are recognized as safe), emails (public `noreply` / `git@`
      forms excluded), SSN and payment-card shapes (Luhn-verified), and absolute home paths (write `~`).
      The report **never echoes the matched value** (that would amplify the leak into terminals and CI
      logs). Redact the hit to `(REDACTED)`; if it was a live credential, **rotate it** — git history

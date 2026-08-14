@@ -415,14 +415,35 @@ SECRET_VALUE_PATTERNS = [
 ASSIGNMENT_RE = re.compile(
     r"(?i)\b([A-Za-z0-9_.\-]*(?:secret|password|passwd|credential|api[_.\-]?key|apikey"
     r"|access[_.\-]?token|auth[_.\-]?token|bearer[_.\-]?token)[A-Za-z0-9_.\-]*)"
+    # Permit a closing quote around a JSON/YAML key (`"client_secret": "…"`) without
+    # making the quote part of the reported key.
+    r"['\"`]?"
     # Backtick is a value delimiter alongside quotes: every scanned surface is markdown, where
     # assignments are typically quoted as inline code (`key=VALUE`) — without this, the closing
     # backtick rides into the captured value and defeats the enum-constant exclusion (v4.33.2).
     r"\s*[=:]\s*(['\"`]?)([^\s'\"`]{8,})\2"
 )
-PLACEHOLDER_VALUE_RE = re.compile(
-    r"(?i)(redacted|changeme|change-me|placeholder|example|sample|dummy|your[-_]|xxxx|\btodo\b)"
+AUTHORIZATION_RE = re.compile(
+    r"(?i)\b((?:proxy[_.\-]?)?authorization)\s*:\s*"
+    r"(?:(?:bearer|basic)\s+)?(['\"`]?)([^\s'\"`]{8,})\2"
 )
+PLACEHOLDER_VALUE_RE = re.compile(
+    r"(?i)(?:redacted|changeme|change-me|placeholder|example|sample|dummy|todo|x{4,}"
+    r"|your[-_][A-Za-z0-9_.\-]+"
+    r"|(?:changeme|change-me|example|sample|dummy|placeholder)[-_][A-Za-z0-9_.\-]+"
+    r"|[A-Za-z0-9_.\-]+[-_](?:changeme|change-me|example|sample|dummy|placeholder))"
+)
+TEMPLATE_VALUE_RE = re.compile(
+    # ${…} accepts any brace-delimited reference, not just bare identifiers: default-value
+    # and dotted forms (`${REDIS_PASSWORD:}`, `${VAR:-x}`, `${a.b.c}`) are standard
+    # parameterization, and rejecting them re-flagged a target repo's documented safe
+    # pattern for secrets. Still an anchored fullmatch — a partially-literal value
+    # (`abc${X}def`) does not pass.
+    r"(?:\$\{[^{}\s]+\}|\$\([^)]+\)|\{\{[^{}]+\}\}"
+    r"|<[A-Za-z0-9_.:\-]+>|%\([A-Za-z_][A-Za-z0-9_]*\)s|\(REDACTED\)|\*+)",
+    re.IGNORECASE,
+)
+ENUM_KEY_RE = re.compile(r"(?i)(?:^|[_.\-])(?:source|type|mode|mechanism|strategy)$")
 EMAIL_RE = re.compile(r"\b([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b")
 SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
 E164_RE = re.compile(r"\+\d{10,15}\b")
@@ -431,19 +452,18 @@ HOME_PATH_RE = re.compile(r"(?:/Users/|/home/|[A-Za-z]:\\Users\\)([A-Za-z0-9._-]
 _HOME_OK = {"runner", "user", "username", "vsts_azpcontainer"}  # well-known CI users, not PII
 
 
-def _is_placeholder_value(v):
+def _is_placeholder_value(key, v):
     """Values that are templates, redactions, or number/date/version shapes — not secrets."""
-    if v[0] in "${<%(*":
-        return True  # ${VAR} / $(cmd) / {{tpl}} / <angle> / %fmt / (REDACTED) / ***
+    if TEMPLATE_VALUE_RE.fullmatch(v):
+        return True
     if re.fullmatch(r"[\d.\-:/T]+", v):
         return True  # timestamps, dates, versions, counts (max_tokens: 128000, …)
-    # An ALL-CAPS identifier is a config enum constant (OAUTHBEARER, SASL_SSL, STATIC_TOKEN, …),
-    # not a secret: real credentials carry mixed case/symbols, and the famous uppercase-only
-    # shapes (e.g. AWS access-key ids) are caught by the value-shape patterns independently of
-    # the assignment check. (First field false positive: mercury-composable, 2026-08-13.)
-    if re.fullmatch(r"[A-Z][A-Z0-9_]{2,}", v):
+    # ALL-CAPS is safe only on keys that explicitly describe an enum dimension. Treating every
+    # uppercase value as an enum lets ordinary uppercase passwords and opaque secrets bypass the
+    # assignment detector. (The motivating field line is credentials.source=OAUTHBEARER.)
+    if ENUM_KEY_RE.search(key) and re.fullmatch(r"[A-Z][A-Z0-9_]{2,}", v):
         return True
-    return bool(PLACEHOLDER_VALUE_RE.search(v))
+    return bool(PLACEHOLDER_VALUE_RE.fullmatch(v))
 
 
 def _is_public_email(local, domain):
@@ -492,8 +512,11 @@ def check_secret_material(root):
                 if rx.search(line):
                     tally(cat, i)
             for m in ASSIGNMENT_RE.finditer(line):
-                if not _is_placeholder_value(m.group(3)):
+                if not _is_placeholder_value(m.group(1), m.group(3)):
                     tally("credential-assignment", i, f" key '{m.group(1)}'")
+            for m in AUTHORIZATION_RE.finditer(line):
+                if not _is_placeholder_value(m.group(1), m.group(3)):
+                    tally("authorization-header", i)
             for m in EMAIL_RE.finditer(line):
                 if not _is_public_email(m.group(1), m.group(2)):
                     tally("email", i)

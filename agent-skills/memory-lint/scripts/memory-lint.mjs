@@ -430,13 +430,26 @@ const SECRET_VALUE_PATTERNS = [
 const ASSIGNMENT_RE = new RegExp(
   String.raw`\b([A-Za-z0-9_.\-]*(?:secret|password|passwd|credential|api[_.\-]?key|apikey` +
     String.raw`|access[_.\-]?token|auth[_.\-]?token|bearer[_.\-]?token)[A-Za-z0-9_.\-]*)` +
+    // Permit a closing quote around a JSON/YAML key (`"client_secret": "…"`) without
+    // making the quote part of the reported key.
+    String.raw`['"\`]?` +
     // Backtick is a value delimiter alongside quotes: every scanned surface is markdown, where
     // assignments are typically quoted as inline code (`key=VALUE`) — without this, the closing
     // backtick rides into the captured value and defeats the enum-constant exclusion (v4.33.2).
     String.raw`\s*[=:]\s*(['"\`]?)([^\s'"\`]{8,})\2`,
   "gi"
 );
-const PLACEHOLDER_VALUE_RE = /redacted|changeme|change-me|placeholder|example|sample|dummy|your[-_]|xxxx|\btodo\b/i;
+const AUTHORIZATION_RE =
+  /\b((?:proxy[_.\-]?)?authorization)\s*:\s*(?:(?:bearer|basic)\s+)?(['"`]?)([^\s'"`]{8,})\2/gi;
+const PLACEHOLDER_VALUE_RE =
+  /^(?:redacted|changeme|change-me|placeholder|example|sample|dummy|todo|x{4,}|your[-_][A-Za-z0-9_.\-]+|(?:changeme|change-me|example|sample|dummy|placeholder)[-_][A-Za-z0-9_.\-]+|[A-Za-z0-9_.\-]+[-_](?:changeme|change-me|example|sample|dummy|placeholder))$/i;
+// ${…} accepts any brace-delimited reference, not just bare identifiers: default-value and
+// dotted forms (`${REDIS_PASSWORD:}`, `${VAR:-x}`, `${a.b.c}`) are standard parameterization,
+// and rejecting them re-flagged a target repo's documented safe pattern for secrets. Still an
+// anchored fullmatch — a partially-literal value (`abc${X}def`) does not pass.
+const TEMPLATE_VALUE_RE =
+  /^(?:\$\{[^{}\s]+\}|\$\([^)]+\)|\{\{[^{}]+\}\}|<[A-Za-z0-9_.:\-]+>|%\([A-Za-z_][A-Za-z0-9_]*\)s|\(REDACTED\)|\*+)$/i;
+const ENUM_KEY_RE = /(?:^|[_.\-])(?:source|type|mode|mechanism|strategy)$/i;
 const EMAIL_RE = /\b([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b/g;
 const SSN_RE = /\b\d{3}-\d{2}-\d{4}\b/;
 const E164_RE = /\+\d{10,15}\b/;
@@ -444,15 +457,14 @@ const CARD_RE = /\b(?:\d{4}[ -]){3}\d{4}\b|\b\d{13,19}\b/g;
 const HOME_PATH_RE = /(?:\/Users\/|\/home\/|[A-Za-z]:\\Users\\)([A-Za-z0-9._-]{2,})/g;
 const HOME_OK = new Set(["runner", "user", "username", "vsts_azpcontainer"]); // well-known CI users, not PII
 
-function is_placeholder_value(v) {
+function is_placeholder_value(key, v) {
   // Values that are templates, redactions, or number/date/version shapes — not secrets.
-  if ("${<%(*".includes(v[0])) return true; // ${VAR} / $(cmd) / {{tpl}} / <angle> / %fmt / (REDACTED) / ***
+  if (TEMPLATE_VALUE_RE.test(v)) return true;
   if (/^[\d.\-:/T]+$/.test(v)) return true; // timestamps, dates, versions, counts (max_tokens: 128000, …)
-  // An ALL-CAPS identifier is a config enum constant (OAUTHBEARER, SASL_SSL, STATIC_TOKEN, …),
-  // not a secret: real credentials carry mixed case/symbols, and the famous uppercase-only
-  // shapes (e.g. AWS access-key ids) are caught by the value-shape patterns independently of
-  // the assignment check. (First field false positive: mercury-composable, 2026-08-13.)
-  if (/^[A-Z][A-Z0-9_]{2,}$/.test(v)) return true;
+  // ALL-CAPS is safe only on keys that explicitly describe an enum dimension. Treating every
+  // uppercase value as an enum lets ordinary uppercase passwords and opaque secrets bypass the
+  // assignment detector. (The motivating field line is credentials.source=OAUTHBEARER.)
+  if (ENUM_KEY_RE.test(key) && /^[A-Z][A-Z0-9_]{2,}$/.test(v)) return true;
   return PLACEHOLDER_VALUE_RE.test(v);
 }
 
@@ -510,7 +522,10 @@ export function check_secret_material(root) {
         if (rx.test(line)) tally(cat, i);
       }
       for (const m of line.matchAll(ASSIGNMENT_RE)) {
-        if (!is_placeholder_value(m[3])) tally("credential-assignment", i, ` key '${m[1]}'`);
+        if (!is_placeholder_value(m[1], m[3])) tally("credential-assignment", i, ` key '${m[1]}'`);
+      }
+      for (const m of line.matchAll(AUTHORIZATION_RE)) {
+        if (!is_placeholder_value(m[1], m[3])) tally("authorization-header", i);
       }
       for (const m of line.matchAll(EMAIL_RE)) {
         if (!is_public_email(m[1], m[2])) tally("email", i);

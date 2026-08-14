@@ -423,9 +423,15 @@ class TestSecretMaterial(unittest.TestCase):
                     "password: (REDACTED)",
                     "api_key: <your-key-here>",
                     "client_secret: {{VAULT_REF}}",
+                    "client_secret: placeholder-value",
                     "access_token: 2026-08-06-153509",
                     "max_tokens_password: 128000000",
                     "password=changeme-please",
+                    # env-var references with default-value / dotted forms are placeholders too
+                    # (field FP, mercury-composable 2026-08-13 — line quoted VERBATIM below):
+                    "  (`redis.host`/`redis.port`/`redis.password=${REDIS_PASSWORD:}`/`redis.ssl`/`redis.database`/`redis.timeout.ms`)",
+                    "client_secret: ${vault.paths.kafka}",
+                    "password=${REDIS_URL:-redis://localhost}",
                 ]) + "\n",
             })
             self.assertEqual(memory_lint.check_secret_material(root), [])
@@ -502,7 +508,27 @@ class TestSecretMaterial(unittest.TestCase):
             })
             self.assertEqual(memory_lint.check_secret_material(root), [])
 
-    def test_all_caps_enum_constants_not_flagged(self):
+    def test_quoted_assignments_authorization_and_embedded_placeholders_flagged(self):
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "sessions/2026-08-13-120000.md": "\n".join([
+                    "# Session",
+                    '{"client_secret": "AbCdEfGhIjKlMnOp"}',
+                    "Authorization: Bearer QwErTyUiOpAsDfGh",
+                    "client_secret=dummyButRealSecret123",
+                    "client_secret=$AbCdEfGhIjKlMnOp",
+                ]) + "\n",
+            })
+            w = memory_lint.check_secret_material(root)
+            self.assertEqual(len(w), 2)
+            joined = "\n".join(w)
+            self.assertIn("credential-assignment", joined)
+            self.assertIn("(3 hit(s)", joined)
+            self.assertIn("authorization-header", joined)
+            self.assertNotIn("AbCdEfGhIjKlMnOp", joined)
+            self.assertNotIn("QwErTyUiOpAsDfGh", joined)
+
+    def test_all_caps_enum_constants_are_key_scoped(self):
         # First field FP (mercury-composable, 2026-08-13): config docs quoted in a session log —
         # a credential-keyed property set to an ALL-CAPS enum constant is a source TYPE, not a
         # credential — including the markdown inline-code form (`key=VALUE`), where the closing
@@ -517,12 +543,13 @@ class TestSecretMaterial(unittest.TestCase):
                     "markdown form: `bearer.auth.credentials.source=OAUTHBEARER` + `bearer.auth.issuer.endpoint.url` /",
                     "still real: client_secret=Zq1pw88LmNo44Xy",
                     "backticked real: `api_key=Qw9RtYu88LmPo44Xz`",
+                    "uppercase real: client_secret=ABCDEFGHIJKLMNOPQRSTUV",
                 ]) + "\n",
             })
             w = memory_lint.check_secret_material(root)
             self.assertEqual(len(w), 1)
             self.assertIn("key 'client_secret'", w[0])
-            self.assertIn("(2 hit(s)", w[0])
+            self.assertIn("(3 hit(s)", w[0])
 
     def test_archive_scanned_and_counts_aggregated(self):
         with tempfile.TemporaryDirectory() as root:
