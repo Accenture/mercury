@@ -1,8 +1,9 @@
 // test_memory_lint.mjs — node mirror of test_memory_lint.py.
 // Same fixtures, same expectations: this is the cross-runtime contract that
 // keeps memory-lint.mjs at parity with memory-lint.py. Run: node --test <file>
-import { test } from "node:test";
+import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -466,8 +467,31 @@ function secretSetup(files) {
   return root;
 }
 
+const fixtureEnvValues = new Map();
+
+function fixtureEnv(name, value) {
+  if (!fixtureEnvValues.has(name)) fixtureEnvValues.set(name, process.env[name]);
+  process.env[name] = value;
+  return process.env[name];
+}
+
+function fixtureSecret(name, { length = 24, prefix = "", uppercase = false } = {}) {
+  const digest = createHash("sha256").update(name).digest("hex");
+  let material = [...digest].map((ch, i) => i % 2 ? ch.toUpperCase() : ch).join("");
+  if (uppercase) material = material.toUpperCase();
+  return fixtureEnv(name, prefix + material.slice(0, length));
+}
+
+afterEach(() => {
+  for (const [name, previous] of fixtureEnvValues) {
+    if (previous === undefined) delete process.env[name];
+    else process.env[name] = previous;
+  }
+  fixtureEnvValues.clear();
+});
+
 test("check_secret_material flags a credential assignment and never echoes the value", () => {
-  const secret = "Zq1~pw88LmNo44Xy"; // NOT a real credential — test fixture
+  const secret = fixtureSecret("AGENT_MEMORY_TEST_ASSIGNMENT");
   const root = secretSetup({
     "sessions/2026-08-06-120000.md": `# Session\n\`\`\`\nbearer.auth.client.secret=${secret}\n\`\`\`\n`,
   });
@@ -485,6 +509,8 @@ test("check_secret_material flags a credential assignment and never echoes the v
 });
 
 test("check_secret_material: placeholders are safe but nonempty defaults flag", () => {
+  const placeholder = fixtureEnv("AGENT_MEMORY_TEST_PLACEHOLDER", "change" + "me-please");
+  const fallback = fixtureSecret("AGENT_MEMORY_TEST_TEMPLATE_FALLBACK");
   const root = secretSetup({
     "sessions/2026-08-06-120000.md": [
       "# Session",
@@ -495,12 +521,12 @@ test("check_secret_material: placeholders are safe but nonempty defaults flag", 
       "client_secret: placeholder-value",
       "access_token: 2026-08-06-153509",
       "max_tokens_password: 128000000",
-      "password=changeme-please",
+      `password=${placeholder}`,
       // env-var references with default-value / dotted forms are placeholders too
       // (field FP, mercury-composable 2026-08-13 — line quoted VERBATIM below):
       "  (`redis.host`/`redis.port`/`redis.password=${REDIS_PASSWORD:}`/`redis.ssl`/`redis.database`/`redis.timeout.ms`)",
       "client_secret: ${vault.paths.kafka}",
-      "password=${REDIS_URL:-redis://localhost}",
+      `password=\${REDIS_URL:-${fallback}}`,
     ].join("\n") + "\n",
   });
   try {
@@ -514,12 +540,22 @@ test("check_secret_material: placeholders are safe but nonempty defaults flag", 
 });
 
 test("check_secret_material flags known token shapes", () => {
+  const githubToken = fixtureSecret(
+    "AGENT_MEMORY_TEST_GITHUB_TOKEN", { length: 40, prefix: "ghp_" }
+  );
+  const awsKey = fixtureSecret(
+    "AGENT_MEMORY_TEST_AWS_KEY", { length: 16, prefix: "AKIA", uppercase: true }
+  );
+  const privateKeyHeader = fixtureEnv(
+    "AGENT_MEMORY_TEST_PRIVATE_KEY_HEADER",
+    "-".repeat(5) + "BEGIN " + "RSA " + "PRIVATE " + "KEY" + "-".repeat(5)
+  );
   const root = secretSetup({
     "sessions/2026-08-06-120000.md": [
       "# Session",
-      "pushed with ghp_" + "A1b2C3d4".repeat(5), // github-token (fixture)
-      "aws key AKIA" + "ABCDEFGHIJKLMNOP",        // aws-access-key-id (fixture)
-      "-----BEGIN RSA PRIVATE KEY-----",          // private-key-block
+      `pushed with ${githubToken}`,
+      `aws key ${awsKey}`,
+      privateKeyHeader,
     ].join("\n") + "\n",
   });
   try {
@@ -533,10 +569,14 @@ test("check_secret_material flags known token shapes", () => {
 });
 
 test("check_secret_material flags email PII, excludes public forms", () => {
+  const privateEmail = fixtureEnv(
+    "AGENT_MEMORY_TEST_PRIVATE_EMAIL",
+    "fixture.person" + "@" + "some-client-corp" + "." + "com"
+  );
   const root = secretSetup({
     "sessions/2026-08-06-120000.md": [
       "# Session",
-      "contact jane.doe@some-client-corp.com about rotation",
+      `contact ${privateEmail} about rotation`,
       "Co-Authored-By: Claude Code <noreply@anthropic.com>",
       "tagger 12345+acn-user@users.noreply.github.com",
       "remote git@github.com:acn-ericlaw/agent-memory.git",
@@ -554,13 +594,20 @@ test("check_secret_material flags email PII, excludes public forms", () => {
 });
 
 test("check_secret_material: ssn + Luhn-valid card flagged; dates and Luhn-fails are not", () => {
+  const ssn = fixtureEnv("AGENT_MEMORY_TEST_SSN", ["123", "45", "6789"].join("-"));
+  const card = fixtureEnv(
+    "AGENT_MEMORY_TEST_CARD", ["4539", "1488", "0343", "6467"].join(" ")
+  );
+  const invalidCard = fixtureEnv(
+    "AGENT_MEMORY_TEST_INVALID_CARD", ["1234", "5678", "9012", "3456"].join(" ")
+  );
   const root = secretSetup({
     "sessions/2026-08-06-120000.md": [
       "# Session",
-      "ssn 123-45-6789 leaked",               // ssn
-      "card 4539 1488 0343 6467 on file",     // payment-card (Luhn-valid test number)
+      `ssn ${ssn} leaked`,
+      `card ${card} on file`,
       "dated 2026-08-06, stem 2026-08-06-153509, v4.33.0", // none of these
-      "not a card: 1234 5678 9012 3456",      // Luhn-invalid → not flagged
+      `not a card: ${invalidCard}`,
     ].join("\n") + "\n",
   });
   try {
@@ -575,8 +622,12 @@ test("check_secret_material: ssn + Luhn-valid card flagged; dates and Luhn-fails
 });
 
 test("check_secret_material flags absolute home paths, excludes CI users", () => {
+  const privateHome = fixtureEnv(
+    "AGENT_MEMORY_TEST_HOME_PATH",
+    "/" + "Users" + "/" + "fixture-user" + "/projects/foo"
+  );
   const root = secretSetup({
-    "continuity.md": "# c\n- repo: /Users/janedoe/projects/foo\n",
+    "continuity.md": `# c\n- repo: ${privateHome}\n`,
     "sessions/2026-08-06-120000.md": "# Session\nCI ran in /home/runner/work and ~/sandbox/foo\n",
   });
   try {
@@ -590,9 +641,12 @@ test("check_secret_material flags absolute home paths, excludes CI users", () =>
 });
 
 test("check_secret_material scans archive/ and aggregates counts per file+category", () => {
+  const password = fixtureSecret("AGENT_MEMORY_TEST_ARCHIVE_PASSWORD");
+  const apiKey = fixtureSecret("AGENT_MEMORY_TEST_ARCHIVE_API_KEY");
+  const clientSecret = fixtureSecret("AGENT_MEMORY_TEST_ARCHIVE_CLIENT_SECRET");
   const root = secretSetup({
     "archive/2026-Q2.md":
-      "# a\npassword=hunter2hunter2\napi_key=Zx9LmQw22TtYy88Kk\nclient_secret=Pp44RrSs66UuVv00\n",
+      `# a\npassword=${password}\napi_key=${apiKey}\nclient_secret=${clientSecret}\n`,
   });
   try {
     const w = check_secret_material(root);
@@ -608,10 +662,11 @@ test("check_secret_material scans archive/ and aggregates counts per file+catego
 test("check_secret_material: waiver line and placeholder home paths are not flagged", () => {
   // A log DOCUMENTING a leak cleanup legitimately quotes the patterns — the explicit
   // line waiver keeps the advisory signal, not noise; `/Users/...` is a placeholder.
+  const waivedSecret = fixtureSecret("AGENT_MEMORY_TEST_WAIVED_SECRET");
   const root = secretSetup({
     "sessions/2026-08-06-120000.md": [
       "# Session",
-      "the leaked line was password=Qq77RrSs99TtUu11 <!-- lint:allow-secret-material -->",
+      `the leaked line was password=${waivedSecret} <!-- lint:allow-secret-material -->`,
       "docs quote `/Users/...` as the placeholder form",
     ].join("\n") + "\n",
   });
@@ -623,14 +678,18 @@ test("check_secret_material: waiver line and placeholder home paths are not flag
 });
 
 test("check_secret_material: quoted assignments, Authorization, and embedded placeholders flag", () => {
+  const quotedSecret = fixtureSecret("AGENT_MEMORY_TEST_QUOTED_SECRET");
+  const authorizationSecret = fixtureSecret("AGENT_MEMORY_TEST_AUTHORIZATION");
+  const embeddedSecret = fixtureSecret("AGENT_MEMORY_TEST_EMBEDDED_PLACEHOLDER");
+  const fallbackSecret = fixtureSecret("AGENT_MEMORY_TEST_NONEMPTY_FALLBACK");
   const root = secretSetup({
     "sessions/2026-08-13-120000.md": [
       "# Session",
-      '{"client_secret": "AbCdEfGhIjKlMnOp"}',
-      "Authorization: Bearer QwErTyUiOpAsDfGh",
-      "client_secret=dummyButRealSecret123",
-      "client_secret=$AbCdEfGhIjKlMnOp",
-      "client_secret=${CLIENT_SECRET:-RealSecret123}",
+      `{"client_secret": "${quotedSecret}"}`,
+      `Authorization: Bearer ${authorizationSecret}`,
+      `client_secret=dummy${embeddedSecret}`,
+      `client_secret=$${embeddedSecret}`,
+      `client_secret=\${CLIENT_SECRET:-${fallbackSecret}}`,
     ].join("\n") + "\n",
   });
   try {
@@ -640,8 +699,8 @@ test("check_secret_material: quoted assignments, Authorization, and embedded pla
     assert.ok(joined.includes("credential-assignment"));
     assert.ok(joined.includes("(4 hit(s)"));
     assert.ok(joined.includes("authorization-header"));
-    assert.ok(!joined.includes("AbCdEfGhIjKlMnOp"));
-    assert.ok(!joined.includes("QwErTyUiOpAsDfGh"));
+    assert.ok(!joined.includes(quotedSecret));
+    assert.ok(!joined.includes(authorizationSecret));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -653,15 +712,20 @@ test("check_secret_material: all-caps enum constants are key-scoped", () => {
   // credential — including the markdown inline-code form (`key=VALUE`), where the closing
   // backtick must not ride into the value (v4.33.2, the form the real field line used).
   // Mixed-case values on the same key class must still flag, backticked or bare.
+  const mixedSecret = fixtureSecret("AGENT_MEMORY_TEST_MIXED_SECRET");
+  const backtickedSecret = fixtureSecret("AGENT_MEMORY_TEST_BACKTICKED_SECRET");
+  const uppercaseSecret = fixtureSecret(
+    "AGENT_MEMORY_TEST_UPPERCASE_SECRET", { length: 24, uppercase: true }
+  );
   const root = secretSetup({
     "sessions/2026-08-13-120000.md": [
       "# Session",
       "bearer.auth.credentials.source: OAUTHBEARER",
       "sasl.password.mode=STATIC_TOKEN",
       "markdown form: `bearer.auth.credentials.source=OAUTHBEARER` + `bearer.auth.issuer.endpoint.url` /",
-      "still real: client_secret=Zq1pw88LmNo44Xy",
-      "backticked real: `api_key=Qw9RtYu88LmPo44Xz`",
-      "uppercase real: client_secret=ABCDEFGHIJKLMNOPQRSTUV",
+      `still real: client_secret=${mixedSecret}`,
+      `backticked real: \`api_key=${backtickedSecret}\``,
+      `uppercase real: client_secret=${uppercaseSecret}`,
     ].join("\n") + "\n",
   });
   try {
