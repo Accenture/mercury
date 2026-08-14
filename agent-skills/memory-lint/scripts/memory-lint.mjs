@@ -443,12 +443,10 @@ const AUTHORIZATION_RE =
   /\b((?:proxy[_.\-]?)?authorization)\s*:\s*(?:(?:bearer|basic)\s+)?(['"`]?)([^\s'"`]{8,})\2/gi;
 const PLACEHOLDER_VALUE_RE =
   /^(?:redacted|changeme|change-me|placeholder|example|sample|dummy|todo|x{4,}|your[-_][A-Za-z0-9_.\-]+|(?:changeme|change-me|example|sample|dummy|placeholder)[-_][A-Za-z0-9_.\-]+|[A-Za-z0-9_.\-]+[-_](?:changeme|change-me|example|sample|dummy|placeholder))$/i;
-// ${…} accepts any brace-delimited reference, not just bare identifiers: default-value and
-// dotted forms (`${REDIS_PASSWORD:}`, `${VAR:-x}`, `${a.b.c}`) are standard parameterization,
-// and rejecting them re-flagged a target repo's documented safe pattern for secrets. Still an
-// anchored fullmatch — a partially-literal value (`abc${X}def`) does not pass.
+// Accept a bare or dotted reference with no fallback (`${VAR}`, `${VAR:}`, `${a.b}`).
+// A non-empty default may itself be a rendered secret, so `${VAR:-secret}` must flag.
 const TEMPLATE_VALUE_RE =
-  /^(?:\$\{[^{}\s]+\}|\$\([^)]+\)|\{\{[^{}]+\}\}|<[A-Za-z0-9_.:\-]+>|%\([A-Za-z_][A-Za-z0-9_]*\)s|\(REDACTED\)|\*+)$/i;
+  /^(?:\$\{[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*:?\}|\$\([^)]+\)|\{\{[^{}]+\}\}|<[A-Za-z0-9_.:\-]+>|%\([A-Za-z_][A-Za-z0-9_]*\)s|\(REDACTED\)|\*+)$/i;
 const ENUM_KEY_RE = /(?:^|[_.\-])(?:source|type|mode|mechanism|strategy)$/i;
 const EMAIL_RE = /\b([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b/g;
 const SSN_RE = /\b\d{3}-\d{2}-\d{4}\b/;

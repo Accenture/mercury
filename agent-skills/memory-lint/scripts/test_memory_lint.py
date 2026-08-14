@@ -414,7 +414,7 @@ class TestSecretMaterial(unittest.TestCase):
             self.assertIn("key 'bearer.auth.client.secret'", w[0])
             self.assertNotIn(secret, w[0])  # the report must never amplify the secret
 
-    def test_placeholders_and_number_shapes_not_flagged(self):
+    def test_placeholders_are_safe_but_nonempty_defaults_flag(self):
         with tempfile.TemporaryDirectory() as root:
             self._setup(root, {
                 "sessions/2026-08-06-120000.md": "\n".join([
@@ -434,7 +434,10 @@ class TestSecretMaterial(unittest.TestCase):
                     "password=${REDIS_URL:-redis://localhost}",
                 ]) + "\n",
             })
-            self.assertEqual(memory_lint.check_secret_material(root), [])
+            w = memory_lint.check_secret_material(root)
+            self.assertEqual(len(w), 1)
+            self.assertIn("credential-assignment", w[0])
+            self.assertIn("(1 hit(s)", w[0])
 
     def test_known_token_shapes_flagged(self):
         with tempfile.TemporaryDirectory() as root:
@@ -517,13 +520,14 @@ class TestSecretMaterial(unittest.TestCase):
                     "Authorization: Bearer QwErTyUiOpAsDfGh",
                     "client_secret=dummyButRealSecret123",
                     "client_secret=$AbCdEfGhIjKlMnOp",
+                    "client_secret=${CLIENT_SECRET:-RealSecret123}",
                 ]) + "\n",
             })
             w = memory_lint.check_secret_material(root)
             self.assertEqual(len(w), 2)
             joined = "\n".join(w)
             self.assertIn("credential-assignment", joined)
-            self.assertIn("(3 hit(s)", joined)
+            self.assertIn("(4 hit(s)", joined)
             self.assertIn("authorization-header", joined)
             self.assertNotIn("AbCdEfGhIjKlMnOp", joined)
             self.assertNotIn("QwErTyUiOpAsDfGh", joined)

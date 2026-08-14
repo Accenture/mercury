@@ -51,3 +51,9 @@
 - thread-release-4-10-4 — (release — 2026-07-24; CLOSED same day) v4.10.4 SHIPPED AND PUBLISHED in lock-step — completed thread swept (older than archive_window) — 2026-Q3.md
 - thread-interop-header-hygiene — (in flight — 2026-07-24; RELEASED same day in v4.10.4, [[thread-release-4-10-4]]) — completed thread swept (older than archive_window) — 2026-Q3.md
 - thread-configurable-traceparent — (in flight — 2026-07-24; MERGED same day as PR #177, merge commit `e99013cb`; the — completed thread swept (older than archive_window) — 2026-Q3.md
+- string-plugins-unicode-scalars — String plugins use Unicode scalar values, by maintainer ruling (2026-07-26). — faded — 2026-Q3.md
+- registration-metadata-contract — Registration metadata is a cross-language contract; carriers are per-language idioms. — faded — 2026-Q3.md
+- thread-release-4-10-6 — (release — 2026-07-27; PUBLISHED 2026-07-26 (Eric confirmed) — CLOSED. — faded — 2026-Q3.md
+- thread-typed-async-http-request — (2026-07-26; MERGED same day as PR — faded — 2026-Q3.md
+- ot-managedcache-port — (backlog — DELIVERED 2026-07-28: increment 71 MERGED as PR — faded — 2026-Q3.md
+- ot-harvest-mercury-composable — (knowledge-harvest — CLOSED 2026-07-27 by Eric's ruling: per-layer harvest COMPLETE; — faded — 2026-Q3.md

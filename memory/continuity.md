@@ -15,8 +15,8 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.4** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-14 | agent: Claude Code (2026-08-14-002042)
-- **last_review:** 2026-08-07 | through 2026-08-07-150018.md
+- **last_session:** 2026-08-14 | agent: GitHub Copilot (2026-08-14-005444)
+- **last_review:** 2026-08-14 | through 2026-08-14-005444.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -80,38 +80,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 ## Key Decisions
 
-- **String plugins use Unicode scalar values, by maintainer ruling (2026-07-26).**
-  `f:length` / `f:substring` count and index WHOLE CHARACTERS (Unicode scalar values /
-  code points) — NOT Java's UTF-16 code units (a JVM legacy that must not propagate to
-  future Python/Node/Go ports) and NOT UTF-8 bytes (你好 = 2, never 6). Supersedes the
-  increment-57/F20 UTF-16 retrofit (code + ledger only — no continuity fact existed to
-  supersede formally). Divergence bounded to supplementary-plane characters (emoji = 1
-  here, 2 in Java; BMP text identical); out-of-bounds semantics + error messages
-  unchanged; the retrofit's surrogate-split micro-divergence is retired (no lossy case
-  under scalar indexing). Do NOT re-retrofit UTF-16 in the name of parity — the ruling
-  is deliberate and Eric-verified. Docs: syntax-guide Rust-port note + CHANGELOG.
-  <!-- id: string-plugins-unicode-scalars | created: 2026-07-26 | last_used: 2026-07-28 | uses: 3 | tier: archive-candidate | origin: 2026-07-26-022229.md -->
-
-- **Registration metadata is a cross-language contract; carriers are per-language idioms.
-  (ADR-0008)** One canonical model + fixed semantics for #[preload] and family (boot-time
-  env_instances resolution; optional-service OR/!/= grammar; order-free marker stacking; one
-  conflict policy — explicit > declarative, duplicates WARN + last-wins; extension-point
-  naming: explicit positional name or same-name derivation from idiomatic declarations;
-  plugins = flow vocabulary never gated, features honor gating; discover → register →
-  override → resolve → validate → route table; loud-failure discovery; misuse is a tested
-  error surface). Spec: docs/guides/registration-metadata-contract.md (adapted from the Java
-  reference page). Conformance: golden vectors shared verbatim
-  (registration-vectors/{core,plugin,feature}.json, byte-identical to the Java copies) —
-  the wire-format golden-vector method applied to the declaration surface. New ports pass
-  the three vector suites before their declaration surface is done. Twin of the Java
-  ledger's ADR-0009.
-  <!-- id: registration-metadata-contract | created: 2026-07-26 | last_used: 2026-07-28 | uses: 4 | tier: archive-candidate | origin: 2026-07-26-013851.md -->
-
 - **Port bottom-up, faithfully to the Java original** — re-implement mercury-composable in
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-01 | uses: 97 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-14 | uses: 100 | tier: active | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -124,7 +97,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   suites on both engines, cross-engine interop verification when the wire contract is
   touched, and lock-step shipping. The permanent baseline is the interop report
   (docs/test-reports/suspend-resume-interop.md) + the twin test suites.
-  <!-- id: conv-suspend-resume-regression-critical | created: 2026-07-30 | last_used: 2026-08-01 | uses: 2 | tier: active | origin: 2026-07-30-181400.md -->
+  <!-- id: conv-suspend-resume-regression-critical | created: 2026-07-30 | last_used: 2026-08-01 | uses: 2 | tier: archive-candidate | origin: 2026-07-30-181400.md -->
 
 - **The Java repo's helper servers are the standard local test servers for Rust ports
   (Eric, 2026-07-30).** `helpers/redis-standalone` for the suspend/resume arc;
@@ -135,7 +108,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   tests may use fast hermetic in-process doubles (e.g. the RESP2 test double — the
   double stands in for the SERVER, never the client); the helper is the
   integration/live-drive tier.
-  <!-- id: conv-java-helper-servers-for-rust-tests | created: 2026-07-30 | last_used: 2026-07-30 | uses: 4 | tier: active | origin: 2026-07-30-015038.md -->
+  <!-- id: conv-java-helper-servers-for-rust-tests | created: 2026-07-30 | last_used: 2026-07-30 | uses: 4 | tier: archive-candidate | origin: 2026-07-30-015038.md -->
 
 - **`cargo fmt` + `cargo clippy --all-targets` clean** is part of "done" for every change
   (default settings, no custom rustfmt.toml yet).
@@ -160,7 +133,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-26: "ok with the tests/ui without license headers"): a header shifts every
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-08-01 | uses: 105 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-08-14 | uses: 107 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 
@@ -175,7 +148,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   dereference-verified. Java: [PR #279](https://github.com/Accenture/mercury-composable/pull/279)
   squash `92dd64a8`, tag on the squash. Sole content:
   [[thread-dry-run-graph-scope-fix-rust]] (PR #204). PUBLISHED by Eric 2026-08-10.
-  <!-- id: thread-release-4-11-8-rust | created: 2026-08-11 | last_used: 2026-08-11 | uses: 1 | tier: working | origin: 2026-08-11-051701 -->
+  <!-- id: thread-release-4-11-8-rust | created: 2026-08-11 | last_used: 2026-08-11 | uses: 2 | tier: active | origin: 2026-08-11-051701 -->
 
 - [x] (release — SHIPPED AND PUBLISHED 2026-08-11, **both repos in lock-step at v4.11.9**; cut
   FOR FIELD DEPLOYMENT) **v4.11.9 — the dry-run graph identity simplification.** Rust: release PR #207 merge
@@ -216,7 +189,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   name. Gates: 58/305 + clippy 0 + fmt clean. Porting gotcha recorded: scripted guard landed at
   the wrong `remove_instance` occurrence first — anchor on unique context.
   Relates [[thread-graph-scoped-state-and-error-context-rust]].
-  <!-- id: thread-dry-run-graph-scope-fix-rust | created: 2026-08-11 | last_used: 2026-08-11 | uses: 1 | tier: working | origin: 2026-08-11-051701 -->
+  <!-- id: thread-dry-run-graph-scope-fix-rust | created: 2026-08-11 | last_used: 2026-08-11 | uses: 2 | tier: active | origin: 2026-08-11-051701 -->
 
 - [x] (release — SHIPPED AND PUBLISHED 2026-08-10, **both repos in lock-step at
   v4.11.6**) **v4.11.6 — the field-review follow-ups release.** Rust: release PR #203 merge `c008d11b` carrying
@@ -229,7 +202,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `graph:{graph_id}:{cid}` — the CHANGELOG's `### Changed` LEADS with the upgrade note)
   + generic exception context incl. recovery + orchestrator pattern + dynamic statement
   variables. Both GitHub releases PUBLISHED by Eric 2026-08-10.
-  <!-- id: thread-release-4-11-6-rust | created: 2026-08-10 | last_used: 2026-08-10 | uses: 1 | tier: working | origin: 2026-08-10-224037 -->
+  <!-- id: thread-release-4-11-6-rust | created: 2026-08-10 | last_used: 2026-08-10 | uses: 1 | tier: active | origin: 2026-08-10-224037 -->
 
 - [x] (feature+fix — **MERGED 2026-08-10 as mercury PR #201, merge `354c1134`** carrying
   `7d2da900`, CI green on the first run incl. the Format check (test job 2m9s); mirrors
@@ -253,7 +226,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   305 tests, clippy clean, fmt clean (verified by real exit code — a piped `head` masked
   the first check), webapp 212/212.
   Relates [[thread-graph-scoped-state-and-error-context-rust]].
-  <!-- id: thread-dynamic-statement-targets-rust | created: 2026-08-10 | last_used: 2026-08-10 | uses: 1 | tier: working | origin: 2026-08-10-224037 -->
+  <!-- id: thread-dynamic-statement-targets-rust | created: 2026-08-10 | last_used: 2026-08-11 | uses: 2 | tier: active | origin: 2026-08-10-224037 -->
 
 - [x] (feature — **MERGED 2026-08-10 as mercury PR #200, merge `283d41e2`** carrying
   `24eeef89` + the `cargo fmt` follow-up `7dadd1ff` — the first CI run FAILED the
@@ -282,7 +255,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   ADR-0013 proposed (Java twins ADR-0013/ADR-0014 — the numbering skew continues). Gate:
   58 suites / 305 tests green, clippy clean, webapp 212/212 (bundle regenerated for six
   help pages — three byte-copied, three adapted to port variants).
-  <!-- id: thread-graph-scoped-state-and-error-context-rust | created: 2026-08-10 | last_used: 2026-08-10 | uses: 1 | tier: working | origin: 2026-08-10-190550 -->
+  <!-- id: thread-graph-scoped-state-and-error-context-rust | created: 2026-08-10 | last_used: 2026-08-11 | uses: 2 | tier: active | origin: 2026-08-10-190550 -->
 
 - [x] (release — SHIPPED 2026-08-09, **lock-step with the Java engine at v4.11.5**)
   **v4.11.5 — the graph.task parity + teaching-surfaces release.** Release PR #199 merge
@@ -309,7 +282,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   decoded JSON on Java and returned bytes here); explicit accept never overridden,
   wire-echo pinned both ways. Also repaired the INCREMENTS ledger (78/79 reconstructed,
   tail re-ordered 76→83, Overview extended). Increment 83.
-  <!-- id: thread-graph-task-model-staging-rust | created: 2026-08-08 | last_used: 2026-08-08 | uses: 1 | tier: working | origin: 2026-08-09-043233 -->
+  <!-- id: thread-graph-task-model-staging-rust | created: 2026-08-08 | last_used: 2026-08-09 | uses: 1 | tier: active | origin: 2026-08-09-043233 -->
 
 - [x] (release — SHIPPED AND PUBLISHED 2026-08-08, **lock-step with the Java engine
   at v4.11.4**) **v4.11.4 — the suspend/resume rationalization release.** Release
@@ -318,7 +291,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `v4.11.4` on the verified merge, dereference-verified; published by Eric. Contents:
   [[thread-suspend-resume-rationalization-rust]] (ADR-0011) incl. the webapp UI
   refresh from the Java repo. Java twin: PR #266, squash `ad60f7e4`, tag verified.
-  <!-- id: thread-release-4-11-4-rust | created: 2026-08-08 | last_used: 2026-08-08 | uses: 1 | tier: working | origin: 2026-08-08-022929 -->
+  <!-- id: thread-release-4-11-4-rust | created: 2026-08-08 | last_used: 2026-08-08 | uses: 1 | tier: archive-candidate | origin: 2026-08-08-022929 -->
 
 - [x] (lock-step — **MERGED 2026-08-08 as mercury PR #195, merge `4e6bdf43` carrying
   commit `995cfeb7` with its single co-author trailer, CI green; mirrors the Java
@@ -337,7 +310,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   directive — brings the Java PR #262 UI work over), port path adaptations re-applied,
   webapp 212/212, bundle index-DqzF65vX.js.** Record/store contracts unchanged.
   Relates [[thread-tutorial-14-decision-rust]].
-  <!-- id: thread-suspend-resume-rationalization-rust | created: 2026-08-08 | last_used: 2026-08-08 | uses: 1 | tier: working | origin: 2026-08-08-005419 -->
+  <!-- id: thread-suspend-resume-rationalization-rust | created: 2026-08-08 | last_used: 2026-08-08 | uses: 2 | tier: archive-candidate | origin: 2026-08-08-005419 -->
 
 - [x] (lock-step — **MERGED 2026-08-07 as PR #193, merge `bea95c80` carrying commit
   `8162b733`, CI green; same-day mirror of Java PR #263; rides the next release via
@@ -395,7 +368,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `chore/release-4.11.0`, NOT pushed — Eric gates push/PR/tag (verify the tag lands on
   the verified merge commit — the 4.10.2 tag-race lesson). Java side: 33 poms swept,
   skipTests hardcode removed from 26 poms. Close when tagged + published both repos.
-  <!-- id: thread-release-4-11-0 | created: 2026-07-30 | last_used: 2026-07-30 | uses: 4 | tier: active | origin: 2026-07-30-172823.md -->
+  <!-- id: thread-release-4-11-0 | created: 2026-07-30 | last_used: 2026-07-30 | uses: 4 | tier: archive-candidate | origin: 2026-07-30-172823.md -->
 
 - [x] (feature — 2026-07-29; **MERGED 2026-07-30 as
   [PR #186](https://github.com/Accenture/mercury/pull/186), merge commit `d2791b09`
@@ -553,105 +526,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   suspend/resume interop evidence is now permanent on BOTH doc sites (Java twin
   PR #243 in flight). Next arc: the lock-step official release (Eric planning).**
   → serves vision-mercury (the suspension blueprint).
-  <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-30 | uses: 11 | tier: active | origin: 2026-07-29-235442.md -->
-
-- [x] (release — 2026-07-27; **PUBLISHED 2026-07-26 (Eric confirmed) — CLOSED.
-  TAGGED: `v4.10.6` on merge commit `9732799e` (PR
-  [#184](https://github.com/Accenture/mercury/pull/184)), the commit VERIFIED as carrying
-  the release content before the tag pushed (Cargo.toml 4.10.6 at that commit — the
-  4.10.2 tag-race lesson applied); publication pending Eric, who has the release notes.**)
-  **v4.10.6 release prep — feature
-  release re-aligning the version number with the Java repo (its 4.10.6 = the Sonar
-  patch; contents differ by design, Eric's ruling).** Contents: the annotation→macro P2
-  leftovers already on main (yaml.preload.override, registration-metadata contract +
-  golden vectors, Unicode-scalar string plugins) + the typed-AsyncHttpRequest arc
-  (PR #183: typed HTTP functions, single-source dataset, pretty-print parity,
-  /info/routes, ops-tunable worker instances). Sweep 4.10.5→4.10.6 (root Cargo.toml —
-  count-asserted, no substring hazards; lock regenerated; continuity status line);
-  CHANGELOG Unreleased → `## Version 4.10.6, 7/26/2026` + release summary. Gate:
-  workspace 273 / clippy 0 / fmt. Tagged + published — CLOSED. Design validation worth
-  keeping (Eric's field observation): the pretty-print single-render-path design means one
-  presentation fix reached EVERY JSON surface — functions, actuators, flows, AND the
-  MiniGraph graph endpoint (live proof: POST /api/graph/tutorial-2 returns pretty JSON) —
-  with zero additional code.
-  <!-- id: thread-release-4-10-6 | created: 2026-07-27 | last_used: 2026-07-27 | uses: 1 | tier: archive-candidate | origin: 2026-07-27-011116.md -->
-
-- [x] (2026-07-26; **MERGED same day as PR
-  [#183](https://github.com/Accenture/mercury/pull/183), merge commit `1c8fa91b` — the arc
-  rode ONE commit (`0b5be4a6`) refined across six review rounds (typed input → fluent
-  builder → single-source router → pretty print → /info/routes + default-rest.yaml
-  relocation → ops-tunable instances), CI green first try (build 17s / test 1m54s). The
-  Java twin PR #236 (worker.instances.actuator.services + truthful docs) still in CI at
-  closeout — the shared family key goes live on both engines once it merges.**)
-  **Typed AsyncHttpRequest functions (Eric-ratified fix for the gap
-  report: the Rust port could not type a function's input as AsyncHttpRequest).** Design
-  agreed with Eric — idiomatic, NO engine special case: `Serialize`/`Deserialize`
-  hand-implemented as thin delegates onto the existing to_value()/from_value(&Value)
-  pair, so `#[preload(..., typed)]` + `TypedFunction<AsyncHttpRequest, O>` flows through
-  the ordinary TypedAdapter (`body_as::<I>`) — the knowledge lives on the type (Java, by
-  contrast, special-cases AsyncHttpRequest.class in WorkerHandler.getMapBody). Template
-  rule for Python/Node ports recorded in the impl comment: request classes constructible
-  from the request map make typed signatures just work. Server-dataset diff closed:
-  from_value/struct gained ip, https, timeout (route seconds; caller x-ttl wins in
-  timeout_seconds()), raw query string — to_value emits what from_value parses
-  (round-trip pinned). Accessor audit to Java parity: path_parameter(s),
-  query_parameter/query_parameters (single/list), cookie(s), session_info, remote_ip,
-  is_secure, query_string, body_as::<T>. hello-world GreetingApi rewritten typed
-  (path_parameter replaces Value digging; behavior identical — its e2e passed unchanged).
-  Regressions: unit round-trip incl. serde-delegate equivalence + e2e typed probe over
-  the real automation server (method/path/query single+list/header/typed body/ip/
-  timeout) + client side unchanged (set_raw_body path green). Docs:
-  write-your-first-function + getting-started + rest-automation show the typed form as
-  canonical (Java SimpleDemoEndpoint pattern), macros-reference typed flag mentions
-  AsyncHttpRequest, CHANGELOG Added #7 (also merged the accidental duplicate
-  `## Unreleased` sections from the P1/P2 rounds into one). **Eric's review round folded
-  in: (1) full fluent-builder symmetry (set_remote_ip/set_secure/set_query_string/
-  set_cookie/set_session_info/set_query_parameter_values +
-  set_route_timeout_seconds — named distinctly from set_timeout_seconds which stays the
-  Java x-ttl mapping; set_query_parameter gains Java put/replace semantics); (2) the
-  unit test fluent-built per Eric's verbatim requirement (no serde_json in setup;
-  division-of-labor comment: the unit round-trip = internal consistency, the e2e = THE
-  server-shape pin); (3) single source of truth: BOTH server dataset-assembly sites
-  (main dispatch + static-content filter) now construct through
-  AsyncHttpRequest::new()+fluent+to_value() — build_event takes the struct, the binary
-  body rides natively (substitution dance deleted), auth session via set_session_info;
-  struct went tri-state where the wire distinguishes set-vs-absent (body
-  Option<Value> for explicit null, https/trust_all_cert Option<bool>, parameters always
-  emitted) so to_value reproduces the server shape EXACTLY — the full suite passed with
-  ZERO test churn (272/272).** **Pretty-print parity folded in (Eric): every JSON response
-  the automation server writes renders PRETTY (serde_json to_string_pretty = Gson's
-  2-space shape) — one shared rule at both render sites (render_payload +
-  envelope_payload), covering function responses AND the /info//health//env actuators by
-  design (Java's actuators go through the same SimpleMapper default); the HTML <pre>
-  shell wraps the same pretty text; /api/event untouched (MsgPack Binary arm). Test churn:
-  NONE — no Rust test pinned compact JSON (the suite parses everywhere); two can't-regress
-  newline assertions added (typed e2e + /info).** **/info/routes actuator PORTED (Eric;
-  his manual typed+pretty test PASSED matching Java's shape): routes.actuator.service
-  (exact Java name) + the default rest.yaml entry (GET /info/routes, 10s); response =
-  {app, routing.public/private route→instances, BTreeMap-sorted for determinism} — Java's
-  optional journal/route_substitution/network blocks omit-when-empty and none of those
-  subsystems exist in the port; /info/lib stays deferred (no dependency manifest in a Rust
-  binary, Eric concurs). E2E: 200 + pretty + app block + noop.demo public/1 +
-  temporary.inbox private/500 + optional blocks absent. Addendum (Eric's review): the
-  inline DEFAULT_REST_YAML const relocated to a real resource file
-  crates/platform-core/resources/default-rest.yaml embedded via include_str! (the
-  default-log-context.yaml pattern — discoverable + byte-diffable vs the Java copy); the
-  const's stale "/info/routes deferred" doc line fixed. Zero churn from the relocation.**
-  **Ops-tunability round (Eric, the endpoint's first payoff): actuator family 1→5 workers
-  with ONE family knob worker.instances.actuator.services (SAME key as Java, whose
-  actuators are one aliased class keyed by actuator.services — unported route; resolver
-  actuator_instances() shared by lifecycle + tests); hello-world event.api.auth 10→30 +
-  worker.instances.event.api.auth (doc: real deployments verify bearer tokens against an
-  OAuth2 authority — I/O-bound, higher rule of thumb) and http.request.filter 2→20 +
-  worker.instances.http.request.filter. Rules of thumb by design — ops teams tune in
-  QA/Perf before production. Knob proven LIVE end-to-end: the actuator suite overrides
-  the family key to 7 and /info/routes reports 7 for the family. Docs: actuators tuning
-  note + configuration-reference family-key entry (demo keys skipped — the page documents
-  no example-app keys); CHANGELOG extended.** Gate: workspace 273 / clippy 0 / fmt.
-  Merged — CLOSED. Relates [[registration-metadata-contract]]
-  (capability matrix: inputPojoClass N/A because typed I subsumes it — this delivers the
-  HTTP-facing half of that story), [[port-bottom-up-faithful]].
-  <!-- id: thread-typed-async-http-request | created: 2026-07-26 | last_used: 2026-07-27 | uses: 2 | tier: archive-candidate | origin: 2026-07-26-233047.md -->
+  <!-- id: thread-graph-suspend-resume-p5 | created: 2026-07-29 | last_used: 2026-07-30 | uses: 11 | tier: archive-candidate | origin: 2026-07-29-235442.md -->
 
 ### Blueprint — gaps from Current State (three layers shipped + graduated) to the Vision  (serves: vision-mercury)
 > Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a
@@ -663,7 +538,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 - [ ] **(blueprint)** Continue **foundation → user interface** now that the three core
   layers stand — reframe into concrete UI-layer increments as they are picked up.
   → serves: vision-mercury
-  <!-- id: bp-foundation-to-ui | created: 2026-07-15 | last_used: 2026-07-15 | uses: 1 | tier: working | origin: 2026-07-15-215538.md -->
+  <!-- id: bp-foundation-to-ui | created: 2026-07-15 | last_used: 2026-08-14 | uses: 2 | tier: working | origin: 2026-07-15-215538.md -->
 - [ ] **(backlog) Port the lightweight cloud-native connectors + sync-over-async.** Maintainer
   scope refinement 2026-07-20 (stated while reviewing the docs site): `minimalist-kafka` and
   `twin-kafka` are **lightweight, cloud-native connectors** — distinct from the Kafka service
@@ -672,73 +547,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   bridge over async transports). This is also why HTTP config keys keep their `http.` prefix
   (connector counterparts arrive later). Vision non-goals + instructions + the public
   `docs/background/port-scope.md` all updated to the refined wording. → serves: vision-mercury
-  <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-07-28 | uses: 4 | tier: working | origin: 2026-07-20-030615.md -->
-
-- [x] **(backlog — DELIVERED 2026-07-28: increment 71 MERGED as PR
-  [#185](https://github.com/Accenture/mercury/pull/185), merge commit `6326da2e`, CI green
-  first try (build 25s / test 1m53s). CLOSED.) Port `ManagedCache` — ONE cache type
-  (Eric's ruling 2026-07-27: do NOT
-  port `SimpleCache`; "just adopt a proper self-expiring in-memory cache").** Java
-  platform-core ships `org.platformlambda.core.util.ManagedCache` — a named, self-managing
-  TTL+size-bounded cache utility (Caffeine: `expireAfterWrite`, `maximumSize`, default
-  2000 items, min TTL 1s; static registry createCache/getInstance/getCacheCollection).
-  NOT ported — Rust platform-core has no cache utility; current stand-ins are ad-hoc
-  (playground WS dedup = unbounded `Mutex<HashMap>` in `commands.rs::is_duplicate`;
-  fetcher provider cache = per-instance state in BOTH engines, so not affected). Any Java
-  `SimpleCache` site ported later (e.g. the actuator's per-dependency `health.info` 5s
-  **info-lookup** cache — Java never caches the /health result itself; a known Rust parity
-  gap) maps onto a `ManagedCache` instance (bounded + self-expiring is a
-  superset of SimpleCache's unbounded lazy-expiry; document the mapping once). Needed for:
-  the future connectors port ([[bp-kafka-connectors-backlog]] — minimalist-kafka's
-  schema-registry client is a heavy ManagedCache user) and Java-API-surface completeness.
-  Engine candidate per the ruling: a maintained self-expiring implementation (`moka`, the
-  Rust Caffeine analog) rather than hand-rolled expiry; the WS dedup cache adopts it and
-  gains bounded eviction. **GATE APPROVED 2026-07-27 (Eric: moka confirmed, ALL THREE
-  adopters, test constructor ok) + a 4th ruling at approval: DETERMINISTIC EVICTION —
-  moka `EvictionPolicy::lru()`, a documented divergence from Java Caffeine's W-TinyLFU
-  (verified genuinely non-deterministic: frequency admission + deliberate HashDoS jitter,
-  no policy switch; refactoring note handed to the Java session via
-  /tmp/managed-cache-eviction-determinism-handoff.md). Increment 71 IMPLEMENTED on branch
-  `feature/managed-cache` (commit `a2f89856`, NOT pushed): module + registry + lifecycle
-  housekeeper + all 3 adopters (WS dedup anchored-window fix; actuator `health.info`
-  info-lookup cache; ext-state-machine fixture restored to Java's singleton
-  instances=1 — the pre-commit adversarial review caught a CRITICAL lost-update race the
-  old global Mutex had masked, plus the elapsed_time whole-unit divergence [now an exact
-  Utility.elapsedTime port, also fixing /info uptime] and a doubled duplicate debug log;
-  12 confirmed findings, all fixed). Design doc marked APPROVED. Gate: workspace 287 /
-  clippy 0 / fmt; flow_runtime 5/5. MERGED — CLOSED. The connectors-era follow-on
-  (schema-registry adopting ManagedCache) rides [[bp-kafka-connectors-backlog]].
-  **Java handoff RESOLVED 2026-07-27: Eric ruled option 1 (accept + document), shipped as
-  Java PR #237 (squash `8a81950c`, CI green) — javadoc on both createCache overloads
-  (size-eviction approximate + non-deterministic under maxItems pressure; expiry exact;
-  never rely on which entry survives; explicit note that the Rust port deliberately
-  differs with strict LRU) + CHANGELOG. Copilot's "frequency aging" remediation ruled a
-  category error (caffeine-3.2.4's FrequencySketch already has reset()/RESET_MASK — aging
-  is built in; it fixes stale popularity, not reproducibility; the admit() jitter is
-  orthogonal). Parity boundary confirmed: eviction is internal state, NOT a presentation
-  surface — the asymmetry (Rust strictly more predictable) is documented, not closed.
-  Revisit trigger: first consumer that truly runs at capacity.**
-  → serves: vision-mercury
-  <!-- id: ot-managedcache-port | created: 2026-07-21 | last_used: 2026-07-28 | uses: 4 | tier: archive-candidate | origin: 2026-07-21-030938.md -->
-
-- [x] **(knowledge-harvest — CLOSED 2026-07-27 by Eric's ruling: per-layer harvest COMPLETE;
-  the connectors/sync-over-async harvest rides [[bp-kafka-connectors-backlog]].)
-  Harvest the canonical vision/specs from mercury-composable (Java).**
-  **Gate satisfied 2026-07-15** — the maintainer added `~/sandbox/mercury-composable` and
-  authorized reading it (read-only reference). **Harvested this session:** the north-star
-  vision (AKG-is-the-application / AI-assisted Semantic Application Development), the accurate
-  three-layer model, platform-core's architecture (functions/route-name/`EventEnvelope`/
-  `PostOffice`/`Platform`/in-memory bus, virtual-thread execution, lifecycle), the module map,
-  and the canonical version (4.8.6) — folded into vision/instructions/invariants above.
-  **Still to harvest** (as each layer is ported): platform-core internals (EventEmitter,
-  WorkerHandler, serializers), then event-script and knowledge-graph specs + their ADRs.
-  **Review note (2026-07-27):** the enumerated per-layer harvest is effectively complete —
-  all three in-scope layers are ported/milestone-closed and their specs folded into
-  vision/instructions/invariants/ADRs. Remaining forward scope is the connectors +
-  sync-over-async harvest (rides [[bp-kafka-connectors-backlog]]). **Human gate:** mark
-  this `[x]` (per-layer harvest done) or re-scope it to the connectors harvest — Eric's call.
-  → serves: vision-mercury
-  <!-- id: ot-harvest-mercury-composable | created: 2026-07-15 | last_used: 2026-07-27 | uses: 3 | tier: archive-candidate | origin: 2026-07-15-215538.md -->
+  <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-08-14 | uses: 5 | tier: working | origin: 2026-07-20-030615.md -->
 
 ## User Preferences
 

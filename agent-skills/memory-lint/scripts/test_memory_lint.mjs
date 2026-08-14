@@ -484,7 +484,7 @@ test("check_secret_material flags a credential assignment and never echoes the v
   }
 });
 
-test("check_secret_material: placeholders and number shapes are not flagged", () => {
+test("check_secret_material: placeholders are safe but nonempty defaults flag", () => {
   const root = secretSetup({
     "sessions/2026-08-06-120000.md": [
       "# Session",
@@ -504,7 +504,10 @@ test("check_secret_material: placeholders and number shapes are not flagged", ()
     ].join("\n") + "\n",
   });
   try {
-    assert.deepEqual(check_secret_material(root), []);
+    const w = check_secret_material(root);
+    assert.equal(w.length, 1);
+    assert.ok(w[0].includes("credential-assignment"));
+    assert.ok(w[0].includes("(1 hit(s)"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -627,6 +630,7 @@ test("check_secret_material: quoted assignments, Authorization, and embedded pla
       "Authorization: Bearer QwErTyUiOpAsDfGh",
       "client_secret=dummyButRealSecret123",
       "client_secret=$AbCdEfGhIjKlMnOp",
+      "client_secret=${CLIENT_SECRET:-RealSecret123}",
     ].join("\n") + "\n",
   });
   try {
@@ -634,7 +638,7 @@ test("check_secret_material: quoted assignments, Authorization, and embedded pla
     assert.equal(w.length, 2);
     const joined = w.join("\n");
     assert.ok(joined.includes("credential-assignment"));
-    assert.ok(joined.includes("(3 hit(s)"));
+    assert.ok(joined.includes("(4 hit(s)"));
     assert.ok(joined.includes("authorization-header"));
     assert.ok(!joined.includes("AbCdEfGhIjKlMnOp"));
     assert.ok(!joined.includes("QwErTyUiOpAsDfGh"));
