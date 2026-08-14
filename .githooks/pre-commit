@@ -109,9 +109,12 @@ fi
 if [ -n "$findings" ]; then
   echo "agent-memory pre-commit: possible secret/PII material in STAGED files:" >&2
   printf '%s\n' "$findings" >&2
-  echo "  -> fix it: redact or move the value out of the file; tag a deliberately-quoted example" >&2
-  echo "     line with lint:allow-secret-material (JSON/properties: list the file in" >&2
-  echo "     .agent/secret-scan-ignore); a credential that already reached a remote must be ROTATED." >&2
+  echo "" >&2
+  echo "  -> fix it: redact to (REDACTED) or move the value out of the file; tag a deliberately-" >&2
+  echo "     quoted example line with lint:allow-secret-material (JSON/properties: list the file" >&2
+  echo "     in .agent/secret-scan-ignore)." >&2
+  echo "     Committed files are shared — a credential that already reached a remote is EXPOSED:" >&2
+  echo "     rotate it; git history keeps the original (see the AGENTS.md redaction rule)." >&2
   mode="${AGENT_MEMORY_SECRET_GUARD:-$(git config --get agent-memory.secretguard 2>/dev/null || true)}"
   if [ "$mode" = "advisory" ]; then
     echo "  (AGENT_MEMORY_SECRET_GUARD=advisory — warn-only mode; commit proceeds)" >&2

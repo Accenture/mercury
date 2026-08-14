@@ -539,19 +539,20 @@ export function check_secret_material(root) {
 
   const out = [];
   for (const [path, rel] of files) {
-    out.push(...scan_lines(path, rel, false, MEMORY_TAIL));
+    out.push(...scan_lines(path, rel, false));
   }
   return out;
 }
 
-const MEMORY_TAIL =
-  "— memory/ is committed & shared: redact to (REDACTED); if a live credential, rotate it " +
-  "and treat git history as exposed (see the AGENTS.md redaction rule)";
-const CONFIG_TAIL =
-  "— committed config is shared: redact or move the value out of the file; if it is a live " +
-  "credential, rotate it and treat git history as exposed (see the AGENTS.md redaction rule)";
+// One consolidated guidance line accompanies [secret-material] findings — printed ONCE per
+// run by the consumer (report() for a full lint, the --scan-files CLI branch, the pre-commit
+// hook's footer), never repeated per finding (field feedback, 2026-08-14 regression test).
+const SECRET_GUIDANCE =
+  "  -> committed files are shared: redact to (REDACTED) or move the value out; a live " +
+  "credential is EXPOSED — rotate it (git history keeps the original; see the AGENTS.md " +
+  "redaction rule)";
 
-function scan_lines(path, rel, credential_only, tail) {
+function scan_lines(path, rel, credential_only) {
   // One file's [secret-material] scan. credential_only=true is the config-file profile:
   // token shapes, assignments, Authorization headers, private keys — NOT the PII classes
   // (email/SSN/card/phone/home-path), which are memory-layer checks: config files
@@ -601,7 +602,7 @@ function scan_lines(path, rel, credential_only, tail) {
   const out = [];
   for (const cat of [...found.keys()].sort(byCodePoint)) {
     const [line_no, count, detail] = found.get(cat);
-    out.push(`[secret-material] ${rel}:${line_no} ${cat}${detail} (${count} hit(s), first at line ${line_no}) ${tail}`);
+    out.push(`[secret-material] ${rel}:${line_no} ${cat}${detail} (${count} hit(s), first at line ${line_no})`);
   }
   return out;
 }
@@ -614,7 +615,7 @@ export function scan_secret_files(paths) {
   const out = [];
   for (const p of paths) {
     if (!existsSync(p) || !statSync(p).isFile()) continue;
-    out.push(...scan_lines(p, p.split(sep).join("/"), true, CONFIG_TAIL));
+    out.push(...scan_lines(p, p.split(sep).join("/"), true));
   }
   return out;
 }
@@ -625,6 +626,9 @@ function report({ cont, arch, sessions, acw, aw, warns, errors, strict }) {
       `${sessions.length} sessions; windows active=${acw} archive=${aw}`
   );
   for (const line of warns) console.log("WARN  " + line);
+  if (warns.some((w) => w.includes("[secret-material]"))) {
+    console.log(SECRET_GUIDANCE); // once per run, not per finding
+  }
   for (const line of errors) console.log("ERROR " + line);
   if (errors.length) {
     console.log(`FAIL: ${errors.length} error(s), ${warns.length} warning(s)`);
@@ -646,6 +650,7 @@ export function main(argv) {
     // Exit 1 when findings exist (the calling wrapper owns advisory-vs-block semantics).
     const findings = scan_secret_files(scan_files);
     for (const line of findings) console.log("WARN  " + line);
+    if (findings.length) console.log(SECRET_GUIDANCE); // once per run, not per finding
     return findings.length ? 1 : 0;
   }
   const root = find_root(root_arg || process.cwd());

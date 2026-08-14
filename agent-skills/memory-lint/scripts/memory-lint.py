@@ -517,17 +517,17 @@ def _luhn_ok(digits):
     return total % 10 == 0
 
 
-_MEMORY_TAIL = (
-    "— memory/ is committed & shared: redact to (REDACTED); if a live credential, rotate it "
-    "and treat git history as exposed (see the AGENTS.md redaction rule)"
-)
-_CONFIG_TAIL = (
-    "— committed config is shared: redact or move the value out of the file; if it is a live "
-    "credential, rotate it and treat git history as exposed (see the AGENTS.md redaction rule)"
+# One consolidated guidance line accompanies [secret-material] findings — printed ONCE per
+# run by the consumer (report() for a full lint, the --scan-files CLI branch, the pre-commit
+# hook's footer), never repeated per finding (field feedback, 2026-08-14 regression test).
+SECRET_GUIDANCE = (
+    "  -> committed files are shared: redact to (REDACTED) or move the value out; a live "
+    "credential is EXPOSED — rotate it (git history keeps the original; see the AGENTS.md "
+    "redaction rule)"
 )
 
 
-def _scan_lines(path, rel, credential_only, tail):
+def _scan_lines(path, rel, credential_only):
     """One file's [secret-material] scan. credential_only=True is the config-file profile:
     token shapes, assignments, Authorization headers, private keys — NOT the PII classes
     (email/SSN/card/phone/home-path), which are memory-layer checks: config files
@@ -581,7 +581,7 @@ def _scan_lines(path, rel, credential_only, tail):
     for cat in sorted(found):
         line_no, count, detail = found[cat]
         hits = f"{count} hit(s), first at line {line_no}"
-        out.append(f"[secret-material] {rel}:{line_no} {cat}{detail} ({hits}) {tail}")
+        out.append(f"[secret-material] {rel}:{line_no} {cat}{detail} ({hits})")
     return out
 
 
@@ -595,7 +595,7 @@ def check_secret_material(root):
     out = []
     for path in files:
         rel = os.path.relpath(path, root).replace(os.sep, "/")
-        out.extend(_scan_lines(path, rel, False, _MEMORY_TAIL))
+        out.extend(_scan_lines(path, rel, False))
     return out
 
 
@@ -608,7 +608,7 @@ def scan_secret_files(paths):
     for p in paths:
         if not os.path.isfile(p):
             continue
-        out.extend(_scan_lines(p, p.replace(os.sep, "/"), True, _CONFIG_TAIL))
+        out.extend(_scan_lines(p, p.replace(os.sep, "/"), True))
     return out
 
 
@@ -619,6 +619,8 @@ def report(cont, arch, sessions, acw, aw, warns, errors, strict):
     )
     for line in warns:
         print("WARN  " + line)
+    if any("[secret-material]" in w for w in warns):
+        print(SECRET_GUIDANCE)  # once per run, not per finding
     for line in errors:
         print("ERROR " + line)
     if errors:
@@ -639,6 +641,8 @@ def main():
         findings = scan_secret_files(scan_files)
         for line in findings:
             print("WARN  " + line)
+        if findings:
+            print(SECRET_GUIDANCE)  # once per run, not per finding
         return 1 if findings else 0
     root = find_root(root_arg or os.getcwd())
     if not root:
