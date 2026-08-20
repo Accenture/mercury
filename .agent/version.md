@@ -4,7 +4,7 @@
 > Mode B can detect drift and upgrade in place (see the tool's `UPGRADE.md`).
 > `version` gates the upgrade ladder — don't hand-edit it unless you mean to.
 
-- **version:**       4.34.1
+- **version:**       4.35.0
 - **enabled_with:**  4.29.1
-- **last_upgraded:** 2026-08-14
+- **last_upgraded:** 2026-08-20
 - **mode:**          A

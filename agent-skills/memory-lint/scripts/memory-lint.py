@@ -483,6 +483,17 @@ _HOME_OK = {"runner", "user", "username", "vsts_azpcontainer"}  # well-known CI 
 
 def _is_placeholder_value(key, v):
     """Values that are templates, redactions, or number/date/version shapes — not secrets."""
+    # The tool's own opt-down knob is knob vocabulary, not a credential: the pre-commit guard's
+    # blocking message itself prints "AGENT_MEMORY_SECRET_GUARD=advisory", so a memory file
+    # documenting that guidance would otherwise self-flag (field report, 2026-08-19).
+    # Value-constrained on purpose — an arbitrary value under this key still flags, so the
+    # exemption cannot be used as a smuggling envelope. Trailing ).,  punctuation is tolerated
+    # because prose/parenthesized guidance rides it into the captured value — the guard's own
+    # line ends "…=advisory)" (same capture behavior v4.33.2 fixed for backticks).
+    if key.upper() in ("AGENT_MEMORY_SECRET_GUARD", "AGENT-MEMORY.SECRETGUARD") and re.fullmatch(
+        r"(?:advisory|enforcing)[).,]*", v, re.IGNORECASE
+    ):
+        return True  # the git-config spelling (agent-memory.secretguard) is the same knob
     if TEMPLATE_VALUE_RE.fullmatch(v):
         return True
     m = _TEMPLATE_DEFAULT_RE.fullmatch(v)

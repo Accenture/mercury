@@ -489,6 +489,17 @@ const HOME_OK = new Set(["runner", "user", "username", "vsts_azpcontainer"]); //
 
 function is_placeholder_value(key, v) {
   // Values that are templates, redactions, or number/date/version shapes — not secrets.
+  // The tool's own opt-down knob is knob vocabulary, not a credential: the pre-commit guard's
+  // blocking message itself prints "AGENT_MEMORY_SECRET_GUARD=advisory", so a memory file
+  // documenting that guidance would otherwise self-flag (field report, 2026-08-19).
+  // Value-constrained on purpose — an arbitrary value under this key still flags, so the
+  // exemption cannot be used as a smuggling envelope. Trailing ).,  punctuation is tolerated
+  // because prose/parenthesized guidance rides it into the captured value — the guard's own
+  // line ends "…=advisory)" (same capture behavior v4.33.2 fixed for backticks).
+  if (["AGENT_MEMORY_SECRET_GUARD", "AGENT-MEMORY.SECRETGUARD"].includes(key.toUpperCase())
+      && /^(?:advisory|enforcing)[).,]*$/i.test(v)) {
+    return true; // the git-config spelling (agent-memory.secretguard) is the same knob
+  }
   if (TEMPLATE_VALUE_RE.test(v)) return true;
   const m = TEMPLATE_DEFAULT_RE.exec(v);
   if (m && (m[1].length < 8 || is_placeholder_value(key, m[1]))) {

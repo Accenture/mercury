@@ -614,6 +614,37 @@ class TestSecretMaterial(unittest.TestCase):
             self.assertIn("key 'client_secret'", w[0])
             self.assertIn("(3 hit(s)", w[0])
 
+    def test_self_knob_settings_are_not_credentials(self):
+        # Field FP (mercury-composable, 2026-08-19): the pre-commit guard's own blocking message
+        # prints "AGENT_MEMORY_SECRET_GUARD=advisory", so a session log documenting that guidance
+        # self-flagged (the key contains SECRET; "advisory" meets the value floor). The knob's
+        # documented settings are exempt — but ONLY those values: an arbitrary value under the
+        # same key must still flag (no smuggling envelope). Fixture lines quote the guard's
+        # guidance line and the field repro line VERBATIM (v4.33.2 lesson) — the guidance line's
+        # closing paren rides into the captured value, which the exemption must tolerate.
+        opaque = self._secret("AGENT_MEMORY_TEST_KNOB_OPAQUE")
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "sessions/2026-08-19-120000.md": "\n".join([
+                    "# Session",
+                    "  git commit --no-verify    (or opt down: AGENT_MEMORY_SECRET_GUARD=advisory)",
+                    "Opt down with AGENT_MEMORY_SECRET_GUARD=advisory if needed.",
+                    "The default is AGENT_MEMORY_SECRET_GUARD=enforcing.",
+                    "inline form: `AGENT_MEMORY_SECRET_GUARD=advisory`",
+                    "git-config spelling: `agent-memory.secretguard=advisory`",
+                ]) + "\n",
+            })
+            self.assertEqual(memory_lint.check_secret_material(root), [])
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "sessions/2026-08-19-130000.md":
+                    f"# Session\nAGENT_MEMORY_SECRET_GUARD={opaque}\n",
+            })
+            w = memory_lint.check_secret_material(root)
+            self.assertEqual(len(w), 1)
+            self.assertIn("key 'AGENT_MEMORY_SECRET_GUARD'", w[0])
+            self.assertNotIn(opaque, w[0])
+
     def test_archive_scanned_and_counts_aggregated(self):
         password = self._secret("AGENT_MEMORY_TEST_ARCHIVE_PASSWORD")
         api_key = self._secret("AGENT_MEMORY_TEST_ARCHIVE_API_KEY")
