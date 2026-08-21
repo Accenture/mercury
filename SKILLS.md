@@ -2,7 +2,7 @@
 
 > How skills work in an agent-memory repo: **author once in `agent-skills/`, run on any vendor.**
 > **Read this on demand** — only when authoring, syncing, adopting, or sanity-checking a skill.
-> It is deliberately **not** part of the per-session read (that's `AGENTS.md`). Like `DECAY.md`
+> It is deliberately **not** part of the per-session read (that's `memory/PROTOCOL.md`). Like `DECAY.md`
 > / `REVIEW.md`, it ships into every enabled repo so a target's own agent — any vendor — can
 > act on its own.
 >
@@ -18,7 +18,7 @@ A committed, vendor-neutral **`agent-skills/<name>/SKILL.md`**: frontmatter `nam
 under `agent-skills/<name>/scripts/`.
 
 The **runtime is the agent itself** — when a task matches a skill's `description`, it reads and
-follows that `SKILL.md`. That baseline lives in `AGENTS.md` and works on any vendor with no
+follows that `SKILL.md`. That baseline lives in `memory/PROTOCOL.md` and works on any vendor with no
 engine. `agent-skills/` is **committed** (it travels with the repo); per-vendor **adapters**
 are **thin, gitignored, regenerated pointers** for native auto-trigger — the neutral skill is
 always the source of truth.
@@ -87,7 +87,7 @@ drifts). For each `agent-skills/<name>/SKILL.md` (using its `name` + `descriptio
   ```
 - **Gemini CLI** → `.gemini/commands/<name>.toml` (a **slash command** — invoked explicitly as
   `/<name>`; Gemini does **not** auto-match commands against natural language, so a phrase like
-  "run <name>" routes through the `AGENTS.md` baseline instead — which reads the *same* neutral
+  "run <name>" routes through the `memory/PROTOCOL.md` baseline instead — which reads the *same* neutral
   skill, so the result is identical):
   ```
   description = "<description>"
@@ -147,7 +147,7 @@ request matches the `description` (Copilot CLI **also** accepts an explicit `/<n
 **Gemini** adapter is *slash-only* — it fires only on an explicit
 `/<name>`, never on a natural-language phrase. This is **not** drift or a missing adapter: every
 adapter is a thin pointer back to the **same** `agent-skills/<name>/SKILL.md`, and the
-`AGENTS.md` baseline runs that neutral skill on any vendor regardless. So "checks `agent-skills/`
+`memory/PROTOCOL.md` baseline runs that neutral skill on any vendor regardless. So "checks `agent-skills/`
 first" for a natural-language request on Gemini is *correct* — the baseline and the slash command
 land on the identical file. Don't expect Gemini to auto-trigger a command from prose.
 

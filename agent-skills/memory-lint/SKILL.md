@@ -21,7 +21,7 @@ script, so the riskiest operation is verified against observable evidence.
 
 - **After** running the memory **review** ritual (`REVIEW.md`) — verify its archival decisions.
 - **Before** committing `memory/` changes.
-- In **CI** or a **pre-commit hook** (the optional reinforcement `AGENTS.md` mentions) — a non-zero
+- In **CI** or a **pre-commit hook** (the reinforcement `memory/PROTOCOL.md` describes) — a non-zero
   exit fails the gate.
 
 ## What to do

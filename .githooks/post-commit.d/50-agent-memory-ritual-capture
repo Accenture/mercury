@@ -75,10 +75,10 @@ if [ -n "$work" ] && [ -z "$logged" ]; then
       printf 'Commit `%s` — %s\n\n' "$(git rev-parse --short HEAD)" "$(git log -1 --pretty=%s)"
       printf '```\n%s\n```\n\n' "$(git diff-tree --no-commit-id --stat -r HEAD 2>/dev/null)"
       printf '## Memory References\n'
-      printf '(none — auto-stub; enrich per AGENTS.md "After Every Session", or leave as a lite log)\n'
+      printf '(none — auto-stub; enrich per memory/PROTOCOL.md "Close every session", or leave as a lite log)\n'
     } > "$stub"
     echo "agent-memory: auto-stubbed a session log → $stub" >&2
-    echo "              enrich it (or keep it as a lite log) and commit it, per AGENTS.md." >&2
+    echo "              enrich it (or keep it as a lite log) and commit it, per memory/PROTOCOL.md." >&2
   fi
 fi
 exit 0

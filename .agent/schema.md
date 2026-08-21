@@ -5,6 +5,16 @@ or when an agent needs to understand expected structure.
 
 ---
 
+## memory/PROTOCOL.md
+
+Canonical session protocol. Root `AGENTS.md` is only a one-line universal discovery shim
+to this file. The protocol owns activation order, VBDI and skill routing, during-session
+memory discipline, tracked-diff logging tiers, continuity updates, review cadence, safety,
+and attribution. An enabled repository carries only this target-scoped contract;
+operator routing never belongs in its copy.
+
+---
+
 ## memory/instructions.md
 
 Stable project context and agent rules. Edit rarely.
@@ -301,7 +311,7 @@ agent-skills/
 ```
 
 `agent-skills/` is **committed** — it travels with the repo and reaches every contributor, on
-any vendor. The `AGENTS.md` "Skills" section is the **universal runtime**: when a task
+any vendor. The `memory/PROTOCOL.md` "Use skills correctly" section is the **universal runtime**: when a task
 matches a skill's `description`, the agent reads and follows that `SKILL.md` — no
 per-vendor engine needed (the agent is the runtime).
 
@@ -362,13 +372,13 @@ ladder — see the tool's `UPGRADE.md` (reached only via `ENABLE.md` Mode B).
 
 ## Bootstrap Files
 
-**Minimal, parallel pointers to `AGENTS.md`** — one per vendor. Each says only: a project
-one-liner, "read `AGENTS.md` first" (the hub — it carries the protocol *and* the read
-order), and "identify as `<vendor>`". They differ only by vendor name, comment syntax
-(`.md` vs the plain `.cursorrules` / `.windsurfrules`), and the `AGENTS.md` path
-(`.github/copilot-instructions.md` uses `../AGENTS.md`).
+**Minimal activation pointers to `memory/PROTOCOL.md`** — one per vendor. Root
+`AGENTS.md` is byte-identical across tool and target: exactly one Markdown line plus a
+terminal newline. Vendor files add a project one-liner and identity; import-capable
+Claude/Gemini bootstraps structurally import the shim, protocol, and core memory in that
+order. Cursor, Windsurf, and Copilot name the protocol directly.
 
 `CLAUDE.md` and `GEMINI.md` carry the inline `{{PROJECT_NAME}}` + `{{PROJECT_ONELINE}}`
 header (eager-load runtimes get immediate context); the dotfile rules stay plain. **The
-read order lives only in `AGENTS.md`** — a pointer never duplicates it, so a change to
-what agents read (e.g. adding `memory/vision.md`) touches one file, not ten.
+read order lives only in `memory/PROTOCOL.md`** — bootstraps activate but do not duplicate
+the lifecycle, so protocol changes have one canonical target home.

@@ -18,8 +18,9 @@ bash .githooks/init.sh
 ```
 
 It regenerates the vendor skill adapters **and** runs `git config core.hooksPath .githooks`. **The agent
-runs this itself on a first session** (see `AGENTS.md`), so an untrained user does nothing. To activate
-the dispatchers alone: `git config core.hooksPath .githooks` (undo: `git config --unset core.hooksPath`).
+runs this itself on a first session** (see `memory/PROTOCOL.md`), so an untrained user does nothing. To
+activate the dispatchers alone: `git config core.hooksPath .githooks` (undo:
+`git config --unset core.hooksPath`).
 **CI is the zero-config floor** — `.github/workflows/agent-memory.yml` on GitHub; `.gitlab-ci.yml` +
 `.gitlab/agent-memory-ci.yml` on GitLab (v4.31.0); `.azuredevops/agent-memory-ci.yml` on Azure
 DevOps (v4.32.0) — it runs server-side on every push and, on GitHub/GitLab, every pull/merge
@@ -75,7 +76,7 @@ The dispatcher contract itself is covered by `tests/test_githook_dispatchers.sh`
   with neither, it skips with a note. Why it exists: the ritual rule covers agents at write time
   and the CI floor covers pushes, but by push time the remote already has the secret and redaction
   is not un-leaking (rotation is) — this is the **one placement that prevents instead of detects**
-  (see the AGENTS.md redaction rule).
+  (see the `memory/PROTOCOL.md` redaction rule).
 
 - **`post-commit.d/50-agent-memory-ritual-capture`** — after a commit: re-syncs skill adapters if a
   skill changed; and if the commit did

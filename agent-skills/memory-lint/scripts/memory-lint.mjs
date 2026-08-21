@@ -419,7 +419,7 @@ export function check_continuity_health(cont, sessions, cont_text, cont_lines, r
 // Field incident (reported 2026-08-13, a client repo's DLP scanner): smoke-test output pasted into a
 // session log leaked a live OAuth client secret — session logs are committed & shared, so
 // anything pasted into them ships to every clone. This check is the deterministic backstop
-// behind the AGENTS.md redaction rule. Advisory (WARN): the script detects *shapes*; whether
+// behind the memory/PROTOCOL.md redaction rule. Advisory (WARN): the script detects *shapes*; whether
 // a hit is a real secret stays human/agent judgment. Unlike check 7 it DOES scan sessions/
 // and archive/ — that's where pasted output lives — and it never echoes the matched value
 // (a lint line quoting the secret would just amplify the leak into terminals and CI logs).
@@ -560,7 +560,7 @@ export function check_secret_material(root) {
 // hook's footer), never repeated per finding (field feedback, 2026-08-14 regression test).
 const SECRET_GUIDANCE =
   "  -> committed files are shared: redact to (REDACTED) or move the value out; a live " +
-  "credential is EXPOSED — rotate it (git history keeps the original; see the AGENTS.md " +
+  "credential is EXPOSED — rotate it (git history keeps the original; see the memory/PROTOCOL.md " +
   "redaction rule)";
 
 function scan_lines(path, rel, credential_only) {

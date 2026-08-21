@@ -45,7 +45,7 @@ jobs:
           work="$(printf '%s\n' "$changed" | grep -vE '^(memory/|\.agent/)' | grep -v '^$' || true)"
           logged="$(printf '%s\n' "$changed" | grep -E '^memory/sessions/.*\.md$' || true)"
           if [ -n "$work" ] && [ -z "$logged" ]; then
-            echo "::warning title=agent-memory ritual::changes touched tracked files but added no memory/sessions/ log — write or enrich a session log per AGENTS.md \"After Every Session\"."
+            echo "::warning title=agent-memory ritual::changes touched tracked files but added no memory/sessions/ log — write or enrich a session log per memory/PROTOCOL.md \"Close every session\"."
             [ "${AGENT_MEMORY_STRICT:-0}" = "1" ] && exit 1 || true
           else
             echo "ritual check: ok"
