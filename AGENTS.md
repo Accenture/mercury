@@ -201,28 +201,32 @@ expected (the decay math counts log files — `DECAY.md` §4).
 > The ledger stays continuous for anything that touched a *tracked* file; the review treats a lite log
 > as a normal reference-free session, so usage is unaffected.
 
-> **Reinforced, not just documented (v4.19.0).** This repo ships vendor-neutral triggers: a committed
-> **`.githooks/post-commit`** (auto-stubs a session log when a commit does real work without one;
-> activated via `git config core.hooksPath .githooks`), a committed **`.githooks/pre-commit`**
-> (v4.34.0 — the `[secret-material]` guard on *staged* memory files **and staged config files**
+> **Reinforced, not just documented (v4.19.0; composable dispatchers v4.36.0).** This repo ships
+> vendor-neutral triggers as committed `.githooks/pre-commit` + `.githooks/post-commit`
+> **dispatchers**. They run executable `.githooks/<hook>.d/*` fragments in deterministic filename
+> order, so other hook layers compose without replacing the entrypoints. The managed
+> `post-commit.d/50-agent-memory-ritual-capture` fragment auto-stubs a session log when a commit
+> does real work without one; the managed `pre-commit.d/50-agent-memory-secret-guard` fragment
+> (v4.34.0) provides the `[secret-material]` guard on *staged* memory files **and staged config files**
 > (`.json`/`.yml`/`.yaml`/`.properties`/`.toml`/`.ini`/`.env*` — credential-class checks;
 > JSON/properties waivers live in the committed `.agent/secret-scan-ignore`): **enforcing by
 > default** — findings block the commit (`AGENT_MEMORY_SECRET_GUARD=advisory` opts down to
 > warn-only; `git commit --no-verify` bypasses once); the one placement that *prevents* a
-> committed secret rather than detecting it after push) + a **CI floor**
+> committed secret rather than detecting it after push. The dispatchers are activated via
+> `git config core.hooksPath .githooks`; the trigger layer also includes a **CI floor**
 > (`.github/workflows/agent-memory.yml` on GitHub; `.gitlab-ci.yml` + `.gitlab/agent-memory-ci.yml`
 > on GitLab; `.azuredevops/agent-memory-ci.yml` on Azure DevOps — zero per-user setup on
 > GitHub/GitLab.com; a self-managed GitLab needs an admin-registered runner; an Azure DevOps
 > pipeline needs its one-time activation). Treat the session log as part of **done** —
 > *a task that changed tracked files isn't finished until its log exists.* The triggers are **advisory
 > by default** — the pre-commit secret guard alone *enforces* (a deliberate, scoped exception:
-> secrets carry irreversible after-the-fact cost) — and **no-code** (git/CI run them in your env; the tool runs nothing). See
-> **`.githooks/README.md`** for activation + per-vendor end-of-turn hook extras.
+> secrets carry irreversible after-the-fact cost) — and **no-code** (git/CI run them in your env;
+> the tool runs nothing). See **`.githooks/README.md`** for activation + per-vendor end-of-turn hook extras.
 >
 > **First session in a fresh clone? Self-initialize.** A clone has the gitignored skill adapters
-> **absent** and the hook **unactivated** (git can't auto-run committed hooks on clone). If you see
+> **absent** and the dispatchers **unactivated** (git can't auto-run committed hooks on clone). If you see
 > empty vendor adapter dirs or `git config core.hooksPath` is unset, run **`bash .githooks/init.sh`**
-> once (regenerates adapters + activates the post-commit hook) — do this proactively, before other
+> once (regenerates adapters + activates the hook dispatchers) — do this proactively, before other
 > work. (On GitHub / GitLab.com, CI runs server-side regardless; a self-managed GitLab needs an
 > admin-registered runner; an Azure DevOps pipeline runs once its one-time activation is done.)
 

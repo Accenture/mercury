@@ -1,15 +1,16 @@
-# `.githooks/` — vendor-neutral ritual triggers (agent-memory v4.19.0)
+# `.githooks/` — composable, vendor-neutral ritual triggers
 
-These are **committed, vendor-neutral git hooks** that reinforce the after-session ritual for *any*
-agent (Claude, Copilot, Kiro, …) — because everyone commits, regardless of which AI did the work. They
-are **advisory by default** — the pre-commit secret guard alone **enforces** (findings block the
+These are **committed, vendor-neutral git hook dispatchers and fragments** that reinforce the
+after-session ritual for *any* agent (Claude, Copilot, Kiro, …) — because everyone commits,
+regardless of which AI did the work. They are **advisory by default** — the pre-commit secret guard
+alone **enforces** (findings block the
 commit; a deliberate, scoped exception, because secrets carry irreversible after-the-fact cost) —
 and the **tool runs nothing itself**: git invokes them in your env at your
 opt-in (`no-build-step-agent-run`). See `docs/optional-ritual-hook.md` and `DECAY.md` for the rationale.
 
 ## First-run init (one command)
 
-A fresh clone has the gitignored skill **adapters absent** and the hook **unactivated** (git can't
+A fresh clone has the gitignored skill **adapters absent** and the dispatchers **unactivated** (git can't
 auto-run committed hooks on clone — security). Set both up with one idempotent command:
 
 ```sh
@@ -18,7 +19,7 @@ bash .githooks/init.sh
 
 It regenerates the vendor skill adapters **and** runs `git config core.hooksPath .githooks`. **The agent
 runs this itself on a first session** (see `AGENTS.md`), so an untrained user does nothing. To activate
-the hook alone: `git config core.hooksPath .githooks` (undo: `git config --unset core.hooksPath`).
+the dispatchers alone: `git config core.hooksPath .githooks` (undo: `git config --unset core.hooksPath`).
 **CI is the zero-config floor** — `.github/workflows/agent-memory.yml` on GitHub; `.gitlab-ci.yml` +
 `.gitlab/agent-memory-ci.yml` on GitLab (v4.31.0); `.azuredevops/agent-memory-ci.yml` on Azure
 DevOps (v4.32.0) — it runs server-side on every push and, on GitHub/GitLab, every pull/merge
@@ -26,9 +27,35 @@ request (Azure DevOps PR-time runs need the optional Build Validation policy), s
 enforced even on a clone where the local hook was never activated. (Honest limits: a self-managed GitLab instance needs an admin-registered runner;
 an Azure DevOps pipeline is inert until its one-time `az pipelines create` binding.)
 
-## Hooks
+## Dispatcher contract
 
-- **`pre-commit`** (v4.34.0) — the **`[secret-material]` guard**: before the commit exists, scans the
+The `pre-commit` and `post-commit` entrypoints are deliberately small dispatchers. Each runs the
+executable regular files in its matching directory — `.githooks/pre-commit.d/` or
+`.githooks/post-commit.d/` — in deterministic C-locale filename order. Hidden and non-executable
+files are ignored. Hook arguments are forwarded unchanged.
+
+Every fragment runs even when an earlier fragment fails, so independent hook layers all get a
+chance to report. The dispatcher returns the **first non-zero status** after the run. That blocks a
+pre-commit when any enforcing fragment fails; Git ignores post-commit status, while direct invocation
+and tests can still observe failures.
+
+Agent-memory's managed fragments use the `50-` slot:
+
+- `pre-commit.d/50-agent-memory-secret-guard`
+- `post-commit.d/50-agent-memory-ritual-capture`
+
+Add another executable fragment instead of replacing either hook entrypoint: use `00-`–`49-` to run
+before agent-memory or `51-`–`99-` to run after it. Upgrades refresh unchanged copies of the two
+dispatchers and managed `50-` fragments, preserve every differently named fragment, and human-gate
+any locally modified managed file instead of silently overwriting it. This gives other hook layers
+a stable composition seam and makes each behavior independently runnable in CI.
+
+The dispatcher contract itself is covered by `tests/test_githook_dispatchers.sh` in the tool repo.
+
+## Managed fragments
+
+- **`pre-commit.d/50-agent-memory-secret-guard`** (v4.34.0) — the **`[secret-material]` guard**:
+  before the commit exists, scans the
   **staged content** (the index, not the worktree — exactly what this commit would publish; a
   pre-existing finding elsewhere never gates an unrelated commit) of **two surfaces**:
   `memory/**.md` (the full profile — credentials + PII) and **config files** — `.json` / `.yml` /
@@ -50,7 +77,8 @@ an Azure DevOps pipeline is inert until its one-time `az pipelines create` bindi
   is not un-leaking (rotation is) — this is the **one placement that prevents instead of detects**
   (see the AGENTS.md redaction rule).
 
-- **`post-commit`** — after a commit: re-syncs skill adapters if a skill changed; and if the commit did
+- **`post-commit.d/50-agent-memory-ritual-capture`** — after a commit: re-syncs skill adapters if a
+  skill changed; and if the commit did
   real work but carried no session log, ensures the session is captured — **once per working session, not
   per commit.** If there is **no** session log within the active-session window (default **30 min**; override
   `AGENT_MEMORY_SESSION_WINDOW_MINUTES`) it **auto-stubs** `memory/sessions/<ts>.md`; if a recent log already
