@@ -11,6 +11,19 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Unreleased
+
+### Added
+
+1. **Event Script `f:setConfig` plugin — set or override a configuration parameter at
+   run-time (lock-step with the Java engine).** The new built-in simple plugin stores a
+   key-value pair in the process override registry (this port's analog of a Java system
+   property), which takes precedence over the base configuration on every subsequent read.
+   Typical use: a start-up flow hydrates secrets from a cloud secret manager before dependent
+   components consume them. The key must be a non-empty string; the value can be any object
+   and is converted to text. Invalid input returns false without side effect.
+
+---
 ## Version 4.11.9, 8/11/2026
 
 ### Changed

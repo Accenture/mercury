@@ -44,6 +44,7 @@ flows:
   - 'autostart.yml'
   - 'pluggableFunctions/arithmetic.yml'
   - 'pluggableFunctions/types.yml'
+  - 'pluggableFunctions/set-config.yml'
   - 'input-validation-1.yml'
   - 'input-validation-2.yml'
   - 'input-validation-3.yml'
