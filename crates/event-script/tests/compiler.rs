@@ -97,6 +97,7 @@ fn loaded_flow_set_matches_the_java_engine() {
         "response-test",
         "retry-subflow-test",
         "sequential-test",
+        "set-config-parameter",
         "simple-circuit-breaker",
         "slow-subflow",
         "string-util",

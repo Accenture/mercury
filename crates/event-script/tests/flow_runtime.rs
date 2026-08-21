@@ -1192,6 +1192,36 @@ async fn flows_run_end_to_end_like_java() {
         Some(Value::from("SGVsbG8="))
     );
 
+    // --- the setConfig plugin flow (canonical fixture, byte-identical to the
+    // Java engine's set-config.yml): task one sets config parameters through
+    // f:setConfig, task two reads the overrides back through map(key)
+    // constants — proving the override registry is visible to every
+    // configuration read at run-time
+    let reply = run_flow(
+        &platform,
+        "set-config-parameter",
+        http_dataset(None, &[]),
+        "biz-cid-40",
+    )
+    .await;
+    let body = json_body(&reply);
+    assert_eq!(body["updated"], true);
+    assert_eq!(body["value_from_config"], "from-config-plugin");
+    // a numeric model variable is converted to text (Java String.valueOf)
+    assert_eq!(body["numeric_value"], true);
+    assert_eq!(body["numeric_from_config"], "8088");
+    // invalid usages return false and set nothing
+    assert_eq!(body["one_argument"], false);
+    assert_eq!(body["empty_key"], false);
+    assert_eq!(
+        platform_core::util::overrides::get("unit.test.config.override"),
+        Some("from-config-plugin".to_string())
+    );
+    assert_eq!(
+        platform_core::util::overrides::get("unit.test.config.incomplete"),
+        None
+    );
+
     // --- E-8: string operators (canonical fixture; body {text: "Hello..."})
     let mut dataset = http_dataset(None, &[]);
     if let Value::Map(entries) = &mut dataset {

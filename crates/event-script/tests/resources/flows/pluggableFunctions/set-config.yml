@@ -1,0 +1,36 @@
+flow:
+  id: 'set-config-parameter'
+  description: 'Set or override configuration parameter plugin test'
+  ttl: 10s
+
+first.task: 'set.config.task'
+
+tasks:
+  - name: 'set.config.task'
+    input:
+      - 'f:setConfig(text(unit.test.config.override), text(from-config-plugin)) -> model.updated'
+      - 'int(8088) -> model.port'
+      - 'f:setConfig(text(unit.test.config.numeric), model.port) -> model.numeric_value'
+      - 'f:setConfig(text(unit.test.config.incomplete)) -> model.one_argument'
+      - 'f:setConfig(text(), text(no-key)) -> model.empty_key'
+    process: 'no.op'
+    description: 'Set config parameters and exercise invalid usages'
+    output: []
+    execution: sequential
+    next:
+      - 'read.config.task'
+
+  - name: 'read.config.task'
+    input:
+      - 'model.updated -> updated'
+      - 'model.numeric_value -> numeric_value'
+      - 'model.one_argument -> one_argument'
+      - 'model.empty_key -> empty_key'
+      - 'map(unit.test.config.override) -> value_from_config'
+      - 'map(unit.test.config.numeric) -> numeric_from_config'
+    process: 'no.op'
+    description: 'Read back the overridden parameters through app configuration'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    execution: end

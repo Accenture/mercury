@@ -1457,6 +1457,7 @@ For example:
 | **Type Conversion** | parseDate       | Parse a date string to ISO, Local or Milliseconds.                                                                    |
 | **Type Conversion** | parseDateTime   | Parse a date-time string to ISO, Local or Milliseconds.                                                               |
 | **Type Conversion** | validate        | Perform simple field validation. See details below.                                                                   |
+| **Configuration**   | setConfig       | A parameter name (non-empty string) and its value (any object, converted to text). Sets the value as a process override so that it takes precedence over the base configuration at run-time. Returns true when applied, false for invalid input. See details below. |
 
 !!! note "Rust port — `length` and `substring` count Unicode scalar values"
     String length and substring indexes address **whole characters** (Unicode scalar
@@ -1532,6 +1533,34 @@ throwing an validation error. For example,
 - f:validate(input.body.id, text(id; String; evaluate))
 
 Please note that the validation rule uses semicolon as separator because comma is used for tokenization.
+
+*Configuration override plugin*
+
+The 'setConfig' plugin sets or overrides a configuration parameter at run-time by saving it in the
+process override registry — this port's analog of a Java system property, also fed by `-Dkey=value`
+runtime arguments. Since an override takes precedence over the base application configuration, any
+subsequent configuration read — e.g. a `map(my.parameter)` constant in a data mapping statement or
+a `ConfigReader` lookup inside a composable function — will see the updated value.
+
+Syntax is "f:setConfig(key, value)". The key must be a non-empty string. The value can be any
+object — a text constant or a model variable — and it is converted to text because configuration
+parameter values are stored as strings.
+
+- f:setConfig(text(my.parameter), text(demo)) -> model.updated
+- f:setConfig(text(my.parameter), model.secret) -> model.updated
+
+It returns true when the parameter is set, or false when the key is missing or empty, or the
+value is null.
+
+The typical use case is secret hydration: a flow retrieves secrets from a cloud "secret manager"
+at start-up and sets them as configuration parameters for the rest of the application to consume.
+
+Please be careful about the application life cycle:
+
+1. The override applies to the whole application instance and stays effective until the
+   application restarts — not just for the calling flow instance.
+2. Components that have already consumed a parameter at start-up will not see the update.
+   Run the flow that sets the parameters before the dependent components read them.
 
 *JSON-Path helpers*
 

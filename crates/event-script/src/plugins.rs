@@ -48,7 +48,7 @@ use crate::plugins_e8::value_type_name;
 /// The number of built-in `#[simple_plugin]` declarations the engine itself
 /// ships (this module + `plugins_e8`) — the startup floor the
 /// `SimplePluginLoader` asserts against linker elision.
-pub const BUILTIN_PLUGIN_COUNT: usize = 46;
+pub const BUILTIN_PLUGIN_COUNT: usize = 47;
 
 /// A plugin body (Java `PluginFunction.calculate`): evaluated argument values
 /// in, one value out; a descriptive error is the Java
@@ -409,6 +409,29 @@ fn plugin_get_last(args: &[Value]) -> Result<Value, String> {
             None => Err("Input cannot be empty to get last item from list".to_string()),
         },
         _ => Err("Input must be a list to get last item".to_string()),
+    }
+}
+
+/// `f:setConfig(key, value)` — set or override a configuration parameter at
+/// run-time (Java `SetConfigParameter`). The value lands in the process
+/// override registry — this port's `System.setProperty` analog — which every
+/// `ConfigReader` lookup consults first, so later `map(key)` constants and
+/// configuration reads see the update. The key must be a non-empty string;
+/// the value may be any object and is converted to text (Java
+/// `String.valueOf`). Invalid input returns false without side effect.
+#[simple_plugin("setConfig")]
+fn plugin_set_config(args: &[Value]) -> Result<Value, String> {
+    match args {
+        [Value::String(key), value] if !value.is_nil() => {
+            let key = key.as_str().unwrap_or_default();
+            if key.trim().is_empty() {
+                Ok(Value::Boolean(false))
+            } else {
+                platform_core::util::overrides::set(key, &get_text_value(value));
+                Ok(Value::Boolean(true))
+            }
+        }
+        _ => Ok(Value::Boolean(false)),
     }
 }
 #[cfg(test)]
@@ -907,5 +930,108 @@ mod tests {
             ),
             Err("Substring indexes are out of bounds: [0, 4]".to_string())
         );
+    }
+
+    /// Twin of the Java `SetConfigParameterTest`: two valid arguments set the
+    /// process override (the `System.setProperty` analog) and return true; a
+    /// non-string value is converted to text; invalid input returns false
+    /// without side effect.
+    #[test]
+    fn set_config_plugin_sets_override_and_validates_input() {
+        use platform_core::util::overrides;
+        assert!(contains_simple_plugin("setConfig"));
+        // happy path: the override is visible to every ConfigReader lookup
+        assert_eq!(
+            calculate(
+                "setConfig",
+                &[
+                    Value::from("set.config.plugin.direct"),
+                    Value::from("hello")
+                ]
+            ),
+            Ok(Value::Boolean(true))
+        );
+        assert_eq!(
+            overrides::get("set.config.plugin.direct"),
+            Some("hello".to_string())
+        );
+        // setting the same parameter again overrides the previous value
+        assert_eq!(
+            calculate(
+                "setConfig",
+                &[
+                    Value::from("set.config.plugin.direct"),
+                    Value::from("world")
+                ]
+            ),
+            Ok(Value::Boolean(true))
+        );
+        assert_eq!(
+            overrides::get("set.config.plugin.direct"),
+            Some("world".to_string())
+        );
+        // a non-string value is converted to text (Java String.valueOf)
+        assert_eq!(
+            calculate(
+                "setConfig",
+                &[Value::from("set.config.plugin.number"), Value::from(8088)]
+            ),
+            Ok(Value::Boolean(true))
+        );
+        assert_eq!(
+            overrides::get("set.config.plugin.number"),
+            Some("8088".to_string())
+        );
+        assert_eq!(
+            calculate(
+                "setConfig",
+                &[Value::from("set.config.plugin.flag"), Value::Boolean(true)]
+            ),
+            Ok(Value::Boolean(true))
+        );
+        assert_eq!(
+            overrides::get("set.config.plugin.flag"),
+            Some("true".to_string())
+        );
+        // invalid input returns false without side effect
+        assert_eq!(calculate("setConfig", &[]), Ok(Value::Boolean(false)));
+        assert_eq!(
+            calculate("setConfig", &[Value::from("key.only")]),
+            Ok(Value::Boolean(false))
+        );
+        assert_eq!(
+            calculate(
+                "setConfig",
+                &[Value::from("too"), Value::from("many"), Value::from("args")]
+            ),
+            Ok(Value::Boolean(false))
+        );
+        assert_eq!(
+            calculate(
+                "setConfig",
+                &[Value::from(100), Value::from("non-string-key")]
+            ),
+            Ok(Value::Boolean(false))
+        );
+        assert_eq!(
+            calculate("setConfig", &[Value::from(""), Value::from("empty-key")]),
+            Ok(Value::Boolean(false))
+        );
+        assert_eq!(
+            calculate("setConfig", &[Value::from("   "), Value::from("blank-key")]),
+            Ok(Value::Boolean(false))
+        );
+        assert_eq!(
+            calculate(
+                "setConfig",
+                &[Value::from("set.config.plugin.null.value"), Value::Nil]
+            ),
+            Ok(Value::Boolean(false))
+        );
+        assert_eq!(overrides::get("set.config.plugin.null.value"), None);
+        // test hygiene: leave no overrides behind
+        overrides::clear("set.config.plugin.direct");
+        overrides::clear("set.config.plugin.number");
+        overrides::clear("set.config.plugin.flag");
     }
 }

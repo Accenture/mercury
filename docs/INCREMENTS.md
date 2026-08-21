@@ -2561,3 +2561,18 @@ outstanding failure. Pinned by the byte-identical `unit-test-error-recovery` fix
 mapper reads the resolved context) in the executor lane and a tutorial-12 companion
 dry-run in the traveler lane. Docs: failure routing in the command reference, inspect and
 tutorial-12 and fetcher help, the AI catalog; webapp bundle regenerated.
+
+## Increment 87 — the setConfig plugin: run-time configuration override (2026-08-21)
+
+Lock-step mirror of the Java engine's new built-in simple plugin (`f:setConfig`), same
+day as the Java half. Two arguments — a non-empty string key and a value of any type,
+converted to text — land in the process override registry (`overrides::set`, this port's
+`System.setProperty` analog), which every `ConfigReader` lookup consults first, so later
+`map(key)` constants and configuration reads see the update; invalid input returns false
+without side effect. The typical use case is secret hydration: a start-up flow retrieves
+secrets from a cloud secret manager and sets them as configuration parameters before
+dependent components consume them. `BUILTIN_PLUGIN_COUNT` 46 → 47. Pinned by a
+`plugins.rs` unit twin of the Java `SetConfigParameterTest` and the byte-identical
+`set-config.yml` flow fixture (set in task one, read back through `map(key)` in task
+two) in the runtime suite. Docs: syntax.md catalog row + configuration override detail
+section; CHANGELOG Unreleased.
