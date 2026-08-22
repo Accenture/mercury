@@ -129,7 +129,10 @@ recomputed by the review from session-log `## Memory References` (see `DECAY.md`
 
 `## Architectural Invariants` facts and unchecked Open Threads (`- [ ]`) never decay.
 Completed threads (`- [x]`) stay in place until the review sweeps them (see below /
-`REVIEW.md`) — don't archive them by hand.
+`REVIEW.md`) — don't archive them by hand. A completed thread's record is a **3–6-line
+close stub** — outcome, PR/commit/release refs, one durable lesson, `origin:` pointer —
+never a full ship narrative: that belongs in the origin session log, and reviews condense
+oversized records (`[closed-thread-bloat]`, v4.38.0).
 
 When a fact becomes **false** (a decision reversed, a dependency dropped), don't just
 delete it: set its footer to `tier: superseded` + `superseded-by: <new-id>` (omit the

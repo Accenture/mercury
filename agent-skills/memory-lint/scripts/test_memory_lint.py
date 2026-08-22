@@ -339,6 +339,40 @@ class TestContinuityHealth(unittest.TestCase):
         self.assertIn("Condense shipped decisions", w[0])
         self.assertNotIn("a review is due to lean it down", w[0])
 
+    def test_closed_thread_bloat_counts_only_closed_blocks(self):
+        # (11) counting rule: non-empty lines inside `- [x]` blocks (checkbox through
+        # footer), a block ending at the next open thread or heading. Open threads and
+        # headings never count (the bloat class is completed ship narratives —
+        # mercury-composable field report, 64% of continuity).
+        cont_text = (
+            "## Open Threads\n\n"
+            "- [x] **Shipped X.** line two of the record\n"
+            "  more narrative\n"
+            "  <!-- id: shipped-x | created: 2026-01-01 | last_used: 2026-01-01 "
+            "| uses: 1 | tier: active -->\n"
+            "\n"
+            "- [ ] **Open thing.** must not count\n"
+            "  narrative of the open thread\n"
+        )
+        self.assertEqual(memory_lint.closed_narrative_lines(cont_text), 3)
+        self.assertEqual(memory_lint.check_closed_thread_bloat(cont_text, 150), [])
+        w = memory_lint.check_closed_thread_bloat(cont_text, 2)
+        self.assertEqual(len(w), 1)
+        self.assertIn("[closed-thread-bloat] 3 line(s)", w[0])
+        self.assertIn("condense them to 3-6-line stubs", w[0])
+        self.assertIn("origin session log", w[0])
+
+    def test_closed_narrative_knob_default_and_parse(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.assertEqual(
+                memory_lint.load_windows(root)["closed_narrative_max_lines"], 150)
+            os.makedirs(os.path.join(root, "memory"), exist_ok=True)
+            with open(os.path.join(root, "memory", "decay-policy.md"), "w",
+                      encoding="utf-8") as f:
+                f.write("- closed_narrative_max_lines: 99\n")
+            self.assertEqual(
+                memory_lint.load_windows(root)["closed_narrative_max_lines"], 99)
+
     def test_healthy_ok(self):
         cont_text = "- **last_review:** 2026-06-27 | through 2026-06-27-120000\n"
         sessions = ["2026-06-27-120000.md"]

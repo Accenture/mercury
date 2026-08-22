@@ -23,6 +23,10 @@
                              #    nothing archivable. When lines exceed this but nothing has faded/superseded,
                              #    memory-lint says so (condense shipped decisions, or raise this) rather than
                              #    prescribing a review that can't help (v4.28.3).
+- closed_narrative_max_lines: 150  # ...or when completed [x] threads carry more narrative than this while
+                             #    waiting out archive_window. Close records are 3–6-line stubs; the full
+                             #    story lives in the origin session log (v4.38.0 — on a hot repo, closed
+                             #    ship narratives were 64% of continuity). Reviews condense them (REVIEW.md).
 
 ## Invariant verification
 - verify_invariants_every: 40  # sessions between human re-checks of core / Architectural Invariants —

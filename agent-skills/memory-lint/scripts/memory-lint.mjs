@@ -123,6 +123,7 @@ export function load_windows(root) {
     review_every: 10,
     continuity_max_facts: 30,
     continuity_max_lines: 600,
+    closed_narrative_max_lines: 150,
   };
   const p = join(root, "memory", "decay-policy.md");
   if (existsSync(p)) {
@@ -415,6 +416,34 @@ export function check_continuity_health(cont, sessions, cont_text, cont_lines, r
   return out;
 }
 
+export function closed_narrative_lines(cont_text) {
+  // Non-empty lines belonging to completed `- [x]` thread records (checkbox line
+  // through footer), the block ending at the next open thread or heading. This is
+  // the measured bloat class (mercury-composable field report, 2026-08-21: 64% of
+  // continuity was closed-thread narrative whose canonical home is the origin log).
+  let in_block = false;
+  let count = 0;
+  for (const line of cont_text.split(/\r?\n/)) {
+    if (/^- \[x\]/.test(line)) in_block = true;
+    else if (/^- \[ \]/.test(line) || line.startsWith("#")) in_block = false;
+    if (in_block && line.trim()) count += 1;
+  }
+  return count;
+}
+
+export function check_closed_thread_bloat(cont_text, cap) {
+  // (11) advisory: completed threads should wait out archive_window as terse
+  // stubs (3–6 lines), not full ship narratives — REVIEW.md condenses them.
+  const n = closed_narrative_lines(cont_text);
+  if (n <= cap) return [];
+  return [
+    `[closed-thread-bloat] ${n} line(s) of completed [x] thread records > ` +
+      `closed_narrative_max_lines ${cap} — condense them to 3-6-line stubs at the next ` +
+      `review (REVIEW.md; the full narrative lives in each thread's origin session log), ` +
+      `or raise closed_narrative_max_lines in decay-policy.md.`,
+  ];
+}
+
 // (10) [secret-material] — committed memory surfaces must not carry credentials or PII.
 // Field incident (reported 2026-08-13, a client repo's DLP scanner): smoke-test output pasted into a
 // session log leaked a live OAuth client secret — session logs are committed & shared, so
@@ -700,6 +729,7 @@ export function main(argv) {
       cont, sessions, cont_text, cont_lines,
       w.review_every, w.continuity_max_facts, w.continuity_max_lines, pinned, archivable
     ),
+    ...check_closed_thread_bloat(cont_text, w.closed_narrative_max_lines),
     ...check_stale_metadata(cont, pinned, refs, stems, w.working_window, acw, aw),
     ...check_secret_material(root),
   ];

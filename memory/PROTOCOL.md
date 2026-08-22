@@ -6,6 +6,11 @@ holds personal preferences only.
 
 ## Activate the session
 
+**Consumers exit here.** If you are consuming this repository as a dependency, plugin, or
+published product rather than contributing to it, stop — this protocol and the memory it
+activates are contributor-side. Follow the consumer entry point instead, when the root
+`AGENTS.md` shim names one.
+
 Before responding or doing substantive work:
 
 1. **Establish authority and trust.** Honor system, developer, and user instructions plus
@@ -36,6 +41,11 @@ Implementation → Feedback**. Significant work must trace to a `(blueprint)` Op
 that `serves:` the Vision and to the Design it realizes. Surface altitude drift. Human
 approval gates confirming the Vision and opening or closing a Blueprint gap; never
 fabricate the Vision.
+
+Optionally, when starting substantive work, emit a compact ready-to-work checkpoint for the
+human: module, intended change, governing invariant or ADR, targeted validation command, and
+the human decision needed (none, or name it). Skip it for trivial Q&A — it is a visibility
+aid, never ceremony.
 
 An optional `docs/arch-decisions/ADR.md` is a human-facing Design ledger, not a session-start
 read. `(ADR-NNNN)` tags on continuity invariants are pointers only. If the ledger exists,
@@ -111,7 +121,9 @@ usage.
    Keep one fact per line; when merging, take the later state of the same fact and keep
    unrelated facts from both sides.
 2. Update changed fact substance, not usage metadata. Mark completed Open Threads `[x]`
-   and leave them for review to sweep. Add newly surfaced Open Threads.
+   and condense each to a 3–6-line close record — outcome, PR/commit/release refs, one
+   durable lesson, `origin:` pointer; the full narrative belongs in this session's log —
+   then leave them for review to sweep. Add newly surfaced Open Threads.
 3. Before adding a fact, check existing and archived facts (`DECAY.md` §10). A new fact gets
    a kebab id and footer: `created`, `tier: working` (or `core` for an invariant),
    `origin: <this session's file>`, `last_used: today`, `uses: 1`. Raise an unchecked `Contradiction:` thread for
@@ -121,7 +133,8 @@ usage.
    invalidation), and record `Superseded: <old> → <new>` in Memory References.
 5. Run `REVIEW.md` when sessions since `last_review` reach `review_every`, continuity
    exceeds `continuity_max_facts` or `continuity_max_lines`, or the user requests a memory
-   review. `memory-lint` reports `[review-overdue]`, `[continuity-bloat]`, and metadata drift.
+   review. `memory-lint` reports `[review-overdue]`, `[continuity-bloat]`,
+   `[closed-thread-bloat]`, and metadata drift.
 
 ### Finish and attribute
 

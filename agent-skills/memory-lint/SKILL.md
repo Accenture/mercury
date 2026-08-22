@@ -66,6 +66,11 @@ script, so the riskiest operation is verified against observable evidence.
    - *advisory* — **`[continuity-bloat]`**: more than `continuity_max_facts` decaying facts/threads
      (the primary lean signal — a count, immune to verbosity & session velocity), or more than
      `continuity_max_lines` lines (a coarse backstop). Both say "a review is due to lean it down."
+   - *advisory* — **`[closed-thread-bloat]`** (v4.38.0): more than `closed_narrative_max_lines`
+     (default 150) non-empty lines inside completed `- [x]` thread blocks — close records should
+     wait out `archive_window` as 3–6-line stubs, not ship narratives (the full story lives in each
+     thread's origin session log; a review condenses them per `REVIEW.md` step 5). Measured field
+     cost: 64% of a hot repo's continuity was closed-thread narrative.
    - *advisory* — **`[stale-metadata]`**: a fact's stored `tier` disagrees with the tier recomputed from
      the reference log (review steps 2–3 — apply events / re-tier — were skipped), excluding `core`,
      `superseded`, never-referenced facts, and **pinned `- [ ]` open threads** (their tier label isn't

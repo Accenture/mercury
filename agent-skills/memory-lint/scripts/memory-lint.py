@@ -115,6 +115,7 @@ def load_windows(root):
         "review_every": 10,
         "continuity_max_facts": 30,
         "continuity_max_lines": 600,
+        "closed_narrative_max_lines": 150,
     }
     p = os.path.join(root, "memory", "decay-policy.md")
     if os.path.isfile(p):
@@ -397,6 +398,36 @@ def check_continuity_health(cont, sessions, cont_text, cont_lines, re_every, max
                 f"{max_lines} — a review is due to lean it down"
             )
     return out
+
+
+def closed_narrative_lines(cont_text):
+    # Non-empty lines belonging to completed `- [x]` thread records (checkbox line
+    # through footer), the block ending at the next open thread or heading. This is
+    # the measured bloat class (mercury-composable field report, 2026-08-21: 64% of
+    # continuity was closed-thread narrative whose canonical home is the origin log).
+    in_block, count = False, 0
+    for line in cont_text.splitlines():
+        if re.match(r"- \[x\]", line):
+            in_block = True
+        elif re.match(r"- \[ \]", line) or line.startswith("#"):
+            in_block = False
+        if in_block and line.strip():
+            count += 1
+    return count
+
+
+def check_closed_thread_bloat(cont_text, cap):
+    # (11) advisory: completed threads should wait out archive_window as terse
+    # stubs (3–6 lines), not full ship narratives — REVIEW.md condenses them.
+    n = closed_narrative_lines(cont_text)
+    if n <= cap:
+        return []
+    return [
+        f"[closed-thread-bloat] {n} line(s) of completed [x] thread records > "
+        f"closed_narrative_max_lines {cap} — condense them to 3-6-line stubs at the next "
+        f"review (REVIEW.md; the full narrative lives in each thread's origin session log), "
+        f"or raise closed_narrative_max_lines in decay-policy.md."
+    ]
 
 
 # (10) [secret-material] — committed memory surfaces must not carry credentials or PII.
@@ -688,6 +719,7 @@ def main():
             w["review_every"], w["continuity_max_facts"], w["continuity_max_lines"],
             pinned, archivable,
         )
+        + check_closed_thread_bloat(cont_text, w["closed_narrative_max_lines"])
         + check_stale_metadata(cont, pinned, refs, stems, w["working_window"], acw, aw)
         + check_secret_material(root)
     )

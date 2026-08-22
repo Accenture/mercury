@@ -81,7 +81,13 @@ it never fires more often than reviews do.
    false, not merely stale — and carry their `superseded-by` link into the archive.
 5. **Sweep completed threads.** `- [x]` Open Threads whose completion is older than
    `archive_window` sessions move to the archive the same way (usually the biggest
-   lean-up). Keep recently-completed threads for context.
+   lean-up). Keep recently-completed threads for context — **but condense them to
+   stubs** (v4.38.0): while a completed thread waits out `archive_window`, its record
+   is 3–6 lines — outcome, PR/commit/release refs, one durable lesson, and its
+   `origin:` pointer. Trim prose only; never edit the id or footer metadata. Nothing
+   is lost — the full narrative lives in the thread's origin session log (immutable),
+   and `[closed-thread-bloat]` is the advisory that measures this. A condensed thread
+   later archives as its stub; retrieval follows `origin:` to the full record.
 6. **Verify archival (required — guards against a miscounted `sessions_since_last_used`).**
    Archival is the costliest error, and "sessions since last used" is the easiest count to get wrong.
    A *"use"* is an id under a session's `## Memory References` (§2 / `DECAY.md` §2) — **not** a passing
