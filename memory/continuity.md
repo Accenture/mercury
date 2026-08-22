@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.4** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-14 | agent: Claude Code (2026-08-14-164331)
+- **last_session:** 2026-08-21 | agent: Claude Code (2026-08-21-234417)
 - **last_review:** 2026-08-14 | through 2026-08-14-005444.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five confirmed against live code; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -139,6 +139,23 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
+
+- [x] (feature — lock-step with the Java engine, implemented and **MERGED 2026-08-21 as
+  mercury PR #208, merge `9a7b3a47` carrying `338fc895` (tree verified identical), CI green
+  (test 2m20s + recheck), branches deleted both ends; the Java half merged the same day as
+  [PR #289](https://github.com/Accenture/mercury-composable/pull/289) squash `b5aeaf56`,
+  tree verified. Both ride the next release via CHANGELOG Unreleased.**) **Event Script
+  `f:setConfig` simple plugin — set/override a config parameter at run-time via the process
+  override registry (`overrides::set`, the System.setProperty analog).** Key = non-empty
+  string; value = any object → `get_text_value` (Java String.valueOf); invalid input →
+  false without side effect. BUILTIN_PLUGIN_COUNT 46→47; the loaded-flow-set parity pin
+  gained `set-config-parameter`; flow fixture BYTE-IDENTICAL to Java's set-config.yml
+  (set in task one, `map(key)` read-back in task two, runtime-asserted); unit twin of
+  SetConfigParameterTest. Docs: syntax.md catalog row + configuration override detail
+  (Rust wording: override registry / -D args); CHANGELOG Unreleased; INCREMENTS 87.
+  Gate: 58 suites / 306 tests, clippy 0, fmt clean. Java half: mercury-composable branch
+  `feature/config-plugin` (same day; Eric's plugin, reviewed + ruled there).
+  <!-- id: thread-set-config-plugin | created: 2026-08-21 | last_used: 2026-08-21 | uses: 1 | tier: working | origin: 2026-08-21-234417 -->
 
 - [x] (release — SHIPPED AND PUBLISHED 2026-08-10 local / 2026-08-11 UTC, **both repos in
   lock-step at v4.11.8**) **v4.11.8 — the dry-run suspend/resume regression-fix release.** Rust: release
