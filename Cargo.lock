@@ -12,6 +12,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ai-contract-provider"
+version = "4.11.9"
+dependencies = [
+ "async-trait",
+ "event-script",
+ "knowledge-graph",
+ "log",
+ "platform-core",
+ "rmpv",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "tokio",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

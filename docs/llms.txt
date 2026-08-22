@@ -12,6 +12,13 @@
 > to the repo root. It is the Rust port's own reference — where behavior differs from the Java
 > upstream, these docs are authoritative for this repo.
 
+## Version-matched discovery — the installed operational contract
+- The `ai-contract-provider` app (under `examples/`) serves this documentation set as a
+  version-matched contract: `cargo run -p ai-contract-provider` then `GET :8999/api/discovery`
+  (contracts, behavior anchors, references, per-file SHA-256 manifest), or
+  `cargo run -p ai-contract-provider -- --export <dir>` for the offline `mercury-platform`
+  Agent Skill. Consumer starting point: `system/AGENTS.md` at the repo root.
+
 ## Operating the Active Knowledge Graph (MiniGraph) Playground — start here if you are an AI agent
 These are self-contained; you should not need the engine source or the tutorial walkthroughs:
 

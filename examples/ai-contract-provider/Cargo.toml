@@ -1,0 +1,24 @@
+[package]
+name = "ai-contract-provider"
+description = "Mercury AI contract provider — version-matched operational contract for AI discovery"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+platform-core = { path = "../../crates/platform-core" }
+event-script = { path = "../../crates/event-script" }
+async-trait = "0.1"
+serde_json = "1"
+serde_yaml = "0.9"
+sha2 = "0.10"
+log = "0.4"
+
+[dev-dependencies]
+# anchor verification only: contract behavior anchors are resolved at compile
+# time by tests (the Java Class.forName analog) - a runtime dependency on the
+# knowledge-graph crate would preload the playground into this app
+knowledge-graph = { path = "../../crates/knowledge-graph" }
+rmpv = { version = "1", features = ["with-serde"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util"] }

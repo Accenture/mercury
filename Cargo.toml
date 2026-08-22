@@ -11,6 +11,7 @@ members = [
     "benchmark/benchmark-reporter",
     "examples/hello-world",
     "examples/hello-flow",
+    "examples/ai-contract-provider",
     "examples/minigraph-playground",
 ]
 

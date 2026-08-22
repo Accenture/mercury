@@ -1,0 +1,57 @@
+#
+# Mercury operational contract catalog (Rust port).
+#
+# Each contract names the behavior anchors that implement it. The anchors are
+# fully-qualified Rust paths, verified at COMPILE TIME by the anchor test (the
+# Java Class.forName analog; knowledge-graph paths resolve through a dev-only
+# dependency), so a renamed or removed behavior item fails the workspace build -
+# the catalog cannot drift from the code it describes.
+#
+# Contract ids are identical to the Java engine's - the consumer-facing
+# vocabulary is engine-portable even though the anchors and references are not.
+#
+# Every reference must be a member of the packaged skill inventory (files.list),
+# also asserted by tests.
+#
+contracts:
+  - id: 'platform-core'
+    module: 'platform-core'
+    summary: 'Composable functions, EventEnvelope messages, and PostOffice routing'
+    anchors:
+      - 'platform_core::AutoStart'
+      - 'platform_core::PostOffice'
+      - 'platform_core::EventEnvelope'
+    references:
+      - 'references/guides/getting-started.md'
+      - 'references/guides/event-driven/ai-agent-guide.md'
+
+  - id: 'rest-automation'
+    module: 'platform-core'
+    summary: 'REST automation routes, flow bindings, relays, headers, and CORS'
+    anchors:
+      - 'platform_core::automation::routing::RoutingTable'
+    references:
+      - 'references/guides/rest-automation.md'
+
+  - id: 'event-script'
+    module: 'event-script'
+    summary: 'Event Script flow YAML, data mapping, execution, and compilation rules'
+    anchors:
+      - 'event_script::compiler::compile_flows'
+    references:
+      - 'references/guides/event-script/ai-agent-guide.md'
+      - 'references/guides/event-script/flow-grammar.md'
+      - 'references/guides/event-script/event-script-flow.json'
+
+  - id: 'minigraph'
+    module: 'knowledge-graph'
+    summary: 'MiniGraph models, skills, commands, validation, and compilation rules'
+    anchors:
+      - 'knowledge_graph::commands::handle'
+      - 'knowledge_graph::compiler::compile_graphs'
+      - 'knowledge_graph::model_validator::validate'
+    references:
+      - 'references/guides/knowledge-graph/ai-agent-guide.md'
+      - 'references/guides/knowledge-graph/command-reference.md'
+      - 'references/guides/knowledge-graph/minigraph-commands.json'
+      - 'references/guides/knowledge-graph/skills-reference.md'

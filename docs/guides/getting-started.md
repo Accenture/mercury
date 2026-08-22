@@ -169,3 +169,6 @@ Spring-specific key names are retired in the Rust port (`APP_PROFILES_ACTIVE`,
 - Understand the whole: [Architecture](architecture.md) and
   [Composing the Layers](knowledge-graph/composing-the-layers.md).
 - Point an AI agent at [`docs/llms.txt`](../llms.txt) and let it build a graph for you.
+- Version-matched discovery: `cargo run -p ai-contract-provider` serves the installed
+  operational contract on port 8999 (`GET /api/discovery`), or exports it as an offline
+  Agent Skill with `-- --export <dir>`.

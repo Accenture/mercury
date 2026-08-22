@@ -1,0 +1,15 @@
+flow:
+  id: 'contract-list'
+  description: 'List the installed Mercury operational contracts'
+  ttl: 10s
+
+first.task: 'v1.contract.list'
+
+tasks:
+  - input: []
+    process: 'v1.contract.list'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Enumerate contract ids and summaries from the catalog'
+    execution: end

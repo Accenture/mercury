@@ -23,6 +23,23 @@ the design rationale in [`docs/design/`](docs/design/).
    components consume them. The key must be a non-empty string; the value can be any object
    and is converted to text. Invalid input returns false without side effect.
 
+2. **`examples/ai-contract-provider` — a standalone composable app serving Mercury's
+   version-matched operational contract for AI discovery (lock-step with the Java engine's
+   `system/ai-contract-provider`).** Read-only REST endpoints on port 8999
+   (`/api/discovery`, `/api/contracts`, `/api/contracts/{id}`, `/api/skill`,
+   `/api/references?path=...`, `/api/manifest`), each wired `rest.yaml` →
+   `http.flow.adapter` → Event Script flow → function — the flow YAML files are
+   byte-identical to the Java app's. `--export <directory>` writes the offline
+   `mercury-platform` Agent Skill (SKILL.md, the packaged documentation closure including
+   `references/llms.txt`, the installed contract inventory, per-file SHA-256 manifest
+   written last as the completion marker); two exports of the same build are byte-identical,
+   and the exporter never overwrites an existing snapshot. Contract behavior anchors are
+   fully-qualified Rust paths resolved at compile time by the anchor test, and the snapshot
+   is embedded at build time from `files.list`, so neither the catalog nor the packaged
+   inventory can drift from the tree. The repo also gains `system/AGENTS.md` (the consumer
+   starting point, same path convention as the Java repo) and the root `AGENTS.md`
+   contributor/consumer fork.
+
 ---
 ## Version 4.11.9, 8/11/2026
 
