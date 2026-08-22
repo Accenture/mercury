@@ -1,0 +1,17 @@
+flow:
+  id: 'export-skill'
+  description: 'Write the offline mercury-platform Agent Skill to a local directory'
+  ttl: 30s
+
+first.task: 'v1.skill.exporter'
+
+tasks:
+  # local operator action only - this flow has no rest.yaml binding; it is launched by
+  # the application's --export mode
+  - input:
+      - 'input.body.directory -> directory'
+    process: 'v1.skill.exporter'
+    output:
+      - 'result -> output.body'
+    description: 'Export the snapshot with manifest.json written last'
+    execution: end

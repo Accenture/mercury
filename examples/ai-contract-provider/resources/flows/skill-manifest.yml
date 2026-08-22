@@ -1,0 +1,15 @@
+flow:
+  id: 'skill-manifest'
+  description: 'Serve the skill snapshot manifest (per-file SHA-256 and snapshot hash)'
+  ttl: 15s
+
+first.task: 'v1.manifest.generator'
+
+tasks:
+  - input: []
+    process: 'v1.manifest.generator'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Report the deterministic manifest of the packaged snapshot'
+    execution: end

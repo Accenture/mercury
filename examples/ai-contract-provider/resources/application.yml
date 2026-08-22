@@ -1,0 +1,14 @@
+# ai-contract-provider — Mercury's version-matched operational contract for AI
+# discovery (read-only). REST endpoints are wired rest.yaml -> Event Script flow
+# -> function; the offline export runs with: ai_contract_provider -- --export <dir>
+application.name: ai-contract-provider
+
+log.format: text
+
+# REST automation serves rest.yaml; the flow engine loads flows.yaml — both
+# by their default locations in this resources/ folder.
+rest.automation: true
+rest.server.port: 8999
+
+info.app.description: 'Mercury AI contract provider (read-only discovery)'
+show.application.properties: 'application.name, rest.server.port'

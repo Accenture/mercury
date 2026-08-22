@@ -1,0 +1,10 @@
+flows:
+  - 'discovery-index.yml'
+  - 'contract-list.yml'
+  - 'contract-detail.yml'
+  - 'skill-entrypoint.yml'
+  - 'reference-fetch.yml'
+  - 'skill-manifest.yml'
+  - 'export-skill.yml'
+
+location: 'classpath:/flows/'

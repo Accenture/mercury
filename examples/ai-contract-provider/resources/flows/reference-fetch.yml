@@ -1,0 +1,16 @@
+flow:
+  id: 'reference-fetch'
+  description: 'Serve one packaged reference file by its inventory path'
+  ttl: 10s
+
+first.task: 'v1.reference.reader'
+
+tasks:
+  - input:
+      - 'input.query.path -> path'
+    process: 'v1.reference.reader'
+    output:
+      - 'result.type -> output.header.content-type'
+      - 'result.content -> output.body'
+    description: 'Read one file from the packaged skill snapshot'
+    execution: end

@@ -1,0 +1,15 @@
+flow:
+  id: 'discovery-index'
+  description: 'One URL for an AI agent to learn this discovery service'
+  ttl: 10s
+
+first.task: 'v1.discovery.index'
+
+tasks:
+  - input: []
+    process: 'v1.discovery.index'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Report the Mercury version, contract ids and endpoint map'
+    execution: end

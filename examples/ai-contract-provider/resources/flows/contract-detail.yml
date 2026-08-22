@@ -1,0 +1,16 @@
+flow:
+  id: 'contract-detail'
+  description: 'Describe one installed Mercury operational contract'
+  ttl: 10s
+
+first.task: 'v1.contract.detail'
+
+tasks:
+  - input:
+      - 'input.path_parameter.id -> id'
+    process: 'v1.contract.detail'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Report one contract with its behavior anchors and references'
+    execution: end

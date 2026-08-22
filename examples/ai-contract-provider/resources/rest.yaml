@@ -1,0 +1,48 @@
+#
+# AI discovery endpoints - all read-only GET, all bound to Event Script flows.
+# A flow binding needs BOTH keys: 'service' selects the flow adapter and 'flow'
+# selects the flow. Skill export is deliberately NOT exposed over REST - it is a
+# local operator action (--export mode).
+#
+rest:
+  - service: 'http.flow.adapter'
+    flow: 'discovery-index'
+    methods: ['GET']
+    url: '/api/discovery'
+    timeout: 10s
+    tracing: true
+
+  - service: 'http.flow.adapter'
+    flow: 'contract-list'
+    methods: ['GET']
+    url: '/api/contracts'
+    timeout: 10s
+    tracing: true
+
+  - service: 'http.flow.adapter'
+    flow: 'contract-detail'
+    methods: ['GET']
+    url: '/api/contracts/{id}'
+    timeout: 10s
+    tracing: true
+
+  - service: 'http.flow.adapter'
+    flow: 'skill-entrypoint'
+    methods: ['GET']
+    url: '/api/skill'
+    timeout: 10s
+    tracing: true
+
+  - service: 'http.flow.adapter'
+    flow: 'reference-fetch'
+    methods: ['GET']
+    url: '/api/references'
+    timeout: 10s
+    tracing: true
+
+  - service: 'http.flow.adapter'
+    flow: 'skill-manifest'
+    methods: ['GET']
+    url: '/api/manifest'
+    timeout: 15s
+    tracing: true

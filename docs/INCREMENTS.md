@@ -2576,3 +2576,27 @@ dependent components consume them. `BUILTIN_PLUGIN_COUNT` 46 → 47. Pinned by a
 `set-config.yml` flow fixture (set in task one, read back through `map(key)` in task
 two) in the runtime suite. Docs: syntax.md catalog row + configuration override detail
 section; CHANGELOG Unreleased.
+
+## Increment 88 — the AI contract provider: version-matched discovery (2026-08-21)
+
+Lock-step mirror of the Java engine's `system/ai-contract-provider` (its ADR-0015 pillars,
+adapted): `examples/ai-contract-provider` is a standalone composable app whose six REST
+endpoints (port 8999: discovery, contract list/detail, skill entrypoint, reference reader,
+manifest) are each wired `rest.yaml` → `http.flow.adapter` → Event Script flow → function.
+The seven flow YAML files are BYTE-IDENTICAL to the Java app's — the portability convention
+proven on a whole application's orchestration layer. `--export <dir>` writes the offline
+`mercury-platform` Agent Skill through the same export-skill flow. Structural adaptations:
+behavior anchors are fully-qualified Rust paths verified at COMPILE TIME by the anchor test
+(the `Class.forName` analog; knowledge-graph resolves through a dev-only dependency — the
+runtime dependency arrow stays inverted); the snapshot is embedded at build time by
+`build.rs` from `files.list` (the Maven resource-include analog — a missing doc fails the
+build, and the binary is self-contained); `mercury_version` is the workspace-pinned crate
+version (one Cargo lockfile makes the Java app's mixed-assembly startup refusal structurally
+unnecessary); the packaged `references/llms.txt` replaces the Java llms-link rewrite (this
+port's llms.txt links only into `guides/`, so it rides inside the snapshot). Pinned by four
+test binaries (11 tests): compile-verified anchors == catalog, inventory == the docs
+closure on disk, manifest recompute, byte-identical double export + never-overwrite, and an
+end-to-end pass over every endpoint on the real REST server; the CLI export path proven
+live (43 files, every hash independently re-verified). The repo also gains the consumer
+starting point `system/AGENTS.md` (same path convention as the Java repo) and the root
+`AGENTS.md` contributor/consumer fork with the ratified role-resolution ladder.
