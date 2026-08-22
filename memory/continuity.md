@@ -140,8 +140,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > Mark completed items `- [x]` and leave them in place — the review sweeps them to
 > the archive once older than `archive_window` sessions. Don't archive them by hand.
 
-- [ ] (release — SHIPPED 2026-08-21 local, **both repos in lock-step at v4.11.10**;
-  remaining: Eric publishes both GitHub releases) **v4.11.10 — the AI discovery release.**
+- [x] (release — SHIPPED AND PUBLISHED 2026-08-21 local, **both repos in lock-step at
+  v4.11.10**; both GitHub releases published by Eric) **v4.11.10 — the AI discovery release.**
   Rust: move PR #210 (`examples/`→`system/ai-contract-provider`, Eric's consistency ruling,
   merge `9d1e4c28` tree-verified) then release PR #211 merge `b77f17e8` carrying `1beff96d`
   (tree verified), gate 63/317 + clippy 0 + fmt, tag on the merge, dereference-verified.
