@@ -91,10 +91,15 @@ config files port between the Java and Rust versions unchanged. See
 
 ## Conventions Observed
 
-None yet — no Rust code has been written. Establish coding conventions (crate/module layout,
-naming, formatting via `rustfmt`, `clippy` lint level, error-handling style, commit style) as
-the first code lands, and record them here so every agent and teammate follows the same
-patterns from the start.
+The Rust baseline is established and live — the canonical statement is the
+`conventions-rust-baseline` fact in `memory/continuity.md` → Conventions (kept there, not
+duplicated here). Headlines: `cargo fmt` + `cargo clippy --all-targets` clean is the
+definition of done; Apache-2.0 header on every source file (`tests/ui` compile-fail
+fixtures exempt — Eric-ratified carve-out, 2026-07-26); each module's `//!` doc names the
+Java class it ports; unit tests in-module, integration tests under `tests/` with
+`tests/resources/`; behavior-parity notes for deliberate divergences; `docs/INCREMENTS.md`
+ledger per increment. *(This section said "None yet — no Rust code" until 2026-08-22 —
+stale since increment 1; caught by the memory smoke test.)*
 
 ## Tone & Style
 

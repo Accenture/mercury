@@ -42,3 +42,4 @@ review. Don't edit the questions to make them pass.
 |---|---|---|---|
 | 2026-07-15 | (enable) | — | baseline — run the test to populate |
 | 2026-08-14 | 2026-08-14-005444 | 13/13 | none |
+| 2026-08-22 | 2026-08-22-032041 | 13/13 | All questions pass (fresh-context agent, memory files only), plus 3 staleness findings fixed: (1) status line said v4.11.4 while v4.11.10 shipped 2026-08-21 → corrected; (2) instructions "Conventions Observed" still said "None yet — no Rust code" (stale since increment 1) → now points at the live conventions-rust-baseline fact; (3) last_invariant_check said "all five confirmed" without naming its set (a fresh reader counting the 2 listed invariants misreads it as data loss) → the five never-decay facts are now named in the stamp. |
