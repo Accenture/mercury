@@ -23,7 +23,7 @@ the design rationale in [`docs/design/`](docs/design/).
    components consume them. The key must be a non-empty string; the value can be any object
    and is converted to text. Invalid input returns false without side effect.
 
-2. **`examples/ai-contract-provider` — a standalone composable app serving Mercury's
+2. **`system/ai-contract-provider` — a standalone composable app serving Mercury's
    version-matched operational contract for AI discovery (lock-step with the Java engine's
    `system/ai-contract-provider`).** Read-only REST endpoints on port 8999
    (`/api/discovery`, `/api/contracts`, `/api/contracts/{id}`, `/api/skill`,

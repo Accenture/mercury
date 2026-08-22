@@ -13,7 +13,7 @@
 > upstream, these docs are authoritative for this repo.
 
 ## Version-matched discovery — the installed operational contract
-- The `ai-contract-provider` app (under `examples/`) serves this documentation set as a
+- The `ai-contract-provider` app (under `system/`) serves this documentation set as a
   version-matched contract: `cargo run -p ai-contract-provider` then `GET :8999/api/discovery`
   (contracts, behavior anchors, references, per-file SHA-256 manifest), or
   `cargo run -p ai-contract-provider -- --export <dir>` for the offline `mercury-platform`
