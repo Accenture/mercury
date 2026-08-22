@@ -9,9 +9,9 @@ members = [
     "crates/knowledge-graph-macros",
     "extensions/minigraph-state-redis",
     "benchmark/benchmark-reporter",
+    "system/ai-contract-provider",
     "examples/hello-world",
     "examples/hello-flow",
-    "examples/ai-contract-provider",
     "examples/minigraph-playground",
 ]
 

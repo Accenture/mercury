@@ -9,7 +9,7 @@
 ## Starting point for consumer AI tools
 
 Mercury's version-matched operational contract is served by a dedicated composable app:
-[`examples/ai-contract-provider`](../examples/ai-contract-provider/README.md).
+[`system/ai-contract-provider`](ai-contract-provider/README.md).
 
 - **Live discovery:** run the app (`cargo run -p ai-contract-provider`, port 8999) and
   start with `GET /api/discovery` — it names the Mercury version, the installed contracts,
@@ -35,7 +35,8 @@ functions they call use this port's Rust API.
 | `crates/knowledge-graph` | Active Knowledge Graph engine + playground |
 | `crates/*-macros` | the `#[preload]` / `#[main_application]` / plugin attribute macros |
 | `extensions/minigraph-state-redis` | Redis store for graph workflow suspension |
-| `examples/` | runnable apps: hello-world, hello-flow, minigraph-playground, ai-contract-provider |
+| `system/ai-contract-provider` | AI discovery app serving this operational contract |
+| `examples/` | runnable apps: hello-world, hello-flow, minigraph-playground |
 
 ## Key references (repo-relative)
 

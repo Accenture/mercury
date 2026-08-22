@@ -2600,3 +2600,13 @@ end-to-end pass over every endpoint on the real REST server; the CLI export path
 live (43 files, every hash independently re-verified). The repo also gains the consumer
 starting point `system/AGENTS.md` (same path convention as the Java repo) and the root
 `AGENTS.md` contributor/consumer fork with the ratified role-resolution ladder.
+
+## Increment 89 — ai-contract-provider moves to system/ (2026-08-21)
+
+Convention consistency (Eric's ruling at the v4.11.10 release review): the AI discovery app
+moves from `examples/` to `system/ai-contract-provider` — the SAME path as the Java repo's
+module, completing the cross-repo convention that `system/` is the consumer-facing
+discovery surface on both engines (`system/AGENTS.md` + the contract provider beside it).
+Pure relocation: workspace member path, the consumer guide's link and module table,
+llms.txt and the CHANGELOG entry updated; the crate's relative paths (`../../crates`,
+`../../docs`) keep the same depth, so no code changes.
