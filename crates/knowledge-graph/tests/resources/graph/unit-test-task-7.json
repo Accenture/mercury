@@ -1,0 +1,59 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "foreign-task",
+      "properties": {
+        "task": "polyglot.stub.function",
+        "input": [
+          "input.body -> *"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "skill": "graph.task"
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.task reaches a foreign route through the declarative event-over-http map",
+        "name": "unit-test-task-7"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "foreign-task",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "foreign-task"
+    }
+  ]
+}

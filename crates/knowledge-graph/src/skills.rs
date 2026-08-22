@@ -357,7 +357,12 @@ pub async fn task(
             "{NODE_NAME}{node_name} does not have a 'task' route"
         )));
     };
-    if !platform.has_route(&route) {
+    // a task route is reachable when registered locally, or when declared as a
+    // declarative Event-over-HTTP target - the way python/node.js polyglot
+    // functions and remote engine instances join a graph
+    if !platform.has_route(&route)
+        && platform_core::automation::event_api::get_event_http_target(&route).is_none()
+    {
         return Err(invalid(format!(
             "{NODE_NAME}{node_name} - task '{route}' does not exist"
         )));

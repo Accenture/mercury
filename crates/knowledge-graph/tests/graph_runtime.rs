@@ -442,6 +442,68 @@ fn body_map(reply: &EventEnvelope) -> MultiLevelMap {
     MultiLevelMap::from_value(reply.body().clone())
 }
 
+/// A minimal polyglot peer: an /api/event endpoint that decodes the relayed
+/// event envelope and answers with a reply envelope - the same wire contract
+/// a python or node.js function host speaks.
+async fn start_stub_peer(port: u16) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", port))
+        .await
+        .expect("stub peer port");
+    tokio::spawn(async move {
+        loop {
+            let Ok((mut socket, _)) = listener.accept().await else {
+                break;
+            };
+            tokio::spawn(async move {
+                let mut buf: Vec<u8> = Vec::new();
+                let mut tmp = [0u8; 4096];
+                let header_end = loop {
+                    match socket.read(&mut tmp).await {
+                        Ok(0) | Err(_) => return,
+                        Ok(n) => buf.extend_from_slice(&tmp[..n]),
+                    }
+                    if let Some(pos) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break pos + 4;
+                    }
+                };
+                let head_text = String::from_utf8_lossy(&buf[..header_end]).to_lowercase();
+                let content_length: usize = head_text
+                    .lines()
+                    .find_map(|line| line.strip_prefix("content-length:"))
+                    .and_then(|v| v.trim().parse().ok())
+                    .unwrap_or(0);
+                while buf.len() < header_end + content_length {
+                    match socket.read(&mut tmp).await {
+                        Ok(0) | Err(_) => return,
+                        Ok(n) => buf.extend_from_slice(&tmp[..n]),
+                    }
+                }
+                let request =
+                    EventEnvelope::from_bytes(&buf[header_end..header_end + content_length])
+                        .expect("relayed envelope");
+                let reply_body = Value::Map(vec![
+                    ("language".into(), "stub".into()),
+                    ("route".into(), request.to().unwrap_or("").into()),
+                    ("echo".into(), request.body().clone()),
+                ]);
+                let payload = EventEnvelope::new()
+                    .set_body(reply_body)
+                    .expect("reply body")
+                    .to_bytes()
+                    .expect("reply bytes");
+                let head = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/octet-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+                    payload.len()
+                );
+                let _ = socket.write_all(head.as_bytes()).await;
+                let _ = socket.write_all(&payload).await;
+                let _ = socket.shutdown().await;
+            });
+        }
+    });
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn graph_runtime_end_to_end() {
     let platform = boot().await;
@@ -1427,6 +1489,32 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
     let mm = body_map(&reply);
     assert_eq!(Some(Value::from("recovered")), mm.get_element("message"));
     assert_eq!(Some(Value::from(400)), mm.get_element("status"));
+
+    // --- unit-test-task-7: a foreign route reached through the declarative
+    // event-over-http map (yaml.event.over.http) - the way python/node.js
+    // polyglot functions join a knowledge graph. The stub peer speaks the
+    // standard envelope wire format on /api/event.
+    start_stub_peer(8391).await; // matches stub.peer.port in application.yml
+    let reply = run_graph(
+        &platform,
+        "unit-test-task-7",
+        serde_json::json!({"text": "polyglot"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        200,
+        reply.status(),
+        "foreign route failed: {}",
+        event_script::conversions::to_json_string(reply.body())
+    );
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("stub")), mm.get_element("language"));
+    assert_eq!(
+        Some(Value::from("polyglot.stub.function")),
+        mm.get_element("route")
+    );
+    assert_eq!(Some(Value::from("polyglot")), mm.get_element("echo.text"));
 
     // --- unit-test-task-5: a missing task route fails fast
     let reply = run_graph(

@@ -28,6 +28,8 @@ graphs:
   # deliberately invalid: an input mapping targets reserved model metadata
   # (model.ttl) - CompileGraph must reject it and requests answer 404
   - 'unit-test-task-6'
+  # foreign route: the task exists only as a declarative event-over-http target
+  - 'unit-test-task-7'
   - 'rust-foreach'
   - 'rust-join'
   - 'rust-join-retry'
