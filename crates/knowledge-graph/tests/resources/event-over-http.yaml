@@ -1,0 +1,3 @@
+event.http:
+  - route: 'polyglot.stub.function'
+    target: 'http://127.0.0.1:${stub.peer.port}/api/event'

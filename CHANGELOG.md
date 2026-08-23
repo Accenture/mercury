@@ -11,6 +11,16 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Unreleased
+
+### Added
+
+1. `graph.task` accepts a task route declared as a declarative Event-over-HTTP target
+   (`yaml.event.over.http`) - a knowledge graph can invoke remote engine instances and
+   polyglot (python/node.js) function hosts as graph tasks. Lock-step with the Java
+   engine (which also adds a `PostOffice.getEventHttpTarget(route)` API).
+
+---
 ## Version 4.11.10, 8/21/2026
 
 ### Added

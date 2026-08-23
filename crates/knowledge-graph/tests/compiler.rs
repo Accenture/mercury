@@ -53,15 +53,16 @@ fn manifest_listed_graphs_are_compiled() {
     // (incl. the jump-mode and retired-property compat shapes) + the 3 valid
     // ttl fixtures (node-ttl ok + the 2 x-ttl wire echoes) + the generic
     // exception-context fixture + the orchestrator pair + the dynamic-jump
-    // fixture (THEN:/DELAY: dynamic variables) + the error-recovery fixture; the 14
-    // deliberately-invalid fixtures
+    // fixture (THEN:/DELAY: dynamic variables) + the error-recovery fixture +
+    // the foreign-route fixture (task-7, a declarative event-over-http target);
+    // the 14 deliberately-invalid fixtures
     // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias) are rejected
     // by the mandatory quality gate. Every graph a runtime test executes MUST
     // be listed here - deployed execution is compiled-or-404 (no lazy load)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        49,
+        50,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );

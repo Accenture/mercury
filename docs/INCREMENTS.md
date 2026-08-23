@@ -2610,3 +2610,19 @@ discovery surface on both engines (`system/AGENTS.md` + the contract provider be
 Pure relocation: workspace member path, the consumer guide's link and module table,
 llms.txt and the CHANGELOG entry updated; the crate's relative paths (`../../crates`,
 `../../docs`) keep the same depth, so no code changes.
+
+## Increment 90 — graph.task reaches declarative event-over-http targets (2026-08-22)
+
+The polyglot initiative's only engine change (ratified D5): a `graph.task` route is now
+reachable when registered locally OR declared in the `yaml.event.over.http` map — the way
+python/node.js polyglot function hosts and remote engine instances are addressed as if
+local. Flows already behaved this way (no pre-check); the graph lane's existence guard
+(`skills.rs`) additionally consults `event_api::get_event_http_target`, and the teaching
+error for genuinely unknown routes is unchanged (unit-test-task-5 still pins it).
+
+Pin: `unit-test-task-7` (fixture byte-identical to the Java engine's) — a graph.task node
+reaches a route that exists only as an event-over-http target, served by a stub
+`/api/event` peer speaking the envelope wire format; proven failing against the unfixed
+guard first. The compiled-set parity pin grew 49 → 50 (it caught the new fixture
+immediately, as designed). Java lock-step: same guard relaxation plus a
+`PostOffice.getEventHttpTarget(route)` passthrough.
