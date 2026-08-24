@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.10** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-22 | agent: Claude Code (2026-08-22-185217)
+- **last_session:** 2026-08-24 | agent: Claude Code (2026-08-24-001551)
 - **last_review:** 2026-08-14 | through 2026-08-14-005444.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five never-decay facts confirmed against live code — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, and the Vision; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -136,6 +136,15 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-08-14 | uses: 107 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
+
+- [x] (release — SHIPPED and PUBLISHED 2026-08-23 local, **lock-step with the Java
+  engine at v4.11.11**) **v4.11.11 — the graph.task Event-over-HTTP field release.**
+  Release [PR #213](https://github.com/Accenture/mercury/pull/213) true merge `3040e8e3`
+  carrying gated `2d4baae4` (tree verified); workspace bump Cargo.toml + 12 lock entries;
+  gates test exit 0 / clippy 0 / fmt clean; tag annotated on the merge,
+  dereference-verified; GitHub release published by Eric. Sole content: the graph.task
+  declarative Event-over-HTTP guard (PR #212). Full detail: origin log.
+  <!-- id: thread-release-4-11-11-rust | created: 2026-08-24 | last_used: 2026-08-24 | uses: 1 | tier: working | origin: 2026-08-24-001551 -->
 
 - [x] (feature — **MERGED 2026-08-22 as
   [PR #212](https://github.com/Accenture/mercury/pull/212), merge `c49d6cd7` carrying
