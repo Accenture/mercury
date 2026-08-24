@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.10** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-24 | agent: Claude Code (2026-08-24-001551)
+- **last_session:** 2026-08-24 | agent: Claude Code (2026-08-24-170602)
 - **last_review:** 2026-08-14 | through 2026-08-14-005444.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five never-decay facts confirmed against live code — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, and the Vision; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -136,6 +136,18 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-08-14 | uses: 107 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
+
+- [x] (P4 docs — **SHIPPED AND LIVE 2026-08-24**, two same-day PRs; Java twin PR #294
+  merged same day) **Polyglot docs + presentation unification.** PR #214 merge
+  `c5221258` (chapter + ADR-0014 Proposed + interop wrapper round + home rebuilt on the
+  Java reference + site renamed "Composable for Rust"); PR #215 merge `4573bd21` (nav parity: Operate & integrate +
+  Orientation tabs — Eric's directive). Live tab row now identical to the Java site;
+  chapter at /guides/polyglot-functions/ (200). Lessons: new guide pages linked from
+  packaged references must join ai-contract-provider's files.list (its link validator
+  fails closed — caught identically on both engines); `gh pr checks --watch` can exit 0
+  before a late-registering check. Residual for Eric: layer-tab label parity ("Event
+  Script" vs Java's "Composable"). origin: 2026-08-24-170602
+  <!-- id: thread-polyglot-docs-rust | created: 2026-08-24 | last_used: 2026-08-24 | uses: 1 | tier: working | origin: 2026-08-24-170602 -->
 
 - [x] (release — SHIPPED and PUBLISHED 2026-08-23 local, **lock-step with the Java
   engine at v4.11.11**) **v4.11.11 — the graph.task Event-over-HTTP field release.**
