@@ -1,8 +1,8 @@
-site_name: mercury
+site_name: Composable for Rust
 site_description: >-
-  Rust port of mercury-composable — Accenture's event-driven, composable
-  application platform: platform-core, Event Script, and the active
-  knowledge graph, delivered bottom-up in Rust.
+  The official Rust implementation of Mercury Composable — Accenture's
+  event-driven, composable application platform: platform-core, Event Script,
+  and the active knowledge graph.
 site_url: https://accenture.github.io/mercury/
 site_author: Eric Law
 
@@ -112,6 +112,7 @@ nav:
       - Function Execution: guides/event-driven/function-execution.md
       - REST Automation: guides/rest-automation.md
       - Event over HTTP: guides/event-over-http.md
+      - Polyglot Functions (Python & Node.js): guides/polyglot-functions.md
       - Function AI Agent Guide: guides/event-driven/ai-agent-guide.md
   - "Layer 2 — Event Script":
       - Overview: guides/event-script/index.md

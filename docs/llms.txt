@@ -66,6 +66,11 @@ Needed when a flow task or a graph's `graph.task` calls a custom function:
 - [Function AI agent guide](guides/event-driven/ai-agent-guide.md) — the Rust authoring contract:
   `#[preload]` attribute, `ComposableFunction`/`TypedFunction` traits, pre-write checklist,
   PostOffice RPC patterns, serialization rules, worked example with rest.yaml wiring.
+- [Polyglot Functions](guides/polyglot-functions.md) — write functions in Python or Node.js as
+  Event-over-HTTP peers instead: official wrappers (docs: accenture.github.io/mercury-python,
+  accenture.github.io/mercury-nodejs) with the engines' preload/envelope/actuator/log contracts;
+  flows call them via yaml.event.over.http; graph.task requires engine v4.11.11+; orchestration
+  stays on the engine (no flows/graphs in wrappers).
 
 ## Design & project docs (human-facing)
 - `docs/design/` — port design notes (platform-core, event-script, knowledge-graph, and
