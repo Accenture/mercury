@@ -26,6 +26,58 @@ or *Deprecated* (no longer relevant), with its text left in place.
 
 ---
 
+## ADR-0014 — Polyglot functions are Event-over-HTTP peers, not subprocesses or ports {#adr-0014}
+**Status:** Proposed · **Date:** 2026-08-22 · **Serves:** vision-mercury · **Formalizes:** polyglot-event-over-http-design
+<!-- id: adr-0014 | status: proposed -->
+
+**Abstract.** Functions written in Python and Node.js join Event Script flows and
+MiniGraph knowledge graphs as long-lived **Event API peers**: each official wrapper
+([mercury-python](https://github.com/Accenture/mercury-python),
+[mercury-nodejs](https://github.com/Accenture/mercury-nodejs)) hosts `POST /api/event`
+with the engines' exact semantics and speaks the standard envelope wire format, verified
+against the golden conformance vectors this engine shares with the Java engine. The
+engine addresses a polyglot route through the existing declarative
+`yaml.event.over.http` map, so a flow task or `graph.task` node calls a Python or
+Node.js function exactly as if it were local, with trace context, the `my_cid` →
+`my_correlation_id` injection, and the portable error contract (handler errors ride
+HTTP 200 with envelope status; transport errors keep 400/403/404/408 with
+engine-identical messages) intact. The wrapper scope is fenced: envelope codec, Event
+API host, `preload` registry, thin `PostOffice` client, a primitive in-process event bus
+(per-route FIFO mailboxes with faithful `instances`; no spill tier, no queue cap), the
+engines' actuator endpoints, the minimalist utilities (configuration with the
+`resources/` convention and `-Dkey=value` overrides, engine-format logging with
+`log.format=text|json|compact`, trace context), and a dev runner — **no orchestration**:
+flows, graphs, persistence, and pub/sub stay on the engines. **Rust realization:** the
+single engine change is the `graph.task` route-existence guard consulting the
+declarative map (`event_api::get_event_http_target` in `skills.rs`), shipped lock-step
+with the Java engine in v4.11.11. The initiative's design record
+(`polyglot-event-over-http-design`) lives in the Java repository's shared memory; the
+wire conformance vectors are the acceptance gate for every wrapper, and each wrapper
+release extends the interop test report.
+
+**Rationale.** The alternative designs were a full language port and an engine-managed
+subprocess runner, and both were investigated. A full port re-implements the composable
+core (event bus, flow engine, graph engine) per language — this repository *is* such a
+port and demonstrates the cost profile: staying current is a sustained engineering
+commitment, justified for Rust as a first-class engine, unjustifiable per scripting
+language (the legacy Node.js port fell ~2 years behind and was retired). A subprocess
+runner (functions as child processes over stdio) was prototyped on the Java engine and
+shelved: kernel-thread isolation per in-flight call, process-tree lifecycle management,
+and per-call interpreter startup create an operational stability surface the peer model
+does not have. The peer model reuses what already works: the function contract is
+route-name + envelope (nothing in it names a language), the Event API endpoint already
+carries it across instances and across engines, and the declarative map already
+abstracts location. Keeping orchestration out of the wrappers preserves the
+architecture's one boundary — the engine tier owns sequencing, retries, and
+back-pressure (a leaf host fails fast by deadline instead of hoarding work) — and keeps
+each wrapper small enough to stay in lock-step through a conformance suite rather than a
+porting effort. Engine-consistent utilities and actuator endpoints are part of the
+decision, not convenience: polyglot installations put every language's telemetry, logs,
+probes, and dashboards in front of one DevSecOps team, so presentation parity is a field
+requirement extended from the two engines to the wrapper family. The Node.js wrapper is
+also the sanctioned answer to the retired legacy port — a fresh re-port was never going
+to stay current; a thin protocol wrapper can.
+
 ## ADR-0013 — Generic exception context: one handler serves every `exception=` route {#adr-0013}
 **Status:** Proposed · **Date:** 2026-08-10 · **Serves:** vision-mercury · **Formalizes:** field-graph-scoped-state-and-error-context-rust
 <!-- id: adr-0013 | status: proposed -->

@@ -385,6 +385,11 @@ The mirror direction works the same way: the Java composable-example (port 8100)
 or the Java lambda-example — interchangeably. Point `peer.demo.host` / `peer.demo.port`
 at any peer that exposes the routes.
 
+The swap extends beyond the two engines: the official **Python and Node.js wrappers**
+register the same `hello.declarative` route in their demo apps and default to the same
+port 8085, so the identical `curl` executes a Python or Node.js function with zero
+changes — see [Polyglot Functions](polyglot-functions.md).
+
 The full cross-language matrix — both directions, both patterns, RPC and async, error
 semantics and trace continuity — was exercised by live bidirectional interop drives
 between the two engines; the permanent record is the
@@ -396,6 +401,8 @@ between the two engines; the permanent record is the
 - [Interop Test Report (Java ⇄ Rust)](../test-reports/event-over-http-interop.md) — the live
   bidirectional validation of both patterns, with span-level trace evidence and the
   learnings kept as a playbook for future language ports.
+- [Polyglot Functions](polyglot-functions.md) — write the functions themselves in Python
+  or Node.js and call them through this mechanism.
 - [REST Automation](rest-automation.md) — declarative HTTP endpoints, no controllers.
 - [EventEnvelope](event-envelope-reference.md) — the envelope and the standard wire format.
 - [Observability Model](observability.md) — the span tree and the application log context.

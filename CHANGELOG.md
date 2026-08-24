@@ -11,6 +11,25 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`docs/design/`](docs/design/).
 
 ---
+## Unreleased
+
+### Added
+
+1. Polyglot Functions documentation chapter (`guides/polyglot-functions.md`) - writing
+   composable functions in Python and Node.js with the official Event-over-HTTP wrappers
+   (docs: accenture.github.io/mercury-python and accenture.github.io/mercury-nodejs),
+   with the zero-code demo extended to the wrapper demo apps. ADR-0014 (Proposed) records
+   the peers-not-subprocesses design; the interop test report gains the polyglot wrapper
+   round (2026-08-22 acceptance drives).
+
+### Changed
+
+1. Documentation home page unified on the Java reference presentation (the layered-ascent
+   table) and the docs site renamed "Composable for Rust" for family consistency with
+   Composable for Java / Python / Node.js; engine and wrapper documentation now
+   cross-link.
+
+---
 ## Version 4.11.11, 8/23/2026
 
 ### Added

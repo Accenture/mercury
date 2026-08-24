@@ -20,8 +20,9 @@ This report is a permanent record. It documents what was tested, the evidence co
 and — in the interest of honest engineering — the defects the drives surfaced and how each
 was fixed and re-verified. Everything here is reproducible from the shipped examples by
 following the [Event over HTTP](../guides/event-over-http.md#zero-code-demo-hello-flow-to-hello-world) walk-through.
-It is also kept as a **playbook for future language ports** (e.g. Python) — see the
-learnings section at the end.
+It is also kept as a **playbook for future language ports** — see the learnings section
+at the end; the [polyglot wrapper round](#the-polyglot-wrapper-round-2026-08-22) records
+the playbook's first execution, bringing Python and Node.js into the family.
 
 ## Background: the wire-format validation drive
 
@@ -384,10 +385,47 @@ engines flipped in lock-step with their precedence regressions inverted, and not
 drive's ce_traceparent-only scenario (the gateway simulation) is unaffected: the custom
 name remains the carrier whenever the standard header does not survive the intermediary.
 
+## The polyglot wrapper round (2026-08-22)
+
+The playbook below was executed for real when the **polyglot initiative** brought Python
+and Node.js into the family — not as engine ports but as lightweight **Event-over-HTTP
+wrappers** ([mercury-python](https://github.com/Accenture/mercury-python),
+[mercury-nodejs](https://github.com/Accenture/mercury-nodejs); see the
+[Polyglot Functions](../guides/polyglot-functions.md) guide). Evidence from the
+acceptance drives, conducted 2026-08-22 against engine v4.11.10:
+
+1. **Golden conformance vectors first — item 1 of the playbook, literally.** Both
+   wrappers' standard-format codecs are verified against the same golden vectors the
+   Java and Rust engines share, carried verbatim in each wrapper's test suite. The
+   classic compact format is detected and rejected with a teaching error (the wrappers
+   are standard-only by design).
+2. **Cross-wrapper drive.** Python ⇄ Node.js live in both directions — RPC replies,
+   trace context, and reply annotations intact across both hops.
+3. **The flagship drive: an unchanged engine flow executed a Python function.** The
+   Java composable-example's shipped `event-over-http-declarative` Event Script flow —
+   the zero-code demo of this report's earlier rounds (this engine's parallel:
+   [hello-flow to hello-world](../guides/event-over-http.md#zero-code-demo-hello-flow-to-hello-world))
+   — ran against the Python demo host in the callee's slot (same port 8085, same public
+   `hello.declarative` route), with **zero engine change and zero engine configuration
+   change**. The reply carried `"language": "python"`; the flow's business correlation
+   id arrived injected as the read-only `my_correlation_id` header (the `my_cid` tag
+   contract); `x-flow-id` and the flow's `x-ttl` were delivered; and the Python host's
+   log line showed the **engine's trace id** in the engine-consistent log format —
+   presentation parity extending to the wrapper family (playbook items 3 and 5).
+4. **The one engine change shipped separately, in lock-step.** `graph.task`'s
+   route-existence guard now consults the `yaml.event.over.http` map on both engines
+   (Rust [PR #212](https://github.com/Accenture/mercury/pull/212), Java
+   [PR #292](https://github.com/Accenture/mercury-composable/pull/292)), released in
+   **v4.11.11** — deployed knowledge graphs can name polyglot routes directly.
+
+Per the initiative's conformance ruling, this report gains a round like this one with
+each wrapper release: the golden vectors are the per-release gate, and a live
+engine-flow-to-wrapper drive is the acceptance proof.
+
 ## Learnings for future language ports
 
-This validation arc is the playbook for bringing the next language (e.g. Python) into the
-family:
+This validation arc is the playbook that brought Python and Node.js into the family (the
+wrapper round above) and remains the checklist for the next language:
 
 1. **Golden conformance vectors first.** The wire format is proven byte-identically with
    vectors shared verbatim between repositories — no prose interpretation.
