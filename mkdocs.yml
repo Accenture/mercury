@@ -101,18 +101,16 @@ validation:
 
 nav:
   - Home: index.md
-  - Getting Started: guides/getting-started.md
+  - Orientation:
+      - Getting Started: guides/getting-started.md
   - Foundations:
       - Architecture: guides/architecture.md
       - Methodology: guides/methodology.md
-      - Observability: guides/observability.md
   - "Layer 1 — Event-Driven":
       - Overview: guides/event-driven/index.md
       - Write Your First Function: guides/event-driven/write-your-first-function.md
       - Function Execution: guides/event-driven/function-execution.md
       - REST Automation: guides/rest-automation.md
-      - Event over HTTP: guides/event-over-http.md
-      - Polyglot Functions (Python & Node.js): guides/polyglot-functions.md
       - Function AI Agent Guide: guides/event-driven/ai-agent-guide.md
   - "Layer 2 — Event Script":
       - Overview: guides/event-script/index.md
@@ -129,6 +127,10 @@ nav:
       - Graph AI Agent Guide: guides/knowledge-graph/ai-agent-guide.md
       - MiniGraph Command Grammar: guides/knowledge-graph/command-reference.md
       - Built-in Skills: guides/knowledge-graph/skills-reference.md
+  - "Operate & integrate":
+      - Observability: guides/observability.md
+      - Event over HTTP: guides/event-over-http.md
+      - Polyglot Functions (Python & Node.js): guides/polyglot-functions.md
   - Reference:
       - Configuration Keys: guides/configuration-reference.md
       - Macros: guides/macros-reference.md

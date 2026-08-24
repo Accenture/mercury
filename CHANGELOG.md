@@ -27,7 +27,9 @@ the design rationale in [`docs/design/`](docs/design/).
 1. Documentation home page unified on the Java reference presentation (the layered-ascent
    table) and the docs site renamed "Composable for Rust" for family consistency with
    Composable for Java / Python / Node.js; engine and wrapper documentation now
-   cross-link.
+   cross-link. The navigation gains the Java site's "Operate & integrate" tab
+   (Observability, Event over HTTP, Polyglot Functions) and an Orientation tab, so the
+   tab row reads identically across the two engines' documentation sites.
 
 ---
 ## Version 4.11.11, 8/23/2026
