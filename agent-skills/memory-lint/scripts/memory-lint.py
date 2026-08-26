@@ -562,7 +562,9 @@ def _luhn_ok(digits):
 # One consolidated guidance line accompanies [secret-material] findings — printed ONCE per
 # run by the consumer (report() for a full lint, the --scan-files CLI branch, the pre-commit
 # hook's footer), never repeated per finding (field feedback, 2026-08-14 regression test).
-SECRET_GUIDANCE = (
+# Scanner-neutral name: enterprise secret scanners flag trigger-word identifiers assigned
+# string literals (Snyk field FP, 2026-08-25) — the suites' hygiene test enforces this.
+GUIDANCE = (
     "  -> committed files are shared: redact to (REDACTED) or move the value out; a live "
     "credential is EXPOSED — rotate it (git history keeps the original; see the memory/PROTOCOL.md "
     "redaction rule)"
@@ -662,7 +664,7 @@ def report(cont, arch, sessions, acw, aw, warns, errors, strict):
     for line in warns:
         print("WARN  " + line)
     if any("[secret-material]" in w for w in warns):
-        print(SECRET_GUIDANCE)  # once per run, not per finding
+        print(GUIDANCE)  # once per run, not per finding
     for line in errors:
         print("ERROR " + line)
     if errors:
@@ -684,7 +686,7 @@ def main():
         for line in findings:
             print("WARN  " + line)
         if findings:
-            print(SECRET_GUIDANCE)  # once per run, not per finding
+            print(GUIDANCE)  # once per run, not per finding
         return 1 if findings else 0
     root = find_root(root_arg or os.getcwd())
     if not root:

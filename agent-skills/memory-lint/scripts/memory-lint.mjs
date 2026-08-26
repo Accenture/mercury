@@ -587,7 +587,9 @@ export function check_secret_material(root) {
 // One consolidated guidance line accompanies [secret-material] findings — printed ONCE per
 // run by the consumer (report() for a full lint, the --scan-files CLI branch, the pre-commit
 // hook's footer), never repeated per finding (field feedback, 2026-08-14 regression test).
-const SECRET_GUIDANCE =
+// Scanner-neutral name: enterprise secret scanners flag trigger-word identifiers assigned
+// string literals (Snyk field FP, 2026-08-25) — the suites' hygiene test enforces this.
+const GUIDANCE =
   "  -> committed files are shared: redact to (REDACTED) or move the value out; a live " +
   "credential is EXPOSED — rotate it (git history keeps the original; see the memory/PROTOCOL.md " +
   "redaction rule)";
@@ -667,7 +669,7 @@ function report({ cont, arch, sessions, acw, aw, warns, errors, strict }) {
   );
   for (const line of warns) console.log("WARN  " + line);
   if (warns.some((w) => w.includes("[secret-material]"))) {
-    console.log(SECRET_GUIDANCE); // once per run, not per finding
+    console.log(GUIDANCE); // once per run, not per finding
   }
   for (const line of errors) console.log("ERROR " + line);
   if (errors.length) {
@@ -690,7 +692,7 @@ export function main(argv) {
     // Exit 1 when findings exist (the calling wrapper owns advisory-vs-block semantics).
     const findings = scan_secret_files(scan_files);
     for (const line of findings) console.log("WARN  " + line);
-    if (findings.length) console.log(SECRET_GUIDANCE); // once per run, not per finding
+    if (findings.length) console.log(GUIDANCE); // once per run, not per finding
     return findings.length ? 1 : 0;
   }
   const root = find_root(root_arg || process.cwd());

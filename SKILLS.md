@@ -29,7 +29,11 @@ Create **`agent-skills/<name>/SKILL.md`** — **never** a vendor folder (those a
 regenerated pointers, and won't be shared). Keep the `description` a **single line, quote-free,
 and concise**: a compact, trigger-phrase-rich summary (~1–2 sentences; it's matched within a
 small discovery budget, so avoid long abstract paragraphs). Put helper scripts under
-`agent-skills/<name>/scripts/`.
+`agent-skills/<name>/scripts/`. In those scripts, keep SECRET/TOKEN/PASSWORD/KEY-class
+words out of the *identifiers* of prose string constants: skills ship into
+enterprise-scanned repos, and hardcoded-secret detectors key on trigger-word identifier +
+string-literal assignment (a Snyk field rejection, 2026-08-25 — the tool's own subject
+matter makes it prone to exactly this scanner class; `memory-lint`'s suites self-check it).
 
 **Authoring is not finished when you save the file — `sync` and reload are part of it. Do all three:**
 1. Write `agent-skills/<name>/SKILL.md` (the neutral source of truth).
