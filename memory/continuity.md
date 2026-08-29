@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.10** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `docs/design/`, session logs, and CHANGELOG — not this line.
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.10** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `draft-design-specs/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-29 | agent: Claude Code (2026-08-29-012914)
+- **last_session:** 2026-08-29 | agent: Claude Code (2026-08-29-174058)
 - **last_review:** 2026-08-14 | through 2026-08-14-005444.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five never-decay facts confirmed against live code — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, and the Vision; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -123,7 +123,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 - Config-file syntax verbatim (D9): `classpath:/`, `file:/`, `${ENV:default}`, dotted routes.
 - **`docs/INCREMENTS.md` is the historical ledger** (maintainer-requested, 2026-07-16):
   one overview row + one section per increment, added as part of each increment's
-  definition of done (design rationale stays in `docs/design/platform-core-port.md`;
+  definition of done (design rationale stays in `draft-design-specs/platform-core-port.md`;
   the ledger records what shipped when).
 - **Example apps are standalone `examples/<name>/` workspace crates** (increment 10,
   2026-07-16): annotated functions + `platform_core::auto_start_main!();` with the app's
@@ -136,6 +136,24 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-08-14 | uses: 107 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
+
+- [x] (feature — **MERGED 2026-08-29 as
+  [PR #217](https://github.com/Accenture/mercury/pull/217) merge `ec4c2702` carrying
+  gated `7f5681b5` (tree verified), CI green, branch deleted both ends**) **Progressive
+  SSE consumption in the HTTP client — Java Phase 1 twin (Java PR #300/ADR-0019 →
+  this repo's ADR-0016 Proposed, Increment 92).** Accept-gated activation (D1);
+  spawned tokio relay task per stream (worker freed; per-read idle allowance =
+  request TTL, comments reset it; in-band 408 "Timeout for N seconds"/500);
+  SseParser incremental frame parser; buffered fallback + no-Accept backward-compat;
+  self-relay e2e. Same PR: **structure parity** — draft-design-specs/ created
+  (lifecycle README), the six docs/design/ port docs MOVED into it (23 references
+  re-pointed; docs/design removed; site-neutral), Java's docs/css/extra.css adopted
+  (it was live there, missing here). Lessons: Platform::new() = isolated registry
+  (tests use the server()-returned handle); the mock upstream needed its own
+  thread+runtime (third per-test-runtime catch). Next: Phase 2 hybrid envelope-mode
+  relay (engine⇄engine), Phase 3 wrapper twins. origin: 2026-08-29-174058.
+  <!-- id: thread-sse-client-twin | created: 2026-08-29 | last_used: 2026-08-29 | uses: 1 | tier: working | origin: 2026-08-29-174058 -->
+
 
 - [x] (feature — **MERGED 2026-08-29 as
   [PR #216](https://github.com/Accenture/mercury/pull/216) merge `b191cf1e` carrying

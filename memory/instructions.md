@@ -84,7 +84,7 @@ convention — because everything (main app, unit tests, integration tests) reli
 event-bus foundation (EventEnvelope/Platform/PostOffice) is increment 2. Config file syntax
 (`classpath:/`, `file:/`, `${ENV_VAR:default}`, dot-bracket keys) is kept **verbatim** so
 config files port between the Java and Rust versions unchanged. See
-`docs/design/platform-core-port.md`.
+`draft-design-specs/platform-core-port.md`.
 
 **Deferred / TBD** (decide when reached): `mini-scheduler`; `extensions/*`; `examples/*`
 (port a reference example to validate the foundation).
