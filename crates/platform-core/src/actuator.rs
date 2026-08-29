@@ -298,7 +298,7 @@ impl ComposableFunction for ActuatorServices {
 /// The per-dependency info-lookup cache (Java parity:
 /// `SimpleCache.createCache("health.info", 5000)` in `ActuatorServices` —
 /// this port maps every Java `SimpleCache` site onto `ManagedCache`, per the
-/// maintainer's one-cache-type ruling; `docs/design/managed-cache-port.md`).
+/// maintainer's one-cache-type ruling; `draft-design-specs/managed-cache-port.md`).
 /// Only the `type=info` lookup is cached — never the `/health` result: the
 /// `type=health` probe re-runs on every call and `/livenessprobe` reads the
 /// atomic health flag.

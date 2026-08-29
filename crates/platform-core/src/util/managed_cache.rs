@@ -17,7 +17,7 @@
 //! Rust port of the Java `ManagedCache`
 //! (`org.platformlambda.core.util.ManagedCache`) — a **named, self-expiring
 //! (expire-after-write), size-bounded in-memory cache** with a process-wide
-//! registry. Design record: `docs/design/managed-cache-port.md`
+//! registry. Design record: `draft-design-specs/managed-cache-port.md`
 //! (maintainer-approved 2026-07-27).
 //!
 //! Engine: [moka](https://docs.rs/moka) (the Caffeine-lineage Rust cache),

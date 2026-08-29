@@ -18,7 +18,7 @@
 //!
 //! Rust port of mercury-composable's `platform-core` — the event-driven
 //! foundation layer. Canonical behavior spec: the Java project
-//! (`system/platform-core`, v4.8.6) — see `docs/design/platform-core-port.md`.
+//! (`system/platform-core`, v4.8.6) — see `draft-design-specs/platform-core-port.md`.
 //!
 //! **Increment 1 — configuration management:** the `resources/` folder
 //! convention, [`MultiLevelMap`] composite keys, [`ConfigReader`] with `${...}`

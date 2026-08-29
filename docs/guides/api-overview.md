@@ -282,7 +282,7 @@ caller; on a fire-and-forget delivery it is logged instead.
 
 ## Utility: `ManagedCache`
 
-The Java `ManagedCache` ported (design record: `docs/design/managed-cache-port.md`) — a
+The Java `ManagedCache` ported (design record: `draft-design-specs/managed-cache-port.md`) — a
 named, **self-expiring** (expire-after-write), **size-bounded** in-memory cache with a
 process-wide registry. The engine (moka, Caffeine's Rust lineage) is an internal detail;
 eviction under capacity pressure is **deterministic LRU** — a deliberate, documented

@@ -35,7 +35,7 @@ When we make a significant decision in how to write code, or how to maintain the
 what we can or cannot support, we document it using
 [Architecture Decision Records (ADR)](http://thinkrelevance.com/blog/2011/11/15/documenting-architecture-decisions).
 Take a look at the [architecture decisions](docs/arch-decisions/ADR.md) for existing ADRs, the
-per-layer [design docs](docs/design/), and the increment ledger
+per-layer [design docs](draft-design-specs/), and the increment ledger
 ([docs/INCREMENTS.md](docs/INCREMENTS.md)) for the rationale behind the port. If you have a
 question around how we do things, check to see if it is documented there. If it is *not*
 documented there, please ask us - chances are you're not the only one wondering. Of course,

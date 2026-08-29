@@ -16,7 +16,7 @@
 
 //! REST automation — the HTTP protocol boundary (Rust port of the Java
 //! `org.platformlambda.automation` package, increment-6 core scope; see
-//! `docs/design/platform-core-port.md` §5e).
+//! `draft-design-specs/platform-core-port.md` §5e).
 
 pub mod event_api;
 pub mod http_client;

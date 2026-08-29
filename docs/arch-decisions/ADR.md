@@ -26,6 +26,49 @@ or *Deprecated* (no longer relevant), with its text left in place.
 
 ---
 
+## ADR-0016 — The HTTP client consumes SSE progressively; Event-over-HTTP streams on the same call {#adr-0016}
+**Status:** Proposed · **Date:** 2026-08-29 · **Serves:** vision-mercury · **Formalizes:** async-http-client-sse-streaming-design
+<!-- id: adr-0016 | status: proposed -->
+
+**Abstract.** `async.http.request` consumes a `text/event-stream` response progressively
+and relays it as the platform's own streaming protocol: one `x-event-stream: data`
+envelope per upstream SSE event to the caller's reply route (the event's data as body,
+`event:` name as `x-event-name`, head control - upstream status plus the SSE content
+type - on the first envelope), `eof` on a clean end, and an in-band `exception` on idle
+expiry or a mid-stream disconnect. Activation is explicit and standard: the request must
+declare `Accept: text/event-stream`, the response must actually be SSE, and the request
+must carry a `reply_to`; anything else keeps the buffered single-shot behavior. For a
+stream, the request timeout becomes the per-read idle allowance (any upstream bytes,
+keep-alive comments included, reset it). Payloads are never interpreted - provider
+conventions such as `data: [DONE]` forward verbatim, keeping the client vendor-neutral.
+Because the streaming producer contract is the one the HTTP edge already consumes, a
+streaming endpoint's function can forward its own `reply_to` and correlation id into the
+client call and the application becomes an SSE-to-SSE relay by configuration. The same
+enhancement is the transport for Event-over-HTTP peer streaming (python/node wrapper
+functions and engine⇄engine, the next phases): the peer's `/api/event` answers the SAME
+call with an SSE response using a hybrid control/data framing - control signals ride
+base64-encoded MsgPack envelope frames under the reserved SSE event name `envelope`,
+while token segments ride raw SSE frames - negotiated by the same Accept contract.
+This is the Java engine's ADR-0019 twin (Java PR #300): activation contract, event
+mapping, idle semantics, and in-band messages are engine-identical; the port-idiomatic
+difference is that the relay runs as a spawned tokio task reading the hyper body
+frame-by-frame (each read bounded by the idle allowance), so a long stream never holds
+a client worker instance.
+
+**Rationale.** Progressive delivery had reached the HTTP edge (ADR-0015) but not the two
+consumption paths AI-era workloads need: an engine function consuming an LLM provider's
+token stream, and a polyglot wrapper function streaming results back to the engine. One
+mechanism closes both because the Event-over-HTTP relay already flows through the HTTP
+client. Alternatives rejected in the shared design round: an on-demand WebSocket channel
+(scope-fence growth across four codebases, gateway-hostile, drifts toward the
+standing-connection mesh the framework keeps opt-in), per-segment POSTs back to the
+reply lane (FIFO forces serialized posts - one round trip per token - and opens an
+inbound path to reply lanes), gRPC/HTTP-2 push, and long-polling. Streaming on the
+response of the engine's own request adds no inbound surface, is ordered by TCP for
+free, and rides the wire shape gateways already accommodate for LLM traffic.
+
+---
+
 ## ADR-0015 — HTTP response streaming rides the multi-shot reply route; the wire stays standards-only {#adr-0015}
 **Status:** Proposed · **Date:** 2026-08-28 · **Serves:** vision-mercury · **Formalizes:** http-response-streaming-design
 <!-- id: adr-0015 | status: proposed -->

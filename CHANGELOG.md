@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCREMENTS.md);
-the design rationale in [`docs/design/`](docs/design/).
+the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
 ## Unreleased
@@ -31,6 +31,19 @@ the design rationale in [`docs/design/`](docs/design/).
    examples/hello-world (`GET /api/hello/sse` plus the `scripts/sse-client.mjs`
    progressive-rendering client). Engine-identical with the Java engine's feature
    (Java PR #299). See the HTTP Response Streaming guide (ADR-0015).
+
+2. **Progressive SSE consumption in the HTTP client** - `async.http.request` can
+   consume a `text/event-stream` response progressively (an LLM provider's token
+   stream, another engine's streaming endpoint, any SSE API), relaying one
+   `x-event-stream: data` envelope per upstream event to the caller's reply route,
+   then `eof` - the same streaming protocol the HTTP edge consumes, which makes an
+   SSE-to-SSE relay a pure configuration exercise. Activation is explicit: the
+   request must declare `Accept: text/event-stream`, the response must be SSE, and
+   the request must carry a reply route; anything else keeps the buffered single-shot
+   behavior. For streams, the request timeout acts as the idle allowance between
+   reads (keep-alive comments reset it); idle expiry and mid-stream disconnects fail
+   the stream in-band. Engine-identical with the Java engine's feature
+   (Java PR #300). See the HTTP Response Streaming guide (ADR-0016).
 
 ### Changed
 
@@ -345,7 +358,7 @@ the design rationale in [`docs/design/`](docs/design/).
 
 1. **`ManagedCache`** — the Java `org.platformlambda.core.util.ManagedCache` ported
    (`platform_core::ManagedCache` / `CacheValue`; design record
-   `docs/design/managed-cache-port.md`, maintainer-gated): a named, self-expiring
+   `draft-design-specs/managed-cache-port.md`, maintainer-gated): a named, self-expiring
    (expire-after-write, 1 s floor), size-bounded (default 2000) in-memory cache with a
    process-wide registry and a lifecycle-wired 10-minute housekeeper. Engine: moka
    (Caffeine's Rust lineage), wrapped as an internal detail and built with
@@ -960,7 +973,7 @@ Everything since 0.1.0, in brief (increments 30–49 — the full record in
 3. **Outbound HTTPS for the async HTTP client** (rustls + OS trust store, per-request
    `trust_all_cert`) — field-validated end-to-end against a live CA chain. Redirects are
    deliberately not followed (backend design; documented decision record in
-   `docs/design/platform-core-port.md` §5j).
+   `draft-design-specs/platform-core-port.md` §5j).
 4. **Numeric promotion + `f:round`** for the simple-plugin arithmetic family.
 5. **The battle-tested AI-agent documentation**: hardened by 25 fresh-agent exercises
    across both engines (the last thirteen passing with zero documentation lookups) and

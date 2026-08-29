@@ -174,6 +174,73 @@ The `-N` (`--no-buffer`) flag matters: curl receives the events progressively ei
 way, but without `-N` it holds output in an internal buffer, so the messages would
 appear all at once when the stream ends.
 
+## Consume an SSE stream (HTTP client)
+
+The other direction: `async.http.request` can consume a Server-Sent Events response
+progressively - an LLM provider's token stream, another engine's streaming endpoint, or
+any SSE API - and relay each event to your reply route using the same streaming
+protocol.
+
+Activation is explicit and standard - all three must hold:
+
+1. the request declares `Accept: text/event-stream`,
+2. the response actually arrives as `Content-Type: text/event-stream`, and
+3. the request event carries a `reply_to` (a multi-shot-capable consumer).
+
+Anything else keeps the buffered single-shot behavior exactly as before.
+
+Each upstream SSE event becomes one `x-event-stream: data` envelope to your reply
+route: the event's data is the body (multi-line data joins with newline per the SSE
+specification), an `event:` name maps to `x-event-name`, and comment/id/retry fields
+are consumed by the client, never forwarded. The first envelope carries the head
+(upstream status and the SSE content type). A clean upstream end sends `eof`; a
+mid-stream failure sends an in-band `exception`. Payloads are never interpreted -
+provider conventions such as `data: [DONE]` are forwarded verbatim for your function
+to handle, keeping the client vendor-neutral.
+
+For a stream, the request's timeout is the *idle* allowance between reads rather than
+a total limit: any upstream bytes - keep-alive comments included - reset it, and on
+expiry the client fails the stream in-band with status 408 and closes the upstream
+connection.
+
+The composition this enables: a streaming endpoint's function can forward its own
+`reply_to` and correlation id into the client call, turning the application into an
+SSE-to-SSE relay with no imperative streaming code -
+
+```rust
+#[preload(route = "v1.sse.relay", instances = 50, interceptor)]
+struct SseRelay;
+
+#[async_trait]
+impl ComposableFunction for SseRelay {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let upstream = AsyncHttpRequest::new()
+            .set_method("GET")
+            .set_target_host("https://api.example.com")
+            .set_url("/v1/tokens")
+            .set_header("accept", "text/event-stream")
+            .set_timeout_seconds(30);
+        // the caller's reply lane becomes the client's reply route:
+        // upstream tokens render progressively out the HTTP edge
+        let po = PostOffice::new(&Platform::get_instance());
+        po.send(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(upstream.to_value())
+                .set_reply_to(input.reply_to().unwrap_or_default())
+                .set_correlation_id(input.correlation_id().unwrap_or_default()),
+        )
+        .await?;
+        Ok(EventEnvelope::new())
+    }
+}
+```
+
 ## Relation to `x-stream-id`
 
 The Java engine also carries a legacy `x-stream-id` relay (object streams, file

@@ -16,7 +16,7 @@
 
 //! Integration tests for increments 2–3 — the event-bus foundation and the
 //! manager-worker back-pressure dispatch
-//! (`docs/design/platform-core-port.md` §5.7 / §6).
+//! (`draft-design-specs/platform-core-port.md` §5.7 / §6).
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};

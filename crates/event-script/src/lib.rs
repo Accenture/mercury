@@ -23,7 +23,7 @@
 //! state machine. Canonical behavior spec: the Java project
 //! (`system/event-script-engine`, v4.8.6) and its
 //! `docs/guides/event-script/flow-grammar.md`; design:
-//! `docs/design/event-script-port.md` (this repo).
+//! `draft-design-specs/event-script-port.md` (this repo).
 //!
 //! **Increment E-1 — flow model + compiler:** [`model`] (compiled
 //! `Flow`/`Task`), [`flows`] (the template registry), [`compiler`]
