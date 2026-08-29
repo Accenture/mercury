@@ -9,6 +9,22 @@ rest:
     headers: header_1
     tracing: true
 
+  # Progressive result set rendering (HTTP response streaming) demo.
+  # "stream: true" gives the request a dedicated ordered reply lane so the
+  # "hello.sse" function can stream test messages slowly as Server-Sent
+  # Events. Optional query parameters: delay (ms between messages) and count.
+  #
+  # Try it with the companion script: node scripts/sse-client.mjs
+  #
+  - service: "hello.sse"
+    methods: ['GET']
+    url: "/api/hello/sse"
+    timeout: 30s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+    stream: true
+
   # Override the default "/api/event" endpoint to attach the demo
   # authentication service (the EventApiAuth function). A calling party must
   # present the shared demo token in the "authorization" header - see

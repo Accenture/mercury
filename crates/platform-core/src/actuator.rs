@@ -201,21 +201,11 @@ impl ComposableFunction for ActuatorServices {
                 // is exactly {app, routing}. BTreeMap keeps the output
                 // deterministic (Java's HashMap ordering is arbitrary; JSON
                 // object order is not contractual, but stable beats random).
-                let mut public = std::collections::BTreeMap::new();
-                let mut private = std::collections::BTreeMap::new();
-                for route in context.platform.routes() {
-                    let instances = context.platform.instances(&route).unwrap_or(1);
-                    if context.platform.is_private(&route).unwrap_or(true) {
-                        private.insert(route, instances);
-                    } else {
-                        public.insert(route, instances);
-                    }
-                }
                 EventEnvelope::new()
                     .set_header("content-type", "application/json")
                     .set_body(serde_json::json!({
                         "app": context.app_block(),
-                        "routing": {"public": public, "private": private},
+                        "routing": local_routing(&context.platform),
                     }))
             }
             ActuatorKind::Info => {
@@ -389,4 +379,92 @@ async fn check_services(
 }
 
 // `elapsed_time` moved to `crate::util` (increment 71): it is now shared by
-// the `/info` uptime rendering here and the ManagedCache create log.
+// the `/info` uptime rendering here and the ManagedCache create log.\n\n/// The rendered local routing view, split by visibility with pool-style
+/// route families compressed. The routing table changes infrequently, so the
+/// rendered view is cached for 10 minutes to skip repeated computation under
+/// actuator polling — an ad-hoc runtime registration may take up to the
+/// window to appear, which is acceptable for the operator view (Java
+/// ActuatorServices parity).
+fn local_routing(platform: &crate::platform::Platform) -> serde_json::Value {
+    use std::sync::OnceLock;
+    static CACHE: OnceLock<std::sync::Arc<crate::util::managed_cache::ManagedCache>> =
+        OnceLock::new();
+    let cache = CACHE.get_or_init(|| {
+        crate::util::managed_cache::ManagedCache::create_cache("local.routing.info", 10 * 60 * 1000)
+    });
+    if let Some(cached) = cache.get("local.routing") {
+        if let Some(value) = cached.downcast_ref::<serde_json::Value>() {
+            return value.clone();
+        }
+    }
+    let mut public = std::collections::BTreeMap::new();
+    let mut private = std::collections::BTreeMap::new();
+    for route in platform.routes() {
+        let instances = platform.instances(&route).unwrap_or(1);
+        if platform.is_private(&route).unwrap_or(true) {
+            private.insert(route, instances);
+        } else {
+            public.insert(route, instances);
+        }
+    }
+    let value = serde_json::json!({
+        "public": compress_route_families(public),
+        "private": compress_route_families(private),
+    });
+    cache.put("local.routing", value.clone());
+    value
+}
+
+/// Render pool-style route families compactly (Java `ActuatorServices.
+/// compressRouteFamilies`): routes that differ only by a trailing numeric
+/// suffix, with uniform instances and contiguous canonical numbering (no
+/// leading zeros), collapse into one display entry — e.g. the 500 streaming
+/// reply lanes render as `"async.http.response.stream.0 - 499": 1`.
+/// Irregular families and singletons render individually with their names
+/// preserved exactly. Display-only — the routing table itself is unchanged.
+fn compress_route_families(
+    routes: std::collections::BTreeMap<String, usize>,
+) -> std::collections::BTreeMap<String, usize> {
+    let mut result = std::collections::BTreeMap::new();
+    let mut families: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, usize>> =
+        std::collections::BTreeMap::new();
+    for (route, instances) in routes {
+        let family = route.rfind('.').and_then(|dot| {
+            let suffix = &route[dot + 1..];
+            if !suffix.is_empty() && suffix.len() < 10 && suffix.bytes().all(|b| b.is_ascii_digit())
+            {
+                let n: u64 = suffix.parse().ok()?;
+                // canonical digits only, so individual names are preserved exactly
+                (suffix == n.to_string()).then(|| (route[..dot + 1].to_string(), n))
+            } else {
+                None
+            }
+        });
+        match family {
+            Some((base, n)) => {
+                families.entry(base).or_default().insert(n, instances);
+            }
+            None => {
+                result.insert(route, instances);
+            }
+        }
+    }
+    for (base, members) in families {
+        let min = *members.keys().next().expect("non-empty family");
+        let max = *members.keys().last().expect("non-empty family");
+        let uniform = members
+            .values()
+            .collect::<std::collections::HashSet<_>>()
+            .len()
+            == 1;
+        if members.len() > 1 && uniform && members.len() as u64 == max - min + 1 {
+            let instances = *members.values().next().expect("non-empty family");
+            result.insert(format!("{base}{min} - {max}"), instances);
+        } else {
+            for (n, instances) in members {
+                result.insert(format!("{base}{n}"), instances);
+            }
+        }
+    }
+    result
+}

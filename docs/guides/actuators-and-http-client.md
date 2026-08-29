@@ -23,7 +23,12 @@ GET /livenessprobe
     One Java default is not ported: **`/info/lib`** (Java lists JAR dependencies from the
     archive manifest — a Rust binary has no runtime dependency manifest). **`/info/routes`
     IS ported**: the app block plus the local routing table split by visibility
-    (`routing.public` / `routing.private`, route → instance count, sorted); Java's optional
+    (`routing.public` / `routing.private`, route → instance count, sorted). For
+    readability, pool-style route families render compactly: routes differing only by a
+    trailing numeric suffix, with the same instance count and contiguous numbering,
+    collapse into one display entry — e.g. the 500 streaming reply lanes appear as
+    `"async.http.response.stream.0 - 499": 1` (display-only; the routing table itself is
+    unchanged, and the rendered view is cached for 10 minutes). Java's optional
     `journal` / `route_substitution` / mesh `network` blocks are omitted when empty, and
     those subsystems do not exist here. XML actuator responses are not supported —
     actuators answer in JSON. **`POST /api/event` (Event over HTTP) IS ported**

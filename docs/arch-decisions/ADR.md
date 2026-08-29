@@ -26,6 +26,46 @@ or *Deprecated* (no longer relevant), with its text left in place.
 
 ---
 
+## ADR-0015 — HTTP response streaming rides the multi-shot reply route; the wire stays standards-only {#adr-0015}
+**Status:** Proposed · **Date:** 2026-08-28 · **Serves:** vision-mercury · **Formalizes:** http-response-streaming-design
+<!-- id: adr-0015 | status: proposed -->
+
+**Abstract.** A function streams an HTTP response (LLM token segments, agent progress
+events, live updates) by exercising the platform's native streaming pattern: the callee
+sends a sequence of events to the caller-provided reply route until an
+end-of-transmission signal. Each event carries the reserved **envelope** header
+`x-event-stream: data | eof | exception`; the marker is internal protocol consumed by
+the REST automation edge — it never appears on the wire. The public HTTP surface is
+standards-only: Server-Sent Events framing when the content type is `text/event-stream`
+(typed events, a terminal `done` event carrying trailing metadata, in-band `error`
+events, keep-alive comments), chunked transfer with JSON Lines otherwise. A streaming
+endpoint is declared with `stream: true` in rest.yaml, which checks out a dedicated
+ordered reply lane for the request's lifetime — a single-instance route
+(`async.http.response.stream.{n}`) drawn LIFO from a pool of 500 (the
+`async.http.response` concurrency), returned when the request ends — the "ready" signal
+pattern of the reactive manager/worker design. One request's segments ride its own lane
+(strict FIFO) while different requests stream concurrently; an exhausted pool rejects
+further streaming requests immediately with HTTP-503 (deterministic back-pressure, no
+configuration knob). The first event commits the response head; each arrival extends
+the idle allowance; stalls fail in-band with status 408; client disconnects turn late
+segments into no-op drops; the response header transform applies to the streamed head
+with single-shot parity. Responses without the marker are single-shot, exactly as
+before.
+
+**Rationale.** The prerequisite for AI-era workloads is progressive delivery over plain
+HTTP — SSE is the de facto wire for chat token streams, agent progress protocols, and
+the live-watch window of long-running workflows. The multi-shot reply route adds no new
+substrate — anything that can send an envelope to a route can stream, which keeps the
+mechanism language-neutral by construction: flow tasks, graph nodes, and Event-over-HTTP
+peers join by sending the same envelopes. This is the Java engine's ADR-0018 twin
+(Java PR #299): the envelope vocabulary, the rest.yaml surface, the SSE framing, the
+503 message, and the `/info/routes` family compression are engine-identical; the
+internal execution differs idiomatically (a tokio renderer task enforces the idle
+allowance directly instead of Java's housekeeper sweep — the wire behavior is the same).
+The Java-side `x-stream-id` relay remains a documented deferral of this port.
+
+---
+
 ## ADR-0014 — Polyglot functions are Event-over-HTTP peers, not subprocesses or ports {#adr-0014}
 **Status:** Proposed · **Date:** 2026-08-22 · **Serves:** vision-mercury · **Formalizes:** polyglot-event-over-http-design
 <!-- id: adr-0014 | status: proposed -->

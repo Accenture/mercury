@@ -58,6 +58,10 @@ pub struct RouteInfo {
     /// Event-script flow binding (grammar `flow:`): the flow id injected as
     /// the `x-flow-id` request header for `http.flow.adapter` (increment E-3).
     pub flow: Option<String>,
+    /// `stream: true` — the response is a multi-shot event stream: the request
+    /// checks out a dedicated ordered reply lane for its lifetime and the edge
+    /// renders segments progressively (Java `RouteInfo.streamResponse`).
+    pub stream_response: bool,
     segments: Vec<Segment>,
 }
 
@@ -445,6 +449,7 @@ fn parse_route(
         None => None,
     };
     let tracing = matches!(entry.get("tracing"), Some(ConfigValue::Bool(true)));
+    let stream_response = matches!(entry.get("stream"), Some(ConfigValue::Bool(true)));
     Ok(RouteInfo {
         service,
         methods,
@@ -458,13 +463,14 @@ fn parse_route(
         correlation_id_header: text("correlation.id.header"),
         traceparent_header: text("traceparent.header"),
         flow: text("flow"),
+        stream_response,
         segments,
     })
 }
 
 /// Parse a duration like `30s`, `500ms`, `2m` (default 30 s; clamped 1 s–5 m,
-/// Java parity).
-fn parse_timeout(value: Option<&str>) -> Duration {
+/// Java parity). Shared with the HTTP boundary for `event.stream.keep.alive`.
+pub(crate) fn parse_timeout(value: Option<&str>) -> Duration {
     let parsed = value.and_then(|text| {
         let text = text.trim().to_lowercase();
         if let Some(ms) = text.strip_suffix("ms") {

@@ -38,17 +38,22 @@
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex, OnceLock};
+use std::task::{Context, Poll};
+use std::time::Duration;
 
 use async_trait::async_trait;
+use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Full};
-use hyper::body::Bytes;
+use hyper::body::{Bytes, Frame};
 use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 
 use crate::envelope::EventEnvelope;
+use crate::event_stream;
 use crate::function::{AppError, ComposableFunction};
 use crate::platform::Platform;
 use crate::post_office::PostOffice;
@@ -57,7 +62,7 @@ use crate::util::app_config_reader::AppConfigReader;
 use crate::util::config_reader::ConfigReader;
 use crate::util::w3c_trace;
 
-use super::routing::{AssignedRoute, RoutingTable};
+use super::routing::{AssignedRoute, RouteInfo, RoutingTable};
 
 /// Reserved read-only request header exposing the business correlation-id to
 /// the target function (Java `HttpRouter.MY_CORRELATION_ID`).
@@ -66,6 +71,142 @@ pub const MY_CORRELATION_ID: &str = "my_correlation_id";
 /// Route of the HTTP response-correlation service (Java
 /// `AsyncHttpClient.ASYNC_HTTP_RESPONSE`).
 pub const ASYNC_HTTP_RESPONSE: &str = "async.http.response";
+
+/// Route-name prefix of the streaming reply-lane pool (Java
+/// `AsyncHttpClient.ASYNC_HTTP_RESPONSE_STREAM_PREFIX`). A streaming request
+/// checks out one dedicated single-instance lane for its lifetime, so its
+/// segments render in strict FIFO order while different requests stream
+/// concurrently through their own lanes.
+pub const ASYNC_HTTP_RESPONSE_STREAM_PREFIX: &str = "async.http.response.stream.";
+
+/// Shared by `async.http.response` and the streaming reply-lane pool
+/// (one lane per instance — Java `AppStarter.RESPONSE_HANDLER_INSTANCES`).
+const RESPONSE_HANDLER_INSTANCES: usize = 500;
+
+/// Buffered segment events per in-flight stream (producer → renderer).
+const STREAM_EVENT_BUFFER: usize = 64;
+/// Buffered wire frames per in-flight stream (renderer → socket).
+const STREAM_FRAME_BUFFER: usize = 64;
+
+/// The response body type: complete payloads and progressive streams share
+/// one boxed body so every handler path composes (Java: vert.x chunked writes).
+type HttpBody = BoxBody<Bytes, std::convert::Infallible>;
+
+/// A complete in-memory response body.
+fn full(bytes: Bytes) -> HttpBody {
+    BoxBody::new(Full::new(bytes))
+}
+
+/// Available streaming reply lanes — a LIFO stack (the "ready" signal pattern
+/// of the reactive manager/worker design): checkout takes the most recently
+/// released lane; release returns it. Filled once at server start.
+fn lane_pool() -> &'static Mutex<Vec<String>> {
+    static POOL: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
+    POOL.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+/// Check out a dedicated ordered reply lane for one streaming request.
+/// Returns None when the pool is exhausted.
+pub fn checkout_lane() -> Option<String> {
+    lane_pool().lock().expect("lane pool poisoned").pop()
+}
+
+/// Return a reply lane to the pool — called when the owning request ends,
+/// and at startup to fill the pool.
+pub fn release_lane(route: String) {
+    lane_pool().lock().expect("lane pool poisoned").push(route);
+}
+
+/// The number of reply lanes currently available for checkout.
+pub fn available_lanes() -> usize {
+    lane_pool().lock().expect("lane pool poisoned").len()
+}
+
+/// In-flight streaming HTTP contexts — each entry forwards segment events
+/// from the request's reply lane to its renderer task (Java: the
+/// AsyncContextHolder + EventStreamState pair).
+fn pending_streams() -> &'static Mutex<HashMap<String, mpsc::Sender<EventEnvelope>>> {
+    static PENDING: OnceLock<Mutex<HashMap<String, mpsc::Sender<EventEnvelope>>>> = OnceLock::new();
+    PENDING.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Remove a streaming context and return its lane to the pool. The map
+/// removal is the exactly-once gate (Java `HttpRouter.closeContext`).
+fn cleanup_stream(context_id: &str, lane: &str) {
+    let removed = pending_streams()
+        .lock()
+        .expect("pending streams poisoned")
+        .remove(context_id);
+    if removed.is_some() {
+        release_lane(lane.to_string());
+    }
+}
+
+/// The streaming reply-lane service — one shared handler behind every
+/// `async.http.response.stream.{n}` route (each registered with a single
+/// instance, so per-request segment order is preserved end-to-end). It
+/// forwards each event into the owning request's renderer; a missing context
+/// (completed, timed out or disconnected) makes late segments no-op drops.
+pub struct StreamLaneService;
+
+#[async_trait]
+impl ComposableFunction for StreamLaneService {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        if let Some(context_id) = input.correlation_id().map(str::to_string) {
+            let sender = pending_streams()
+                .lock()
+                .expect("pending streams poisoned")
+                .get(&context_id)
+                .cloned();
+            if let Some(sender) = sender {
+                // bounded back-pressure toward the renderer; a dropped
+                // receiver (client gone) turns this into a no-op drop
+                let _ = sender.send(input).await;
+            }
+        }
+        Ok(EventEnvelope::new())
+    }
+}
+
+/// A channel-backed streaming response body: the renderer task pushes wire
+/// frames; hyper pulls them as the socket drains. Dropping the sender ends
+/// the response body.
+struct ChannelBody {
+    rx: mpsc::Receiver<Frame<Bytes>>,
+}
+
+impl hyper::body::Body for ChannelBody {
+    type Data = Bytes;
+    type Error = std::convert::Infallible;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Bytes>, Self::Error>>> {
+        self.rx.poll_recv(cx).map(|frame| frame.map(Ok))
+    }
+}
+
+/// SSE keep-alive comment interval in ms (`event.stream.keep.alive`,
+/// default 30s; 0 disables — Java parity).
+fn keep_alive_ms() -> u64 {
+    static KEEP_ALIVE: OnceLock<u64> = OnceLock::new();
+    *KEEP_ALIVE.get_or_init(|| {
+        let config = AppConfigReader::get_instance();
+        let text = config.get_property_or("event.stream.keep.alive", "30s");
+        let trimmed = text.trim().to_lowercase();
+        if trimmed == "0" || trimmed == "0s" || trimmed == "0ms" || trimmed == "0m" {
+            0
+        } else {
+            super::routing::parse_timeout(Some(&trimmed)).as_millis() as u64
+        }
+    })
+}
 
 /// Reserved `my_*` metadata headers that must never reach the HTTP wire
 /// (Java `WorkerHandler.copyResponseHeaders` protected-metadata handling).
@@ -157,14 +298,37 @@ pub async fn start_http_server(platform: &Platform) -> Result<SocketAddr, AppErr
     // (Java AppStarter registers AsyncHttpResponse with the server, private,
     // 500 instances); idempotent — tolerate a concurrent registration
     if !platform.has_route(ASYNC_HTTP_RESPONSE) {
-        if let Err(e) =
-            platform.register_private(ASYNC_HTTP_RESPONSE, Arc::new(AsyncHttpResponseService), 500)
-        {
+        if let Err(e) = platform.register_private(
+            ASYNC_HTTP_RESPONSE,
+            Arc::new(AsyncHttpResponseService),
+            RESPONSE_HANDLER_INSTANCES,
+        ) {
             if !platform.has_route(ASYNC_HTTP_RESPONSE) {
                 return Err(e);
             }
         }
     }
+    // streaming responses use a pool of dedicated single-instance reply lanes:
+    // a streaming request checks out one lane for its lifetime (strict FIFO for
+    // its segments) and returns it when its context closes; the pool size
+    // matches the async.http.response instances, and an idle lane costs only a
+    // little memory (Java AppStarter parity). Registration runs on EVERY server
+    // start — a re-registration rebinds the route workers to the current
+    // runtime (the per-test-runtime idiom of this port) — but the POOL is
+    // filled exactly once per process: get_or_init blocks a concurrent second
+    // server start until the fill completes, so the pool can never be refilled
+    // or double-filled while requests are in flight
+    let stream_responder = Arc::new(StreamLaneService);
+    for lane in 0..RESPONSE_HANDLER_INSTANCES {
+        let lane_route = format!("{ASYNC_HTTP_RESPONSE_STREAM_PREFIX}{lane}");
+        platform.register_private(&lane_route, stream_responder.clone(), 1)?;
+    }
+    static POOL_FILLED: OnceLock<()> = OnceLock::new();
+    POOL_FILLED.get_or_init(|| {
+        for lane in 0..RESPONSE_HANDLER_INSTANCES {
+            release_lane(format!("{ASYNC_HTTP_RESPONSE_STREAM_PREFIX}{lane}"));
+        }
+    });
     let rest_yaml = config.get_property_or("yaml.rest.automation", "classpath:/rest.yaml");
     let reader = ConfigReader::load(&rest_yaml)
         .map_err(|e| AppError::new(500, format!("Unable to load {rest_yaml} - {e}")))?;
@@ -233,7 +397,7 @@ async fn handle(
     state: Arc<RouterState>,
     request: Request<hyper::body::Incoming>,
     peer: SocketAddr,
-) -> Result<Response<Full<Bytes>>, hyper::Error> {
+) -> Result<Response<HttpBody>, hyper::Error> {
     // websocket upgrade on a registered `/ws/{name}/{token}` path takes the
     // connection out of the HTTP request/response cycle (Java parity)
     if super::ws_server::is_ws_upgrade(&request) {
@@ -241,7 +405,8 @@ async fn handle(
             &state.platform,
             request,
             peer.ip().to_string(),
-        ));
+        )
+        .map(BoxBody::new));
     }
     let method = request.method().as_str().to_uppercase();
     let path = request.uri().path().to_string();
@@ -292,9 +457,7 @@ async fn handle(
         for (name, value) in &cors.options {
             response = response.header(name, value);
         }
-        return Ok(response
-            .body(Full::new(Bytes::new()))
-            .expect("static response"));
+        return Ok(response.body(full(Bytes::new())).expect("static response"));
     }
     match process(
         &state, assigned, method, path, query_text, headers, body_bytes, peer,
@@ -316,7 +479,7 @@ async fn process(
     mut headers: HashMap<String, String>,
     body_bytes: Bytes,
     peer: SocketAddr,
-) -> Result<Response<Full<Bytes>>, AppError> {
+) -> Result<Response<HttpBody>, AppError> {
     let info = assigned.info;
     // request-header transforms
     if let Some(header_info) = &info.headers {
@@ -540,54 +703,75 @@ async fn process(
             http_request = http_request.set_session_info(key, value);
         }
     }
-    // CALLBACK dispatch (Java HttpRouter parity): the endpoint service is
-    // invoked with reply_to = async.http.response and cid = the HTTP context
-    // id — its worker self-records its span (no RPC suppression), and the
-    // response leg is a visible function span. The business correlation-id
-    // rides the my_correlation_id envelope header instead of the cid slot.
-    let context_id = uuid::Uuid::new_v4().simple().to_string();
-    let (tx, rx) = oneshot::channel();
-    pending_responses()
-        .lock()
-        .expect("pending http contexts poisoned")
-        .insert(context_id.clone(), tx);
-    let event = build_event(
-        &info.service,
-        &http_request,
-        &cid,
-        &trace_id,
-        &trace_path,
-        &parent_span,
-    )?
-    .set_correlation_id(&context_id)
-    .set_reply_to(ASYNC_HTTP_RESPONSE);
-    if let Err(e) = po.send(event).await {
+    let is_head = method == "HEAD";
+    // a streaming endpoint (rest.yaml `stream: true`) uses the multi-shot
+    // reply route; HEAD requests never stream (Java parity)
+    let result = if info.stream_response && !is_head {
+        match stream_dispatch(
+            state,
+            info,
+            &http_request,
+            &cid,
+            &cid_header,
+            &trace_id,
+            &trace_path,
+            &parent_span,
+            accept.clone(),
+        )
+        .await?
+        {
+            StreamOutcome::Streaming(response) => return Ok(response),
+            StreamOutcome::SingleShot(envelope) => envelope,
+        }
+    } else {
+        // CALLBACK dispatch (Java HttpRouter parity): the endpoint service is
+        // invoked with reply_to = async.http.response and cid = the HTTP context
+        // id — its worker self-records its span (no RPC suppression), and the
+        // response leg is a visible function span. The business correlation-id
+        // rides the my_correlation_id envelope header instead of the cid slot.
+        let context_id = uuid::Uuid::new_v4().simple().to_string();
+        let (tx, rx) = oneshot::channel();
         pending_responses()
             .lock()
             .expect("pending http contexts poisoned")
-            .remove(&context_id);
-        return Err(e);
-    }
-    let result = match tokio::time::timeout(info.timeout, rx).await {
-        Ok(Ok(envelope)) => envelope,
-        Ok(Err(_)) => {
-            return Err(AppError::new(500, "Response channel closed unexpectedly"));
-        }
-        Err(_) => {
+            .insert(context_id.clone(), tx);
+        let event = build_event(
+            &info.service,
+            &http_request,
+            &cid,
+            &trace_id,
+            &trace_path,
+            &parent_span,
+        )?
+        .set_correlation_id(&context_id)
+        .set_reply_to(ASYNC_HTTP_RESPONSE);
+        if let Err(e) = po.send(event).await {
             pending_responses()
                 .lock()
                 .expect("pending http contexts poisoned")
                 .remove(&context_id);
-            return Err(AppError::new(
-                408,
-                format!("Timeout for {} ms", info.timeout.as_millis()),
-            ));
+            return Err(e);
+        }
+        match tokio::time::timeout(info.timeout, rx).await {
+            Ok(Ok(envelope)) => envelope,
+            Ok(Err(_)) => {
+                return Err(AppError::new(500, "Response channel closed unexpectedly"));
+            }
+            Err(_) => {
+                pending_responses()
+                    .lock()
+                    .expect("pending http contexts poisoned")
+                    .remove(&context_id);
+                return Err(AppError::new(
+                    408,
+                    format!("Timeout for {} ms", info.timeout.as_millis()),
+                ));
+            }
         }
     };
     // map the response envelope back to HTTP (Java AsyncHttpResponse:
     // updateHeadersAndContentType + updateHeaders)
     let status = status_of(result.status());
-    let is_head = method == "HEAD";
     let mut content_type: Option<String> = None;
     let mut set_cookies: Vec<String> = Vec::new();
     let mut response_headers: HashMap<String, String> = HashMap::new();
@@ -659,8 +843,463 @@ async fn process(
     // a HEAD response never carries a body (Java: isHeadMethod skips content)
     let payload = if is_head { Bytes::new() } else { payload };
     response
-        .body(Full::new(payload))
+        .body(full(payload))
         .map_err(|e| AppError::new(500, e.to_string()))
+}
+
+/// Outcome of a streaming dispatch: a committed progressive response, or the
+/// first event turned out to be an ordinary single-shot reply.
+/// (A short-lived by-value carrier - the size difference between variants is
+/// one stack move per request, not worth a heap allocation.)
+#[allow(clippy::large_enum_variant)]
+enum StreamOutcome {
+    Streaming(Response<HttpBody>),
+    SingleShot(EventEnvelope),
+}
+
+/// The first event's stream marker: `Ok(Some(marker))` for a valid
+/// `x-event-stream` value, `Ok(None)` when the header is absent (single-shot),
+/// `Err(())` for a present-but-invalid value (drop the event, Java parity).
+fn stream_marker(event: &EventEnvelope) -> Result<Option<&'static str>, ()> {
+    for (name, value) in event.headers() {
+        if name.eq_ignore_ascii_case(event_stream::X_EVENT_STREAM) {
+            return match value.to_lowercase().as_str() {
+                event_stream::DATA => Ok(Some(event_stream::DATA)),
+                event_stream::EOF => Ok(Some(event_stream::EOF)),
+                event_stream::EXCEPTION => Ok(Some(event_stream::EXCEPTION)),
+                _ => Err(()),
+            };
+        }
+    }
+    Ok(None)
+}
+
+/// Error text from an exception event body (Java `EventStreamRenderer.errorMessage`).
+fn stream_error_message(event: &EventEnvelope) -> String {
+    match event.body() {
+        rmpv::Value::Map(entries) => entries
+            .iter()
+            .find(|(key, _)| key.as_str() == Some("message"))
+            .map(|(_, value)| stream_text(value))
+            .unwrap_or_else(|| "Stream failed".to_string()),
+        rmpv::Value::Nil => "Stream failed".to_string(),
+        other => stream_text(other),
+    }
+}
+
+/// The fallback content type for a streaming response from the request's
+/// Accept header (Java `EventStreamRenderer.negotiateContentType`).
+fn negotiate_stream_type(accept: Option<&str>) -> String {
+    let Some(accept) = accept else {
+        return "application/json".to_string();
+    };
+    if accept.contains("*/*") || accept.contains("application/json") {
+        "application/json".to_string()
+    } else if accept.contains("text/event-stream") {
+        "text/event-stream".to_string()
+    } else if accept.contains("text/html") {
+        "text/html".to_string()
+    } else if accept.contains("application/xml") {
+        "application/xml".to_string()
+    } else {
+        "text/plain".to_string()
+    }
+}
+
+/// A segment body as line-oriented text: strings ride as-is; binary as UTF-8;
+/// structured bodies render as COMPACT one-line JSON — stream framing is
+/// line-oriented on both engines (Java uses the compact Gson for frames).
+fn stream_text(body: &rmpv::Value) -> String {
+    match body {
+        rmpv::Value::Nil => String::new(),
+        rmpv::Value::String(text) => text.as_str().unwrap_or_default().to_string(),
+        rmpv::Value::Binary(bytes) => String::from_utf8_lossy(bytes).to_string(),
+        other => {
+            let stripped = crate::serializer::strip_nulls(other);
+            let json = serde_json::to_value(&stripped).unwrap_or_default();
+            serde_json::to_string(&json).unwrap_or_default()
+        }
+    }
+}
+
+/// One SSE frame: optional `event:` line, one `data:` line per text line
+/// (multi-line data splits per the SSE specification), then a blank line.
+fn sse_frame(event_name: Option<&str>, text: &str) -> Bytes {
+    let mut frame = String::new();
+    if let Some(name) = event_name.filter(|n| !n.is_empty()) {
+        frame.push_str("event: ");
+        frame.push_str(name);
+        frame.push('\n');
+    }
+    for line in text.split('\n') {
+        frame.push_str("data: ");
+        frame.push_str(line);
+        frame.push('\n');
+    }
+    frame.push('\n');
+    Bytes::from(frame)
+}
+
+/// One chunked-mode segment: strings and bytes append verbatim; structured
+/// bodies stream as JSON Lines (one compact JSON object per line).
+fn chunk_bytes(body: &rmpv::Value) -> Bytes {
+    match body {
+        rmpv::Value::Nil => Bytes::new(),
+        rmpv::Value::String(text) => Bytes::from(text.as_str().unwrap_or_default().to_string()),
+        rmpv::Value::Binary(bytes) => Bytes::from(bytes.clone()),
+        other => {
+            let mut line = stream_text(other);
+            line.push('\n');
+            Bytes::from(line)
+        }
+    }
+}
+
+/// The `x-event-name` companion header (SSE `event:` field), if any.
+fn stream_event_name(event: &EventEnvelope) -> Option<&str> {
+    event
+        .headers()
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case(event_stream::X_EVENT_NAME))
+        .map(|(_, value)| value.as_str())
+}
+
+/// Dispatch to a streaming endpoint: check out a dedicated ordered reply
+/// lane, send the request with `reply_to` = that lane, and turn the event
+/// sequence into a progressive HTTP response. The first event decides the
+/// shape: unmarked = ordinary single-shot; `exception` before the head = a
+/// normal HTTP error; `data`/`eof` commit the head and start the renderer.
+#[allow(clippy::too_many_arguments)]
+async fn stream_dispatch(
+    state: &RouterState,
+    info: &RouteInfo,
+    http_request: &crate::automation::AsyncHttpRequest,
+    cid: &str,
+    cid_header: &str,
+    trace_id: &Option<String>,
+    trace_path: &str,
+    parent_span: &Option<String>,
+    accept: Option<String>,
+) -> Result<StreamOutcome, AppError> {
+    // a streaming endpoint borrows a dedicated ordered reply lane for the
+    // lifetime of the request - an empty pool means full streaming capacity
+    let Some(lane) = checkout_lane() else {
+        return Err(AppError::new(503, "Streaming response pool exhausted"));
+    };
+    let po = PostOffice::new(&state.platform);
+    let context_id = uuid::Uuid::new_v4().simple().to_string();
+    let (tx, mut rx) = mpsc::channel::<EventEnvelope>(STREAM_EVENT_BUFFER);
+    pending_streams()
+        .lock()
+        .expect("pending streams poisoned")
+        .insert(context_id.clone(), tx);
+    let event = build_event(
+        &info.service,
+        http_request,
+        cid,
+        trace_id,
+        trace_path,
+        parent_span,
+    )?
+    .set_correlation_id(&context_id)
+    .set_reply_to(&lane);
+    if let Err(e) = po.send(event).await {
+        cleanup_stream(&context_id, &lane);
+        return Err(e);
+    }
+    // await the first event; the endpoint timeout is the idle allowance
+    let (first, marker) = loop {
+        match tokio::time::timeout(info.timeout, rx.recv()).await {
+            Ok(Some(envelope)) => match stream_marker(&envelope) {
+                Ok(Some(marker)) => break (envelope, Some(marker)),
+                Ok(None) => break (envelope, None),
+                Err(()) => {
+                    // present-but-invalid marker: drop the event (Java parity)
+                    log::warn!(
+                        "Dropping event for {context_id} - invalid {} signal",
+                        event_stream::X_EVENT_STREAM
+                    );
+                }
+            },
+            Ok(None) => {
+                cleanup_stream(&context_id, &lane);
+                return Err(AppError::new(500, "Response channel closed unexpectedly"));
+            }
+            Err(_) => {
+                cleanup_stream(&context_id, &lane);
+                return Err(AppError::new(
+                    408,
+                    format!("Timeout for {} ms", info.timeout.as_millis()),
+                ));
+            }
+        }
+    };
+    let Some(marker) = marker else {
+        // the endpoint answered single-shot - render exactly as before
+        cleanup_stream(&context_id, &lane);
+        return Ok(StreamOutcome::SingleShot(first));
+    };
+    if marker == event_stream::EXCEPTION {
+        // failure before the head is committed - render a normal HTTP error
+        cleanup_stream(&context_id, &lane);
+        let status = if first.status() >= 400 {
+            first.status()
+        } else {
+            500
+        };
+        return Err(AppError::new(status, stream_error_message(&first)));
+    }
+    // ---- the first data/eof event commits the HTTP head ----
+    if first
+        .headers()
+        .keys()
+        .any(|k| k.eq_ignore_ascii_case("x-stream-id"))
+    {
+        // mutual exclusivity rule: x-event-stream wins over a stray x-stream-id
+        log::warn!("Ignoring x-stream-id on a streaming response for {context_id}");
+    }
+    let mut response_headers: HashMap<String, String> = HashMap::new();
+    let mut set_cookies: Vec<String> = Vec::new();
+    let mut content_type: Option<String> = None;
+    let mut idle_override: Option<Duration> = None;
+    for (name, value) in first.headers() {
+        let key = name.to_lowercase();
+        match key.as_str() {
+            // reserved envelope headers - never on the wire
+            event_stream::X_EVENT_STREAM | event_stream::X_EVENT_NAME | "x-stream-id" => {}
+            // idle-allowance override in seconds (producer head control)
+            "x-ttl" => {
+                if let Ok(seconds) = value.trim().parse::<u64>() {
+                    if seconds > 0 {
+                        idle_override = Some(Duration::from_secs(seconds));
+                    }
+                }
+            }
+            "content-type" => content_type = Some(value.to_lowercase()),
+            "set-cookie" => {
+                set_cookies.extend(value.split('|').map(|c| c.trim().to_string()));
+            }
+            _ => {
+                response_headers.insert(key, value.clone());
+            }
+        }
+    }
+    // the rest.yaml response transform applies to the streamed head exactly
+    // as it does to a single-shot response (single-shot parity)
+    if let Some(header_info) = &info.headers {
+        header_info.response.apply(&mut response_headers);
+    }
+    // echo the business correlation-id; a function-set header of the same name wins
+    response_headers
+        .entry(cid_header.to_string())
+        .or_insert_with(|| cid.to_string());
+    if let Some(cors) = &info.cors {
+        for (name, value) in &cors.headers {
+            response_headers.insert(name.to_lowercase(), value.clone());
+        }
+    }
+    let content_type = content_type.unwrap_or_else(|| negotiate_stream_type(accept.as_deref()));
+    let sse = content_type.starts_with("text/event-stream");
+    if sse {
+        // default for SSE - an explicit event header or transform add wins
+        response_headers
+            .entry("cache-control".to_string())
+            .or_insert_with(|| "no-cache".to_string());
+    }
+    let idle = idle_override.unwrap_or(info.timeout);
+    let mut builder = Response::builder().status(status_of(first.status()));
+    for (name, value) in &response_headers {
+        builder = builder.header(name, value);
+    }
+    for cookie in set_cookies {
+        if !cookie.is_empty() {
+            builder = builder.header("set-cookie", cookie);
+        }
+    }
+    builder = builder.header("content-type", &content_type);
+    let (body_tx, body_rx) = mpsc::channel::<Frame<Bytes>>(STREAM_FRAME_BUFFER);
+    let response = builder
+        .body(BoxBody::new(ChannelBody { rx: body_rx }))
+        .map_err(|e| AppError::new(500, e.to_string()))?;
+    tokio::spawn(render_stream(
+        rx, body_tx, sse, idle, context_id, lane, first, marker,
+    ));
+    Ok(StreamOutcome::Streaming(response))
+}
+
+/// What the renderer observed while waiting for the next segment event.
+/// (A short-lived by-value carrier on the per-segment path - boxing the
+/// envelope would trade one stack move for a heap allocation per segment.)
+#[allow(clippy::large_enum_variant)]
+enum Waited {
+    Event(EventEnvelope),
+    Idle,
+    Closed,
+}
+
+/// Wait for the next event within the idle allowance, emitting SSE keep-alive
+/// comments while the producer is quiet (best-effort; pings never extend the
+/// idle allowance).
+async fn next_stream_event(
+    rx: &mut mpsc::Receiver<EventEnvelope>,
+    body_tx: &mpsc::Sender<Frame<Bytes>>,
+    sse: bool,
+    idle: Duration,
+) -> Waited {
+    let ping_every = keep_alive_ms();
+    let idle_deadline = tokio::time::sleep(idle);
+    tokio::pin!(idle_deadline);
+    loop {
+        if sse && ping_every > 0 {
+            let ping = tokio::time::sleep(Duration::from_millis(ping_every));
+            tokio::pin!(ping);
+            tokio::select! {
+                received = rx.recv() => {
+                    return match received {
+                        Some(event) => Waited::Event(event),
+                        None => Waited::Closed,
+                    };
+                }
+                _ = &mut idle_deadline => return Waited::Idle,
+                _ = &mut ping => {
+                    let _ = body_tx.try_send(Frame::data(Bytes::from_static(b": ping\n\n")));
+                }
+            }
+        } else {
+            tokio::select! {
+                received = rx.recv() => {
+                    return match received {
+                        Some(event) => Waited::Event(event),
+                        None => Waited::Closed,
+                    };
+                }
+                _ = &mut idle_deadline => return Waited::Idle,
+            }
+        }
+    }
+}
+
+/// Push one wire frame with back-pressure, bounded by the idle allowance —
+/// a client that stops reading beyond it gets truncated (the missing
+/// terminal event is the in-band truncation signal). Returns false when the
+/// stream can no longer be written (client gone or too slow).
+async fn push_frame(
+    body_tx: &mpsc::Sender<Frame<Bytes>>,
+    idle: Duration,
+    context_id: &str,
+    bytes: Bytes,
+) -> bool {
+    if bytes.is_empty() {
+        return true;
+    }
+    match tokio::time::timeout(idle, body_tx.send(Frame::data(bytes))).await {
+        Ok(Ok(())) => true,
+        Ok(Err(_)) => {
+            log::debug!("Client disconnected from event stream {context_id}");
+            false
+        }
+        Err(_) => {
+            log::error!("Closing event stream for {context_id} - client too slow");
+            false
+        }
+    }
+}
+
+/// The per-request renderer: consumes segment events from the reply lane and
+/// writes SSE or chunked frames until end of transmission, an in-band error,
+/// an idle timeout, or a gone/too-slow client. Always returns the lane to
+/// the pool at the end (Java: closeContext, the termination funnel).
+#[allow(clippy::too_many_arguments)]
+async fn render_stream(
+    mut rx: mpsc::Receiver<EventEnvelope>,
+    body_tx: mpsc::Sender<Frame<Bytes>>,
+    sse: bool,
+    idle: Duration,
+    context_id: String,
+    lane: String,
+    first: EventEnvelope,
+    first_marker: &'static str,
+) {
+    let mut pending = Some((first, first_marker));
+    loop {
+        let (event, marker) = match pending.take() {
+            Some(next) => next,
+            None => match next_stream_event(&mut rx, &body_tx, sse, idle).await {
+                Waited::Event(event) => match stream_marker(&event) {
+                    Ok(Some(marker)) => (event, marker),
+                    Ok(None) | Err(()) => {
+                        log::warn!(
+                            "Dropping event for {context_id} - invalid {} signal",
+                            event_stream::X_EVENT_STREAM
+                        );
+                        continue;
+                    }
+                },
+                Waited::Idle => {
+                    // fail the stream in-band (Java housekeeper parity)
+                    if sse {
+                        let error = serde_json::json!({
+                            "status": 408,
+                            "message": format!("Timeout for {} seconds", idle.as_secs()),
+                            "type": "error",
+                        });
+                        let frame = sse_frame(Some("error"), &error.to_string());
+                        let _ = push_frame(&body_tx, idle, &context_id, frame).await;
+                    }
+                    break;
+                }
+                Waited::Closed => break,
+            },
+        };
+        match marker {
+            event_stream::DATA => {
+                let bytes = if sse {
+                    if matches!(event.body(), rmpv::Value::Nil) {
+                        Bytes::new()
+                    } else {
+                        sse_frame(stream_event_name(&event), &stream_text(event.body()))
+                    }
+                } else {
+                    chunk_bytes(event.body())
+                };
+                if !push_frame(&body_tx, idle, &context_id, bytes).await {
+                    break;
+                }
+            }
+            event_stream::EOF => {
+                if sse {
+                    let text = if matches!(event.body(), rmpv::Value::Nil) {
+                        "{}".to_string()
+                    } else {
+                        stream_text(event.body())
+                    };
+                    let frame = sse_frame(Some("done"), &text);
+                    let _ = push_frame(&body_tx, idle, &context_id, frame).await;
+                }
+                break;
+            }
+            _ => {
+                // in-band failure after the head is committed: SSE renders an
+                // error event; chunked mode truncates (Java parity)
+                if sse {
+                    let status = if event.status() >= 400 {
+                        event.status()
+                    } else {
+                        500
+                    };
+                    let error = serde_json::json!({
+                        "status": status,
+                        "message": stream_error_message(&event),
+                        "type": "error",
+                    });
+                    let frame = sse_frame(Some("error"), &error.to_string());
+                    let _ = push_frame(&body_tx, idle, &context_id, frame).await;
+                }
+                break;
+            }
+        }
+    }
+    cleanup_stream(&context_id, &lane);
 }
 
 fn build_event(
@@ -843,7 +1482,7 @@ async fn serve_static(
     headers: &HashMap<String, String>,
     peer: SocketAddr,
     head_only: bool,
-) -> Option<Response<Full<Bytes>>> {
+) -> Option<Response<HttpBody>> {
     let (bytes, filename) = resolve_static_file(path)?;
     let static_content = state.table.static_content();
     let no_cache = super::routing::matched_element(&static_content.no_cache_pages, path);
@@ -873,7 +1512,7 @@ async fn serve_static(
                             if let (Some(content_type), false) = (content_type, has_content_type) {
                                 response = response.header("content-type", content_type);
                             }
-                            return response.body(Full::new(payload)).ok();
+                            return response.body(full(payload)).ok();
                         }
                     }
                     Err(e) => {
@@ -922,7 +1561,7 @@ async fn serve_static(
             return Response::builder()
                 .status(StatusCode::NOT_MODIFIED)
                 .header("content-length", "0")
-                .body(Full::new(Bytes::new()))
+                .body(full(Bytes::new()))
                 .ok();
         }
         response = response.header("ETag", etag);
@@ -932,7 +1571,7 @@ async fn serve_static(
     } else {
         Bytes::from(bytes)
     };
-    response.body(Full::new(payload)).ok()
+    response.body(full(payload)).ok()
 }
 
 /// Resolve a request path to a file under `resources/public`
@@ -1098,12 +1737,12 @@ fn mime_for(extension: &str) -> &'static str {
 }
 
 /// The Java error shape: `{"status": n, "message": "...", "type": "error"}`.
-fn error_response(status: i32, message: &str) -> Response<Full<Bytes>> {
+fn error_response(status: i32, message: &str) -> Response<HttpBody> {
     let body = serde_json::json!({"status": status, "message": message, "type": "error"});
     Response::builder()
         .status(StatusCode::from_u16(status as u16).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR))
         .header("content-type", "application/json")
-        .body(Full::new(Bytes::from(body.to_string())))
+        .body(full(Bytes::from(body.to_string())))
         .expect("static response")
 }
 

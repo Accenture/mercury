@@ -15,7 +15,33 @@ the design rationale in [`docs/design/`](docs/design/).
 
 ### Added
 
-1. Polyglot Functions documentation chapter (`guides/polyglot-functions.md`) - writing
+1. **HTTP response streaming** - a function can stream an HTTP response progressively
+   (token segments, progress events) by sending a sequence of events to the caller's
+   reply route until an end-of-transmission signal, using the reserved envelope header
+   `x-event-stream: data | eof | exception` (internal protocol - the wire carries only
+   standard HTTP). Server-Sent Events framing for `text/event-stream` (typed events via
+   `x-event-name`, terminal `done` event with trailing metadata, in-band `error` events,
+   configurable keep-alive pings via `event.stream.keep.alive`); chunked transfer with
+   JSON Lines for other content types. Declare a streaming endpoint with `stream: true`
+   in rest.yaml - the request checks out a dedicated ordered reply lane
+   (`async.http.response.stream.{n}`) from a pool of 500 for its lifetime: per-request
+   strict FIFO with cross-request concurrency, and HTTP-503 back-pressure when the pool
+   is exhausted. New `EventStreamWriter` producer API; idle timeouts fail streams
+   in-band; client disconnects drop late segments as no-ops. A runnable demo ships in
+   examples/hello-world (`GET /api/hello/sse` plus the `scripts/sse-client.mjs`
+   progressive-rendering client). Engine-identical with the Java engine's feature
+   (Java PR #299). See the HTTP Response Streaming guide (ADR-0015).
+
+### Changed
+
+1. The `/info/routes` actuator endpoint renders pool-style route families compactly:
+   routes differing only by a trailing numeric suffix, with uniform instances and
+   contiguous numbering, collapse into one display entry (e.g. the 500 streaming reply
+   lanes appear as `"async.http.response.stream.0 - 499": 1`), and the rendered routing
+   view is cached for 10 minutes. Display-only - the routing table is unchanged.
+   (Java engine parity.)
+
+2. Polyglot Functions documentation chapter (`guides/polyglot-functions.md`) - writing
    composable functions in Python and Node.js with the official Event-over-HTTP wrappers
    (docs: accenture.github.io/mercury-python and accenture.github.io/mercury-nodejs),
    with the zero-code demo extended to the wrapper demo apps. ADR-0014 (Proposed) records

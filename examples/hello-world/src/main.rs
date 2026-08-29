@@ -51,7 +51,8 @@ use async_trait::async_trait;
 use platform_core::automation::AsyncHttpRequest;
 use platform_core::{
     before_application, main_application, preload, trace, AppConfigReader, AppError,
-    ComposableFunction, EntryPoint, EventEnvelope, Platform, PostOffice, TypedFunction,
+    ComposableFunction, EntryPoint, EventEnvelope, EventStreamWriter, Platform, PostOffice,
+    TypedFunction,
 };
 use rmpv::Value;
 use serde::{Deserialize, Serialize};
@@ -354,6 +355,59 @@ impl ComposableFunction for HttpRequestFilter {
         EventEnvelope::new()
             .set_header("x-filter", "inspected")
             .set_body(serde_json::Value::Null)
+    }
+}
+
+// ---- progressive result set rendering (HTTP response streaming) ----
+
+/// This demo function serves an HTTP endpoint with progressive result set
+/// rendering (HTTP response streaming). The endpoint is declared with
+/// `stream: true` in rest.yaml, and the function streams a sequence of test
+/// messages slowly so that you can watch them render one by one as
+/// Server-Sent Events.
+///
+/// A streaming producer is an interceptor - it receives the raw event
+/// envelope (including the caller's reply_to address) and streams segments
+/// through the `EventStreamWriter` until it declares end of transmission.
+///
+/// Optional query parameters: "delay" in milliseconds between messages
+/// (default 1000, bounded 50 - 5000) and "count" for the number of messages
+/// (default 10, bounded 1 - 100).
+///
+/// Try it with the companion script: `node scripts/sse-client.mjs`
+/// or with `curl -N -H 'accept: text/event-stream'` against
+/// `http://127.0.0.1:8085/api/hello/sse`
+#[preload(route = "hello.sse", instances = 10, interceptor)]
+struct HelloSse;
+
+#[async_trait]
+impl ComposableFunction for HelloSse {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let request: serde_json::Value = input.body_as()?;
+        let query = &request["parameters"]["query"];
+        let delay = query["delay"]
+            .as_str()
+            .and_then(|v| v.parse::<u64>().ok())
+            .map_or(1000, |v| v.clamp(50, 5000));
+        let count = query["count"]
+            .as_str()
+            .and_then(|v| v.parse::<u32>().ok())
+            .map_or(10, |v| v.clamp(1, 100));
+        let mut out = EventStreamWriter::from_request(&Platform::get_instance(), &input)?;
+        out.first(200, "text/event-stream");
+        out.write("The following messages are rendered slowly to demonstrate the SSE feature:")
+            .await?;
+        for i in 1..=count {
+            tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
+            out.write(format!("test message {i}")).await?;
+        }
+        out.close_with("end of SSE page.").await?;
+        Ok(EventEnvelope::new())
     }
 }
 
