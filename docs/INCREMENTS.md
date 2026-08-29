@@ -2626,3 +2626,31 @@ reaches a route that exists only as an event-over-http target, served by a stub
 guard first. The compiled-set parity pin grew 49 → 50 (it caught the new fixture
 immediately, as designed). Java lock-step: same guard relaxation plus a
 `PostOffice.getEventHttpTarget(route)` passthrough.
+
+## Increment 91 — HTTP response streaming: the multi-shot reply route reaches the HTTP edge (2026-08-28)
+
+The Java engine's HTTP response streaming feature (Java PR #299, ADR-0018), ported with
+engine-identical vocabulary and wire framing (this repo's ADR-0015). A callee streams an
+HTTP response by sending a sequence of events — marked with the reserved envelope header
+`x-event-stream: data | eof | exception` — to the caller's reply route until end of
+transmission; the edge renders SSE (`text/event-stream`) or chunked/JSON-Lines
+progressively. `stream: true` in rest.yaml checks out a dedicated ordered reply lane
+(`async.http.response.stream.{n}`, single instance) from a LIFO pool of 500 for the
+request's lifetime; an exhausted pool answers HTTP-503 "Streaming response pool
+exhausted". New `EventStreamWriter` producer API (`event_stream.rs`); the hyper edge
+gained a channel-backed streaming body (every handler path now shares one boxed body
+type). Port-idiomatic internals: the per-request tokio renderer task enforces the idle
+allowance directly (Java uses a housekeeper sweep) and emits the same in-band 408
+"Timeout for N seconds" error event — wire-identical by construction. The endpoint's
+response header transform applies to the streamed head with single-shot parity.
+`/info/routes` renders pool-style route families compactly ("async.http.response.stream.0
+- 499") and caches the rendered routing view for 10 minutes (Java parity round).
+
+Pins: 21 streaming tests (progressive-delivery timing, typed/multi-line SSE framing,
+NDJSON, in-band mid-stream error, pre-head error, eof-only, keep-alive pings, in-band
+idle timeout, touch-pacing, 8KB×50 FIFO burst, four concurrent bursts, transform parity,
+single-shot fallback on a stream endpoint, pool exhaustion → 503 → recovery, lane
+return, LIFO reuse, producer-contract set) + the actuator compression assertions.
+Demo proven live: examples/hello-world `GET /api/hello/sse` + `scripts/sse-client.mjs`
+rendered 10 messages exactly ~1s apart with the terminal done event — byte-identical
+demo behavior to the Java lambda-example twin.

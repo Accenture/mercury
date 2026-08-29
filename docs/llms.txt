@@ -71,6 +71,10 @@ Needed when a flow task or a graph's `graph.task` calls a custom function:
   accenture.github.io/mercury-nodejs) with the engines' preload/envelope/actuator/log contracts;
   flows call them via yaml.event.over.http; graph.task requires engine v4.11.11+; orchestration
   stays on the engine (no flows/graphs in wrappers).
+- [HTTP Response Streaming](guides/http-streaming.md) — stream an HTTP response progressively
+  (LLM tokens, progress events): `stream: true` in rest.yaml + EventStreamWriter; the reserved
+  `x-event-stream: data|eof|exception` envelope marker; SSE/chunked+NDJSON standards-only wire;
+  dedicated reply-lane pool of 500 with HTTP-503 back-pressure.
 
 ## Design & project docs (human-facing)
 - `docs/design/` — port design notes (platform-core, event-script, knowledge-graph, and

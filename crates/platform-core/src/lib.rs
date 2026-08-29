@@ -34,6 +34,7 @@ pub mod actuator;
 pub mod app_starter;
 pub mod automation;
 pub mod envelope;
+pub mod event_stream;
 pub mod function;
 pub mod graph;
 pub(crate) mod inbox;
@@ -79,6 +80,7 @@ macro_rules! auto_start_main {
     };
 }
 pub use envelope::EventEnvelope;
+pub use event_stream::EventStreamWriter;
 pub use function::{AppError, ComposableFunction, TypedAdapter, TypedFunction};
 pub use graph::{MiniGraph, SimpleConnection, SimpleNode, SimpleRelationship};
 pub use platform::{FunctionOptions, Platform};

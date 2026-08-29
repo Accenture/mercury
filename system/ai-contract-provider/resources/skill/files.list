@@ -11,6 +11,7 @@ references/guides/event-driven/index.md
 references/guides/event-driven/write-your-first-function.md
 references/guides/event-envelope-reference.md
 references/guides/event-over-http.md
+references/guides/http-streaming.md
 references/guides/event-script/ai-agent-guide.md
 references/guides/event-script/event-script-flow.json
 references/guides/event-script/flow-grammar.md

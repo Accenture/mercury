@@ -130,6 +130,7 @@ nav:
   - "Operate & integrate":
       - Observability: guides/observability.md
       - Event over HTTP: guides/event-over-http.md
+      - HTTP Response Streaming: guides/http-streaming.md
       - Polyglot Functions (Python & Node.js): guides/polyglot-functions.md
   - Reference:
       - Configuration Keys: guides/configuration-reference.md

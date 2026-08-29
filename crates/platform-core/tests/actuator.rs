@@ -215,6 +215,19 @@ async fn info_routes_reports_the_local_routing_table() {
     // a known PRIVATE route: the reserved RPC reply listener every platform
     // carries (500 instances, temporary.inbox)
     assert_eq!(json["routing"]["private"]["temporary.inbox"], 500);
+    // pool-style route families render as ONE compact entry (display-only
+    // compression, Java parity): the 500 streaming reply lanes collapse into
+    // "async.http.response.stream.0 - 499" and the individual names vanish
+    assert_eq!(
+        json["routing"]["private"]["async.http.response.stream.0 - 499"],
+        1
+    );
+    assert!(json["routing"]["private"]
+        .get("async.http.response.stream.0")
+        .is_none());
+    assert!(json["routing"]["private"]
+        .get("async.http.response.stream.499")
+        .is_none());
     // the port's optional blocks do not exist — Java's omit-when-empty
     assert!(json.get("journal").is_none());
     assert!(json.get("route_substitution").is_none());
