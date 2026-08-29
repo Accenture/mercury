@@ -17,7 +17,7 @@
 //! Increment 71: the `/health` per-dependency info-lookup cache (Java parity —
 //! `ActuatorServices`' `SimpleCache("health.info", 5000)`, mapped onto
 //! `ManagedCache` per the maintainer's one-cache-type ruling;
-//! `docs/design/managed-cache-port.md` §6.2).
+//! `draft-design-specs/managed-cache-port.md` §6.2).
 //!
 //! Isolated in its OWN test binary on purpose: the `health.info` cache is
 //! process-wide, and the other actuator tests all register their dependency

@@ -1684,7 +1684,7 @@ impl ComposableFunction for OutTap {
 
 /// Prototype: the **synchronous** companion endpoint returns the command outcome
 /// in-band — `ok`/`output`/`error`/`result` — instead of a fire-and-forget ack
-/// (design: `docs/design/ai-companion-sync.md`). This is the Tut-4 blind-spot fix:
+/// (design: `draft-design-specs/ai-companion-sync.md`). This is the Tut-4 blind-spot fix:
 /// an invalid command's error is now in the HTTP response, not WS-only — and the
 /// output is *also* teed to the session's `.out` so a human watches live.
 async fn companion_sync_returns_outcome_in_band(platform: &Platform) {

@@ -55,7 +55,7 @@ cargo fmt --all --check
 | `crates/*-macros` | annotation macros (`#[preload]`, `#[websocket_service]`, …) |
 | `examples/` | runnable example apps, one per layer |
 | `docs/INCREMENTS.md` | the increment-by-increment port ledger |
-| `docs/design/` | per-layer design docs (the *why* behind the port) |
+| `draft-design-specs/` | per-layer design docs (the *why* behind the port) |
 | `docs/arch-decisions/ADR.md` | the durable architecture decisions |
 | `memory/` | the shared cross-session AI-memory layer |
 

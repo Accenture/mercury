@@ -33,6 +33,6 @@ resources:
 #
 # (Deliberate divergence from the Java original's SPRING_PROFILES_ACTIVE /
 #  spring.profiles.active: Spring is not ported, so the Rust port uses the
-#  generic names — see docs/design/platform-core-port.md §8.)
+#  generic names — see draft-design-specs/platform-core-port.md §8.)
 #
 profiles: 'classpath:/application-'

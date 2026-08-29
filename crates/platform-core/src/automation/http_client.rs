@@ -45,6 +45,7 @@ use tokio_rustls::rustls::pki_types::ServerName;
 use tokio_rustls::TlsConnector;
 
 use crate::envelope::EventEnvelope;
+use crate::event_stream;
 use crate::function::AppError;
 use crate::platform::Platform;
 use crate::post_office::PostOffice;
@@ -647,14 +648,17 @@ pub(crate) async fn handle(
     let po = PostOffice::new(platform);
     let Some(reply_to) = event.reply_to().map(str::to_string) else {
         // fire-and-forget: errors are logged, successes discarded (Java parity)
-        if let Err(e) = process_request(&po, &_headers, &event).await {
+        if let Err(e) = process_request(platform, &po, &_headers, &event, None).await {
             log::error!("Unhandled exception (no reply-to) - {}", e.message());
         }
         return EventEnvelope::new().set_body("ignored");
     };
     let cid = event.correlation_id().unwrap_or_default().to_string();
-    let response = match process_request(&po, &_headers, &event).await {
-        Ok(response) => response,
+    let stream_target = Some((reply_to.clone(), cid.clone()));
+    let response = match process_request(platform, &po, &_headers, &event, stream_target).await {
+        // a progressive SSE relay was spawned - it owns the reply route now
+        Ok(None) => return EventEnvelope::new().set_body("ignored"),
+        Ok(Some(response)) => response,
         Err(e) => EventEnvelope::new()
             .set_status(e.status())
             .set_raw_body(Value::from(e.message())),
@@ -665,11 +669,22 @@ pub(crate) async fn handle(
     EventEnvelope::new().set_body("ignored")
 }
 
+/// A request is a progressive-SSE candidate when the caller explicitly accepts
+/// text/event-stream AND supplied a reply_to (a multi-shot-capable consumer) -
+/// everything else keeps the buffered single-shot behavior (D1).
+fn accepts_event_stream(request: &AsyncHttpRequest) -> bool {
+    request.headers().iter().any(|(name, value)| {
+        name.eq_ignore_ascii_case("accept") && value.contains("text/event-stream")
+    })
+}
+
 async fn process_request(
+    platform: &Platform,
     po: &PostOffice,
     invocation_headers: &HashMap<String, String>,
     event: &EventEnvelope,
-) -> Result<EventEnvelope, AppError> {
+    stream_target: Option<(String, String)>,
+) -> Result<Option<EventEnvelope>, AppError> {
     let request = AsyncHttpRequest::from_value(event.body());
     let (secure, host, port) = validate_url(&request)?;
     let uri = request.finalized_url();
@@ -764,6 +779,30 @@ async fn process_request(
         }
         response = response.set_header(key, text);
     }
+    // progressive SSE consumption (D1): the caller opted in with Accept AND the
+    // upstream actually answers text/event-stream - relay each SSE event as one
+    // x-event-stream data envelope to the caller's reply route (the producer
+    // contract the HTTP edge consumes), then eof. The relay runs in its own task
+    // so this worker is freed - a long stream never holds a client instance.
+    if let Some((reply_to, cid)) = stream_target {
+        let sse = content_type
+            .as_deref()
+            .is_some_and(|ct| ct.starts_with("text/event-stream"));
+        if sse && accepts_event_stream(&request) {
+            let idle = Duration::from_secs(request.timeout_seconds().max(1));
+            let status = http_response.status().as_u16() as i32;
+            let relay_platform = platform.clone();
+            tokio::spawn(relay_sse(
+                relay_platform,
+                http_response.into_body(),
+                status,
+                reply_to,
+                cid,
+                idle,
+            ));
+            return Ok(None);
+        }
+    }
     let bytes = http_response
         .into_body()
         .collect()
@@ -773,7 +812,167 @@ async fn process_request(
     if !has_content_length {
         response = response.set_header("x-content-length", &bytes.len().to_string());
     }
-    Ok(response.set_raw_body(decode_response_body(&bytes, content_type.as_deref())))
+    Ok(Some(response.set_raw_body(decode_response_body(
+        &bytes,
+        content_type.as_deref(),
+    ))))
+}
+
+/// Incremental SSE frame parser (raw mode): byte-level line split (a newline
+/// is a single byte, so this is UTF-8 safe), one-leading-space value strip,
+/// comment/id/retry suppression, multi-line data joined per the SSE
+/// specification. Mirrors the Java SseRelay parser.
+#[derive(Default)]
+struct SseParser {
+    pending: Vec<u8>,
+    data_lines: Vec<String>,
+    event_name: Option<String>,
+}
+
+impl SseParser {
+    /// Feed one body chunk; return the completed (event_name, data) events.
+    fn feed(&mut self, chunk: &[u8]) -> Vec<(Option<String>, String)> {
+        self.pending.extend_from_slice(chunk);
+        let mut events = Vec::new();
+        let mut start = 0;
+        let buffer = std::mem::take(&mut self.pending);
+        for i in 0..buffer.len() {
+            if buffer[i] == b'\n' {
+                let end = if i > start && buffer[i - 1] == b'\r' {
+                    i - 1
+                } else {
+                    i
+                };
+                let line = String::from_utf8_lossy(&buffer[start..end]).to_string();
+                start = i + 1;
+                if line.is_empty() {
+                    // blank line dispatches the pending event (SSE specification)
+                    if !self.data_lines.is_empty() {
+                        events.push((self.event_name.take(), self.data_lines.join("\n")));
+                    }
+                    self.data_lines.clear();
+                    self.event_name = None;
+                } else if !line.starts_with(':') {
+                    // a comment line (leading colon) is consumed, never forwarded
+                    let (field, value) = match line.find(':') {
+                        Some(colon) => (&line[..colon], &line[colon + 1..]),
+                        None => (line.as_str(), ""),
+                    };
+                    let value = value.strip_prefix(' ').unwrap_or(value);
+                    match field {
+                        "data" => self.data_lines.push(value.to_string()),
+                        "event" => self.event_name = Some(value.to_string()),
+                        _ => { /* id, retry and unknown fields are ignored */ }
+                    }
+                }
+            }
+        }
+        self.pending = buffer[start..].to_vec();
+        events
+    }
+}
+
+/// The spawned relay of a progressive SSE response: one x-event-stream data
+/// envelope per upstream event to the caller's reply route (head control on
+/// the first), eof on a clean end, in-band exception on idle expiry or a
+/// mid-stream transport error. The per-read idle allowance is the request
+/// TTL - any upstream bytes, keep-alive comments included, reset it (D4).
+async fn relay_sse(
+    platform: Platform,
+    mut body: hyper::body::Incoming,
+    status: i32,
+    reply_to: String,
+    cid: String,
+    idle: Duration,
+) {
+    let po = PostOffice::new(&platform);
+    let mut parser = SseParser::default();
+    let mut head_sent = false;
+    loop {
+        match tokio::time::timeout(idle, body.frame()).await {
+            Ok(Some(Ok(frame))) => {
+                if let Some(data) = frame.data_ref() {
+                    for (name, text) in parser.feed(data) {
+                        let mut segment = EventEnvelope::new()
+                            .set_header(event_stream::X_EVENT_STREAM, event_stream::DATA);
+                        if let Some(name) = name.filter(|n| !n.is_empty()) {
+                            segment = segment.set_header(event_stream::X_EVENT_NAME, &name);
+                        }
+                        segment = match segment.set_body(text) {
+                            Ok(seg) => seg,
+                            Err(_) => continue,
+                        };
+                        if !head_sent {
+                            head_sent = true;
+                            // head control rides the first envelope: upstream
+                            // status + the SSE content type
+                            segment = segment
+                                .set_status(status)
+                                .set_header("content-type", "text/event-stream");
+                        }
+                        if send_segment(&po, segment, &reply_to, &cid).await.is_err() {
+                            return;
+                        }
+                    }
+                }
+            }
+            Ok(None) => {
+                // clean end of transmission - an incomplete trailing event is
+                // discarded (SSE specification)
+                let mut eof = EventEnvelope::new()
+                    .set_header(event_stream::X_EVENT_STREAM, event_stream::EOF);
+                if !head_sent {
+                    eof = eof
+                        .set_status(status)
+                        .set_header("content-type", "text/event-stream");
+                }
+                let _ = send_segment(&po, eof, &reply_to, &cid).await;
+                return;
+            }
+            Ok(Some(Err(e))) => {
+                fail_in_band(&po, &reply_to, &cid, 500, &e.to_string(), head_sent).await;
+                return;
+            }
+            Err(_) => {
+                // idle expiry - the connection closes when the body is dropped
+                let message = format!("Timeout for {} seconds", idle.as_secs());
+                fail_in_band(&po, &reply_to, &cid, 408, &message, head_sent).await;
+                return;
+            }
+        }
+    }
+}
+
+async fn fail_in_band(
+    po: &PostOffice,
+    reply_to: &str,
+    cid: &str,
+    status: i32,
+    message: &str,
+    head_sent: bool,
+) {
+    let body = serde_json::json!({"status": status, "message": message});
+    let Ok(mut error) = EventEnvelope::new()
+        .set_header(event_stream::X_EVENT_STREAM, event_stream::EXCEPTION)
+        .set_status(status)
+        .set_body(body)
+    else {
+        return;
+    };
+    if !head_sent {
+        error = error.set_header("content-type", "text/event-stream");
+    }
+    let _ = send_segment(po, error, reply_to, cid).await;
+}
+
+async fn send_segment(
+    po: &PostOffice,
+    segment: EventEnvelope,
+    reply_to: &str,
+    cid: &str,
+) -> Result<(), AppError> {
+    po.send(segment.set_to(reply_to).set_correlation_id(cid))
+        .await
 }
 
 fn raw_url(uri: &str) -> &str {

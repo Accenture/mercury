@@ -311,7 +311,7 @@ fn is_traversal_terminal(line: &str) -> bool {
     line.starts_with("Graph traversal completed in") || line == "Graph traversal aborted"
 }
 
-/// **Synchronous** AI-companion command (design: `docs/design/ai-companion-sync.md`).
+/// **Synchronous** AI-companion command (design: `draft-design-specs/ai-companion-sync.md`).
 /// Additive sibling of [`post_companion_command`]: dispatches the same command but
 /// returns the command's **outcome in-band** — `ok`, the console `output` lines,
 /// the first `error` (if any), and any structured `result` (e.g. a run's

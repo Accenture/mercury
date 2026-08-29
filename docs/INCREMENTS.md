@@ -3,7 +3,7 @@
 > The chronological ledger of the mercury port: **mercury-composable (Java, canonical
 > v4.8.6) → Rust**, delivered bottom-up in verified increments. Each increment traces to
 > the Blueprint (`bp-platform-core` → `vision-mercury` in `memory/`); the *design
-> rationale* lives in [`docs/design/platform-core-port.md`](design/platform-core-port.md)
+> rationale* lives in [`draft-design-specs/platform-core-port.md`](design/platform-core-port.md)
 > (§4–§5i, D1–D10); the full working narrative lives in `memory/sessions/`.
 >
 > **Convention:** add one row + one section here as each increment lands (part of the
@@ -318,7 +318,7 @@ knowledge-graph layers will ride on.*
 
 ## Increment 11 — event-script E-1: flow model + compiler (2026-07-16)
 
-*Layer 2 begins. Design `docs/design/event-script-port.md` approved same day
+*Layer 2 begins. Design `draft-design-specs/event-script-port.md` approved same day
 (decisions E1–E9, defaults accepted).*
 
 - **`crates/event-script`** (new workspace member, depends only on platform-core):
@@ -1194,7 +1194,7 @@ upstream join as complete and fired prematurely, dropping the slow branch's data
 
 ## Increment 43 — human docs site, phase 1 (2026-07-20)
 
-**First increment of the human-documentation design (`docs/design/human-docs.md` D-H1/D-H2;
+**First increment of the human-documentation design (`draft-design-specs/human-docs.md` D-H1/D-H2;
 realizes `ot-human-guides-backlog`).** The maintainer approved the toolchain by providing the
 `uv` environment; remaining design questions ride on later phases.
 
@@ -2176,7 +2176,7 @@ same-named Java branch.
 ## Increment 71 — ManagedCache: the self-expiring in-memory cache (2026-07-27)
 
 Port of `org.platformlambda.core.util.ManagedCache` per the maintainer-gated design
-`docs/design/managed-cache-port.md` (three rulings: ONE cache type — `SimpleCache` is NOT
+`draft-design-specs/managed-cache-port.md` (three rulings: ONE cache type — `SimpleCache` is NOT
 ported, any Java `SimpleCache` site maps onto a `ManagedCache` instance; adopt a proper
 self-expiring implementation — moka, the Caffeine-lineage engine, wrapped as an internal
 detail; **deterministic eviction** — `EvictionPolicy::lru()` instead of Java Caffeine's
@@ -2340,7 +2340,7 @@ version-aware. Crate 4 tests / clippy 0 / fmt.
 
 ## Deferred backlog (as of increment 10)
 
-See `docs/design/platform-core-port.md` §7 for the authoritative list: broadcast delivery,
+See `draft-design-specs/platform-core-port.md` §7 for the authoritative list: broadcast delivery,
 streams, kernel-thread analog, flow binding + HTTP relay + A/B +
 upload + streaming (REST), event-over-HTTP, OTLP forwarder extension, `/info/lib` +
 `/info/routes`, `yaml.preload.override`, etag/cache, the
@@ -2654,3 +2654,35 @@ return, LIFO reuse, producer-contract set) + the actuator compression assertions
 Demo proven live: examples/hello-world `GET /api/hello/sse` + `scripts/sse-client.mjs`
 rendered 10 messages exactly ~1s apart with the terminal done event — byte-identical
 demo behavior to the Java lambda-example twin.
+
+## Increment 92 — the HTTP client consumes SSE progressively (2026-08-29)
+
+The Java engine's progressive SSE consumption (Java PR #300, ADR-0019), ported
+engine-identical (this repo's ADR-0016). `async.http.request` with
+`Accept: text/event-stream`, an SSE response, and a `reply_to` relays one
+`x-event-stream: data` envelope per upstream SSE event to the caller's reply route
+(head control on the first envelope), `eof` on a clean end, and an in-band `exception`
+on idle expiry (408 "Timeout for N seconds") or a mid-stream disconnect (500) — the
+producer contract the HTTP edge already consumes, so an SSE-to-SSE relay is pure
+configuration. The request TTL becomes the per-read idle allowance; any upstream bytes
+(keep-alive comments included) reset it. Anything short of the full activation triple
+keeps the buffered single-shot behavior byte for byte. Port idiom: the relay is a
+spawned tokio task reading the hyper body frame-by-frame under a per-read timeout, so
+a long stream never holds a client worker instance (Java frees its worker via the
+reactor subscription; same capacity semantics).
+
+Pins: 9 tests mirroring the Java suite — raw mapping against the app's own SSE
+endpoint (the upstream terminal arriving as a named data envelope pins
+no-interpretation), multi-field frames, 50-event FIFO burst, idle-stall 408,
+comment-reset keep-alive, mid-stream disconnect 500, buffered fallback, the no-Accept
+backward-compat pin, and the progressive self-relay e2e. The mock SSE upstream runs on
+a dedicated thread + runtime — the third catch of the per-test-runtime lesson this
+feature family: a task spawned on a test's runtime dies with that test.
+
+Structure parity round (Eric's directive): `draft-design-specs/` created with the
+lifecycle README (mirrors the Java repo; feature specs shared across engines are
+drafted there, port-specific specs here), the six `docs/design/` port-design documents
+moved into it (git mv, 23 referencing files updated; the folder was already excluded
+from the built site, so the move is site-neutral), and the Java site's
+`docs/css/extra.css` (reference-table token wrapping) adopted with `extra_css` wiring —
+it was live in the Java repo and missing here, not outdated.

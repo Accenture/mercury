@@ -77,12 +77,14 @@ markdown_extensions:
   # colon-delimited technical patterns (e.g. HH:mm:ss), and the emoji extension
   # turns ":mm:" into a flag emoji in plain text.
 
+extra_css:
+  - css/extra.css
+
 plugins:
   - search
 
 # Internal / working material stays out of the built site.
 exclude_docs: |
-  design/
   INCREMENTS.md
 
 # These files live in docs/ but aren't part of the nav on purpose

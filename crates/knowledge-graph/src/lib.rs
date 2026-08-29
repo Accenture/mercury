@@ -448,7 +448,7 @@ impl ComposableFunction for PostCompanionCommand {
 }
 
 /// Synchronous AI-companion command (`post.companion.command.sync`) — returns the
-/// command outcome in-band (design: `docs/design/ai-companion-sync.md`). Additive
+/// command outcome in-band (design: `draft-design-specs/ai-companion-sync.md`). Additive
 /// sibling of `post.companion.command`; the fire-and-forget hop is unchanged.
 #[preload(route = "post.companion.command.sync", instances = 10)]
 #[optional_service("app.env=dev")]

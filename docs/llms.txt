@@ -77,7 +77,7 @@ Needed when a flow task or a graph's `graph.task` calls a custom function:
   dedicated reply-lane pool of 500 with HTTP-503 back-pressure.
 
 ## Design & project docs (human-facing)
-- `docs/design/` — port design notes (platform-core, event-script, knowledge-graph, and
+- `draft-design-specs/` — port design notes (platform-core, event-script, knowledge-graph, and
   `ai-companion-sync.md` for the synchronous companion endpoint).
 - `docs/INCREMENTS.md` — the increment ledger.
 - `docs/test-reports/AI-companion-test.md` — the human+AI collaboration validation log (how these docs were

@@ -15,7 +15,7 @@
 //
 
 //! Integration tests for increment 1 — configuration management
-//! (`docs/design/platform-core-port.md` §4.6).
+//! (`draft-design-specs/platform-core-port.md` §4.6).
 //!
 //! `setup()` runs exactly once: it prepends the test resource root (mirroring
 //! Java's test-resources-shadow-main-resources), sets the env vars the base
