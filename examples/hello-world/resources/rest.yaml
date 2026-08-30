@@ -25,6 +25,21 @@ rest:
     tracing: true
     stream: true
 
+  # The engine-to-wrapper streaming composition: the endpoint's function
+  # forwards its reply lane into a send to the event-over-http mapped
+  # "hello.tokens" function (the python/node demo apps) - the remote segments
+  # re-render progressively out this application's HTTP edge. See
+  # HelloRemoteRelay in main.rs and the README's "Streaming from a remote
+  # function" section.
+  - service: "hello.remote.relay"
+    methods: ['GET']
+    url: "/api/hello/remote"
+    timeout: 30s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+    stream: true
+
   # Override the default "/api/event" endpoint to attach the demo
   # authentication service (the EventApiAuth function). A calling party must
   # present the shared demo token in the "authorization" header - see

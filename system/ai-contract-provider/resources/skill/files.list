@@ -39,5 +39,6 @@ references/index.md
 references/llms.txt
 references/test-reports/AI-companion-test.md
 references/test-reports/event-over-http-interop.md
+references/test-reports/progressive-rendering-interop.md
 references/test-reports/suspend-resume-interop.md
 security.json

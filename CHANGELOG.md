@@ -11,7 +11,14 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
-## Unreleased
+## Version 4.12.0, 8/30/2026
+
+The progressive-rendering milestone: token/event streaming end to end - HTTP edge,
+HTTP client, and Event-over-HTTP peers - with full OpenTelemetry lineage and
+business-correlation continuity across all four runtimes (Java and Rust engines,
+Python and Node.js language packs at the same version). Useful on its own, and
+the foundation for the AI SDLC (agent, MCP and tool adapters as wrapper-side
+functions with complete observability).
 
 ### Added
 
@@ -90,6 +97,19 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
    cross-link. The navigation gains the Java site's "Operate & integrate" tab
    (Observability, Event over HTTP, Polyglot Functions) and an Orientation tab, so the
    tab row reads identically across the two engines' documentation sites.
+
+4. **Engine-to-wrapper streaming demo and interop test report.** The hello-world
+   example gains `GET /api/hello/remote` (`hello.remote.relay`): a streaming endpoint
+   whose function forwards its caller's reply lane into an event-over-http mapped
+   remote streaming function (the Python/Node.js demo apps' `hello.tokens`),
+   rendering a remote peer's tokens progressively out this application's HTTP edge
+   with zero imperative streaming code; a sample `resources/event-over-http.yaml`
+   ships with the example (auto-loaded). `hello.sse` is now public, so wrapper
+   clients can consume it over `/api/event`. A permanent interop test report
+   (`docs/test-reports/progressive-rendering-interop.md`, packaged with the AI
+   contract provider) records the live ten-combination cross-runtime matrix, the
+   OpenTelemetry span-lineage and business-correlation-id verification, and a
+   captured end-to-end telemetry + application-log-context example.
 
 ---
 ## Version 4.11.11, 8/23/2026

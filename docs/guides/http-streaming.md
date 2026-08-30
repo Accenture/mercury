@@ -306,4 +306,6 @@ a response, `x-event-stream` wins and the stray `x-stream-id` is ignored with a 
 ## See also
 
 - [Event over HTTP](event-over-http.md) - the same envelope protocol between applications
+- [Interop Test Report — Progressive Rendering](../test-reports/progressive-rendering-interop.md) -
+  the live four-runtime validation of this contract
 - [Actuators & HTTP Client](actuators-and-http-client.md)

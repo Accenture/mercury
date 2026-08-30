@@ -129,6 +129,31 @@ messages would appear all at once when the stream ends.
 Optional query parameters: `delay` in milliseconds between messages (default 1000)
 and `count` for the number of messages (default 10), e.g. `/api/hello/sse?delay=500&count=5`.
 
+### Streaming from a remote function
+
+The companion endpoint `GET /api/hello/remote` demonstrates the engine-to-wrapper
+composition: its function (`HelloRemoteRelay` in [src/main.rs](src/main.rs)) forwards
+its reply lane into a send to the event-over-http mapped `hello.tokens` function -
+the streaming demo of the python or node.js function host - and the remote segments
+re-render progressively out this application's HTTP edge, with no imperative
+streaming code in between. The routing map ships in
+[resources/event-over-http.yaml](resources/event-over-http.yaml); the python
+demo-app is the default peer (port 8086) and `-Dpeer.demo.port=8087` points at the
+node demo instead.
+
+Start a wrapper demo app (mercury-python's `mercury-serve examples/demo_app.py`,
+or the mercury-nodejs demo), run this application, and watch the remote function's
+tokens render one by one:
+
+```bash
+curl -N -H 'accept: text/event-stream' 'http://127.0.0.1:8085/api/hello/remote?delay=300&count=3'
+```
+
+The same `hello.sse` function is public, so the composition also runs the other
+way: a python or node.js function can consume this application's stream through
+`POST /api/event` (with the demo `authorization: demo` token) - see the wrapper
+documentation sites' Event Streaming chapters.
+
 ## Where things live
 
 | File | Role |
