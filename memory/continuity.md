@@ -13,9 +13,9 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.10** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `draft-design-specs/`, session logs, and CHANGELOG — not this line.
+- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.12.0** (the progressive-rendering milestone, 2026-08-30; version tracks the Java line, contents by design; the python/node language packs joined the lock-step line at the same version). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `draft-design-specs/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-30 | agent: Claude Code (2026-08-30-003334)
+- **last_session:** 2026-08-30 | agent: Claude Code (2026-08-30-050502)
 - **last_review:** 2026-08-14 | through 2026-08-14-005444.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five never-decay facts confirmed against live code — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, and the Vision; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -155,6 +155,20 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   registry) with runtime-written config on ephemeral ports. Next: Phase 3 wrapper
   twins (mercury-python/nodejs). origin: 2026-08-30-003334.
   <!-- id: thread-eoh-envelope-streaming-twin | created: 2026-08-30 | last_used: 2026-08-30 | uses: 1 | tier: working | origin: 2026-08-30-003334 -->
+
+- [x] (release+feature — **MERGED 2026-08-30 as
+  [PR #219](https://github.com/Accenture/mercury/pull/219) merge `bc1a9fd2` carrying
+  gated `8b73e01c` (tree verified), branch deleted both ends; **v4.12.0 milestone,
+  all four repos lock-step** — the wrappers jumped 0.1.0 → 4.12.0)
+  **Progressive rendering v4.12.0: engine-to-wrapper streaming relay demo
+  (hello.remote.relay + auto-loaded event-over-http.yaml; hello.sse public), the
+  progressive-rendering interop report (ten-combination matrix, span-lineage +
+  business-cid verification, telemetry/app-log-context appendix), workspace
+  version bump.** Lessons: the Rust PostOffice needed no demo trace fix (apply_current_trace
+  is unconditional — the Java twin's raw-EventEmitter demo did); /api/event serves
+  local routes only by design (loop guard = the x-event-api marker, Eric ratified).
+  origin: 2026-08-30-050502.
+  <!-- id: ot-progressive-rendering-v4120 | created: 2026-08-30 | last_used: 2026-08-30 | uses: 1 | tier: working | origin: 2026-08-30-050502 -->
 
 - [x] (feature — **MERGED 2026-08-29 as
   [PR #217](https://github.com/Accenture/mercury/pull/217) merge `ec4c2702` carrying
