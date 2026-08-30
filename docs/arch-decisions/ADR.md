@@ -27,8 +27,8 @@ or *Deprecated* (no longer relevant), with its text left in place.
 ---
 
 ## ADR-0017 — Route pools: numbered singleton lanes as a first-class platform registration {#adr-0017}
-**Status:** Proposed · **Date:** 2026-08-30 · **Serves:** vision-mercury · **Formalizes:** route-pool-registration-design
-<!-- id: adr-0017 | status: proposed -->
+**Status:** Accepted · **Date:** 2026-08-30 · **Serves:** vision-mercury · **Formalizes:** route-pool-registration-design
+<!-- id: adr-0017 | status: accepted -->
 
 **Abstract.** `Platform::register_route_pool(prefix, function, count)` registers a set
 of private singleton routes `{prefix}.{n}` for n = 0 to count-1 and returns the member
