@@ -72,12 +72,12 @@ pub const MY_CORRELATION_ID: &str = "my_correlation_id";
 /// `AsyncHttpClient.ASYNC_HTTP_RESPONSE`).
 pub const ASYNC_HTTP_RESPONSE: &str = "async.http.response";
 
-/// Route-name prefix of the streaming reply-lane pool (Java
-/// `AsyncHttpClient.ASYNC_HTTP_RESPONSE_STREAM_PREFIX`). A streaming request
+/// Route-name base of the streaming reply-lane route pool (Java
+/// `AsyncHttpClient.ASYNC_HTTP_RESPONSE_STREAM_POOL`). A streaming request
 /// checks out one dedicated single-instance lane for its lifetime, so its
 /// segments render in strict FIFO order while different requests stream
 /// concurrently through their own lanes.
-pub const ASYNC_HTTP_RESPONSE_STREAM_PREFIX: &str = "async.http.response.stream.";
+pub const ASYNC_HTTP_RESPONSE_STREAM_POOL: &str = "async.http.response.stream";
 
 /// Shared by `async.http.response` and the streaming reply-lane pool
 /// (one lane per instance — Java `AppStarter.RESPONSE_HANDLER_INSTANCES`).
@@ -308,25 +308,25 @@ pub async fn start_http_server(platform: &Platform) -> Result<SocketAddr, AppErr
             }
         }
     }
-    // streaming responses use a pool of dedicated single-instance reply lanes:
-    // a streaming request checks out one lane for its lifetime (strict FIFO for
-    // its segments) and returns it when its context closes; the pool size
-    // matches the async.http.response instances, and an idle lane costs only a
-    // little memory (Java AppStarter parity). Registration runs on EVERY server
-    // start — a re-registration rebinds the route workers to the current
-    // runtime (the per-test-runtime idiom of this port) — but the POOL is
-    // filled exactly once per process: get_or_init blocks a concurrent second
-    // server start until the fill completes, so the pool can never be refilled
-    // or double-filled while requests are in flight
-    let stream_responder = Arc::new(StreamLaneService);
-    for lane in 0..RESPONSE_HANDLER_INSTANCES {
-        let lane_route = format!("{ASYNC_HTTP_RESPONSE_STREAM_PREFIX}{lane}");
-        platform.register_private(&lane_route, stream_responder.clone(), 1)?;
-    }
+    // streaming responses use a route pool of dedicated single-instance reply
+    // lanes: a streaming request checks out one lane for its lifetime (strict
+    // FIFO for its segments) and returns it when its context closes; the pool
+    // size matches the async.http.response instances, and an idle lane costs
+    // only a little memory (Java AppStarter parity). Registration runs on
+    // EVERY server start — the pool reload rebinds the lane workers to the
+    // current runtime (the per-test-runtime idiom of this port) — but the
+    // checkout POOL is filled exactly once per process: get_or_init blocks a
+    // concurrent second server start until the fill completes, so the pool can
+    // never be refilled or double-filled while requests are in flight
+    let members = platform.register_route_pool(
+        ASYNC_HTTP_RESPONSE_STREAM_POOL,
+        Arc::new(StreamLaneService),
+        RESPONSE_HANDLER_INSTANCES,
+    )?;
     static POOL_FILLED: OnceLock<()> = OnceLock::new();
     POOL_FILLED.get_or_init(|| {
-        for lane in 0..RESPONSE_HANDLER_INSTANCES {
-            release_lane(format!("{ASYNC_HTTP_RESPONSE_STREAM_PREFIX}{lane}"));
+        for lane_route in members {
+            release_lane(lane_route);
         }
     });
     let rest_yaml = config.get_property_or("yaml.rest.automation", "classpath:/rest.yaml");

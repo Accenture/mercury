@@ -26,6 +26,43 @@ or *Deprecated* (no longer relevant), with its text left in place.
 
 ---
 
+## ADR-0017 — Route pools: numbered singleton lanes as a first-class platform registration {#adr-0017}
+**Status:** Proposed · **Date:** 2026-08-30 · **Serves:** vision-mercury · **Formalizes:** route-pool-registration-design
+<!-- id: adr-0017 | status: proposed -->
+
+**Abstract.** `Platform::register_route_pool(prefix, function, count)` registers a set
+of private singleton routes `{prefix}.{n}` for n = 0 to count-1 and returns the member
+names in order; `release_route_pool(prefix)` removes the set symmetrically. Each member
+is a strict FIFO lane (one worker, one shared stateless function), so a caller that
+checks out a lane gets per-conversation event ordering while other lanes serve
+concurrent traffic — the pattern the HTTP edge's streaming reply lanes
+(`async.http.response.stream.{n}`) introduced, promoted from an open-coded loop in the
+server start to a platform API with registry-level identity (a pool registry mapping
+prefix to lane count). Pools are always private: lane checkout is an in-process
+rendezvous, so publishing members over Event-over-HTTP would be meaningless.
+Registering an existing pool reloads it (the previous member set is released first,
+house reload semantics); individual register/release calls that touch a pool member are
+warned, never refused — range-checked, so a neighbor route such as `{prefix}.10` beside
+a count-3 pool is never misclassified. Pool mutations serialize on a dedicated mutex
+(the Java twin uses a ReentrantLock). The pool registry is lifecycle metadata only —
+`routes()` remains the truthful registry view and the actuator's compact pool rendering
+stays display-only. Lock-step twin of the Java engine's ADR-0020.
+
+**Rationale.** The v4.12.0 streaming milestone shipped the lane-pool pattern without an
+abstraction: 500 `register_private` calls at server start, no release counterpart, and
+no way for the platform to tell a pool from 500 coincidentally numbered routes; upcoming
+consumers (graph-run streaming, wrapper relay pools under the AI SDLC work) would each
+re-open-code it. Naming and semantics follow the ratified cross-engine design (the Java
+repo's draft-design-specs/register-route-pool.md, D1–D10): `registerStreams` was
+rejected there for colliding with the Java engine's `registerStream(StreamFunction)`
+API, and the pool abstraction is ordered lanes, not streams; an `is_private` flag was
+rejected because no remote use case exists. Port nuance: this engine registers the lane
+pool on EVERY server start (the per-test-runtime rebind idiom), so the reload path is
+routine here rather than exceptional — one "Reloading route pool" warning replaces five
+hundred per-lane reload warnings.
+
+---
+
 ## ADR-0016 — The HTTP client consumes SSE progressively; Event-over-HTTP streams on the same call {#adr-0016}
 **Status:** Accepted · **Date:** 2026-08-29 · **Serves:** vision-mercury · **Formalizes:** async-http-client-sse-streaming-design
 <!-- id: adr-0016 | status: accepted -->

@@ -6,107 +6,10 @@
 > rationale* lives in [`draft-design-specs/platform-core-port.md`](design/platform-core-port.md)
 > (§4–§5i, D1–D10); the full working narrative lives in `memory/sessions/`.
 >
-> **Convention:** add one row + one section here as each increment lands (part of the
-> increment's definition of done).
-
-## Overview
-
-| # | Increment | Date | Design | Tests (cumulative) |
-|---|---|---|---|---|
-| — | AI-enable + Vision + Blueprint (greenfield) | 2026-07-15 | — | — |
-| — | Design doc v1/v2 (stack gate; config-first re-scope) | 2026-07-15 | D1–D9 | — |
-| 1 | Configuration management | 2026-07-15 | §4 | 30 |
-| 2 | Event-bus foundation | 2026-07-15 | §5 | 41 |
-| 3 | FIFO reactive back-pressure | 2026-07-15 | §5b | 48 |
-| 4 | Application lifecycle + example app | 2026-07-15 | §5c | 55 |
-| 5 | OTel tracing, correlation-id, app-log-context | 2026-07-16 | §5d | 68 |
-| 6 | REST automation (core) | 2026-07-16 | §5e | 83 |
-| 7 | Actuator endpoints + static HTML content | 2026-07-16 | §5f | 94 |
-| 8 | Static-content protocol: etag/304, no-cache, filter | 2026-07-16 | §5g | 101 |
-| 9 | Lightweight RPC inbox + benchmark-reporter — **milestone closed** | 2026-07-16 | §5h | 103 |
-| 10 | Annotation macros + `AutoStart` one-liner + `examples/` convention | 2026-07-16 | §5i | 105 |
-| — | Event-script design doc v1 (layer-2 gate) | 2026-07-16 | E1–E9 | — |
-| 11 | event-script E-1: flow model + compiler (fixture parity) | 2026-07-16 | ES §5a | 120 |
-| 12 | event-script E-2: data-mapping engine (MLM primary, JSONPath queries) | 2026-07-16 | ES §5b | 139 |
-| 13 | event-script E-3: platform-core extensions (interceptor, send_later, flow:) | 2026-07-16 | ES §5c | 145 |
-| 14 | event-script E-4: core flow runtime (manager, executor, FlowExecutor) | 2026-07-16 | ES §5d | 146 |
-| 15 | direct execution for reserved engine routes (hidden optimization) | 2026-07-16 | ES §5d.1 | 148 |
-| 16 | event-script E-5: parallel + fork/join (dynamic source, ITEM/INDEX) | 2026-07-16 | ES §5e | 148 |
-| 17 | event-script E-6: pipelines with for/while loops, break/continue | 2026-07-16 | ES §5f | 148 |
-| 18 | event-script E-7: sub-flows, shared parent state, ext state machine | 2026-07-16 | ES §5g | 148 |
-| 19 | event-script E-8: complete plugin catalog + #[simple_plugin] macro | 2026-07-17 | ES §5h | 148 |
-| 20 | event-script E-9: HTTP adapter, resilience, mock, hello-flow — **layer-2 milestone closed** | 2026-07-17 | ES §5i | 148 |
-| — | Knowledge-graph design doc v1 (layer-3 gate) | 2026-07-17 | KG K1–K9 | — |
-| 21 | knowledge-graph K-1: MiniGraph property graph in platform-core | 2026-07-17 | KG K1 | 158 |
-| 22 | knowledge-graph K-2: math expression engine (`knowledge-graph` crate) | 2026-07-17 | KG K4 | 173 |
-| 23 | knowledge-graph K-3: graph compiler + registry, fixtures verbatim, resource-root hook | 2026-07-17 | KG K3/K8 | 176 |
-| 24 | knowledge-graph K-4: graph runtime (executor + core skills), graph.js retired | 2026-07-17 | KG K1–K5 | 177 |
-| 25 | knowledge-graph K-5: platform-core HTTP client + graph.api.fetcher | 2026-07-17 | KG K6b | 177 |
-| 26 | knowledge-graph K-6: graph.extension (sub-graph + flow:// delegation) | 2026-07-17 | KG K2 | 178 |
-| 27 | knowledge-graph K-7a: platform-core WebSocket server (hyper upgrade + tungstenite) | 2026-07-17 | KG K6a | 179 |
-| 28 | knowledge-graph K-7b: the Playground (command grammar, traveler, companion API, dev-gating K9) | 2026-07-17 | KG K9 | 181 |
-| 29 | knowledge-graph K-8: React webapp + `minigraph-playground` app — **LAYER 3 MILESTONE CLOSED** | 2026-07-18 | KG K7/K8 | 181 |
-| 30 | `#[optional_service]` macro (Java `@OptionalService`) + dev mock data providers | 2026-07-18 | KG K9 | 188 |
-| 31 | full declarative dev-gating for the Playground (`#[optional_service]` on all registration kinds) | 2026-07-18 | KG K9 | — |
-| 32 | `inspect` docs: `{…}` is a placeholder, not literal (both repos) | 2026-07-18 | — | — |
-| 33 | `serializer.null.transport` (Java null-omission parity) | 2026-07-18 | D3 | — |
-| 34 | `#[optional_service]` promoted to a first-class, order-independent attribute | 2026-07-19 | KG K9 | 201 |
-| 35 | companion `/sync` ok-heuristic: whole-output classification (finding #40, both ports) | 2026-07-19 | ADR-0008 | — |
-| 36 | HTTP-boundary content-type dispatch: exact Java parity (no sniffing, binary path, form fields) | 2026-07-19 | D10 | — |
-| 37 | Spring config names retired: `APP_PROFILES_ACTIVE`/`app.profiles.active` rename + `application.name` alone for the app name | 2026-07-19 | §8 Q1 | 202 |
-| 38 | `graph.math` `for_each`/`BEGIN`/`END` engine-verified spec (finding #29) — probe fixture + grammar/catalog/help docs | 2026-07-19 | — | 202 |
-| 39 | numeric promotion for the simple-plugin arithmetic family + new `f:round` half-up decimal rounding (both ports) | 2026-07-19 | — | 202 |
-| 40 | join barrier counts only valid completions: success-only `skill_run` + `RESET` clears the completion mark (latent premature-join bug, both ports) | 2026-07-19 | — | 202 |
-| 41 | chained join judges an upstream join by its recorded outcome (fired vs sank; both ports) | 2026-07-19 | — | 202 |
-| 42 | discovery commands `list graphs` / `list flows` — self-service `extension=` delegation targets (finding #38, both ports) | 2026-07-20 | — | 202 |
-| 43 | human docs site phase 1: MkDocs+Material scaffold, Home + Getting Started, strict-build CI | 2026-07-20 | D-H1/D-H2 | — |
-| 44 | human docs site phase 2: Foundations trio + Layer 1/2 guides; layer-organized nav (human + AI docs per layer) | 2026-07-20 | D-H2 | — |
-| 45 | human docs site phase 3: KG human pages + REST automation + the six D-H2 reference conversions (12 pages) | 2026-07-20 | D-H2 | — |
-| 46 | human docs site phase 4 — COMPLETE: port-scope page, Home/Getting-Started polish, final strict pass (20 nav pages) | 2026-07-20 | D-H1/D-H2 | — |
-| 47 | `describe graph {graph-id}` — a deployed model's contract view (finding #53) + differentiated tutorial purposes (#54); both ports | 2026-07-20 | — | 202 |
-| 48 | outbound HTTPS for the async HTTP client (rustls + OS trust store, `trust_all_cert` parity) — Rust-only parity work | 2026-07-20 | — | 206 |
-| 49 | `/sync` contract gaps (findings #62–#63): dedup bypass for direct RPC + `Syntax:` usage classified as failure; both ports | 2026-07-20 | — | 206 |
-| 50 | parity remediation 1 — REST boundary preserves function response-envelope headers (redirects/cookies/content-type) + envelope header model (case-insensitive get, CR/LF filter) | 2026-07-21 | — | 213 |
-| 51 | parity remediation 2 — trace continuity: zero-traced routes keep the trace flowing (telemetry-only suppression), send_later captures context at schedule time, explicit trace identity wins over the ambient bracket | 2026-07-21 | — | 216 |
-| 52 | parity remediation 3 — Event Script safety: `max.model.array.size` cap enforced on dynamic RHS indices (+ docs contradiction fixed), flow-launch `body` precondition | 2026-07-21 | — | 217 |
-| 53 | parity remediation 4 — date/time plugins: full Java-pattern tokenizer (names, 12h/AM-PM, SSS, quoted literals, offsets; loud failure on unsupported letters), `f:dateTime` zone argument + ISO_DATE_TIME no-arg form | 2026-07-21 | — | 218 |
-| 54 | parity remediation 5 — fetcher cache key = dictionary-declared inputs only (`{node}.dd.{alias}.*`, Java makeRegularHttpCall parity); call-counting red/green regression | 2026-07-21 | — | 218 |
-| 55 | parity remediation 6 — registration replaces + clamps 1..=1000 (Java Platform.register/ServiceDef), config resolver per-segment loop chain (no false cycles), .properties full java.util.Properties syntax | 2026-07-21 | — | 220 |
-| 56 | parity remediation 7 — REST routing/request/response parity: full wildcard grammar, 405 + OPTIONS semantics, multi-value query params, cookies map, raw query + https flag, trace-path query, Accept-negotiated content type | 2026-07-21 | — | 224 |
-| 57 | parity remediation 8 (final) — nested `[]` append recursion, list→text List.toString, UTF-16 length/substring, launch-failure 500, session-guard case, `-0` concat rendering, HostUri lastIndexOf split | 2026-07-21 | — | 230 |
-| 58 | F2 resolution (maintainer: NORMALIZE) — Nil map entries strip deterministically on every hop incl. the in-process fast path; the load-dependent null visibility is gone | 2026-07-21 | — | 231 |
-| 59 | Event over HTTP phase 2, increment 1 — standard envelope wire-format conformance: body absent-as-nil default, round_trip field, unset-field omission; Java golden vectors decode + round-trip | 2026-07-21 | — | 233 |
-| 60 | Event over HTTP phase 2, increment 2 — private functions, both Java paths: `#[preload]` private-by-default with `is_private = false` opt-out + `register_private` API + `is_private()` query; engine internals registered private | 2026-07-21 | — | 233 |
-| 61 | Event over HTTP phase 2, increment 3 — /api/event service + client: RPC/async dispatch, 403 private gate, 404/400/408, compact rejection, trace propagation (x-trace-id + traceparent); ships in default rest.yaml | 2026-07-21 | — | 235 |
-| 62 | Declarative Event over HTTP (`yaml.event.over.http`) — route→target map with per-target security headers; transparent PostOffice send/request forwarding (callback dance, x-event-api recursion guard); plus the D2 ttl fix (ceil + wire grace + local-wait grace) | 2026-07-22 | — | 237 |
-| 63 | Java-parity batch pre-4.10: `#[preload]` route aliases, app-log-context ON by default (built-in `default-log-context.yaml` + `app.log.context` switch), caller-side RPC `round_trip` telemetry record with span lineage, Event-over-HTTP demo endpoints in hello-flow (declarative + programmatic; port 8086→8100) | 2026-07-23 | — | 244 |
-| 64 | Telemetry presentation parity with the Java reference: REST automation callback dispatch + `async.http.response` span (first/response legs are real spans), log-context gating (traced lines only), `my_*` response-header strip, business-cid header channel, `event.api.auth` demo + session info, demo→declarative rename, `hello.pojo` — rust-to-rust trace = EXACT replica of java-to-java (empty signature diff, both patterns) | 2026-07-23 | — | 245 |
-| 65 | Metadata injection hardening (Java parity): business cid rides the engine-managed `my_cid` envelope tag (wire-compatible `tags` field), worker injects the four `my_*` read-only keys into the input header copy at entry and sanitizes them (+ `x-event-api`) at exit — metadata is never transported; REST response echoes X-Correlation-Id; edge stamps the resolved cid onto the dataset headers | 2026-07-23 | — | 249 |
-| 66 | `temporary.inbox` alignment (Java parity): ONE reserved RPC reply-listener route keyed by correlation id — the `inbox.*` namespace freed for applications; RPC marker = the reserved `rpc` tag; `@origin` addressing never generated, parsed away inbound; reply dispatch direct on the sender's runtime | 2026-07-23 | — | 250 |
-| 67 | Collection plugins mirror (`isEmpty`/`getFirst`/`getLast` — contributed to the Java engine in mercury-composable PR #220): flows are engine-portable YAML, so plugins + error text behave identically on both engines | 2026-07-23 | — | 252 |
-| 68 | Configurable traceparent header name (field request, lock-step with Java): `http.traceparent.header` global + per-entry rest.yaml override; standard traceparent wins inbound (v4.10.4 ruling), dual-stamp outbound | 2026-07-24 | — | 257 |
-| 69 | Interop header hygiene (lock-step with Java): clean delivered-envelope view (5 engine keys scrubbed for non-interceptors; interceptors keep raw transport), /api/event wire alignment (insert-semantics stamps, Java header set, no x-correlation-id), endpoint timeout rides x-ttl | 2026-07-24 | — | 260 |
-| 70 | Annotation→macro consistency P1: all 46 built-in plugins + both fetch features dogfood `#[simple_plugin]`/`#[fetch_feature]`, one conflict policy (WARN + last-wins), positional grammar, order-free marker stacking, trybuild compile-fail suites | 2026-07-25 | — | 265 |
-| 71 | ManagedCache — the self-expiring in-memory cache (design `managed-cache-port.md`, maintainer-gated): moka engine with deterministic LRU eviction, `Arc<dyn Any>` value carrier, named registry + lifecycle housekeeper; adopters: WS dedup (anchored window fix), actuator `health.info` info-lookup cache, ext-state-machine fixture | 2026-07-27 | — | 287 |
-| 72 | Graph suspend/resume engine core (lock-step, FINAL Java surface): `graph.suspend`/`graph.resume` skills (graph.task supersets, encapsulated store contract, overflow-guarded ttl parser), both walkers gain `resume:<alias>` + suspensible routing + after-resume dead-end guard + atomic seen-marking, `model.run` engine flag, reserved-key strip on restore, business-cid stamping | 2026-07-30 | — | 288 |
-| 73 | CompileGraph is the mandatory deployment gate (compiled-or-404, ADR-0010): manifest-carried `location` (flows.yaml convention; `location.graph.deployed` retired), property-aware mapping rejection (bare `input` = fetcher vocabulary), `model_validator` reused by the playground `run` pre-run check, executor lazy load deleted, `model.run` reserved at compile + runtime | 2026-07-30 | — | 293 |
-| 74 | Redis state store crate `extensions/minigraph-state-redis` (app-only, never the engine): `v1.redis.persist.model` SETEX / `v1.redis.retrieve.model` GETDEL, lazy `ConnectionManager` (redis-rs, the Lettuce analog), `redis.*` config family, contract tests through the real client vs an in-process RESP2 double | 2026-07-30 | — | 294 |
-| 75 | tutorial-14 (verbatim) + suspension docs + ADR twins: the three-checkpoint purchase workflow e2e over the real client wire path, live four-run drive vs redis-standalone (reply shape, log-context business cid, store-under-skill span topology), workflow-suspension guide + ten-skill tables + help/catalog surfaces + CHANGELOG migration note, ADR-0009/0010 proposed | 2026-07-30 | — | 295 |
-| 76 | Version-aware Redis consume (v4.11.1 lock-step R1): GETDEL on 6.2+, atomic MULTI/EXEC GET+DEL below — INFO probe once per manager with a startup strategy statement; shared parameterized RESP2 double + a separate-process legacy suite driving the fallback for real at 5.0.14 | 2026-08-01 | — | * |
-| 77 | Event Script task-level `ttl` override (v4.11.1 lock-step R2): compile rules + `resolve_child_ttl` with the delay-aware WARN; `delay` honored on flow:// launches, deferred dispatches cancelled at `end_flow`; nine Java fixtures verbatim + catch/retry/delay e2e twins | 2026-08-01 | — | * |
-| 78 | minigraph node `ttl` + model-metadata immutability (v4.11.1 lock-step R3): `get_effective_ttl` at all four read sites; canonical `RESERVED_MODEL_METADATA` runtime guard on all four model-writing paths; validator gate/pre-run rules (three-skill node-ttl message, metadata immutability incl. MAPPING: lines) | 2026-08-01 | — | * |
-| 79 | Dry-run watcher + companion drain + fetcher x-ttl (v4.11.1 lock-step R4): run-level watcher at model.ttl (CAS claim_terminal, owner-tagged slot), drain sized from model.ttl with truncation = ok:false, fetcher x-ttl stamp + mock MDM echo; docs mirror incl. the deadline-propagation half-port fix | 2026-08-01 | — | * |
-| 80 | Adversarial review round (v4.11.1 lock-step R5): 14 confirmed findings resolved — x-ttl budget ceils to whole seconds via 32-bit parse, 30s drain fallback, gate-message parity, i32 ttl bound + saturating math, wire-strategy journal proofs on both redis paths, watcher-slot release pin | 2026-08-01 | — | * |
-| 81 | tutorial-14: the manager approval becomes a real decision — approve / reject-with-reason / re-suspend wait loop; RESET-before-IF idiom; three-outcome e2e + loop stability; decide-before-you-suspend rule stated across the grammar surfaces | 2026-08-07 | — | * |
-| 82 | Suspension is a destination (ADR-0011 amending ADR-0009; Java ADR-0012 twin): edge and jump modes replace suspend=true, shape-based gate rules + teaching errors, tutorial-14 remodel, fixtures byte-identical, webapp replaced from the Java repo's latest UI | 2026-08-07 | — | * |
-| 83 | graph.task `model.*` input staging (Event Script parity) + tutorial-13 as an HTTP client by configuration: async.http.request, dynamic variables, `${...}` load-time substitution, explicit `headers.x-ttl`; v1.hello.task retired; dry-run companion twin | 2026-08-08 | — | * |
-| 84 | Graph-scoped workflow state (`graph:{graph_id}:{cid}`, BREAKING) + business-cid inheritance through graph.extension (the orchestrator pattern) + the generic exception context (error.source/code/message) with `inspect error`; ADR-0012/ADR-0013 proposed | 2026-08-10 | — | * |
-| 85 | Dynamic variables in every statement command (NEXT:/THEN:/ELSE: targets, RESET: entries, DELAY: values) — the generic retry handler via `{error.source}`; tutorial-12 genericized | 2026-08-10 | — | * |
-| 86 | The virtual 'error' node reports recovery: a successful retry of error.source resolves the context (code=200, source kept, details removed; source match keeps parallel branches safe) | 2026-08-10 | — | * |
-
-\* From increment 76 the workspace gate is reported as green test **suites** (58 at
-v4.11.x) rather than a single cumulative test count — the multi-crate workspace runs
-per-suite binaries.
+> **Convention:** add one section here as each increment lands (part of the
+> increment's definition of done). *(A summary table once fronted this ledger; it was
+> removed 2026-08-30 — a duplicate index drifts out of sync with the sections it
+> summarizes.)*
 
 Every increment ships with `cargo build` + `cargo test` + `cargo clippy --all-targets` +
 `cargo fmt --check` clean, and (from increment 4 on) a live run of the hello-world
@@ -128,8 +31,6 @@ demonstrating the new capability end-to-end.
   `spring.application.name`) are kept **verbatim** so files port unchanged between the
   Java and Rust versions (side-by-side comparison during migration; a generic
   `app.profiles.active` alias may come once the foundation is robust).
-
----
 
 ## Increment 1 — Configuration management (2026-07-15)
 
@@ -270,8 +171,6 @@ manifest in a Rust binary — a build.rs-embedded cargo metadata could provide i
 - Verified live: no-cache + `x-filter` headers on `/`, a real 304 revalidation cycle,
   and the interceptor's inspection log.
 
----
-
 ## Increment 9 — Lightweight RPC inbox + benchmark-reporter (2026-07-16) — **platform-core milestone closed**
 
 *Maintainer-directed closure: benchmark the foundation the event-script and
@@ -289,8 +188,6 @@ knowledge-graph layers will ride on.*
   **17 µs mean / 210 µs max vs 157 µs / 1.62 ms (~9×)** — no GC, no GC pause, tails stay
   near the median. 1,003,000 timed operations, **0 failures**. Analysis:
   [`analysis/README.md`](../benchmark/benchmark-reporter/analysis/README.md).
-
----
 
 ## Increment 10 — Annotation macros + `AutoStart` one-liner + `examples/` convention (2026-07-16)
 
@@ -314,8 +211,6 @@ knowledge-graph layers will ride on.*
   config resolution, typed RPC in a trace bracket, `#[zero_tracing]` suppression) + live
   run of the relocated app (REST, etag/304, filter, actuators unchanged).
 
----
-
 ## Increment 11 — event-script E-1: flow model + compiler (2026-07-16)
 
 *Layer 2 begins. Design `draft-design-specs/event-script-port.md` approved same day
@@ -336,8 +231,6 @@ knowledge-graph layers will ride on.*
   loading (not their comments): `invalid-condition-mode`, `ext.user` dot-form.
 - Engine self-registers through the increment-10 annotation layer
   (`#[before_application(sequence = 5)]`).
-
----
 
 ## Increment 12 — event-script E-2: data-mapping engine (2026-07-16)
 
@@ -361,8 +254,6 @@ queries**. The Java code is layered the same way, so parity and the refinement c
   a simulated HTTP dataset produce the exact function-input body the Java engine feeds
   `greeting.test`.
 
----
-
 ## Increment 13 — event-script E-3: platform-core extensions (2026-07-16)
 
 *The four extensions the flow engine rides on (design E5), landed in platform-core
@@ -378,8 +269,6 @@ with their own tests.*
 - **rest.yaml `flow:` binding**: injected as the `x-flow-id` header for
   `http.flow.adapter`; closes the increment-6 flow-binding deferral.
 - **Deep-copy**: satisfied by design (`rmpv::Value::clone()` is a deep copy) — no API.
-
----
 
 ## Increment 14 — event-script E-4: core flow runtime (2026-07-16)
 
@@ -401,8 +290,6 @@ annotation inventory; every task execution is an event over the layer-1 bus.*
   sequential + wildcard, response-before-end, exception → handler, TTL abort,
   dynamic reserved-key rejection, fire-and-forget launch.
 
----
-
 ## Increment 15 — direct execution for the reserved engine routes (2026-07-16)
 
 *From a maintainer design review of Java's `EventEmitter.sendWithEventBus`: the two
@@ -419,8 +306,6 @@ reactive back-pressure.*
 - Proof: reserved routes reach peak concurrency > 1 with one worker instance while a
   normal control route serializes (peak exactly 1); 20 simultaneous flows complete.
 
----
-
 ## Increment 16 — event-script E-5: parallel + fork/join (2026-07-16)
 
 - **`parallel`** fan-out and **`fork`/`join`** with the pipe-map barrier
@@ -433,8 +318,6 @@ reactive back-pressure.*
 - Canonical parallel-test + fork-n-join-test fixtures run verbatim; a marked Rust-side
   supplement covers dynamic fork until its canonical fixture's E-7 dependencies land.
 
----
-
 ## Increment 17 — event-script E-6: pipelines + loops (2026-07-16)
 
 - **`pipeline`** execution with `PipelineState` in the pipe map: ordered steps, pass
@@ -445,8 +328,6 @@ reactive back-pressure.*
   append/read/delete round-trip), for-loop-break, while-loop (per-step `delay`),
   pipeline-exception (step handler + pipe cleanup). `decision.case` upgraded to the
   faithful Java `DecisionCase` port.
-
----
 
 ## Increment 18 — event-script E-7: sub-flows + shared state + ext (2026-07-16)
 
@@ -462,8 +343,6 @@ reactive back-pressure.*
   externalize put/get, fork-n-join-flows, and the **canonical dynamic-fork fixture** —
   five concurrent sub-flows, shared-state appends exactly-once.
 
----
-
 ## Increment 19 — event-script E-8: the plugin catalog + `#[simple_plugin]` (2026-07-17)
 
 - All **42 built-in plugins** execute (arithmetic, generators, dates, comparisons,
@@ -475,8 +354,6 @@ reactive back-pressure.*
 - Fixtures activated: arithmetic, type-conversion (real-bytes body asserted on the
   rmpv tree), string-util, parse-date(-time), input-validation; plus a user plugin
   proven end-to-end.
-
----
 
 ## Increment 20 — event-script E-9: adapter + resilience + mock (2026-07-17) — **EVENT-SCRIPT MILESTONE CLOSED**
 
@@ -493,8 +370,6 @@ reactive back-pressure.*
 
 **Layer 2 closed**: E-1…E-9 = the complete Event Script engine on the measured
 layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
-
----
 
 ## Increment 21 — knowledge-graph K-1: MiniGraph in platform-core (2026-07-17)
 
@@ -539,6 +414,7 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   half-away-from-zero.
 - **Parity suite**: all 14 `ExpressionEngineFullTest` methods + an added
   random/arity/coercion test; 15 tests, green first run.
+
 ## Increment 23 — knowledge-graph K-3: graph compiler + registry (2026-07-17)
 
 - **`compiler::compile_graphs`** (Java `CompileGraph`, `@BeforeApplication(sequence=6)`)
@@ -563,6 +439,7 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   `graph.api.fetcher`.
 - **Parity suite**: `CompileGraphTest` ported (manifest gating, deprecated-syntax
   conversion) + a `${...}`-resolution check; 3 tests.
+
 ## Increment 24 — knowledge-graph K-4: the graph runtime (2026-07-17)
 
 - **`graph.executor`** (zero-tracing event interceptor, Java `GraphExecutor`): a plain
@@ -599,6 +476,7 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 - **E2E suite** (one flow-engine boot): tutorials 1/2/4/7/8/9/13 + `GraphTaskTest`
   unit-test-task-1..5 (Java-parity task functions ported) + Rust-supplement graphs for
   the join barrier, loop detection and the retirement message; graph.health checks.
+
 ## Increment 25 — knowledge-graph K-5: HTTP client + API fetcher (2026-07-17)
 
 - **platform-core `async.http.request`** (Java `AsyncHttpClient`, closing the design §7
@@ -638,6 +516,7 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   tutorials 3 (+negative), 5, 6, 12, 114 and unit-test-1 all pass over real HTTP.
   hello/helloworld/helloworld2 wait for `graph.extension` (K-6); the graphs carrying
   `graph.js` are activated at K-6 by the maintainer-directed swap to `graph.math`.
+
 ## Increment 26 — knowledge-graph K-6: graph.extension (2026-07-17)
 
 - **`graph.extension`** (Java `GraphExtension`, 266 lines): a node delegates to another
@@ -674,6 +553,7 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   remains the single `graph.js` case proving the retirement error. E2E: hello,
   helloworld, hellojs and the tutorial-113 retry pattern (error-handler +
   clear-exception + DELAY) all pass.
+
 ## Increment 27 — knowledge-graph K-7a: the WebSocket server (2026-07-17)
 
 - **platform-core WebSocket server** (design K6a — the second lockstep layer-1
@@ -835,8 +715,6 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   provider live-verified on a temp instance (`GET /api/mdm/profile/100` → Peter / 100 World Blvd;
   `/api/mdm/profile/10` → 400).
 
----
-
 ## Increment 31 — full declarative dev-gating for the Playground (2026-07-18)
 
 - **`#[optional_service]` extended to the other three registration macros** (platform-core;
@@ -870,8 +748,6 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   websockets, `/` static home + `http.flow.adapter` still serve, `/api/mdm/profile/100` → 404
   (also confirming loose-end #2: a rest.yaml entry cleanly 404s when its service isn't registered).
 
----
-
 ## Increment 32 — `inspect` docs: `{…}` is a placeholder, not literal (2026-07-18)
 
 - **Documentation/UX fix, both repos** (Rust `0252c05`; Java canonical
@@ -902,8 +778,6 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   data-dictionary graph (7 nodes + 7 connections, exact structural match to canonical
   `tutorial-3.json`) from the canonical docs alone and the dry-run returned
   `output.body = {name:"Peter", address:"100 World Blvd"}`.
-
----
 
 ## Increment 33 — `serializer.null.transport` (Java null-omission parity) (2026-07-18)
 
@@ -937,8 +811,6 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   per-binary `graph_runtime` boot flake — reproduces on HEAD, unrelated). fmt + clippy clean.
 - **Java side:** unchanged — it is the source of truth this mirrors.
 
----
-
 ## Increment 34 — `#[optional_service]` promoted to a first-class attribute (2026-07-19)
 
 - **Maintainer direction:** `OptionalService` is a first-class citizen annotation — it makes a
@@ -962,8 +834,6 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   `#[preload]` parameter table; new first-class `#[optional_service]` subsection (all four kinds,
   either order, condition semantics). `platform-macros` crate docs updated the same way.
 
----
-
 ## Increment 35 — companion `/sync` ok-heuristic: whole-output classification (2026-07-19)
 
 **Sweep finding #40; fixed in BOTH ports, `/sync` contract stays byte-identical.**
@@ -983,8 +853,6 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 - **Upstream:** Java PR [#195](https://github.com/Accenture/mercury-composable/pull/195).
 - **Docs:** `ai-agent-guide.md` caveat → fixed semantics; `minigraph-commands.json`
   sync_envelope note; rollup #40 → DONE in `docs/test-reports/AI-companion-test.md`.
-
----
 
 ## Increment 36 — HTTP-boundary content-type dispatch: exact Java parity (2026-07-19)
 
@@ -1008,8 +876,6 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   `body_dispatch_mirrors_java_content_type_rules` (`BodyProbe` reports the body *kind* reaching
   a function: map / text / bytes / null / query-merge) in `tests/rest_automation.rs`.
 
----
-
 ## Increment 37 — profile selection renamed `APP_PROFILES_ACTIVE` (2026-07-19)
 
 **Maintainer decision closing the oldest backlog item (2026-07-15): a rename, not an alias.**
@@ -1029,8 +895,6 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
   key, so the Rust port reads it alone; the default aligns to Java's `"application"`
   (was an unnoted `"untitled"` divergence). All repo configs already used
   `application.name`, so nothing else moved.
-
----
 
 ## Increment 38 — `graph.math` `for_each`/`BEGIN`/`END` engine-verified spec (2026-07-19)
 
@@ -1058,8 +922,6 @@ layer-1 foundation. Next layer: **active knowledge graph (layer 3)**.
 - **Tests:** workspace **202** (the probe runs inside the orchestrating
   `graph_runtime_end_to_end` test), clippy 0, fmt clean. Rollup #29 → DONE in
   `docs/test-reports/AI-companion-test.md`.
-
----
 
 ## Increment 39 — numeric promotion for the simple-plugin arithmetic family (2026-07-19)
 
@@ -1100,8 +962,6 @@ simple-plugin can do the job."**
   both suites (Java 142, Rust mixed-type cases), documented in the syntax.md matrix, the KG
   grammar/catalog/help page.
 
----
-
 ## Increment 40 — join barrier counts only valid completions (2026-07-19)
 
 **Backlog probe item #3 (Join + RESET interplay) — confirmed a LATENT BUG in both engines,
@@ -1134,8 +994,6 @@ old code with `expected: Peter, got: null`).
 - **Recorded observation → fixed same day as increment 41** (chained joins judged by
   recorded outcome).
 
----
-
 ## Increment 41 — chained join judges an upstream join by its recorded outcome (2026-07-19)
 
 **The follow-on observation from increment 40, maintainer-directed — fixed in both ports.**
@@ -1160,8 +1018,6 @@ upstream join as complete and fired prematurely, dropping the slow branch's data
   auto-close lesson).
 - **Docs:** the "multi-stage joins compose safely" clause added to `skills-reference.md`,
   `help graph-join.md`, and the JSON catalog's join entry (webapp bundle re-released).
-
----
 
 ## Increment 42 — discovery commands: `list graphs` / `list flows` (2026-07-20)
 
@@ -1190,8 +1046,6 @@ upstream join as complete and fired prematurely, dropping the slow branch's data
   `unit-test-1` gained a purpose in both repos); `help.md` overview + `help list.md` updated
   in both engines. Java suites: event-script **142**, playground **70**.
 
----
-
 ## Increment 43 — human docs site, phase 1 (2026-07-20)
 
 **First increment of the human-documentation design (`draft-design-specs/human-docs.md` D-H1/D-H2;
@@ -1212,8 +1066,6 @@ realizes `ot-human-guides-backlog`).** The maintainer approved the toolchain by 
 - **CI:** `.github/workflows/docs.yml` — build-only `mkdocs build --strict` on docs changes
   (Pages deployment deferred until graduation); `site/` gitignored.
 - Local build: `mkdocs build --strict` green on the venv (`uv venv /tmp/mkdocs-venv`).
-
----
 
 ## Increment 44 — human docs site, phase 2 (2026-07-20)
 
@@ -1239,8 +1091,6 @@ maintainer's "the repo is AI-enabled" navigation statement).
   still auto-routes to `reply_to`).
 - Nav restructured: Foundations / Layer 1 / Layer 2 / Layer 3 (AI docs fill Layer 3 until
   phase 3). `mkdocs build --strict` green.
-
----
 
 ## Increment 45 — human docs site, phase 3 (2026-07-20)
 
@@ -1269,8 +1119,6 @@ three layers plus a Reference tab.** `mkdocs build --strict` green across 19 nav
 - Review fixes: the stale "Java upstream pending" discovery notes corrected to cite the
   merged [#199](https://github.com/Accenture/mercury-composable/pull/199).
 
----
-
 ## Increment 46 — human docs site, phase 4: COMPLETE (2026-07-20)
 
 **The human-documentation backlog (`ot-human-guides-backlog`) is closed — the documentation
@@ -1288,8 +1136,6 @@ gate for the repo's graduation to `github.com/Accenture/mercury` is done.**
 - The site totals ~4,600 lines of new human documentation across phases 1–4, every code
   sample and configuration key verified against this repository's source, with ~40
   `!!! note "Rust port"` divergence boxes — no silent divergence anywhere.
-
----
 
 ## Increment 47 — `describe graph {graph-id}`: the deployed-model contract view (2026-07-20)
 
@@ -1313,8 +1159,6 @@ gate for the repo's graduation to `github.com/Accenture/mercury` is done.**
 - **Docs:** grammar `#describe` + discovery paragraph, catalog entry, `help describe.md` +
   `help list.md`, the AI agent guide's recipe (discover → **contract** → delegate). Rollups
   #53/#54 → DONE.
-
----
 
 ## Increment 48 — outbound HTTPS for the async HTTP client (2026-07-20)
 
@@ -1343,8 +1187,6 @@ start (Reactor-Netty `secure()` + `InsecureTrustManagerFactory` escape hatch), s
   trust-all caveat); module doc deferral note replaced. The REST-automation *server-side*
   HTTP(S) relay (`rest.yaml` URL services) remains deferred — unrelated to this client-side
   support.
-
----
 
 ## Increment 49 — `/sync` contract gaps: findings #62–#63 (2026-07-20, BOTH ports)
 
@@ -1376,8 +1218,6 @@ the identical design in both ports (like #40).
 - **Docs:** the sync-envelope contract now states both rules (agent guide bullets +
   `sync_envelope` notes in the catalog); rollups #62/#63 → DONE.
 
----
-
 ## Increment 50 — parity remediation 1: REST response headers (2026-07-21)
 
 First increment of the maintainer-approved parity-remediation program (the verified
@@ -1404,8 +1244,6 @@ reached the HTTP client — Java's `AsyncHttpResponse.updateHeaders` copies them
 - Remaining header-model item (tracked in the thread): Java derives a fallback response
   content type from the request `Accept` header (`updateContentType`) and renders the body
   per that negotiation — the Rust port still derives from the body shape alone.
-
----
 
 ## Increment 51 — parity remediation 2: trace continuity (2026-07-21)
 
@@ -1436,8 +1274,6 @@ against the Java source (`WorkerHandler` + `PostOffice.touch()`):
   fail on the pre-fix source). `annotations.rs` updated to the corrected contract (the
   bracket exists but is telemetry-suppressed). Workspace 216 tests / clippy 0 / fmt.
 
----
-
 ## Increment 52 — parity remediation 3: Event Script safety (2026-07-21)
 
 Third increment of the parity-remediation program — the two Event Script safety findings:
@@ -1459,8 +1295,6 @@ Third increment of the parity-remediation program — the two Event Script safet
   in-range index passes) in the e2e scenario suite + `flow_launch_requires_a_body_in_the_dataset`
   (request/launch/non-map) — **red/green-verified** (both fail on the pre-fix source);
   the compiler's loaded-flow-set assertion extended. Workspace 217 tests / clippy 0 / fmt.
-
----
 
 ## Increment 53 — parity remediation 4: date/time plugins (2026-07-21)
 
@@ -1489,8 +1323,6 @@ silently discarded its zone argument.
   locally-computed epochs. Workspace 218 tests / clippy 0 / fmt. syntax.md documents the
   pattern/zone forms (upstream doc candidate: Java's page is equally terse).
 
----
-
 ## Increment 54 — parity remediation 5: the fetcher cache key (2026-07-21)
 
 Fifth increment of the parity-remediation program — the last High (finding F6). The
@@ -1516,8 +1348,6 @@ provider call Java reuses — including side-effecting POSTs.
   response. (The assessment recommended exactly this call-counting regression in each
   repository — the Java repo can adopt the same fixture.) Workspace 218 tests /
   clippy 0 / fmt.
-
----
 
 ## Increment 55 — parity remediation 6: registration + configuration semantics (2026-07-21)
 
@@ -1545,8 +1375,6 @@ Sixth increment of the parity-remediation program — three Medium findings (F10
   `repeated_references_are_not_false_cycles` (+ new fixture keys);
   `properties_syntax_matches_java_util_properties` (+ `props-syntax.properties` fixture
   covering every syntax form). Workspace 220 tests / clippy 0 / fmt.
-
----
 
 ## Increment 56 — parity remediation 7: REST routing + request/response model (2026-07-21)
 
@@ -1577,8 +1405,6 @@ Accept-negotiation sub-item queued at increment 50):
   `response_content_negotiation_matches_java`, the trace-path query assertion, and the
   existing suite updated to send explicit Accept headers (real clients do). Workspace 224
   tests / clippy 0 / fmt.
-
----
 
 ## Increment 57 — parity remediation 8: the remaining mappings (2026-07-21)
 
@@ -1617,8 +1443,6 @@ With this increment, all 8 remediation items are DONE — every CONFIRMED findin
 verified assessment is fixed. The one open remnant is the F2 null-on-spill documentation
 decision (maintainer call: document the load-dependent consequence, or normalize).
 
----
-
 ## Increment 58 — F2 resolution: deterministic null transport (2026-07-21)
 
 The last open remnant of the parity-remediation program. F2 was verified INTENTIONAL (the
@@ -1645,8 +1469,6 @@ maintainer chose normalization over documentation.**
   nondeterminism this increment removes). Workspace 231 tests / clippy 0 / fmt.
 
 **The parity-remediation program is COMPLETE: all 8 items plus the F2 decision.**
-
----
 
 ## Increment 59 — Event over HTTP phase 2 / 1: wire-format conformance (2026-07-21)
 
@@ -1677,8 +1499,6 @@ design decision D4's "revisit if interop is ever required" clause in the port's 
   `register_private` API), then the `/api/event` service + client and the live
   cross-language interop pairing.
 
----
-
 ## Increment 60 — Event over HTTP phase 2 / 2: private functions (2026-07-21)
 
 The security gate before `/api/event` ships — Java's private-function concept, ported on
@@ -1703,8 +1523,6 @@ BOTH declaration paths per the maintainer's directive:
   gain the attribute row (and macros-reference's stale "duplicate route fails at
   startup" claim corrected to the increment-55 reload semantics). Workspace 233 tests /
   clippy 0 / fmt.
-
----
 
 ## Increment 61 — Event over HTTP phase 2 / 3: the /api/event service + client (2026-07-21)
 
@@ -1735,8 +1553,6 @@ client, ported (`automation/event_api.rs`):
   (:8100) / lambda-example (:8085) both directions, RPC + async, 404/403/408 + trace
   continuity (the Java session offered to pair). The interop target must be
   `is_private = false`.
-
----
 
 ## Increment 62 — Declarative Event over HTTP + the D2 timeout fix (2026-07-22)
 
@@ -1775,8 +1591,6 @@ Java `yaml.event.over.http` behavior, ported.
   `configuration-reference.md` adds `yaml.event.over.http` (removed from the absent-keys
   note). The D2 fix was verified live in the cross-language interop matrix (case 6: the
   Java peer's in-band 408 now arrives through this port's client).
-
----
 
 ## Increment 63 — Java-parity batch before the 4.10 line (2026-07-23)
 
@@ -1847,8 +1661,6 @@ lock-step (Java references: mercury-composable commits `9f9050e1` log-context de
   port sweep 8086→8100 across guides. CHANGELOG "Unreleased" section.
 - Workspace 244 / clippy 0 / fmt.
 
----
-
 ## Increment 64 — Telemetry presentation parity: the Java reference topology, exactly (2026-07-23)
 
 Eric's manual four-direction interop testing sharpened the bar: the rust-to-rust trace
@@ -1898,8 +1710,6 @@ Java reference: mercury-composable branch `feature/event-api-span-and-auth`.
   violations); response headers clean; auth 200/401/401 live. Workspace 245 / clippy 0 /
   fmt.
 
----
-
 ## Increment 65 — Metadata injection hardening: injected at entry, sanitized at exit, never transported (2026-07-23)
 
 Eric's design ruling (both engines; Java reference branch
@@ -1942,8 +1752,6 @@ never transported in the event itself.
   "cid is NOT echoed" assertion to invert. Docs: reserved-names (metadata contract +
   compatibility note + response echo), event-over-http guide (my_route note now applies
   to both engines; sample updated), CHANGELOG Unreleased. Workspace 249 / clippy 0 / fmt.
-
----
 
 ## Increment 66 — temporary.inbox: the inbox.* namespace belongs to applications (2026-07-23)
 
@@ -1990,8 +1798,6 @@ staging area queued to a human operator, e.g. `inbox.approval`). Mirror of Java'
   span-signature acceptance re-run (rust-to-rust empty diff — the reserved route is
   zero-traced, signature unchanged).
 
----
-
 ## Increment 67 — Collection plugins mirror: isEmpty, getFirst, getLast (2026-07-23)
 
 Team-contributed to the Java engine (mercury-composable PR #220, author Chris H) and
@@ -2012,8 +1818,6 @@ both engines — including ERROR TEXT, which DevSecOps teams read in aggregated 
   arrays; every invalid case asserting the exact message; registry discovery). Docs:
   syntax guide's Built-in Plugins table gains the **Collection** category (Java wording);
   hello-flow README count. Workspace 252 / clippy 0 / fmt.
-
----
 
 ## Increment 68 — Configurable traceparent header name (2026-07-24)
 
@@ -2043,8 +1847,6 @@ W3C context crosses the intermediary, so cross-application span parenting surviv
   (impedance table + "renamed traceparent beats conflation" tip), rest-automation
   grammar, reserved-names table, HTTP-client guide, CHANGELOG Unreleased. Workspace
   257 / clippy 0 / fmt.
-
----
 
 ## Increment 69 — Interop header hygiene: clean envelope view + wire alignment (2026-07-24)
 
@@ -2104,8 +1906,6 @@ pre-existing header-hygiene asymmetries. Mirrored from the Java reference (branc
   the header), so no other plumbing changed. Regression
   `endpoint_timeout_rides_the_dataset_as_the_x_ttl_header` (default + caller-wins);
   reserved-names x-ttl row updated. Workspace 260 / clippy 0 / fmt.
-
----
 
 ## Increment 70 — Annotation→macro consistency: the engine dogfoods its extension points (2026-07-25)
 
@@ -2171,8 +1971,6 @@ same-named Java branch.
   (event-script-port §5h, knowledge-graph-port), CHANGELOG Unreleased.
   Workspace 262 (260+2) / clippy 0 / fmt.
 
----
-
 ## Increment 71 — ManagedCache: the self-expiring in-memory cache (2026-07-27)
 
 Port of `org.platformlambda.core.util.ManagedCache` per the maintainer-gated design
@@ -2233,8 +2031,6 @@ with a refactoring note filed for the Java team).
   margins widened to ≥ 400 ms slow-CI headroom; stale "deferred" claims swept
   (platform-core-port §5f/§7) and the overview rows 68–71 backfilled.
   Workspace 287 (273+14) / clippy 0 / fmt.
-
----
 
 ## Increment 72 — Graph workflow suspension: engine core (2026-07-30)
 
@@ -2315,7 +2111,6 @@ migration entries, webapp bundle rebuilt (help pages are baked at build time).
 ADR-0009 (suspend/resume) + ADR-0010 (mandatory gate) proposed as twins of Java
 ADR-0010/0011; the knowledge-graph port design record's "session persistence out of
 scope" line superseded for workflow state. Workspace 295 / clippy 0 / fmt.
-
 
 ## Increment 76 — Version-aware Redis consume: GETDEL or MULTI/EXEC (2026-08-01)
 
@@ -2738,3 +2533,27 @@ paths, 503 pool exhaustion with recovery, REST-error unwrap, misbehaving-peer
 conformance guards, and the engine⇄engine e2e out the edge with pacing asserted -
 5/5 consecutive green runs. The hello-world README also gained the SSE demo section
 (the Java lambda-example README twin).
+
+## Increment 94 — Route pools: numbered singleton lanes as a first-class registration (2026-08-30)
+
+The Java engine's `registerRoutePool`/`releaseRoutePool` (Java ADR-0020), ported
+same-day (this repo's ADR-0017 Proposed). `register_route_pool(prefix, function,
+count)` registers private singleton routes `{prefix}.0..{count-1}` — strict FIFO
+lanes sharing one stateless function — and returns the ordered member list;
+`release_route_pool` removes the set symmetrically. Re-registering a pool follows
+the house reload semantics (previous member set released first); individual
+`register`/`release` calls touching a pool member log a warning, never refuse —
+range-checked, so a neighbor `{prefix}.10` beside a count-3 pool is never
+misclassified. Pool mutations serialize on a dedicated mutex (the Java twin's
+ReentrantLock); the pool registry is lifecycle metadata only — `routes()` and the
+actuator's display-only family compression are unchanged.
+
+Adoption: the streaming reply-lane pool registers through the new API on every
+server start (the pool reload rebinds lane workers to the current runtime — the
+per-test-runtime idiom), with the once-per-process checkout fill unchanged; the
+`ASYNC_HTTP_RESPONSE_STREAM_PREFIX` constant became
+`ASYNC_HTTP_RESPONSE_STREAM_POOL` (the un-dotted base, matching the Java engine's
+same-day touch-up — lane route names unchanged). Tests: the `RoutePoolTest` twin
+(tests/route_pool.rs, six scenarios incl. a live RPC through a lane). Design
+record: the Java repo's draft-design-specs/register-route-pool.md (D1–D10
+ratified 2026-08-30).

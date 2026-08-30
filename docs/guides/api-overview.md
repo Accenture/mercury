@@ -122,6 +122,32 @@ True when the route is registered locally (Java `hasRoute`).
 Releases a route (Java `release`): the manager stops, the workers exit as their channels
 close, and the route's elastic queue is destroyed. Returns whether the route existed.
 
+### `register_route_pool(prefix, function, count)`
+
+| Signature | Returns |
+|---|---|
+| `register_route_pool(&self, prefix: &str, function: Arc<dyn ComposableFunction>, count: usize)` | `Result<Vec<String>, AppError>` |
+
+Registers a route pool - a set of private singleton routes `{prefix}.{n}` for n = 0 to
+count-1 (Java `registerRoutePool`). Each member runs one worker, so it is a strict FIFO
+lane: an application checks out a lane for one conversation's lifetime to keep that
+conversation's events in order, while other conversations flow through their own lanes
+concurrently - the pattern behind the HTTP edge's streaming reply lanes
+(`async.http.response.stream.{n}`). One function instance is shared across all members
+(stateless, like any multi-instance function). Returns the generated member routes in
+order, ready to seed the application's own checkout structure. Registering an existing
+pool reloads it: the previous member set is released first. Lane checkout and return
+are the application's concern; route pools are always private.
+
+### `release_route_pool(prefix)`
+
+| Signature | Returns |
+|---|---|
+| `release_route_pool(&self, prefix: &str)` | `bool` |
+
+Releases a route pool - removes all members and the pool itself (Java
+`releaseRoutePool`). Returns whether the pool existed.
+
 ### `routes()`
 
 | Signature | Returns |

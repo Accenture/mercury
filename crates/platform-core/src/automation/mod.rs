@@ -33,6 +33,6 @@ pub use routing::{AssignedRoute, CorsInfo, HeaderInfo, RouteInfo, RoutingTable};
 pub use server::{
     available_lanes, checkout_lane, release_lane, server_address, start_http_server,
     AsyncHttpResponseService, StreamLaneService, ASYNC_HTTP_RESPONSE,
-    ASYNC_HTTP_RESPONSE_STREAM_PREFIX, MY_CORRELATION_ID,
+    ASYNC_HTTP_RESPONSE_STREAM_POOL, MY_CORRELATION_ID,
 };
 pub use ws_server::register_ws_service;

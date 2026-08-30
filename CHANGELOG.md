@@ -11,6 +11,24 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Unreleased
+
+### Added
+
+- Route pool registration API `register_route_pool` / `release_route_pool` - a set of
+  private singleton routes `{prefix}.{n}` (strict FIFO lanes sharing one stateless
+  function) with registry-level identity, symmetric release, reload semantics and
+  range-checked integrity warnings for individual member updates. The streaming
+  reply-lane pool now registers through it (lock-step with the Java engine's
+  `registerRoutePool`, Java ADR-0020 / this repo's ADR-0017).
+
+### Changed
+
+- The public constant `ASYNC_HTTP_RESPONSE_STREAM_PREFIX` (dotted lane-name prefix) is
+  replaced by `ASYNC_HTTP_RESPONSE_STREAM_POOL` (the un-dotted pool base) - lane route
+  names on the wire and in telemetry are unchanged.
+
+---
 ## Version 4.12.0, 8/30/2026
 
 The progressive-rendering milestone: token/event streaming end to end - HTTP edge,
