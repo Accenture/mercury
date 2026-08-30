@@ -184,12 +184,20 @@ impl AppStarter {
         // the event-over-http service (Java EssentialServiceLoader): reached
         // through REST automation's default /api/event route. Registered
         // PRIVATE — it is never itself a remote target. 250 workers (Java
-        // parity: the endpoint fans out concurrent RPC forwards).
+        // parity: the endpoint fans out concurrent RPC forwards). An event
+        // INTERCEPTOR (Java @EventInterceptor parity): replies are sent
+        // manually, so the streaming relay can withhold its auto-reply.
         if !platform.has_route(crate::automation::EVENT_API_SERVICE) {
-            if let Err(e) = platform.register_private(
+            let event_api_options = crate::platform::FunctionOptions {
+                zero_traced: false,
+                interceptor: true,
+                private: true,
+            };
+            if let Err(e) = platform.register_with_options(
                 crate::automation::EVENT_API_SERVICE,
                 Arc::new(crate::automation::EventApiService::new(&platform)),
                 250,
+                event_api_options,
             ) {
                 if !platform.has_route(crate::automation::EVENT_API_SERVICE) {
                     return Err(e);

@@ -27,8 +27,8 @@ or *Deprecated* (no longer relevant), with its text left in place.
 ---
 
 ## ADR-0016 — The HTTP client consumes SSE progressively; Event-over-HTTP streams on the same call {#adr-0016}
-**Status:** Proposed · **Date:** 2026-08-29 · **Serves:** vision-mercury · **Formalizes:** async-http-client-sse-streaming-design
-<!-- id: adr-0016 | status: proposed -->
+**Status:** Accepted · **Date:** 2026-08-29 · **Serves:** vision-mercury · **Formalizes:** async-http-client-sse-streaming-design
+<!-- id: adr-0016 | status: accepted -->
 
 **Abstract.** `async.http.request` consumes a `text/event-stream` response progressively
 and relays it as the platform's own streaming protocol: one `x-event-stream: data`
@@ -70,8 +70,8 @@ free, and rides the wire shape gateways already accommodate for LLM traffic.
 ---
 
 ## ADR-0015 — HTTP response streaming rides the multi-shot reply route; the wire stays standards-only {#adr-0015}
-**Status:** Proposed · **Date:** 2026-08-28 · **Serves:** vision-mercury · **Formalizes:** http-response-streaming-design
-<!-- id: adr-0015 | status: proposed -->
+**Status:** Accepted · **Date:** 2026-08-28 · **Serves:** vision-mercury · **Formalizes:** http-response-streaming-design
+<!-- id: adr-0015 | status: accepted -->
 
 **Abstract.** A function streams an HTTP response (LLM token segments, agent progress
 events, live updates) by exercising the platform's native streaming pattern: the callee

@@ -241,6 +241,60 @@ impl ComposableFunction for SseRelay {
 }
 ```
 
+## Stream across applications (Event-over-HTTP)
+
+The same client capability carries the platform's own streaming protocol between
+applications: a function in another application (or a polyglot function host) can
+stream its segments back to your reply route through `/api/event` - engine to engine,
+on the one HTTP call the relay already makes.
+
+The caller side is one send. Address the remote function through your
+`yaml.event.over.http` mapping as usual, supply a `reply_to`, and opt in with the
+`accept` event header:
+
+```rust
+// the remote function's segments arrive at my.reply.handler as
+// x-event-stream data envelopes, then eof - exactly like a local stream
+po.send(EventEnvelope::new().set_to("remote.token.stream")
+        .set_reply_to("my.reply.handler")
+        .set_correlation_id(&my_correlation_id)
+        .set_header("accept", "text/event-stream")
+        .set_header("x-ttl", "30000"))
+    .await?;
+```
+
+The remote function is a normal streaming producer - it writes with
+`EventStreamWriter` and never knows the caller is remote. On the wire, the peer
+answers the same POST with an SSE response in a hybrid dialect: control signals -
+the first envelope (head), the `eof`/`exception` terminals, and any segment that
+cannot round-trip as plain text (a map or byte body, text containing a carriage
+return, an event name colliding with the reserved word) - ride base64-encoded
+serialized envelopes under the reserved SSE event name `envelope`, while plain text
+segments ride raw SSE frames with near-zero overhead. The consuming client decodes
+the dialect and forwards each event to your reply route with your correlation id, so
+segment types (a map stays a map, bytes stay bytes) and terminal metadata survive the
+hop exactly.
+
+Everything degrades explicitly, never silently:
+
+- a **non-streaming target** called this way answers byte-identical to the classic
+  callback reply - opting in is always safe;
+- a **streaming function invoked without the opt-in** (an RPC call, or a caller
+  without the `accept` header) receives an explicit error -
+  `406 Streaming function requires a caller that accepts text/event-stream` -
+  instead of a truncated first segment;
+- an **older peer** that cannot stream answers single-shot as today;
+- when the server has **no reply lane available** the call is refused with the same
+  `503 Streaming response pool exhausted` back-pressure as a local streaming endpoint.
+
+The `x-ttl` event header (milliseconds, default 60 seconds) is the idle allowance
+between stream events on both hops; the producer can extend it for the whole stream
+with `first_with_ttl(status, content_type, ttl_seconds)`. Idle expiry, disconnects and
+truncated streams fail in-band with an `exception` envelope, exactly like a local
+stream. Combined with a `stream: true` endpoint that forwards its reply lane into the
+send, the composition streams a remote function's tokens progressively out your HTTP
+edge with no imperative streaming code.
+
 ## Relation to `x-stream-id`
 
 The Java engine also carries a legacy `x-stream-id` relay (object streams, file

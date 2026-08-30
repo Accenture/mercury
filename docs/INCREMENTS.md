@@ -2686,3 +2686,55 @@ moved into it (git mv, 23 referencing files updated; the folder was already excl
 from the built site, so the move is site-neutral), and the Java site's
 `docs/css/extra.css` (reference-table token wrapping) adopted with `extra_css` wiring —
 it was live in the Java repo and missing here, not outdated.
+
+## Increment 93 — Event-over-HTTP peer streaming: envelope mode on the SSE relay (2026-08-29)
+
+The Java engine's Phase 2 (Java PR #301, ADR-0019 Accepted), ported wire-identical
+(this repo's ADR-0016, flipped Accepted with ADR-0015). A remote streaming function
+reached through `/api/event` streams its segments back to the caller's reply route
+on the same HTTP call - the engine⇄engine leg of the ratified hybrid dialect
+(envelope frames under the reserved SSE name `envelope` for the head, the terminals
+and non-text segments; raw frames for text tokens).
+
+Caller side: `send_with_event_http` gains a streaming branch - a send with
+`reply_to` plus the `accept: text/event-stream` event header relays through
+`async.http.request` with the caller's reply route and correlation id passed
+through and an internal `x-event-api: stream` marker; the `x-ttl` event header
+(ms, default 60s) is the idle allowance on both hops (the client side pads +1s so
+the peer's in-band 408 wins the race). Consuming side: `relay_envelope_sse` decodes
+the dialect, restores addressing, and guards conformance (raw-first frame → 500
+"Invalid event stream - missing envelope head"; transport end without a decoded
+terminal → 500 "Event stream ended without eof"; trailing frames after a terminal
+discarded); the buffered fallback decodes a single-shot serialized-envelope reply
+with the classic tolerant REST-error unwrap.
+
+Server side (two port idioms vs Java, same wire): (1) the EDGE decides the mode -
+`stream_dispatch` runs for a streaming-capable /api/event call (Accept + not
+x-async) with `envelope_mode`, so the lane/channel/renderer lifecycle is inherited
+whole (Java binds the lane dynamically from EventApiService instead); the
+`EventApiService` became an event INTERCEPTOR (true Java parity) and simply rewires
+the inner request onto its own reply lane with the edge context id as the
+correlation id - the exact rewrite the RPC inbox makes. (2) single-shot wrapping
+happens at ONE site: capable-path service errors ride raw envelopes and the edge
+wraps every unmarked lane reply into the classic octet-stream wire - so the outer
+HTTP status of capable-path validation errors is 200 with the real status inside
+(Java mirrors it on the outer response; the decoded caller-visible envelope is
+identical). The RPC path answers a streaming target with the pinned
+`406 Streaming function requires a caller that accepts text/event-stream`; a
+pre-head failure rides the stream SSE-uniform; pool exhaustion keeps the pinned
+503. Contract alignment inherited from the Java review: every in-band exception
+body carries the standard error key-values
+`'{"type": "error", "status": n, "message": text}'` (writer `fail()`, the client's
+in-band failures, the renderer's idle terminal).
+
+Tests: `tests/event_over_http_stream.rs` (14, the Java `EventOverHttpStreamTest`
+twin) on a shared fixture thread with its own runtime (the declarative registry is
+a process-wide one-shot; the per-test-runtime lesson applied in advance this time)
+and runtime-written rest.yaml + event-over-http.yaml carrying real ephemeral ports.
+Coverage: progressive relay mapping, every escape-hatch round-trip with exact types
+(map, binary, `\r`, reserved-name collision, eof trailing metadata),
+byte-identical single-shot fallback vs the classic callback baseline, both 406
+paths, 503 pool exhaustion with recovery, REST-error unwrap, misbehaving-peer
+conformance guards, and the engine⇄engine e2e out the edge with pacing asserted -
+5/5 consecutive green runs. The hello-world README also gained the SSE demo section
+(the Java lambda-example README twin).

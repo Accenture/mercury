@@ -53,6 +53,10 @@ use crate::util::app_config_reader::AppConfigReader;
 use crate::util::w3c_trace;
 
 pub const ASYNC_HTTP_REQUEST: &str = "async.http.request";
+/// The `x-event-api` marker value of the streaming-capable Event-over-HTTP
+/// relay: the request event carrying it opts the SSE consumption into the
+/// envelope-mode wire dialect (Java `EventEmitter.STREAM_RELAY`).
+pub const STREAM_RELAY: &str = "stream";
 const USER_AGENT_NAME: &str = "async-http-client";
 const DEFAULT_TTL_SECONDS: u64 = 30;
 /// Headers that may interfere with the underlying HTTP client (Java parity).
@@ -640,6 +644,17 @@ fn display_text(value: &Value) -> String {
 
 /// The interceptor body: process the request and reply manually with the
 /// decoded HTTP response (or an error envelope).
+/// The reply routing of one client call, when the caller supplied a reply_to.
+/// `envelope_mode` marks the Event-over-HTTP streaming relay leg (the request
+/// event carries `x-event-api: stream`): an SSE response decodes as the
+/// envelope-mode wire dialect and a buffered reply decodes as a serialized
+/// envelope, preserving the classic callback semantics.
+struct StreamTarget {
+    reply_to: String,
+    cid: String,
+    envelope_mode: bool,
+}
+
 pub(crate) async fn handle(
     platform: &Platform,
     _headers: HashMap<String, String>,
@@ -654,7 +669,14 @@ pub(crate) async fn handle(
         return EventEnvelope::new().set_body("ignored");
     };
     let cid = event.correlation_id().unwrap_or_default().to_string();
-    let stream_target = Some((reply_to.clone(), cid.clone()));
+    let envelope_mode = event.headers().iter().any(|(name, value)| {
+        name.eq_ignore_ascii_case(super::event_api::X_EVENT_API) && value == STREAM_RELAY
+    });
+    let stream_target = Some(StreamTarget {
+        reply_to: reply_to.clone(),
+        cid: cid.clone(),
+        envelope_mode,
+    });
     let response = match process_request(platform, &po, &_headers, &event, stream_target).await {
         // a progressive SSE relay was spawned - it owns the reply route now
         Ok(None) => return EventEnvelope::new().set_body("ignored"),
@@ -683,7 +705,7 @@ async fn process_request(
     po: &PostOffice,
     invocation_headers: &HashMap<String, String>,
     event: &EventEnvelope,
-    stream_target: Option<(String, String)>,
+    stream_target: Option<StreamTarget>,
 ) -> Result<Option<EventEnvelope>, AppError> {
     let request = AsyncHttpRequest::from_value(event.body());
     let (secure, host, port) = validate_url(&request)?;
@@ -784,22 +806,36 @@ async fn process_request(
     // x-event-stream data envelope to the caller's reply route (the producer
     // contract the HTTP edge consumes), then eof. The relay runs in its own task
     // so this worker is freed - a long stream never holds a client instance.
-    if let Some((reply_to, cid)) = stream_target {
+    let envelope_mode = stream_target.as_ref().is_some_and(|t| t.envelope_mode);
+    if let Some(target) = stream_target {
         let sse = content_type
             .as_deref()
             .is_some_and(|ct| ct.starts_with("text/event-stream"));
         if sse && accepts_event_stream(&request) {
-            let idle = Duration::from_secs(request.timeout_seconds().max(1));
             let status = http_response.status().as_u16() as i32;
             let relay_platform = platform.clone();
-            tokio::spawn(relay_sse(
-                relay_platform,
-                http_response.into_body(),
-                status,
-                reply_to,
-                cid,
-                idle,
-            ));
+            if target.envelope_mode {
+                // one extra second so the peer's in-band 408, sent AT the
+                // deadline, wins the race against the local idle timer
+                let idle = Duration::from_secs(request.timeout_seconds().max(1) + 1);
+                tokio::spawn(relay_envelope_sse(
+                    relay_platform,
+                    http_response.into_body(),
+                    target.reply_to,
+                    target.cid,
+                    idle,
+                ));
+            } else {
+                let idle = Duration::from_secs(request.timeout_seconds().max(1));
+                tokio::spawn(relay_sse(
+                    relay_platform,
+                    http_response.into_body(),
+                    status,
+                    target.reply_to,
+                    target.cid,
+                    idle,
+                ));
+            }
             return Ok(None);
         }
     }
@@ -809,6 +845,11 @@ async fn process_request(
         .await
         .map_err(|e| AppError::new(500, format!("Unable to read HTTP response - {e}")))?
         .to_bytes();
+    if envelope_mode {
+        // the peer answered single-shot (a non-streaming target, or an edge
+        // error) - decode and deliver with the classic callback semantics
+        return Ok(Some(decode_relay_reply(&bytes, response.status())));
+    }
     if !has_content_length {
         response = response.set_header("x-content-length", &bytes.len().to_string());
     }
@@ -816,6 +857,45 @@ async fn process_request(
         &bytes,
         content_type.as_deref(),
     ))))
+}
+
+/// Decode a single-shot Event-over-HTTP reply: a serialized envelope normally,
+/// with the classic tolerant handling of an edge-level REST error body
+/// (`'{"type": "error", "status": n, "message": text}'` JSON) and of a payload
+/// that is not a serialized envelope at all.
+fn decode_relay_reply(bytes: &[u8], http_status: i32) -> EventEnvelope {
+    if bytes.is_empty() {
+        return EventEnvelope::new().set_status(http_status);
+    }
+    match EventEnvelope::from_bytes(bytes) {
+        Ok(envelope) => envelope.clear_reply_to(),
+        Err(e) => rest_error_reply(bytes, http_status).unwrap_or_else(|| {
+            EventEnvelope::new()
+                .set_status(400)
+                .set_raw_body(Value::from(format!(
+                    "Did you configure rest.yaml correctly? Invalid result set - {}",
+                    e.message()
+                )))
+        }),
+    }
+}
+
+/// An edge-level REST error arrives as JSON, not as a serialized envelope -
+/// unwrap it exactly as the classic relay does.
+fn rest_error_reply(bytes: &[u8], http_status: i32) -> Option<EventEnvelope> {
+    if http_status < 400 {
+        return None;
+    }
+    let data = serde_json::from_slice::<serde_json::Value>(bytes).ok()?;
+    if data.get("type").and_then(|v| v.as_str()) != Some("error") {
+        return None;
+    }
+    let message = data.get("message").and_then(|v| v.as_str())?;
+    Some(
+        EventEnvelope::new()
+            .set_status(http_status)
+            .set_raw_body(Value::from(message)),
+    )
 }
 
 /// Incremental SSE frame parser (raw mode): byte-level line split (a newline
@@ -943,6 +1023,138 @@ async fn relay_sse(
     }
 }
 
+/// The spawned relay of an Event-over-HTTP streaming response (envelope mode):
+/// an "envelope" frame carries one base64-encoded serialized EventEnvelope -
+/// the head, the terminals and non-text segments; any other frame is a raw
+/// text segment. Decoded events forward to the original caller's reply route
+/// with the original correlation id; a decoded terminal (eof or exception)
+/// ends the logical stream and trailing frames are discarded. Dialect guards:
+/// the first frame must be an envelope frame, and a transport end without a
+/// decoded terminal is a truncation - both fail in-band.
+async fn relay_envelope_sse(
+    platform: Platform,
+    mut body: hyper::body::Incoming,
+    reply_to: String,
+    cid: String,
+    idle: Duration,
+) {
+    let po = PostOffice::new(&platform);
+    let mut parser = SseParser::default();
+    let mut head_seen = false;
+    loop {
+        match tokio::time::timeout(idle, body.frame()).await {
+            Ok(Some(Ok(frame))) => {
+                if let Some(data) = frame.data_ref() {
+                    for (name, text) in parser.feed(data) {
+                        match relay_envelope_event(&po, name, text, &reply_to, &cid, &mut head_seen)
+                            .await
+                        {
+                            RelayFlow::Next => {}
+                            // a decoded terminal ends the logical stream -
+                            // frames after it (and the transport end) are
+                            // discarded by returning here
+                            RelayFlow::End => return,
+                        }
+                    }
+                }
+            }
+            Ok(None) => {
+                // the dialect ends with a decoded terminal - a bare transport
+                // end is a truncation
+                fail_in_band(
+                    &po,
+                    &reply_to,
+                    &cid,
+                    500,
+                    "Event stream ended without eof",
+                    head_seen,
+                )
+                .await;
+                return;
+            }
+            Ok(Some(Err(e))) => {
+                fail_in_band(&po, &reply_to, &cid, 500, &e.to_string(), head_seen).await;
+                return;
+            }
+            Err(_) => {
+                let message = format!("Timeout for {} seconds", idle.as_secs());
+                fail_in_band(&po, &reply_to, &cid, 408, &message, head_seen).await;
+                return;
+            }
+        }
+    }
+}
+
+/// What one envelope-mode frame did to the relay.
+enum RelayFlow {
+    Next,
+    End,
+}
+
+async fn relay_envelope_event(
+    po: &PostOffice,
+    name: Option<String>,
+    text: String,
+    reply_to: &str,
+    cid: &str,
+    head_seen: &mut bool,
+) -> RelayFlow {
+    use base64::Engine as _;
+    if name.as_deref() == Some(event_stream::ENVELOPE) {
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(&text)
+            .ok()
+            .and_then(|bytes| EventEnvelope::from_bytes(&bytes).ok());
+        let Some(decoded) = decoded else {
+            fail_in_band(
+                po,
+                reply_to,
+                cid,
+                500,
+                "Invalid event stream - malformed envelope frame",
+                *head_seen,
+            )
+            .await;
+            return RelayFlow::End;
+        };
+        *head_seen = true;
+        let terminal = decoded.headers().iter().any(|(key, value)| {
+            key.eq_ignore_ascii_case(event_stream::X_EVENT_STREAM)
+                && (value.eq_ignore_ascii_case(event_stream::EOF)
+                    || value.eq_ignore_ascii_case(event_stream::EXCEPTION))
+        });
+        let _ = send_segment(po, decoded.clear_reply_to(), reply_to, cid).await;
+        if terminal {
+            RelayFlow::End
+        } else {
+            RelayFlow::Next
+        }
+    } else if !*head_seen {
+        // the dialect guarantees an envelope frame first (conformance guard)
+        fail_in_band(
+            po,
+            reply_to,
+            cid,
+            500,
+            "Invalid event stream - missing envelope head",
+            false,
+        )
+        .await;
+        RelayFlow::End
+    } else {
+        // a raw frame is one plain text segment
+        let mut segment =
+            EventEnvelope::new().set_header(event_stream::X_EVENT_STREAM, event_stream::DATA);
+        if let Some(name) = name.filter(|n| !n.is_empty()) {
+            segment = segment.set_header(event_stream::X_EVENT_NAME, &name);
+        }
+        if let Ok(segment) = segment.set_body(text) {
+            let _ = send_segment(po, segment, reply_to, cid).await;
+        }
+        RelayFlow::Next
+    }
+}
+
 async fn fail_in_band(
     po: &PostOffice,
     reply_to: &str,
@@ -951,7 +1163,8 @@ async fn fail_in_band(
     message: &str,
     head_sent: bool,
 ) {
-    let body = serde_json::json!({"status": status, "message": message});
+    // the standard error key-values: '{"type": "error", "status": n, "message": text}'
+    let body = serde_json::json!({"type": "error", "status": status, "message": message});
     let Ok(mut error) = EventEnvelope::new()
         .set_header(event_stream::X_EVENT_STREAM, event_stream::EXCEPTION)
         .set_status(status)

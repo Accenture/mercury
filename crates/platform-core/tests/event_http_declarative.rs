@@ -103,10 +103,17 @@ async fn declarative_event_over_http() {
     let _ = AppConfigReader::get_instance();
     let platform = Platform::new();
     platform
-        .register_private(
+        .register_with_options(
             automation::EVENT_API_SERVICE,
             Arc::new(EventApiService::new(&platform)),
             10,
+            // an event interceptor since the streaming relay (Phase 2): it
+            // replies manually, matching the app_starter registration
+            FunctionOptions {
+                zero_traced: false,
+                interceptor: true,
+                private: true,
+            },
         )
         .unwrap();
     // the PUBLIC remote target of the declarative routes
