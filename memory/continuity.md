@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.12.0** (the progressive-rendering milestone, PUBLISHED 2026-08-30, tag v4.12.0; version tracks the Java line, contents by design; the python/node language packs joined the lock-step line at the same version). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `draft-design-specs/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-30 | agent: Claude Code (2026-08-30-053005)
+- **last_session:** 2026-08-30 | agent: Claude Code (2026-08-30-215256)
 - **last_review:** 2026-08-14 | through 2026-08-14-005444.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five never-decay facts confirmed against live code — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, and the Vision; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -136,6 +136,21 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-08-14 | uses: 107 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
+
+- [x] (feature — **MERGED 2026-08-30 as
+  [PR #220](https://github.com/Accenture/mercury/pull/220) merge `9dea9182` carrying
+  gated `d753d004` (tree verified), CI green, branches deleted both ends; ADR-0017
+  Accepted via the merge (`e2914058`); Increment 94; rides the next release via
+  CHANGELOG Unreleased) **Route pool platform API — register_route_pool/
+  release_route_pool, the Java engine's registerRoutePool twin (Java PR #303,
+  same day).** Reply-lane pool adopts it with the per-test-runtime rebind idiom and
+  once-per-process fill preserved; ASYNC_HTTP_RESPONSE_STREAM_PREFIX →
+  ASYNC_HTTP_RESPONSE_STREAM_POOL (names on the wire unchanged); INCREMENTS.md style
+  cleanup (drifted Overview table + all `---` rules removed, Eric's direction).
+  Lesson: verify clippy with an UNPIPED exit code — `grep -c` made a clean run look
+  like exit 1. Design record: the Java repo's route-pool-registration-design +
+  draft-design-specs/register-route-pool.md. origin: 2026-08-30-215256.
+  <!-- id: ot-route-pool-twin | created: 2026-08-30 | last_used: 2026-08-30 | uses: 1 | tier: working | origin: 2026-08-30-215256 -->
 
 - [x] (feature — **MERGED 2026-08-30 as
   [PR #218](https://github.com/Accenture/mercury/pull/218) merge `1723ace6` carrying
