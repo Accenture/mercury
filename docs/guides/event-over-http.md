@@ -396,6 +396,21 @@ between the two engines; the permanent record is the
 [Interop Test Report](../test-reports/event-over-http-interop.md) (mirrored on the
 [Java docs site](https://accenture.github.io/mercury-composable/test-reports/event-over-http-interop/)).
 
+## Streaming across the hop
+
+A remote streaming function - one that produces a multi-shot reply with
+`EventStreamWriter` - can stream its segments back to your reply route through the
+same `/api/event` call: supply a `reply_to` on the send and opt in with the
+`accept: text/event-stream` event header. The peer answers the one POST with a
+Server-Sent Events response carrying the envelope-mode wire dialect, and the
+consuming client forwards each decoded event to your reply route with your
+correlation id - a local stream and a remote stream look identical to the consumer.
+A non-streaming target called this way answers byte-identical to the classic
+callback reply, and a streaming function invoked without the opt-in receives an
+explicit 406 refusal instead of a truncated reply. The full contract - the wire
+dialect, compatibility matrix and idle-timeout semantics - lives in
+[HTTP Response Streaming](http-streaming.md#stream-across-applications-event-over-http).
+
 ## See also
 
 - [Interop Test Report (Java ⇄ Rust)](../test-reports/event-over-http-interop.md) — the live

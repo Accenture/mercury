@@ -45,6 +45,27 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
    the stream in-band. Engine-identical with the Java engine's feature
    (Java PR #300). See the HTTP Response Streaming guide (ADR-0016).
 
+3. **Event-over-HTTP peer streaming (envelope mode)** - a remote streaming function
+   reached through `/api/event` can stream its segments back to the caller's reply
+   route on the same HTTP call. The caller opts in per event: a send with a
+   `reply_to` and the `accept: text/event-stream` event header; the `x-ttl` event
+   header (ms, default 60s) is the idle allowance between stream events on both
+   hops. On the wire, the peer answers with SSE in a hybrid dialect - control
+   signals (the head, the eof/exception terminals, and any segment that cannot
+   round-trip as plain text) ride base64-encoded serialized envelopes under the
+   reserved SSE event name `envelope`, while text segments ride raw frames - so
+   segment types and terminal metadata survive the hop exactly, and token relays
+   stay near-zero overhead. Compatibility is explicit: a non-streaming target
+   answers byte-identical to the classic callback reply; a streaming function
+   invoked without the opt-in (RPC, or no accept header) receives
+   `406 Streaming function requires a caller that accepts text/event-stream`;
+   server-side lane exhaustion answers the same 503 back-pressure as a local
+   streaming endpoint (plain RPC traffic never consumes a lane). The consuming
+   client guards the dialect (a missing envelope head or a transport end without a
+   terminal fail in-band), and every in-band exception body now carries the
+   standard error key-values (type/status/message). Engine-identical with the Java
+   engine's feature (Java PR #301). See the HTTP Response Streaming guide (ADR-0016).
+
 ### Changed
 
 1. The `/info/routes` actuator endpoint renders pool-style route families compactly:

@@ -44,8 +44,13 @@ pub const X_EVENT_NAME: &str = "x-event-name";
 pub const DATA: &str = "data";
 /// End of transmission (optional body = trailing metadata).
 pub const EOF: &str = "eof";
-/// In-band failure (body = `{status, message}`).
+/// In-band failure (body = the standard error key-values
+/// `'{"type": "error", "status": n, "message": text}'`).
 pub const EXCEPTION: &str = "exception";
+/// Reserved SSE event name of the Event-over-HTTP envelope-mode wire dialect:
+/// a frame with this name carries one base64-encoded serialized EventEnvelope
+/// (Java `EventStreamWriter.ENVELOPE`).
+pub const ENVELOPE: &str = "envelope";
 
 /// Producer helper for a streaming HTTP response — thin sugar over plain
 /// event sends to the caller's reply route (Java `EventStreamWriter`).
@@ -159,7 +164,9 @@ impl EventStreamWriter {
         } else {
             500
         };
-        let body = serde_json::json!({"status": status, "message": error.message()});
+        // the standard error key-values: '{"type": "error", "status": n, "message": text}'
+        let body =
+            serde_json::json!({"type": "error", "status": status, "message": error.message()});
         let event = self.envelope(EXCEPTION, body, None)?.set_status(status);
         self.po.send(event).await
     }

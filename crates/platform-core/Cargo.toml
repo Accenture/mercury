@@ -38,11 +38,12 @@ platform-macros = { path = "../platform-macros" }
 # --- increment 71: ManagedCache (docs/design/managed-cache-port.md — the Caffeine-lineage
 # engine, wrapped; EvictionPolicy::lru per the maintainer's deterministic-eviction ruling) ---
 moka = { version = "0.12", features = ["sync"] }
+# envelope frames of the Event-over-HTTP streaming dialect (also decodes the
+# golden envelope wire-format vectors in tests)
+base64 = "0.22"
 
 [dev-dependencies]
 # compile-fail guards for the macro surfaces (tests/ui)
 trybuild = "1"
 # self-signed certificates for the HTTPS client integration test (increment 48)
 rcgen = "0.13"
-# decode the golden envelope wire-format vectors (increment 59)
-base64 = "0.22"

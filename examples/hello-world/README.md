@@ -95,6 +95,40 @@ hello-flow README and the docs site's *Event over HTTP* guide.
 
 Stop with Ctrl-C (graceful shutdown cleans the elastic store).
 
+## Progressive result set rendering (SSE demo)
+
+The `hello.sse` function (in [src/main.rs](src/main.rs)) serves an HTTP endpoint
+with progressive result set rendering - it streams test messages slowly as
+Server-Sent Events so you can watch them render one by one. The endpoint is
+declared with `stream: true` in rest.yaml, which gives each request a dedicated
+ordered reply lane for the multi-shot response.
+
+Start the application:
+
+```bash
+cargo run -p hello-world
+```
+
+Then consume the endpoint with the companion script (Node.js 18+) that prints
+each event with its arrival time:
+
+```bash
+node scripts/sse-client.mjs
+```
+
+or with curl:
+
+```bash
+curl -N -H 'accept: text/event-stream' http://127.0.0.1:8085/api/hello/sse
+```
+
+The `-N` (`--no-buffer`) flag matters: curl receives the events progressively
+either way, but without `-N` it holds output in an internal buffer, so the
+messages would appear all at once when the stream ends.
+
+Optional query parameters: `delay` in milliseconds between messages (default 1000)
+and `count` for the number of messages (default 10), e.g. `/api/hello/sse?delay=500&count=5`.
+
 ## Where things live
 
 | File | Role |
@@ -104,3 +138,4 @@ Stop with Ctrl-C (graceful shutdown cleans the elastic store).
 | `resources/rest.yaml` | declarative endpoints — the YAML *is* the router |
 | `resources/app-log-context.yaml` | which keys join every structured log line |
 | `resources/public/` | static content (etag/304, filter) |
+| `scripts/sse-client.mjs` | progressive-rendering demo client for the SSE endpoint (Node.js 18+) |

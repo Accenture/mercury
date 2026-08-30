@@ -153,6 +153,15 @@ impl EventEnvelope {
         self
     }
 
+    /// Remove the routing address (Java `setTo(null)`) — used when an envelope
+    /// is serialized for a wire that rewrites addressing on the consuming side,
+    /// e.g. the envelope-mode streaming frames, so a server-internal route name
+    /// never leaks.
+    pub fn clear_to(mut self) -> Self {
+        self.to = None;
+        self
+    }
+
     pub fn set_correlation_id(mut self, cid: &str) -> Self {
         self.cid = Some(cid.to_string());
         self

@@ -704,9 +704,14 @@ async fn process(
         }
     }
     let is_head = method == "HEAD";
+    // a streaming-capable /api/event call (Accept: text/event-stream, not
+    // drop-n-forget) dispatches through a dedicated reply lane rendering the
+    // envelope-mode wire dialect - so a remote peer's streaming function can
+    // answer the one POST progressively; plain RPC calls never consume a lane
+    let envelope_stream = !is_head && is_event_api_stream(info, &http_request);
     // a streaming endpoint (rest.yaml `stream: true`) uses the multi-shot
     // reply route; HEAD requests never stream (Java parity)
-    let result = if info.stream_response && !is_head {
+    let result = if (info.stream_response && !is_head) || envelope_stream {
         match stream_dispatch(
             state,
             info,
@@ -717,6 +722,7 @@ async fn process(
             &trace_path,
             &parent_span,
             accept.clone(),
+            envelope_stream,
         )
         .await?
         {
@@ -964,11 +970,39 @@ fn stream_event_name(event: &EventEnvelope) -> Option<&str> {
         .map(|(_, value)| value.as_str())
 }
 
+/// True when this request is a streaming-capable Event-over-HTTP call: the
+/// /api/event service, invoked with `Accept: text/event-stream` and not
+/// drop-n-forget. Such a call dispatches through a reply lane in envelope
+/// mode - the EventApiService rewires the inner request onto the lane so a
+/// streaming target's segments relay straight to the wire.
+fn is_event_api_stream(info: &RouteInfo, request: &crate::automation::AsyncHttpRequest) -> bool {
+    info.service == super::event_api::EVENT_API_SERVICE
+        && request.header("x-async") != Some("true")
+        && request
+            .header("accept")
+            .is_some_and(|accept| accept.contains("text/event-stream"))
+}
+
+/// The idle allowance of a streaming-capable Event-over-HTTP call: the POST's
+/// x-ttl header in milliseconds (the caller's declaration), floor one second -
+/// the same reading the EventApiService applies (Java parity).
+fn event_api_idle(request: &crate::automation::AsyncHttpRequest) -> Duration {
+    let ttl_ms = request
+        .header("x-ttl")
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .unwrap_or(0)
+        .max(1000);
+    Duration::from_millis(ttl_ms)
+}
+
 /// Dispatch to a streaming endpoint: check out a dedicated ordered reply
 /// lane, send the request with `reply_to` = that lane, and turn the event
 /// sequence into a progressive HTTP response. The first event decides the
 /// shape: unmarked = ordinary single-shot; `exception` before the head = a
 /// normal HTTP error; `data`/`eof` commit the head and start the renderer.
+/// In envelope mode (the Event-over-HTTP streaming relay) the wire is the
+/// hybrid dialect and a pre-head exception still rides the stream, so the
+/// caller always receives the exact envelope.
 #[allow(clippy::too_many_arguments)]
 async fn stream_dispatch(
     state: &RouterState,
@@ -980,6 +1014,7 @@ async fn stream_dispatch(
     trace_path: &str,
     parent_span: &Option<String>,
     accept: Option<String>,
+    envelope_mode: bool,
 ) -> Result<StreamOutcome, AppError> {
     // a streaming endpoint borrows a dedicated ordered reply lane for the
     // lifetime of the request - an empty pool means full streaming capacity
@@ -1007,9 +1042,16 @@ async fn stream_dispatch(
         cleanup_stream(&context_id, &lane);
         return Err(e);
     }
-    // await the first event; the endpoint timeout is the idle allowance
+    // the idle allowance: the endpoint timeout, or the caller-declared x-ttl
+    // for a streaming-capable Event-over-HTTP call
+    let base_idle = if envelope_mode {
+        event_api_idle(http_request)
+    } else {
+        info.timeout
+    };
+    // await the first event within the idle allowance
     let (first, marker) = loop {
-        match tokio::time::timeout(info.timeout, rx.recv()).await {
+        match tokio::time::timeout(base_idle, rx.recv()).await {
             Ok(Some(envelope)) => match stream_marker(&envelope) {
                 Ok(Some(marker)) => break (envelope, Some(marker)),
                 Ok(None) => break (envelope, None),
@@ -1029,18 +1071,28 @@ async fn stream_dispatch(
                 cleanup_stream(&context_id, &lane);
                 return Err(AppError::new(
                     408,
-                    format!("Timeout for {} ms", info.timeout.as_millis()),
+                    format!("Timeout for {} ms", base_idle.as_millis()),
                 ));
             }
         }
     };
     let Some(marker) = marker else {
-        // the endpoint answered single-shot - render exactly as before
+        // the endpoint answered single-shot - render exactly as before; in
+        // envelope mode the reply is wrapped into the classic Event-over-HTTP
+        // wire (the whole envelope as a serialized octet-stream body), so a
+        // non-streaming target stays byte-identical to the RPC path
         cleanup_stream(&context_id, &lane);
-        return Ok(StreamOutcome::SingleShot(first));
+        let reply = if envelope_mode {
+            wire_single_shot(first)?
+        } else {
+            first
+        };
+        return Ok(StreamOutcome::SingleShot(reply));
     };
-    if marker == event_stream::EXCEPTION {
+    if marker == event_stream::EXCEPTION && !envelope_mode {
         // failure before the head is committed - render a normal HTTP error
+        // (in envelope mode a pre-head failure still rides the stream, so the
+        // caller receives the exact error envelope)
         cleanup_stream(&context_id, &lane);
         let status = if first.status() >= 400 {
             first.status()
@@ -1075,6 +1127,9 @@ async fn stream_dispatch(
                     }
                 }
             }
+            // in envelope mode the target's own headers stay inside the
+            // envelope frames; only endpoint-level headers reach the wire
+            _ if envelope_mode => {}
             "content-type" => content_type = Some(value.to_lowercase()),
             "set-cookie" => {
                 set_cookies.extend(value.split('|').map(|c| c.trim().to_string()));
@@ -1098,7 +1153,12 @@ async fn stream_dispatch(
             response_headers.insert(name.to_lowercase(), value.clone());
         }
     }
-    let content_type = content_type.unwrap_or_else(|| negotiate_stream_type(accept.as_deref()));
+    // envelope mode is always SSE on the wire; raw mode negotiates
+    let content_type = if envelope_mode {
+        "text/event-stream".to_string()
+    } else {
+        content_type.unwrap_or_else(|| negotiate_stream_type(accept.as_deref()))
+    };
     let sse = content_type.starts_with("text/event-stream");
     if sse {
         // default for SSE - an explicit event header or transform add wins
@@ -1106,7 +1166,7 @@ async fn stream_dispatch(
             .entry("cache-control".to_string())
             .or_insert_with(|| "no-cache".to_string());
     }
-    let idle = idle_override.unwrap_or(info.timeout);
+    let idle = idle_override.unwrap_or(base_idle);
     let mut builder = Response::builder().status(status_of(first.status()));
     for (name, value) in &response_headers {
         builder = builder.header(name, value);
@@ -1122,7 +1182,15 @@ async fn stream_dispatch(
         .body(BoxBody::new(ChannelBody { rx: body_rx }))
         .map_err(|e| AppError::new(500, e.to_string()))?;
     tokio::spawn(render_stream(
-        rx, body_tx, sse, idle, context_id, lane, first, marker,
+        rx,
+        body_tx,
+        sse,
+        idle,
+        context_id,
+        lane,
+        first,
+        marker,
+        envelope_mode,
     ));
     Ok(StreamOutcome::Streaming(response))
 }
@@ -1209,6 +1277,10 @@ async fn push_frame(
 /// writes SSE or chunked frames until end of transmission, an in-band error,
 /// an idle timeout, or a gone/too-slow client. Always returns the lane to
 /// the pool at the end (Java: closeContext, the termination funnel).
+/// In envelope mode the wire is the hybrid dialect: envelope frames wherever
+/// envelope semantics matter (the first event, the terminals, non-text
+/// segments), raw SSE frames for plain text - and no cosmetic done/error
+/// frames, because the decoded terminal envelope is the signal.
 #[allow(clippy::too_many_arguments)]
 async fn render_stream(
     mut rx: mpsc::Receiver<EventEnvelope>,
@@ -1219,8 +1291,10 @@ async fn render_stream(
     lane: String,
     first: EventEnvelope,
     first_marker: &'static str,
+    envelope_mode: bool,
 ) {
     let mut pending = Some((first, first_marker));
+    let mut first_frame = true;
     loop {
         let (event, marker) = match pending.take() {
             Some(next) => next,
@@ -1237,7 +1311,10 @@ async fn render_stream(
                 },
                 Waited::Idle => {
                     // fail the stream in-band (Java housekeeper parity)
-                    if sse {
+                    if envelope_mode {
+                        let frame = idle_timeout_envelope_frame(idle);
+                        let _ = push_frame(&body_tx, idle, &context_id, frame).await;
+                    } else if sse {
                         let error = serde_json::json!({
                             "status": 408,
                             "message": format!("Timeout for {} seconds", idle.as_secs()),
@@ -1253,7 +1330,9 @@ async fn render_stream(
         };
         match marker {
             event_stream::DATA => {
-                let bytes = if sse {
+                let bytes = if envelope_mode {
+                    envelope_mode_data_frame(&event, first_frame)
+                } else if sse {
                     if matches!(event.body(), rmpv::Value::Nil) {
                         Bytes::new()
                     } else {
@@ -1262,12 +1341,16 @@ async fn render_stream(
                 } else {
                     chunk_bytes(event.body())
                 };
+                first_frame = false;
                 if !push_frame(&body_tx, idle, &context_id, bytes).await {
                     break;
                 }
             }
             event_stream::EOF => {
-                if sse {
+                if envelope_mode {
+                    let frame = envelope_wire_frame(&event);
+                    let _ = push_frame(&body_tx, idle, &context_id, frame).await;
+                } else if sse {
                     let text = if matches!(event.body(), rmpv::Value::Nil) {
                         "{}".to_string()
                     } else {
@@ -1279,9 +1362,13 @@ async fn render_stream(
                 break;
             }
             _ => {
-                // in-band failure after the head is committed: SSE renders an
-                // error event; chunked mode truncates (Java parity)
-                if sse {
+                // in-band failure after the head is committed: envelope mode
+                // frames the exact envelope; SSE renders an error event;
+                // chunked mode truncates (Java parity)
+                if envelope_mode {
+                    let frame = envelope_wire_frame(&event);
+                    let _ = push_frame(&body_tx, idle, &context_id, frame).await;
+                } else if sse {
                     let status = if event.status() >= 400 {
                         event.status()
                     } else {
@@ -1300,6 +1387,87 @@ async fn render_stream(
         }
     }
     cleanup_stream(&context_id, &lane);
+}
+
+/// One envelope-mode data frame: the first event always rides an envelope
+/// frame (it carries the head control), a losslessly raw-able text segment
+/// rides a raw SSE frame, a bare no-op segment carries nothing, and anything
+/// else takes the envelope-frame escape hatch.
+fn envelope_mode_data_frame(event: &EventEnvelope, first_frame: bool) -> Bytes {
+    if first_frame || !raw_streamable(event) {
+        envelope_wire_frame(event)
+    } else if matches!(event.body(), rmpv::Value::Nil) {
+        Bytes::new()
+    } else {
+        sse_frame(stream_event_name(event), &stream_text(event.body()))
+    }
+}
+
+/// A data segment may ride a raw SSE frame only when the frame carries it
+/// losslessly: a 200 status, no custom envelope headers, a user event name
+/// clear of the reserved word, and a Nil-or-text body without a carriage
+/// return (SSE normalizes line endings). Everything else takes the
+/// envelope-frame escape hatch.
+fn raw_streamable(event: &EventEnvelope) -> bool {
+    if event.status() != 200 {
+        return false;
+    }
+    for (name, value) in event.headers() {
+        let key = name.to_lowercase();
+        let reserved = key == event_stream::X_EVENT_STREAM
+            || key == event_stream::X_EVENT_NAME
+            || key == "x-ttl";
+        if !reserved || (key == event_stream::X_EVENT_NAME && value == event_stream::ENVELOPE) {
+            return false;
+        }
+    }
+    match event.body() {
+        rmpv::Value::Nil => true,
+        rmpv::Value::String(text) => !text.as_str().unwrap_or_default().contains('\r'),
+        _ => false,
+    }
+}
+
+/// The classic Event-over-HTTP single-shot wire: the whole reply envelope as
+/// a serialized byte body with an octet-stream content type and outer status
+/// 200 (the real status rides inside - Java sendResponse parity).
+fn wire_single_shot(result: EventEnvelope) -> Result<EventEnvelope, AppError> {
+    let bytes = result.clear_to().clear_reply_to().to_bytes()?;
+    Ok(EventEnvelope::new()
+        .set_status(200)
+        .set_header("content-type", "application/octet-stream")
+        .set_raw_body(rmpv::Value::Binary(bytes)))
+}
+
+/// One envelope-mode wire frame: the envelope serialized verbatim - with the
+/// server-internal addressing cleared, because the consuming relay rewrites
+/// addressing to the original caller - as base64 under the reserved SSE event
+/// name "envelope".
+fn envelope_wire_frame(event: &EventEnvelope) -> Bytes {
+    use base64::Engine as _;
+    let wire = event.clone().clear_to().clear_reply_to();
+    match wire.to_bytes() {
+        Ok(bytes) => sse_frame(
+            Some(event_stream::ENVELOPE),
+            &base64::engine::general_purpose::STANDARD.encode(bytes),
+        ),
+        Err(_) => Bytes::new(),
+    }
+}
+
+/// The in-band idle-timeout terminal of an envelope-mode stream: an exception
+/// envelope with the standard error key-values, framed for the wire
+/// (Java housekeeper-abort parity).
+fn idle_timeout_envelope_frame(idle: Duration) -> Bytes {
+    let message = format!("Timeout for {} seconds", idle.as_secs());
+    let error = EventEnvelope::new()
+        .set_header(event_stream::X_EVENT_STREAM, event_stream::EXCEPTION)
+        .set_status(408)
+        .set_body(serde_json::json!({"type": "error", "status": 408, "message": message}));
+    match error {
+        Ok(envelope) => envelope_wire_frame(&envelope),
+        Err(_) => Bytes::new(),
+    }
 }
 
 fn build_event(
