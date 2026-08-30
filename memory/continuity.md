@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.11.10** (version tracks the Java line, contents by design). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `draft-design-specs/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-29 | agent: Claude Code (2026-08-29-174058)
+- **last_session:** 2026-08-30 | agent: Claude Code (2026-08-30-003334)
 - **last_review:** 2026-08-14 | through 2026-08-14-005444.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five never-decay facts confirmed against live code — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, and the Vision; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -136,6 +136,25 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-08-14 | uses: 107 | tier: active | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
+
+- [x] (feature — **MERGED 2026-08-30 as
+  [PR #218](https://github.com/Accenture/mercury/pull/218) merge `1723ace6` carrying
+  gated `54436ca4` (tree verified), CI green, branch deleted both ends**)
+  **Event-over-HTTP peer streaming in envelope mode — Java Phase 2 twin (Java PR #301;
+  this repo's ADR-0015/0016 flipped ACCEPTED, Increment 93). Phase 2 is lock-step on
+  both engines.** Send with reply_to + `accept: text/event-stream` event header relays
+  a remote streaming function through /api/event on one call; hybrid dialect (envelope
+  frames for head/terminals/non-text, raw frames for tokens); pinned 406/503 refusals;
+  error-triple alignment (writer fail / client in-band / renderer idle terminal). Port
+  idioms: the EDGE decides the mode (stream_dispatch envelope_mode inherits the whole
+  lane lifecycle); EventApiService became a true event INTERCEPTOR; one wrap site
+  (capable-path errors ride raw; the edge wire-wraps unmarked lane replies — outer
+  status 200 with the real status packed, caller-visible envelope identical to Java).
+  Lesson: the suite's first run caught the unpacked single-shot reply — wrap at the
+  SingleShot outcome. 14 tests on a shared dedicated-thread fixture (process-wide
+  registry) with runtime-written config on ephemeral ports. Next: Phase 3 wrapper
+  twins (mercury-python/nodejs). origin: 2026-08-30-003334.
+  <!-- id: thread-eoh-envelope-streaming-twin | created: 2026-08-30 | last_used: 2026-08-30 | uses: 1 | tier: working | origin: 2026-08-30-003334 -->
 
 - [x] (feature — **MERGED 2026-08-29 as
   [PR #217](https://github.com/Accenture/mercury/pull/217) merge `ec4c2702` carrying
