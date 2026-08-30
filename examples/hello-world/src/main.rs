@@ -377,7 +377,10 @@ impl ComposableFunction for HttpRequestFilter {
 /// Try it with the companion script: `node scripts/sse-client.mjs`
 /// or with `curl -N -H 'accept: text/event-stream'` against
 /// `http://127.0.0.1:8085/api/hello/sse`
-#[preload(route = "hello.sse", instances = 10, interceptor)]
+// public so a peer application (an engine or a python/node function host) can
+// consume this stream through /api/event - the cross-runtime streaming demo,
+// the hello.declarative precedent
+#[preload(route = "hello.sse", instances = 10, interceptor, is_private = false)]
 struct HelloSse;
 
 #[async_trait]
@@ -458,6 +461,65 @@ impl EntryPoint for PreflightCheck {
         // the trace-independent context keys (environment, hello, timestamp)
         log::info!("[before-application] configuration validated");
         Ok(())
+    }
+}
+
+// ---- the engine-to-wrapper streaming relay (/api/hello/remote) ----
+
+/// The engine-to-wrapper streaming composition: this endpoint's function
+/// forwards its own reply lane and correlation id into a send to the
+/// event-over-http mapped "hello.tokens" function - the python/node demo apps'
+/// streaming function - and opts in with the "accept: text/event-stream" event
+/// header. The remote segments relay through the peer's /api/event in envelope
+/// mode and re-render progressively out this application's HTTP edge, with no
+/// imperative streaming code in between.
+///
+/// The routing map ships in resources/event-over-http.yaml (the python demo
+/// defaults to port 8086; point at another peer with -Dpeer.demo.host /
+/// -Dpeer.demo.port). Start a wrapper demo app, then:
+/// `curl -N -H 'accept: text/event-stream'` against
+/// `http://127.0.0.1:8085/api/hello/remote?delay=300&count=3`
+#[preload(route = "hello.remote.relay", instances = 10, interceptor)]
+struct HelloRemoteRelay;
+
+#[async_trait]
+impl ComposableFunction for HelloRemoteRelay {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        const REMOTE_ROUTE: &str = "hello.tokens";
+        let platform = Platform::get_instance();
+        if platform_core::automation::get_event_http_target(REMOTE_ROUTE).is_none() {
+            // teaching failure: the demo depends on the declarative routing map
+            let mut out = EventStreamWriter::from_request(&platform, &input)?;
+            out.fail(&AppError::new(
+                503,
+                "Remote streaming demo is not configured - check event-over-http.yaml and start a wrapper demo app (see README)",
+            ))
+            .await?;
+            return Ok(EventEnvelope::new());
+        }
+        let request: serde_json::Value = input.body_as()?;
+        let query = &request["parameters"]["query"];
+        let mut forward = EventEnvelope::new()
+            .set_to(REMOTE_ROUTE)
+            .set_reply_to(input.reply_to().unwrap_or_default())
+            .set_correlation_id(input.correlation_id().unwrap_or_default())
+            // the event-level opt-in for progressive streaming over Event-over-HTTP
+            .set_header("accept", "text/event-stream")
+            // idle allowance between stream events on both hops (ms)
+            .set_header("x-ttl", "30000");
+        if let Some(delay) = query["delay"].as_str() {
+            forward = forward.set_header("delay", delay);
+        }
+        if let Some(count) = query["count"].as_str() {
+            forward = forward.set_header("count", count);
+        }
+        PostOffice::new(&platform).send(forward).await?;
+        Ok(EventEnvelope::new())
     }
 }
 

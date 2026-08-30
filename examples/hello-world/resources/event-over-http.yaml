@@ -1,0 +1,8 @@
+# Declarative Event-over-HTTP routing (yaml.event.over.http - this default
+# location auto-loads). The "hello.tokens" route is the wrapper demo apps'
+# streaming function: the python demo-app defaults to port 8086, the node
+# demo-app to 8087 - point at another peer with -Dpeer.demo.host /
+# -Dpeer.demo.port. Used by the /api/hello/remote streaming relay demo.
+event.http:
+  - route: 'hello.tokens'
+    target: 'http://${peer.demo.host:127.0.0.1}:${peer.demo.port:8086}/api/event'
