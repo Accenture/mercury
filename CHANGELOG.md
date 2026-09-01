@@ -27,6 +27,11 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 - The public constant `ASYNC_HTTP_RESPONSE_STREAM_PREFIX` (dotted lane-name prefix) is
   replaced by `ASYNC_HTTP_RESPONSE_STREAM_POOL` (the un-dotted pool base) - lane route
   names on the wire and in telemetry are unchanged.
+- Streaming reply-lane checkout now rotates through the pool (FIFO round-robin)
+  instead of re-picking the most recently released lane (LIFO): the first stream
+  takes `async.http.response.stream.0`, the next `.1`, and so on, with a released
+  lane rejoining at the tail - predictable lane selection in telemetry and maximal
+  rest before a lane is reused (lock-step with the Java engine).
 
 ---
 ## Version 4.12.0, 8/30/2026

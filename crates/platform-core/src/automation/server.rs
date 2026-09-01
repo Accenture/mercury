@@ -36,7 +36,7 @@
 //! stripped, Java `copyResponseHeaders` parity). Errors use the Java JSON
 //! shape `{status, message, type: "error"}`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -97,24 +97,30 @@ fn full(bytes: Bytes) -> HttpBody {
     BoxBody::new(Full::new(bytes))
 }
 
-/// Available streaming reply lanes — a LIFO stack (the "ready" signal pattern
-/// of the reactive manager/worker design): checkout takes the most recently
-/// released lane; release returns it. Filled once at server start.
-fn lane_pool() -> &'static Mutex<Vec<String>> {
-    static POOL: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
-    POOL.get_or_init(|| Mutex::new(Vec::new()))
+/// Available streaming reply lanes — a rotating FIFO queue (a rotating variant
+/// of the "ready" signal pattern of the reactive manager/worker design):
+/// checkout takes from the head and a released lane rejoins at the tail, so
+/// selection round-robins through the pool (`.0`, `.1`, `.2` ...) and a
+/// just-released lane rests the full pool length before reuse. Filled once at
+/// server start in member order.
+fn lane_pool() -> &'static Mutex<VecDeque<String>> {
+    static POOL: OnceLock<Mutex<VecDeque<String>>> = OnceLock::new();
+    POOL.get_or_init(|| Mutex::new(VecDeque::new()))
 }
 
 /// Check out a dedicated ordered reply lane for one streaming request.
 /// Returns None when the pool is exhausted.
 pub fn checkout_lane() -> Option<String> {
-    lane_pool().lock().expect("lane pool poisoned").pop()
+    lane_pool().lock().expect("lane pool poisoned").pop_front()
 }
 
-/// Return a reply lane to the pool — called when the owning request ends,
-/// and at startup to fill the pool.
+/// Return a reply lane to the tail of the pool — called when the owning
+/// request ends, and at startup to fill the pool.
 pub fn release_lane(route: String) {
-    lane_pool().lock().expect("lane pool poisoned").push(route);
+    lane_pool()
+        .lock()
+        .expect("lane pool poisoned")
+        .push_back(route);
 }
 
 /// The number of reply lanes currently available for checkout.

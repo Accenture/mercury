@@ -2557,3 +2557,15 @@ same-day touch-up — lane route names unchanged). Tests: the `RoutePoolTest` tw
 (tests/route_pool.rs, six scenarios incl. a live RPC through a lane). Design
 record: the Java repo's draft-design-specs/register-route-pool.md (D1–D10
 ratified 2026-08-30).
+
+## Increment 95 — Streaming reply lanes rotate: FIFO round-robin checkout (2026-08-31)
+
+Lane checkout for HTTP response streaming now rotates through the pool instead of
+re-picking the most recently released lane: the pool became a `VecDeque` — checkout
+pops the front and a released lane rejoins at the back. The first stream takes
+`async.http.response.stream.0`, the next `.1`, and so on; a just-released lane rests
+the full pool length before reuse (maximal separation from any straggler cleanup on
+it), and lane selection is predictable in telemetry. Surfaced by the Java engine's
+live agent-orchestration regression run — every sequential stream re-picked `.499`
+off the LIFO stack top — and fixed lock-step on both engines the same day. The
+`lane_checkout_is_lifo` pin became `lane_checkout_rotates_through_the_pool`.
