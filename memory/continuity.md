@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.12.0** (the progressive-rendering milestone, PUBLISHED 2026-08-30, tag v4.12.0; version tracks the Java line, contents by design; the python/node language packs joined the lock-step line at the same version). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `draft-design-specs/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_session:** 2026-08-30 | agent: Claude Code (2026-08-30-215256)
+- **last_session:** 2026-09-01 | agent: Claude Code (2026-09-01-022635)
 - **last_review:** 2026-08-14 | through 2026-08-14-005444.md
 - **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five never-decay facts confirmed against live code — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, and the Vision; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
@@ -150,6 +150,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Lesson: verify clippy with an UNPIPED exit code — `grep -c` made a clean run look
   like exit 1. Design record: the Java repo's route-pool-registration-design +
   draft-design-specs/register-route-pool.md. origin: 2026-08-30-215256.
+  **Follow-up MERGED 2026-09-01: reply-lane checkout ROTATES (VecDeque FIFO — .0,.1,.2;
+  a released lane rejoins at the tail) — [PR #221](https://github.com/Accenture/mercury/pull/221)
+  merge `0372313a`, Increment 95, Java lock-step (its PR #304); origin: 2026-09-01-022635.**
   <!-- id: ot-route-pool-twin | created: 2026-08-30 | last_used: 2026-08-30 | uses: 1 | tier: working | origin: 2026-08-30-215256 -->
 
 - [x] (feature — **MERGED 2026-08-30 as
