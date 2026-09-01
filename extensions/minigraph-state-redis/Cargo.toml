@@ -1,13 +1,19 @@
 [package]
-name = "minigraph-state-redis"
+name = "mercury-minigraph-state-redis"
 description = "Redis implementation of the graph suspend/resume state-store contract (import from the application, never the engine)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "../../README.md"
+keywords = ["redis", "state-store", "suspend-resume", "workflow", "mercury"]
+categories = ["database", "asynchronous"]
+
+[lib]
+name = "minigraph_state_redis"
 
 [dependencies]
-platform-core = { path = "../../crates/platform-core" }
+mercury-platform-core = { version = "4.12.1", path = "../../crates/platform-core" }
 async-trait = "0.1"
 log = "0.4"
 rmpv = { version = "1", features = ["with-serde"] }

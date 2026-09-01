@@ -1,12 +1,16 @@
 [package]
-name = "event-script-macros"
+name = "mercury-event-script-macros"
 description = "Proc-macro annotations for the event-script layer (Java @SimplePlugin analog)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "../../README.md"
+keywords = ["proc-macro", "orchestration", "mercury"]
+categories = ["development-tools::procedural-macro-helpers"]
 
 [lib]
+name = "event_script_macros"
 proc-macro = true
 
 [dependencies]

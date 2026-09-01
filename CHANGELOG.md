@@ -11,7 +11,12 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
-## Unreleased
+## Version 4.12.1, 9/1/2026
+
+The first public-registry release: the seven library crates publish to crates.io
+under mercury-prefixed package names, with lib (code-facing) names unchanged.
+Functionally a small follow-up to v4.12.0 (reply-lane rotation + the route pool
+registration API shipped after the tag).
 
 ### Added
 
@@ -32,6 +37,14 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
   takes `async.http.response.stream.0`, the next `.1`, and so on, with a released
   lane rejoining at the tail - predictable lane selection in telemetry and maximal
   rest before a lane is reused (lock-step with the Java engine).
+- Library package names are mercury-prefixed for crates.io publication:
+  `mercury-platform-core`, `mercury-platform-macros`, `mercury-event-script`,
+  `mercury-event-script-macros`, `mercury-knowledge-graph`,
+  `mercury-knowledge-graph-macros`, `mercury-minigraph-state-redis`. The lib
+  (code-facing) names are unchanged, so source code and `use` paths are unaffected;
+  an application consuming these crates by path updates only its Cargo.toml
+  dependency keys. Application/example members are fenced with `publish = false`,
+  and the workspace `repository` metadata now points at this repository.
 
 ---
 ## Version 4.12.0, 8/30/2026

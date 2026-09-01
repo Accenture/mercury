@@ -5,9 +5,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+# not a library release artifact - never publish to crates.io
+publish = false
 
 [dependencies]
-platform-core = { path = "../../crates/platform-core" }
+mercury-platform-core = { path = "../../crates/platform-core" }
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

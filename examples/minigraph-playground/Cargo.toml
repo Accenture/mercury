@@ -5,16 +5,18 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+# not a library release artifact - never publish to crates.io
+publish = false
 
 [dependencies]
-platform-core = { path = "../../crates/platform-core" }
-event-script = { path = "../../crates/event-script" }
-knowledge-graph = { path = "../../crates/knowledge-graph" }
+mercury-platform-core = { path = "../../crates/platform-core" }
+mercury-event-script = { path = "../../crates/event-script" }
+mercury-knowledge-graph = { path = "../../crates/knowledge-graph" }
 # Redis state store for graph suspend/resume: linking this crate registers
 # v1.redis.persist.model and v1.redis.retrieve.model automatically (preload
 # inventory) - the connection is lazy, so the app runs normally without
 # Redis until a graph actually suspends or resumes.
-minigraph-state-redis = { path = "../../extensions/minigraph-state-redis" }
+mercury-minigraph-state-redis = { path = "../../extensions/minigraph-state-redis" }
 async-trait = "0.1"
 log = "0.4"
 

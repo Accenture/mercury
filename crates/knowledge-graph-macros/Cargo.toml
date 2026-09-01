@@ -1,12 +1,16 @@
 [package]
-name = "knowledge-graph-macros"
+name = "mercury-knowledge-graph-macros"
 description = "Proc-macro annotations for the knowledge-graph layer (Java @FetchFeature analog)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "../../README.md"
+keywords = ["proc-macro", "knowledge-graph", "mercury"]
+categories = ["development-tools::procedural-macro-helpers"]
 
 [lib]
+name = "knowledge_graph_macros"
 proc-macro = true
 
 [dependencies]

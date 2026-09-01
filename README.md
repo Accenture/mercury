@@ -1,13 +1,13 @@
 # mercury
 
 A **Rust port of [mercury-composable](https://github.com/Accenture/mercury-composable)** —
-Accenture's event-driven, composable application platform (canonical Java implementation,
-v4.8.6), carrying the same vision: build applications from small, fully-decoupled functions
+Accenture's event-driven, composable application platform (the Java engine is the canonical
+reference; both engines release in lock-step at the same version), carrying the same vision: build applications from small, fully-decoupled functions
 wired by route name, orchestrated as configuration, and modeled as an executable knowledge
 graph.
 
-> **Status: all three layers ported and milestone-closed** across 49 verified increments;
-> 206 workspace tests green, `clippy` and `fmt` clean; benchmarked (RPC ~155K ops/s @ 6µs).
+> **Status: all three layers ported and milestone-closed** across 96 verified increments;
+> full workspace test suite, `clippy` and `fmt` clean; benchmarked (RPC ~155K ops/s @ 6µs).
 > The AI-agent documentation is battle-tested — twelve consecutive fresh-agent exercises
 > passed with zero documentation lookups, across both engines. See
 > [`CHANGELOG.md`](CHANGELOG.md) and [`docs/INCREMENTS.md`](docs/INCREMENTS.md).
@@ -26,6 +26,21 @@ Each layer builds on the one below (foundation → UI):
 3. **active knowledge graph** — the semantic layer: MiniGraph property graphs whose nodes
    carry executable **skills**, so traversing the graph *is* running the application — with
    the browser-based MiniGraph Playground for building, running and inspecting graphs.
+
+## Use from crates.io
+
+The seven library crates publish under mercury-prefixed package names, while the lib
+(code-facing) names stay short — Cargo.toml and code look like:
+
+```toml
+[dependencies]
+mercury-platform-core = "4.12"      # code: use platform_core::...
+mercury-event-script = "4.12"       # code: use event_script::...
+mercury-knowledge-graph = "4.12"    # code: use knowledge_graph::...
+```
+
+(The macro crates are pulled in automatically; add `mercury-minigraph-state-redis` for
+the Redis suspend/resume state store.)
 
 ## Quick start
 

@@ -1,13 +1,19 @@
 [package]
-name = "event-script"
+name = "mercury-event-script"
 description = "Rust port of mercury-composable event-script-engine — layer 2, composable orchestration"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "../../README.md"
+keywords = ["orchestration", "workflow", "event-driven", "yaml", "mercury"]
+categories = ["asynchronous"]
+
+[lib]
+name = "event_script"
 
 [dependencies]
-platform-core = { path = "../platform-core" }
+mercury-platform-core = { version = "4.12.1", path = "../platform-core" }
 async-trait = "0.1"
 log = "0.4"
 # --- increment E-2: data-mapping engine ---
@@ -25,7 +31,7 @@ chrono = "0.4"
 # (the ZoneId.systemDefault() analog, same crate chrono uses internally)
 chrono-tz = "0.10"
 iana-time-zone = "0.1"
-event-script-macros = { path = "../event-script-macros" }
+mercury-event-script-macros = { version = "4.12.1", path = "../event-script-macros" }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
