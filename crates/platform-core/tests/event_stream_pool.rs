@@ -15,7 +15,7 @@
 //
 
 //! Reply-lane pool behavior for HTTP response streaming: checkout/release
-//! balance, LIFO reuse, and deterministic HTTP-503 back-pressure when the
+//! balance, rotation reuse, and deterministic HTTP-503 back-pressure when the
 //! pool is exhausted. These tests manipulate the process-wide pool, so they
 //! live in their own test binary and serialize among themselves through a
 //! shared guard.
@@ -179,17 +179,18 @@ async fn a_completed_stream_returns_its_lane_to_the_pool() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn lane_checkout_is_lifo() {
+async fn lane_checkout_rotates_through_the_pool() {
     let _port = server().await;
     let _guard = pool_guard().lock().await;
-    // the pool is a stack ("ready" signal pattern): the most recently
-    // released lane is the first to be reused
+    // the pool is a rotating FIFO queue: a released lane rejoins at the tail,
+    // so consecutive requests take successive lanes (round-robin) and a
+    // just-released lane gets the longest possible rest before reuse
     let first = automation::checkout_lane().expect("a lane");
     automation::release_lane(first.clone());
-    assert_eq!(
-        automation::checkout_lane().as_deref(),
-        Some(first.as_str()),
-        "most recently released lane is reused first"
+    let second = automation::checkout_lane().expect("another lane");
+    assert_ne!(
+        first, second,
+        "a released lane must go to the tail, not be reused immediately"
     );
-    automation::release_lane(first);
+    automation::release_lane(second);
 }
