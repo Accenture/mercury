@@ -45,6 +45,12 @@ Look at what actually diverged between the two sides:
   thread `[ ]`→`[x]` while the other edited it; or a fact was superseded on one side and
   edited on the other. The rare case — and the **only** one needing judgment. A thread-file
   conflict is *always* this class — the layout has already eliminated the mechanical cases.
+  (Precision, v4.39.1: git raises the conflict when same-thread edits touch
+  adjacent/overlapping lines. Edits separated by unchanged lines merge cleanly with **both
+  sides kept** — nothing is lost, but the merged thread may now hold two inconsistent
+  statements: give it the write-time contradiction check, `DECAY.md` §10. Same behavior as
+  when threads lived in continuity — the layout changed where conflicts land, not git's
+  hunk semantics.)
 
 ## (2) Resolve by tier
 

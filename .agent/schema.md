@@ -105,7 +105,8 @@ conventions:
   (`.agent/version.md` is the canonical version; `status`'s token is just a human cue.)
 - **Same-thread edits need a human.** Only a genuine semantic clash — both sides editing the
   *same* Open Thread file, or a `[ ]`→`[x]` race — warrants judgment; everything else is
-  mechanical. Thread files make that clash visible as a per-file conflict.
+  mechanical. Overlapping same-thread edits surface as a per-file conflict; separated edits
+  merge cleanly keeping both sides — run the contradiction check on the merged thread.
 - A left-behind conflict marker (`<<<<<<<`, `=======`, `>>>>>>>`) corrupts memory; `memory-lint`
   flags it as an ERROR.
 
@@ -153,9 +154,13 @@ and let the review archive it flagged "superseded." See `DECAY.md` §9.
 **One Open Thread per file** (v4.39.0). `<id>` is the thread's kebab fact id — the
 filename is the identity and **never changes** for the thread's lifetime; updates edit the
 file in place. This is what makes concurrent thread work merge-free: parallel branches
-touching *different* threads touch different files (no conflict possible), and both sides
-editing the *same* thread conflict per-file — a genuine Tier 2 semantic clash correctly
-reaching a human (`MERGE.md`).
+touching *different* threads touch different files (no conflict possible). Within the
+*same* thread file, ordinary git merge semantics apply (v4.39.1 precision): edits to
+adjacent/overlapping lines conflict — a genuine Tier 2 semantic clash correctly reaching
+a human (`MERGE.md`) — while edits separated by unchanged lines merge cleanly with
+**both sides kept** (nothing is lost; whether the two statements are *consistent* is the
+write-time contradiction check's job, `DECAY.md` §10 — exactly as it was when threads
+lived in continuity).
 
 File content is **exactly the thread's bullet block**, nothing else — the same shape that
 previously sat under continuity's `## Open Threads`:
