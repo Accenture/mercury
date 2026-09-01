@@ -123,11 +123,26 @@ def load_windows(root):
     return w
 
 
+def fact_surfaces(root):
+    """Every live file carrying fact footers: continuity.md plus the one-thread-per-file
+    memory/open-threads/ layer (v4.39.0). Footers refresh identically everywhere —
+    thread files edit in place, so their merge-free filenames never churn."""
+    mem = os.path.join(root, "memory")
+    paths = [os.path.join(mem, "continuity.md")]
+    tdir = os.path.join(mem, "open-threads")
+    if os.path.isdir(tdir):
+        paths += sorted(
+            os.path.join(tdir, f) for f in os.listdir(tdir) if f.endswith(".md")
+        )
+    return paths
+
+
 def refresh(root, dry_run):
-    cont_path = os.path.join(root, "memory", "continuity.md")
-    text = read_text(cont_path)
+    surfaces = [(p, read_text(p)) for p in fact_surfaces(root)]
     stems, refs = load_sessions(root)
-    pinned = pinned_open_threads(text)
+    pinned = set()
+    for _, text in surfaces:
+        pinned |= pinned_open_threads(text)
     w = load_windows(root)
     ww, acw = w["working_window"], w["active_window"]
 
@@ -157,7 +172,12 @@ def refresh(root, dry_run):
         return new
 
     changes = []
-    new_text = FOOTER_RE.sub(footer_repl, text)
+    writes = []  # (path, new_text) for surfaces whose footers changed
+    for path, text in surfaces:
+        before = len(changes)
+        new_text = FOOTER_RE.sub(footer_repl, text)
+        if len(changes) > before:
+            writes.append((path, new_text))
 
     if not changes:
         return 0, "all fact footers already match the reference log — nothing to refresh"
@@ -174,8 +194,9 @@ def refresh(root, dry_run):
     if dry_run:
         return 0, f"DRY-RUN — would refresh {len(changes)} footer(s):\n{summary}\n(no files changed)"
 
-    with open(cont_path, "w", encoding="utf-8") as f:  # safe: new_text already in memory
-        f.write(new_text)
+    for path, new_text in writes:
+        with open(path, "w", encoding="utf-8") as f:  # safe: new_text already in memory
+            f.write(new_text)
     return 0, f"refreshed {len(changes)} footer(s) from the reference log:\n{summary}\nNow run memory-lint to confirm."
 
 

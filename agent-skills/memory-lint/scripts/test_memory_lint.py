@@ -120,7 +120,7 @@ class TestDanglingCrossFile(unittest.TestCase):
 """)
             os.makedirs(os.path.join(mem, "sessions"), exist_ok=True)
 
-            cont, pinned, arch, extra, sessions, refs = memory_lint.load_repo(root)
+            cont, pinned, arch, extra, sessions, refs, threads = memory_lint.load_repo(root)
             # the vision fact is available for link resolution but NOT counted as a fact
             self.assertIn("new-fact", extra)
             self.assertNotIn("new-fact", cont)
@@ -787,6 +787,142 @@ class TestShippedScriptHygiene(unittest.TestCase):
                 if any(w in ident for w in words):
                     offenders.append(f"{f.name}: {m.group(1)}")
         self.assertEqual(offenders, [])
+
+
+class TestThreadFiles(unittest.TestCase):
+    # (12) the thread-file contract (v4.39.0): one Open Thread per file, named after its
+    # footer id. Filename = identity is what makes concurrent thread work merge-free.
+    VALID = """- [ ] **Ship it.** The plan.
+  <!-- id: ship-it | created: 2026-09-01 | last_used: 2026-09-01 | uses: 1 | tier: working -->
+"""
+
+    def test_valid_thread_file_passes(self):
+        self.assertEqual(memory_lint.check_thread_files([("thread-ship-it.md", self.VALID)]), [])
+
+    def test_misnamed_file_flagged(self):
+        out = memory_lint.check_thread_files([("thread-wrong-name.md", self.VALID)])
+        self.assertEqual(len(out), 1)
+        self.assertIn("[thread-file]", out[0])
+        self.assertIn("should be named thread-ship-it.md", out[0])
+
+    def test_missing_footer_flagged(self):
+        out = memory_lint.check_thread_files([("thread-x.md", "- [ ] no footer here\n")])
+        self.assertEqual(len(out), 1)
+        self.assertIn("no fact footer", out[0])
+
+    def test_two_footers_flagged(self):
+        two = self.VALID + "- [ ] second\n  <!-- id: other | created: 2026-09-01 | last_used: 2026-09-01 | uses: 1 | tier: working -->\n"
+        out = memory_lint.check_thread_files([("thread-ship-it.md", two)])
+        self.assertEqual(len(out), 1)
+        self.assertIn("holds 2 footers", out[0])
+
+    def test_non_bullet_start_flagged(self):
+        text = "# A heading instead of the block\n" + self.VALID
+        out = memory_lint.check_thread_files([("thread-ship-it.md", text)])
+        self.assertEqual(len(out), 1)
+        self.assertIn("does not start with", out[0])
+
+
+class TestDuplicateIds(unittest.TestCase):
+    # (13) an id exists exactly once across the live layer — the backstop for a same-id
+    # creation collision on parallel branches (the silent-fork shape).
+    def test_unique_ids_pass(self):
+        cont = "- fact\n  <!-- id: a-fact | tier: active -->\n"
+        threads = [("thread-b-thread.md", "- [ ] t\n  <!-- id: b-thread | tier: working -->\n")]
+        self.assertEqual(memory_lint.check_duplicate_ids(cont, threads), [])
+
+    def test_id_in_continuity_and_thread_file_flagged(self):
+        cont = "- fact\n  <!-- id: same-id | tier: active -->\n"
+        threads = [("thread-same-id.md", "- [ ] t\n  <!-- id: same-id | tier: working -->\n")]
+        out = memory_lint.check_duplicate_ids(cont, threads)
+        self.assertEqual(len(out), 1)
+        self.assertIn("[duplicate-id] same-id has 2 footers", out[0])
+        self.assertIn("memory/open-threads/thread-same-id.md", out[0])
+
+    def test_id_in_two_thread_files_flagged(self):
+        threads = [
+            ("thread-same-id.md", "- [ ] t\n  <!-- id: same-id | tier: working -->\n"),
+            ("thread-other.md", "- [ ] t2\n  <!-- id: same-id | tier: working -->\n"),
+        ]
+        out = memory_lint.check_duplicate_ids("# Continuity\n", threads)
+        self.assertEqual(len(out), 1)
+        self.assertIn("same-id", out[0])
+
+
+class TestDuplicateStateKeys(unittest.TestCase):
+    # (14) Project State fields are scalars — absorbed from PR #27 (Roland Heusser):
+    # the backstop for a union-style hand merge that kept both sides of a bumped scalar.
+    def _root(self, cont_text):
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "memory"), exist_ok=True)
+        with open(os.path.join(d, "memory", "continuity.md"), "w", encoding="utf-8") as f:
+            f.write(cont_text)
+        return d
+
+    def test_duplicate_scalar_flagged_with_both_lines(self):
+        root = self._root(
+            "# C\n\n## Project State\n\n- **project:** x\n- **last_review:** 2026-08-01\n"
+            "- **last_review:** 2026-08-20\n\n## Key Decisions\n"
+        )
+        out = memory_lint.check_duplicate_state_keys(root)
+        self.assertEqual(len(out), 1)
+        self.assertIn("[duplicate-state-key]", out[0])
+        self.assertIn("'last_review' is set twice", out[0])
+        self.assertIn("also line 6", out[0])
+
+    def test_repeated_key_outside_project_state_ok(self):
+        root = self._root(
+            "# C\n\n## Project State\n\n- **project:** x\n\n## Key Decisions\n\n"
+            "- **project:** mention one\n- **project:** mention two\n"
+        )
+        self.assertEqual(memory_lint.check_duplicate_state_keys(root), [])
+
+    def test_unique_scalars_ok(self):
+        root = self._root("# C\n\n## Project State\n\n- **project:** x\n- **status:** y\n")
+        self.assertEqual(memory_lint.check_duplicate_state_keys(root), [])
+
+
+class TestThreadLayerIntegration(unittest.TestCase):
+    # Thread files are live continuity-domain facts: load_repo merges their footers and
+    # checkbox pinning; conflict markers and closed-thread bloat see them too.
+    def _layer(self):
+        root = tempfile.mkdtemp()
+        os.makedirs(os.path.join(root, "memory", "sessions"), exist_ok=True)
+        os.makedirs(os.path.join(root, "memory", "open-threads"), exist_ok=True)
+        with open(os.path.join(root, "memory", "continuity.md"), "w", encoding="utf-8") as f:
+            f.write("# Continuity\n\n## Project State\n\n- **project:** t\n")
+        return root
+
+    def test_load_repo_merges_thread_facts_and_pins(self):
+        root = self._layer()
+        with open(os.path.join(root, "memory", "open-threads", "thread-live-gap.md"), "w", encoding="utf-8") as f:
+            f.write("- [ ] **Gap.** open work\n  <!-- id: live-gap | created: 2026-09-01 | last_used: 2026-09-01 | uses: 1 | tier: working -->\n")
+        with open(os.path.join(root, "memory", "open-threads", "thread-done-gap.md"), "w", encoding="utf-8") as f:
+            f.write("- [x] **Done.** closed work\n  <!-- id: done-gap | created: 2026-09-01 | last_used: 2026-09-01 | uses: 1 | tier: working -->\n")
+        cont, pinned, arch, extra, sessions, refs, threads = memory_lint.load_repo(root)
+        self.assertIn("live-gap", cont)
+        self.assertIn("done-gap", cont)
+        self.assertIn("live-gap", pinned)     # unchecked -> pinned, never decays
+        self.assertNotIn("done-gap", pinned)  # checked -> decay-eligible for the sweep
+        self.assertEqual(len(threads), 2)
+        self.assertEqual(memory_lint.check_thread_files(threads), [])
+
+    def test_conflict_marker_in_thread_file_is_error(self):
+        root = self._layer()
+        with open(os.path.join(root, "memory", "open-threads", "thread-t.md"), "w", encoding="utf-8") as f:
+            f.write("- [ ] t\n<<<<<<< HEAD\n  <!-- id: t | tier: working -->\n")
+        out = memory_lint.check_conflict_markers(root)
+        self.assertEqual(len(out), 1)
+        self.assertIn("memory/open-threads/thread-t.md:2", out[0])
+
+    def test_closed_bloat_counts_thread_files(self):
+        # 4 closed-record lines in continuity + 4 in a thread file > cap 6 -> flagged once.
+        cont_text = "- [x] closed A\n  line\n  line\n  <!-- id: a | tier: working -->\n"
+        threads = [("thread-b.md", "- [x] closed B\n  line\n  line\n  <!-- id: b | tier: working -->\n")]
+        out = memory_lint.check_closed_thread_bloat(cont_text, 6, threads)
+        self.assertEqual(len(out), 1)
+        self.assertIn("8 line(s)", out[0])
+        self.assertEqual(memory_lint.check_closed_thread_bloat(cont_text, 8, threads), [])
 
 
 if __name__ == "__main__":

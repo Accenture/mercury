@@ -103,5 +103,58 @@ class TestArchiveFact(unittest.TestCase):
         self.assertEqual(archive_fact.derive_quarter(datetime.date(2026, 12, 31)), "2026-Q4")
 
 
+class TestArchiveThreadFile(unittest.TestCase):
+    # v4.39.0: a completed thread lives in its own memory/open-threads/thread-<id>.md;
+    # archiving moves the block to the quarter file + INDEX and DELETES the file — the
+    # sweep for the merge-free thread layout.
+    THREAD = """- [x] **Shipped vZ — gamma.** Did gamma.
+  <!-- id: gamma-thread | created: 2026-01-04 | last_used: 2026-01-04 | uses: 1 | tier: working -->
+"""
+
+    def _setup(self):
+        root = tempfile.mkdtemp()
+        os.makedirs(os.path.join(root, "memory", "archive"))
+        os.makedirs(os.path.join(root, "memory", "open-threads"))
+        with open(os.path.join(root, "memory", "continuity.md"), "w") as f:
+            f.write("# Continuity\n\n- a fact stays\n  <!-- id: stay-fact | tier: active -->\n")
+        with open(os.path.join(root, "memory", "archive", "INDEX.md"), "w") as f:
+            f.write("# Archive INDEX\n")
+        with open(os.path.join(root, "memory", "archive", "2026-Q1.md"), "w") as f:
+            f.write("# 2026-Q1\n")
+        with open(os.path.join(root, "memory", "open-threads", "thread-gamma-thread.md"), "w") as f:
+            f.write(self.THREAD)
+        return root
+
+    def _read(self, root, *parts):
+        with open(os.path.join(root, "memory", *parts)) as f:
+            return f.read()
+
+    def test_thread_file_moves_to_archive_and_is_deleted(self):
+        root = self._setup()
+        code, msg = archive_fact.archive_facts(root, ["gamma-thread"], "faded", "2026-Q1", None, False)
+        self.assertEqual(code, 0)
+        self.assertIn("gamma-thread", msg)
+        self.assertFalse(os.path.exists(os.path.join(root, "memory", "open-threads", "thread-gamma-thread.md")))
+        quarter = self._read(root, "archive", "2026-Q1.md")
+        self.assertIn("id: gamma-thread", quarter)                # block + footer preserved
+        self.assertIn("Shipped vZ — gamma.", quarter)
+        self.assertIn("- gamma-thread — ", self._read(root, "archive", "INDEX.md"))
+        # continuity untouched (no cont plans)
+        self.assertIn("stay-fact", self._read(root, "continuity.md"))
+
+    def test_dry_run_keeps_thread_file(self):
+        root = self._setup()
+        code, msg = archive_fact.archive_facts(root, ["gamma-thread"], "faded", "2026-Q1", None, True)
+        self.assertEqual(code, 0)
+        self.assertIn("DRY-RUN", msg)
+        self.assertTrue(os.path.exists(os.path.join(root, "memory", "open-threads", "thread-gamma-thread.md")))
+
+    def test_missing_id_names_both_surfaces(self):
+        root = self._setup()
+        code, msg = archive_fact.archive_facts(root, ["ghost-id"], "faded", "2026-Q1", None, False)
+        self.assertEqual(code, 1)
+        self.assertIn("continuity.md or memory/open-threads/", msg)
+
+
 if __name__ == "__main__":
     unittest.main()

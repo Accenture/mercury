@@ -105,5 +105,60 @@ class TestRefreshMetadata(unittest.TestCase):
         self.assertIn("nothing to refresh", msg)                                  # second run is a no-op
 
 
+class TestThreadFileRefresh(unittest.TestCase):
+    # v4.39.0: thread files under memory/open-threads/ are fact surfaces too — their
+    # footers refresh in place (the merge-free filename never churns), and an unchecked
+    # thread in a FILE pins its id exactly as it did in continuity.
+    def _setup(self):
+        root = tempfile.mkdtemp()
+        os.makedirs(os.path.join(root, "memory", "sessions"))
+        os.makedirs(os.path.join(root, "memory", "open-threads"))
+        with open(os.path.join(root, "memory", "continuity.md"), "w") as f:
+            f.write("# Continuity\n\n## Project State\n\n- **project:** t\n")
+        with open(os.path.join(root, "memory", "decay-policy.md"), "w") as f:
+            f.write(POLICY)
+        with open(os.path.join(root, "memory", "open-threads", "thread-open-gap.md"), "w") as f:
+            f.write("- [ ] open gap\n  <!-- id: open-gap | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->\n")
+        with open(os.path.join(root, "memory", "open-threads", "thread-closed-gap.md"), "w") as f:
+            f.write("- [x] closed gap\n  <!-- id: closed-gap | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->\n")
+        sessions = {
+            "2026-06-01-000000": ["closed-gap"],
+            "2026-06-02-000000": [], "2026-06-03-000000": [], "2026-06-04-000000": [],
+            "2026-06-05-000000": [], "2026-06-06-000000": ["open-gap"],
+        }
+        for stem, ids in sessions.items():
+            body = "# Session\n\n## Memory References\n" + "".join(f"- Referenced: {i}\n" for i in ids)
+            with open(os.path.join(root, "memory", "sessions", stem + ".md"), "w") as f:
+                f.write(body)
+        return root
+
+    def _fields(self, root, fname, fid):
+        text = open(os.path.join(root, "memory", "open-threads", fname)).read()
+        m = re.search(r"<!--\s*id:\s*" + re.escape(fid) + r"\s*\|([^\n]*?)-->", text)
+        fields = {}
+        for p in m.group(1).split("|"):
+            if ":" in p:
+                k, _, v = p.partition(":")
+                fields[k.strip()] = v.strip()
+        return fields
+
+    def test_thread_file_footers_refresh_in_place(self):
+        root = self._setup()
+        code, msg = rm.refresh(root, False)
+        self.assertEqual(code, 0)
+        # closed thread: not pinned -> re-tiered from the reference log (sslu 5 > aw 4)
+        closed = self._fields(root, "thread-closed-gap.md", "closed-gap")
+        self.assertEqual(closed["tier"], "archive-candidate")
+        # open thread: pinned -> tier label preserved, factual fields still refresh
+        opened = self._fields(root, "thread-open-gap.md", "open-gap")
+        self.assertEqual(opened["tier"], "working")
+        self.assertEqual(opened["last_used"], "2026-06-06")
+        # filenames never churn
+        self.assertTrue(os.path.isfile(os.path.join(root, "memory", "open-threads", "thread-open-gap.md")))
+        # idempotent second run
+        code, msg = rm.refresh(root, False)
+        self.assertIn("nothing to refresh", msg)
+
+
 if __name__ == "__main__":
     unittest.main()

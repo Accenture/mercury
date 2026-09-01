@@ -15,9 +15,10 @@ Three triggers:
 1. **Cadence** — when `sessions_since_last_review ≥ review_every` (from
    `memory/decay-policy.md`). Checked during the post-session update.
 2. **On command** — the user says *"review memory"* / *"compact memory"*.
-3. **Size** — when `memory/continuity.md` holds more than `continuity_max_facts`
-   decaying facts/threads (the primary signal — a count, immune to verbosity and session
-   velocity), **or** exceeds `continuity_max_lines` (a coarse backstop).
+3. **Size** — when the live layer (`memory/continuity.md` + the `memory/open-threads/`
+   files) holds more than `continuity_max_facts` decaying facts/threads (the primary
+   signal — a count, immune to verbosity and session velocity), **or** `continuity.md`
+   exceeds `continuity_max_lines` (a coarse backstop).
 
 > **The triggers don't rely on the agent remembering.** `memory-lint` surfaces all three as
 > advisories — `[review-overdue]` (cadence) and `[continuity-bloat]` (facts/lines) — so a lapsed
@@ -36,9 +37,16 @@ it never fires more often than reviews do.
 ## Inputs
 
 - `memory/continuity.md` — facts + metadata
+- `memory/open-threads/` — Open Threads, one file per thread (v4.39.0)
 - `memory/decay-policy.md` — windows + triggers
 - `memory/sessions/` — the event log; read each `## Memory References`
 - `memory/archive/` — cold storage + `INDEX.md`
+
+> **Run reviews serialized.** Start from an **up-to-date default branch** and commit the
+> result promptly, before other memory work: the metadata refresh rewrites many footers at
+> once, and running it on a stale branch tangles mechanical churn with teammates' in-flight
+> substantive edits — the worst conflict shape. (Reviews are cadence-gated and effectively
+> single-actor; this just makes that explicit.)
 
 ---
 
@@ -50,12 +58,14 @@ it never fires more often than reviews do.
    - `Referenced` / `Created`: increment `uses`; set `last_used` to the latest
      session date that names the id.
    - `Reactivated`: if the id currently lives in the archive, move it back into
-     `continuity.md` as `active`, then apply the Referenced bump.
+     the live layer as `active` (a fact into `continuity.md`; a thread back to its
+     own `memory/open-threads/thread-<id>.md`), then apply the Referenced bump.
    - `Superseded: <old> → <new>` (or `<old> (invalidated)`): confirm the old fact is
      marked `tier: superseded` + `superseded-by: <new>` (the agent marks it at write
      time — `DECAY.md` §9; set it here if missing) and the successor carries
      `supersedes: <old>`.
-3. **Re-tier every fact.** For each fact in `continuity.md`, compute
+3. **Re-tier every fact.** For each fact in `continuity.md` and each thread file in
+   `memory/open-threads/`, compute
    `sessions_since_last_used` (count files — `DECAY.md` §4) and apply the
    `DECAY.md` §5 rules in order. Record each tier change.
    > **Preferred — steps 2–3 are pure arithmetic; run the `refresh-metadata` skill**
@@ -81,9 +91,11 @@ it never fires more often than reviews do.
    false, not merely stale — and carry their `superseded-by` link into the archive.
 5. **Sweep completed threads.** `- [x]` Open Threads whose completion is older than
    `archive_window` sessions move to the archive the same way (usually the biggest
-   lean-up). Keep recently-completed threads for context — **but condense them to
-   stubs** (v4.38.0): while a completed thread waits out `archive_window`, its record
-   is 3–6 lines — outcome, PR/commit/release refs, one durable lesson, and its
+   lean-up) — for a thread file the sweep moves its block to the quarter file +
+   `INDEX.md` and **deletes the file** (`archive-fact` handles thread files; the move
+   preserves everything). Keep recently-completed threads for context — **but condense
+   them to stubs** (v4.38.0): while a completed thread waits out `archive_window`, its
+   record is 3–6 lines — outcome, PR/commit/release refs, one durable lesson, and its
    `origin:` pointer. Trim prose only; never edit the id or footer metadata. Nothing
    is lost — the full narrative lives in the thread's origin session log (immutable),
    and `[closed-thread-bloat]` is the advisory that measures this. A condensed thread
@@ -157,7 +169,8 @@ session whose `## Memory References` names the id under `Created` (`DECAY.md` §
 ## Reactivation
 
 When an archived id is named in a session (`Referenced`/`Reactivated`):
-- move the fact from its `archive/<quarter>.md` back into `continuity.md`,
+- move the fact from its `archive/<quarter>.md` back into the live layer
+  (`continuity.md`; a thread back to `memory/open-threads/thread-<id>.md`),
 - set `tier: active`, refresh `last_used`, increment `uses`,
 - remove or annotate its `archive/INDEX.md` line,
 - note it in the review summary.

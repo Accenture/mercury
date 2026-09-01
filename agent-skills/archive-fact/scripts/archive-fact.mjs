@@ -14,7 +14,7 @@
 // Exit:  0 = moved (or dry-run ok), 1 = refused, 2 = could not locate memory/.
 //        Run `memory-lint` afterward to confirm.
 
-import { readFileSync, writeFileSync, appendFileSync, existsSync, statSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, appendFileSync, existsSync, statSync, readdirSync, unlinkSync } from "node:fs";
 import { resolve, dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -64,10 +64,27 @@ function derive_quarter(y, mo) {
   return `${y}-Q${Math.floor((mo - 1) / 3) + 1}`;
 }
 
+function thread_files(mem) {
+  // fid -> path for memory/open-threads/thread-*.md (v4.39.0). A thread file's single
+  // footer id is its identity; archiving one moves its block to the quarter file and
+  // deletes the file (the move preserves everything, including the footer).
+  const out = new Map();
+  const tdir = join(mem, "open-threads");
+  if (!existsSync(tdir)) return out;
+  for (const name of readdirSync(tdir).sort()) {
+    if (!name.endsWith(".md")) continue;
+    const path = join(tdir, name);
+    const m = read_text(path).match(/<!--\s*id:\s*([a-z0-9-]+)\s*\|/);
+    if (m) out.set(m[1], path);
+  }
+  return out;
+}
+
 export function archive_facts(root, ids, reason, quarter, note, dry_run) {
   const mem = join(root, "memory");
   const cont_path = join(mem, "continuity.md");
   const lines = read_text(cont_path).split("\n");
+  const threads = thread_files(mem);
 
   const archived_ids = new Set();
   const arch_dir = join(mem, "archive");
@@ -81,15 +98,18 @@ export function archive_facts(root, ids, reason, quarter, note, dry_run) {
     }
   }
 
-  const plans = [];
+  // An id lives either in continuity.md or in its own open-threads file — check both.
+  const cont_plans = [];   // [fid, top, bot] in continuity.md
+  const thread_plans = []; // [fid, path] — the whole file is the block
   for (const fid of ids) {
     if (archived_ids.has(fid)) return { code: 1, msg: `refused: '${fid}' is already in the archive — nothing moved` };
     const fidx = footer_line_index(lines, fid);
-    if (fidx === null) return { code: 1, msg: `refused: '${fid}' has no footer in continuity.md — nothing moved` };
-    plans.push([fid, block_top(lines, fidx), fidx]);
+    if (fidx !== null) cont_plans.push([fid, block_top(lines, fidx), fidx]);
+    else if (threads.has(fid)) thread_plans.push([fid, threads.get(fid)]);
+    else return { code: 1, msg: `refused: '${fid}' has no footer in continuity.md or memory/open-threads/ — nothing moved` };
   }
 
-  const plans_sorted = [...plans].sort((a, b) => b[1] - a[1]); // bottom-up removal
+  const plans_sorted = [...cont_plans].sort((a, b) => b[1] - a[1]); // bottom-up removal
 
   const now = new Date();
   quarter = quarter || derive_quarter(now.getUTCFullYear(), now.getUTCMonth() + 1);
@@ -115,19 +135,34 @@ export function archive_facts(root, ids, reason, quarter, note, dry_run) {
   archive_chunks.reverse();
   index_chunks.reverse();
 
+  const removals = []; // thread files deleted after the archive/INDEX writes land
+  for (const [fid, path] of thread_plans) {
+    const block = read_text(path).split("\n");
+    while (block.length && block[block.length - 1].trim() === "") block.pop();
+    const n = note && ids.length === 1 ? note : derive_note(block);
+    moved.push([fid, n]);
+    archive_chunks.push(block.join("\n"));
+    index_chunks.push(`- ${fid} — ${n} — ${reason} — ${quarter}.md`);
+    removals.push(path);
+  }
+
   const heading = `\n## ${isoDate} — archived via archive-fact (${reason})\n\n### Faded facts\n\n`;
   const archive_block = heading + archive_chunks.join("\n\n") + "\n";
   const index_block = index_chunks.join("\n") + "\n";
   const new_cont = kept.join("\n");
 
-  if (new_cont.trim() === "") return { code: 1, msg: "refused: removing those blocks would empty continuity.md — nothing moved" };
+  if (cont_plans.length && new_cont.trim() === "") return { code: 1, msg: "refused: removing those blocks would empty continuity.md — nothing moved" };
 
   const summary = moved.map(([fid, n]) => `  ${fid} → ${quarter}.md  (${n})`).join("\n");
   if (dry_run) return { code: 0, msg: `DRY-RUN — would move ${moved.length} fact(s):\n${summary}\n(no files changed)` };
 
+  // Thread files delete LAST, after their content is safely in the archive.
   appendFileSync(arch_path, archive_block, "utf-8");
   appendFileSync(index_path, index_block, "utf-8");
-  writeFileSync(cont_path, new_cont, "utf-8"); // safe: new_cont already in memory
+  if (cont_plans.length) {
+    writeFileSync(cont_path, new_cont, "utf-8"); // safe: new_cont already in memory
+  }
+  for (const path of removals) unlinkSync(path);
 
   return { code: 0, msg: `moved ${moved.length} fact(s) to ${quarter}.md + INDEX:\n${summary}\nNow run memory-lint to confirm.` };
 }

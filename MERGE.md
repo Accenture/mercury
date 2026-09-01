@@ -7,8 +7,11 @@
 ## Why this exists
 
 `memory/` is committed and shared, so concurrent teammates — on any vendor — will sometimes
-collide. Session logs almost never conflict (timestamped filenames); `continuity.md` can.
-The hard rule comes straight from the **`never-pick-a-winner`** invariant:
+collide. Session logs almost never conflict (timestamped filenames), Open Threads can't
+conflict across threads (one file each under `memory/open-threads/`, v4.39.0), and archive
+files union-merge (`.gitattributes`); what remains is `continuity.md` and the rare
+same-thread-file clash. The hard rule comes straight from the **`never-pick-a-winner`**
+invariant:
 
 > **An AI must never silently choose a winner between two conflicting memory facts.**
 
@@ -33,13 +36,15 @@ isn't "don't touch the text," it's "don't silently pick a winner.")
 Look at what actually diverged between the two sides:
 
 - **Additive** — both sides *added* different facts/bullets to an append-only section
-  (`## Open Threads`, `## Key Decisions`, `## Conventions`, `## What's Been Built`). The
-  commonest case.
-- **Scalar** — both sides bumped the same single-value field (`last_session`, `last_review`,
+  (`## Key Decisions`, `## Conventions`, `## What's Been Built`). The commonest
+  continuity case.
+- **Scalar** — both sides bumped the same single-value field (`last_review`,
   `last_invariant_check`, the `status` version token).
-- **Semantic clash** — both sides changed the **same** fact's substance; or one checked a
+- **Semantic clash** — both sides changed the **same** fact's substance (in continuity, or
+  a conflict in the *same* `memory/open-threads/thread-<id>.md` file); or one checked a
   thread `[ ]`→`[x]` while the other edited it; or a fact was superseded on one side and
-  edited on the other. The rare case — and the **only** one needing judgment.
+  edited on the other. The rare case — and the **only** one needing judgment. A thread-file
+  conflict is *always* this class — the layout has already eliminated the mechanical cases.
 
 ## (2) Resolve by tier
 
@@ -48,8 +53,14 @@ Look at what actually diverged between the two sides:
 - **Additive → UNION. Keep BOTH sides' additions.** They are independent facts; dropping
   either loses information. Order doesn't matter — the review re-sorts and decays. Each fact
   keeps its own `id` + footer.
-- **Scalar → take the LATER value** (later date / higher semver). `last_session` is also
-  derivable from the newest `sessions/` filename, so never block on it.
+- **Scalar → take the LATER value** (later date / higher semver).
+- **Archive files** (`memory/archive/*.md`) carry `merge=union` in `.gitattributes`, so
+  concurrent sweeps' appends merge on their own. The one case union gets wrong — a
+  reactivation's removed lines resurrected by the other side — is caught by `memory-lint`'s
+  `[both]` / `[over-archived]` ERRORs; fix by re-removing the resurrected block.
+- **Two session logs with the same filename** (same-second persist on parallel branches —
+  an add/add conflict): keep both by renaming either one +1 second; never merge their
+  contents into one file.
 
 No "propose a repair" step — apply the rule.
 

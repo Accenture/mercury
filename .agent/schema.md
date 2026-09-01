@@ -52,7 +52,6 @@ Live project state. Update every session.
 - project:        string
 - status:         string
 - last_enabled:   YYYY-MM-DD
-- last_session:   YYYY-MM-DD | agent: string          (or "none yet" — legacy: pre-4.32.1 enables only; a fresh enable points this at its first enable session log)
 - last_review:    YYYY-MM-DD | through <session-file>  (or "none yet")
 - last_invariant_check: YYYY-MM-DD | through <session-file>  (or "none yet") — see REVIEW.md step 6
 - last_harvest:   YYYY-MM-DD | through <session-file>  (optional; omit until first run) — when the `harvest-knowledge` skill last folded docs into memory; it reads this to scope the next harvest and stamps it on completion
@@ -62,10 +61,16 @@ Live project state. Update every session.
 ## Stack & Tools             canonical live home for language/deps/tool versions (key: value)
 ## Key Decisions             bullet list, present tense
 ## Conventions               bullet list
-## Open Threads              - [ ] incomplete  /  - [x] complete (leave [x] for the review to sweep)
+## Open Threads              pointer note only — threads live one-per-file in memory/open-threads/ (v4.39.0)
 ## User Preferences          bullet list — record ONLY what the user explicitly states; never infer
 ## Team / Members            name: preferred agent
 ```
+
+There is deliberately **no `last_session` field** (dropped in v4.39.0): it is fully
+derivable — the newest `memory/sessions/` filename is the last session, and that log's
+`**Agent:**` header names the agent — and as a scalar that changed every session it was
+the most frequent merge conflict in the file. A pre-4.39.0 repo may still carry the
+line; treat it as legacy-informational (latest wins on conflict; safe to delete).
 
 `## Stack & Tools` is the single canonical home for the current stack — language
 version, dependencies, tool versions. `instructions.md` gives only an enduring
@@ -82,23 +87,25 @@ lives in the project's own `CHANGELOG`/release notes and the **session logs** (e
 ### Concurrency & merge-friendliness (continuity.md is a shared file)
 
 `continuity.md` is committed and edited by every teammate, on any vendor — so author it to
-**merge cleanly**. Session logs avoid conflicts by construction (timestamped filenames);
-`continuity.md` cannot, so follow these conventions:
+**merge cleanly**. Session logs and Open Thread files avoid conflicts by construction
+(one file per event / per thread); the rest of `continuity.md` cannot, so follow these
+conventions:
 
 - **One fact per line.** No monster lines. A short line that two people change is a trivial
   conflict; a 20 KB line is an unresolvable one.
-- **Append-only sections are independent facts.** `## Open Threads`, `## Key Decisions`,
-  `## Conventions` accrete bullets that don't depend on each other.
+- **Append-only sections are independent facts.** `## Key Decisions` and `## Conventions`
+  accrete bullets that don't depend on each other. (Open Threads no longer accrete here —
+  each is its own file under `memory/open-threads/`, so concurrent thread work can't
+  conflict at all.)
 - **Conflict resolution = keep both, by default.** When two branches both added to an
   append-only section, the merge is a **union** — keep every side's bullets (they're
   independent facts); never drop one to "resolve" faster.
-- **Scalar bumps take the later value.** `last_session` / `last_review` /
-  `last_invariant_check` / the `status` version token: on conflict, keep the **later date /
-  higher version**. (`.agent/version.md` is the canonical version; `status`'s token is just a
-  human cue.) `last_session` is also derivable from the newest `sessions/` filename, so it's
-  informational — never block on it.
+- **Scalar bumps take the later value.** `last_review` / `last_invariant_check` / the
+  `status` version token: on conflict, keep the **later date / higher version**.
+  (`.agent/version.md` is the canonical version; `status`'s token is just a human cue.)
 - **Same-thread edits need a human.** Only a genuine semantic clash — both sides editing the
-  *same* Open Thread, or a `[ ]`→`[x]` race — warrants judgment; everything else is mechanical.
+  *same* Open Thread file, or a `[ ]`→`[x]` race — warrants judgment; everything else is
+  mechanical. Thread files make that clash visible as a per-file conflict.
 - A left-behind conflict marker (`<<<<<<<`, `=======`, `>>>>>>>`) corrupts memory; `memory-lint`
   flags it as an ERROR.
 
@@ -128,16 +135,49 @@ ordinary fact, `core` for an Architectural Invariant — and seeds `last_used: <
 recomputed by the review from session-log `## Memory References` (see `DECAY.md` §1).
 
 `## Architectural Invariants` facts and unchecked Open Threads (`- [ ]`) never decay.
-Completed threads (`- [x]`) stay in place until the review sweeps them (see below /
-`REVIEW.md`) — don't archive them by hand. A completed thread's record is a **3–6-line
-close stub** — outcome, PR/commit/release refs, one durable lesson, `origin:` pointer —
-never a full ship narrative: that belongs in the origin session log, and reviews condense
-oversized records (`[closed-thread-bloat]`, v4.38.0).
+Completed threads (`- [x]`) stay in their thread file until the review sweeps them (see
+`memory/open-threads/` below / `REVIEW.md`) — don't archive them by hand. A completed
+thread's record is a **3–6-line close stub** — outcome, PR/commit/release refs, one durable
+lesson, `origin:` pointer — never a full ship narrative: that belongs in the origin session
+log, and reviews condense oversized records (`[closed-thread-bloat]`, v4.38.0).
 
 When a fact becomes **false** (a decision reversed, a dependency dropped), don't just
 delete it: set its footer to `tier: superseded` + `superseded-by: <new-id>` (omit the
 link for pure invalidation), record `Superseded: <old> → <new>` in the session log,
 and let the review archive it flagged "superseded." See `DECAY.md` §9.
+
+---
+
+## memory/open-threads/thread-<id>.md
+
+**One Open Thread per file** (v4.39.0). `<id>` is the thread's kebab fact id — the
+filename is the identity and **never changes** for the thread's lifetime; updates edit the
+file in place. This is what makes concurrent thread work merge-free: parallel branches
+touching *different* threads touch different files (no conflict possible), and both sides
+editing the *same* thread conflict per-file — a genuine Tier 2 semantic clash correctly
+reaching a human (`MERGE.md`).
+
+File content is **exactly the thread's bullet block**, nothing else — the same shape that
+previously sat under continuity's `## Open Threads`:
+
+```
+- [ ] **<title>.** <body — what the thread is, why it's open, next action>
+  → serves: <vision-id or blueprint-id>   (VBDI trace, where applicable)
+  <!-- id: <same-as-filename> | created: YYYY-MM-DD | last_used: YYYY-MM-DD | uses: N | tier: working -->
+```
+
+- **No index file.** The directory is the index, like `sessions/`: list
+  `memory/open-threads/` to discover threads; the checkbox in each file is its state
+  (`grep -l '^- \[ \]' memory/open-threads/` lists the open ones). An index would
+  recreate the add/add merge conflict one line at a time.
+- **Lifecycle is unchanged, only the location moved.** An unchecked thread is pinned
+  (never decays); a completed one flips to `- [x]`, condenses to a 3–6-line stub, and
+  waits out `archive_window`; the review sweep moves the block to the quarter archive +
+  `INDEX.md` and deletes the file (`archive-fact` handles thread files). Contradiction /
+  Drift / new threads are created as new files.
+- `memory-lint` pins the contract: `[thread-file]` (filename must match the footer id;
+  exactly one thread block per file) and `[duplicate-id]` (an id must exist once across
+  continuity + thread files — the backstop for creation collisions on parallel branches).
 
 ---
 
@@ -240,8 +280,8 @@ invariant-verification cadence (a vision can go stale). Created at enable/upgrad
 ⚠️ DRAFT stub — Current-state context inferred, target left for the human — **never
 fabricated**. See `DECAY.md` §12 and `docs/DESIGN-vbdi-lifecycle.md`.
 
-The **Blueprint** (the Vision↔Current-State gap) is *not* a separate file — it is a set
-of typed Open Threads in `continuity.md`:
+The **Blueprint** (the Vision↔Current-State gap) is *not* a separate file — it is the set
+of typed Open Threads (one file each under `memory/open-threads/`):
 `- [ ] (blueprint) <gap> → serves: <vision-id>`. Designs (Key Decisions) and
 Implementations (commits/sessions) trace up the altitude chain by `id`; a missing or
 broken link is drift, and it's grep-detectable.
@@ -295,9 +335,16 @@ deleted; reactivation moves a fact back into `continuity.md` (see `REVIEW.md`).
 
 ```
 archive/
-  YYYY-QN.md   facts (with their metadata footers) moved out of continuity.md, grouped by quarter
+  YYYY-QN.md   facts (with their metadata footers) moved out of the live layer, grouped by quarter
   INDEX.md     one line per archived fact: `id — one-line summary — <quarter file>`  (greppable)
 ```
+
+Archive files are append-mostly, so `.gitattributes` marks them `merge=union`
+(v4.39.0): concurrent review sweeps appending at end-of-file merge without conflict.
+The one case union gets wrong — a reactivation's removed lines resurrected by the other
+branch — is deterministically caught by `memory-lint`'s `[both]` / `[over-archived]`
+ERRORs. Live files (`continuity.md`, thread files) never get union: there a conflict is
+signal.
 
 ---
 

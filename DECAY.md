@@ -17,8 +17,11 @@
 
 ## 1. Fact metadata
 
-Every fact in `memory/continuity.md` carries an HTML-comment footer. Invisible
-when rendered, readable and editable by any agent or human, diff-friendly.
+Every fact carries an HTML-comment footer. Invisible when rendered, readable and
+editable by any agent or human, diff-friendly. Facts live on two surfaces that these
+rules treat identically: `memory/continuity.md`, and — for Open Threads — one file per
+thread under `memory/open-threads/` (`thread-<id>.md`, filename = the fact id;
+v4.39.0, so concurrent thread work merges without conflict — see `.agent/schema.md`).
 
 ```markdown
 - POST-only for mutations, no PUT/PATCH (legacy decision, do not change)
@@ -27,7 +30,7 @@ when rendered, readable and editable by any agent or human, diff-friendly.
 
 | Field | Set | Recomputed at review? |
 |---|---|---|
-| `id` | once at creation; kebab-case, unique within the file; never changes | no |
+| `id` | once at creation; kebab-case, unique across continuity + thread files; never changes | no |
 | `created` | once at creation (date the fact entered memory) | no |
 | `last_used` | date of the most recent session that referenced the id | **yes** |
 | `uses` | count of sessions that referenced the id | **yes** |
@@ -50,8 +53,10 @@ rows above). `id` and `created` are immutable. Ordinary facts are born `working`
 
 ### Assigning an id
 Lowercase, hyphenated, derived from the fact's gist (`webhook-fire-forget`,
-`drizzle-over-prisma`). Unique within `continuity.md`. Once assigned it is
-permanent — it is the handle that session logs use to reference the fact.
+`drizzle-over-prisma`). Unique across the live layer — `continuity.md` and every
+`memory/open-threads/thread-<id>.md` (`memory-lint` flags a `[duplicate-id]`). Once
+assigned it is permanent — it is the handle that session logs use to reference the
+fact, and for a thread it is also the filename.
 
 ---
 
@@ -258,9 +263,10 @@ Everything above is *backward*-looking — it keeps memory faithful to what happ
 *intended*. Full design: `docs/DESIGN-vbdi-lifecycle.md`. The rule-level essentials the
 memory layer enforces:
 
-- **The primitives.** *Current State* = `continuity.md` (read at session start). *Vision* =
-  `memory/vision.md` (the target; `core`, invariant-verified). *Blueprint* = typed
-  `(blueprint)` Open Threads = the Vision↔Current-State gap. *Design* = Key Decisions /
+- **The primitives.** *Current State* = `continuity.md` + the Open Thread files (read at
+  session start). *Vision* = `memory/vision.md` (the target; `core`, invariant-verified).
+  *Blueprint* = typed `(blueprint)` Open Threads (one file each under
+  `memory/open-threads/`) = the Vision↔Current-State gap. *Design* = Key Decisions /
   Architectural Invariants (and, **optionally**, a human-facing `docs/arch-decisions/ADR.md` decision log
   — Architecture Decision Records, read on demand, never in the per-session path; its
   supersede/deprecate-never-delete lifecycle mirrors §9, and — once the log exists — is **kept in

@@ -82,11 +82,30 @@ def derive_quarter(today):
     return f"{today.year}-Q{(today.month - 1) // 3 + 1}"
 
 
+def thread_files(mem):
+    """fid -> path for memory/open-threads/thread-*.md (v4.39.0). A thread file's single
+    footer id is its identity; archiving one moves its block to the quarter file and
+    deletes the file (the move preserves everything, including the footer)."""
+    out = {}
+    tdir = os.path.join(mem, "open-threads")
+    if not os.path.isdir(tdir):
+        return out
+    for name in sorted(os.listdir(tdir)):
+        if not name.endswith(".md"):
+            continue
+        path = os.path.join(tdir, name)
+        m = re.search(r"<!--\s*id:\s*([a-z0-9-]+)\s*\|", read_text(path))
+        if m:
+            out[m.group(1)] = path
+    return out
+
+
 def archive_facts(root, ids, reason, quarter, note, dry_run):
     mem = os.path.join(root, "memory")
     cont_path = os.path.join(mem, "continuity.md")
     cont = read_text(cont_path)
     lines = cont.split("\n")
+    threads = thread_files(mem)
 
     # Archived-already guard: scan existing archive footers (any *.md but INDEX).
     archived_ids = set()
@@ -97,19 +116,24 @@ def archive_facts(root, ids, reason, quarter, note, dry_run):
                 for m in re.finditer(r"<!--\s*id:\s*([a-z0-9-]+)\s*\|", read_text(os.path.join(arch_dir, name))):
                     archived_ids.add(m.group(1))
 
-    # Validate ALL ids before touching anything (all-or-nothing).
-    plans = []
+    # Validate ALL ids before touching anything (all-or-nothing). An id lives either in
+    # continuity.md or in its own open-threads file — check both surfaces.
+    cont_plans = []    # (fid, top, bot) in continuity.md
+    thread_plans = []  # (fid, path) — the whole file is the block
     for fid in ids:
         if fid in archived_ids:
             return 1, f"refused: '{fid}' is already in the archive — nothing moved"
         fidx = footer_line_index(lines, fid)
-        if fidx is None:
-            return 1, f"refused: '{fid}' has no footer in continuity.md — nothing moved"
-        top, bot = block_span(lines, fidx)
-        plans.append((fid, top, bot))
+        if fidx is not None:
+            top, bot = block_span(lines, fidx)
+            cont_plans.append((fid, top, bot))
+        elif fid in threads:
+            thread_plans.append((fid, threads[fid]))
+        else:
+            return 1, f"refused: '{fid}' has no footer in continuity.md or memory/open-threads/ — nothing moved"
 
-    # Order removals bottom-up so earlier indices stay valid.
-    plans_sorted = sorted(plans, key=lambda p: p[1], reverse=True)
+    # Order continuity removals bottom-up so earlier indices stay valid.
+    plans_sorted = sorted(cont_plans, key=lambda p: p[1], reverse=True)
 
     today = datetime.datetime.now(datetime.timezone.utc).date()
     quarter = quarter or derive_quarter(today)
@@ -136,6 +160,17 @@ def archive_facts(root, ids, reason, quarter, note, dry_run):
     archive_chunks.reverse()
     index_chunks.reverse()
 
+    removals = []  # thread files deleted after the archive/INDEX writes land
+    for fid, path in thread_plans:
+        block = [ln for ln in read_text(path).split("\n")]
+        while block and not block[-1].strip():
+            block.pop()
+        n = note if (note and len(ids) == 1) else derive_note(block)
+        moved.append((fid, n))
+        archive_chunks.append("\n".join(block))
+        index_chunks.append(f"- {fid} — {n} — {reason} — {quarter}.md")
+        removals.append(path)
+
     heading = (
         f"\n## {today.isoformat()} — archived via archive-fact ({reason})\n\n### Faded facts\n\n"
     )
@@ -143,20 +178,24 @@ def archive_facts(root, ids, reason, quarter, note, dry_run):
     index_block = "\n".join(index_chunks) + "\n"
     new_cont = "\n".join(kept)
 
-    if not new_cont.strip():
+    if cont_plans and not new_cont.strip():
         return 1, "refused: removing those blocks would empty continuity.md — nothing moved"
 
     summary = "\n".join(f"  {fid} → {quarter}.md  ({n})" for fid, n in moved)
     if dry_run:
         return 0, f"DRY-RUN — would move {len(moved)} fact(s):\n{summary}\n(no files changed)"
 
-    # WRITES — append-mode for the archive/INDEX (never truncates); single write for continuity.
+    # WRITES — append-mode for the archive/INDEX (never truncates); single write for
+    # continuity; thread files delete LAST, after their content is safely in the archive.
     with open(arch_path, "a", encoding="utf-8") as f:
         f.write(archive_block)
     with open(index_path, "a", encoding="utf-8") as f:
         f.write(index_block)
-    with open(cont_path, "w", encoding="utf-8") as f:  # safe: new_cont already in memory
-        f.write(new_cont)
+    if cont_plans:
+        with open(cont_path, "w", encoding="utf-8") as f:  # safe: new_cont already in memory
+            f.write(new_cont)
+    for path in removals:
+        os.remove(path)
 
     return 0, f"moved {len(moved)} fact(s) to {quarter}.md + INDEX:\n{summary}\nNow run memory-lint to confirm."
 

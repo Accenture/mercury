@@ -2,7 +2,7 @@
 // Same fixtures, same expectations: the cross-runtime parity contract. Run: node --test <file>
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { archive_facts } from "./archive-fact.mjs";
@@ -112,4 +112,57 @@ test("note override (single id)", () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// v4.39.0: a completed thread lives in its own memory/open-threads/thread-<id>.md;
+// archiving moves the block to the quarter file + INDEX and DELETES the file — the
+// sweep for the merge-free thread layout.
+const GAMMA_THREAD = `- [x] **Shipped vZ — gamma.** Did gamma.
+  <!-- id: gamma-thread | created: 2026-01-04 | last_used: 2026-01-04 | uses: 1 | tier: working -->
+`;
+
+function threadSetup() {
+  const root = mkdtempSync(join(tmpdir(), "aftest-threads-"));
+  mkdirSync(join(root, "memory", "archive"), { recursive: true });
+  mkdirSync(join(root, "memory", "open-threads"), { recursive: true });
+  writeFileSync(join(root, "memory", "continuity.md"), "# Continuity\n\n- a fact stays\n  <!-- id: stay-fact | tier: active -->\n");
+  writeFileSync(join(root, "memory", "archive", "INDEX.md"), "# Archive INDEX\n");
+  writeFileSync(join(root, "memory", "archive", "2026-Q1.md"), "# 2026-Q1\n");
+  writeFileSync(join(root, "memory", "open-threads", "thread-gamma-thread.md"), GAMMA_THREAD);
+  return root;
+}
+
+test("thread file moves to archive and is deleted", () => {
+  const root = threadSetup();
+  try {
+    const { code, msg } = archive_facts(root, ["gamma-thread"], "faded", "2026-Q1", null, false);
+    assert.equal(code, 0);
+    assert.ok(msg.includes("gamma-thread"));
+    assert.ok(!existsSync(join(root, "memory", "open-threads", "thread-gamma-thread.md")));
+    const quarter = readFileSync(join(root, "memory", "archive", "2026-Q1.md"), "utf-8");
+    assert.ok(quarter.includes("id: gamma-thread"));            // block + footer preserved
+    assert.ok(quarter.includes("Shipped vZ — gamma."));
+    assert.ok(readFileSync(join(root, "memory", "archive", "INDEX.md"), "utf-8").includes("- gamma-thread — "));
+    // continuity untouched (no cont plans)
+    assert.ok(readFileSync(join(root, "memory", "continuity.md"), "utf-8").includes("stay-fact"));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("dry run keeps the thread file", () => {
+  const root = threadSetup();
+  try {
+    const { code, msg } = archive_facts(root, ["gamma-thread"], "faded", "2026-Q1", null, true);
+    assert.equal(code, 0);
+    assert.ok(msg.includes("DRY-RUN"));
+    assert.ok(existsSync(join(root, "memory", "open-threads", "thread-gamma-thread.md")));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("missing id names both surfaces", () => {
+  const root = threadSetup();
+  try {
+    const { code, msg } = archive_facts(root, ["ghost-id"], "faded", "2026-Q1", null, false);
+    assert.equal(code, 1);
+    assert.ok(msg.includes("continuity.md or memory/open-threads/"));
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

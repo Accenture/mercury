@@ -8,7 +8,8 @@ provenance: agent-memory-builtin
 > in place — fork under a new name, or upstream a fix to the agent-memory project (see `SKILLS.md`).
 
 This skill **is** the safe archive-move. It performs `REVIEW.md` step 4 — moving a faded/superseded fact's
-block out of `continuity.md` and into the quarter archive — as a **runnable script**, so the move can't be
+block out of the live layer — `continuity.md`, or a thread's own `memory/open-threads/thread-<id>.md`
+file (v4.39.0; the sweep moves the block to the quarter archive and deletes the file) — as a **runnable script**, so the move can't be
 botched. **Don't hand-edit `continuity.md` to do this** (the read-modify-write `open(f,"w").write(open(f).read()+…)`
 truncates the file *before* the read — it has wiped a `version.md` stamp and then this repo's archive,
 50 facts → 6, once each). This script reads the whole file into memory first and writes once, so truncation
@@ -47,7 +48,7 @@ never truncates), and (3) rewrites `continuity.md` without those blocks (read-in
 helper is safe by construction; the lint is the deterministic proof.
 
 ## Guards (it refuses, exit 1)
-- an id with no footer in `continuity.md` (typo / already moved);
+- an id with no footer in `continuity.md` or `memory/open-threads/` (typo / already moved);
 - an id already present in the archive (no double-archive);
 - a move that would leave `continuity.md` empty.
 

@@ -105,3 +105,60 @@ test("idempotent — second run is a no-op", () => {
     assert.ok(msg.includes("nothing to refresh"));
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+// v4.39.0: thread files under memory/open-threads/ are fact surfaces too — their
+// footers refresh in place (the merge-free filename never churns), and an unchecked
+// thread in a FILE pins its id exactly as it did in continuity.
+function threadSetup() {
+  const root = mkdtempSync(join(tmpdir(), "rmtest-threads-"));
+  mkdirSync(join(root, "memory", "sessions"), { recursive: true });
+  mkdirSync(join(root, "memory", "open-threads"), { recursive: true });
+  writeFileSync(join(root, "memory", "continuity.md"), "# Continuity\n\n## Project State\n\n- **project:** t\n");
+  writeFileSync(join(root, "memory", "decay-policy.md"), POLICY);
+  writeFileSync(
+    join(root, "memory", "open-threads", "thread-open-gap.md"),
+    "- [ ] open gap\n  <!-- id: open-gap | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->\n"
+  );
+  writeFileSync(
+    join(root, "memory", "open-threads", "thread-closed-gap.md"),
+    "- [x] closed gap\n  <!-- id: closed-gap | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->\n"
+  );
+  const sessions = {
+    "2026-06-01-000000": ["closed-gap"],
+    "2026-06-02-000000": [], "2026-06-03-000000": [], "2026-06-04-000000": [],
+    "2026-06-05-000000": [], "2026-06-06-000000": ["open-gap"],
+  };
+  for (const [stem, ids] of Object.entries(sessions)) {
+    const body = "# Session\n\n## Memory References\n" + ids.map((i) => `- Referenced: ${i}\n`).join("");
+    writeFileSync(join(root, "memory", "sessions", stem + ".md"), body);
+  }
+  return root;
+}
+
+function threadFields(root, fname, fid) {
+  const text = readFileSync(join(root, "memory", "open-threads", fname), "utf-8");
+  const m = text.match(new RegExp(String.raw`<!--\s*id:\s*${fid}\s*\|([^\n]*?)-->`));
+  const fields = {};
+  for (const part of m[1].split("|")) {
+    const i = part.indexOf(":");
+    if (i !== -1) fields[part.slice(0, i).trim()] = part.slice(i + 1).trim();
+  }
+  return fields;
+}
+
+test("thread-file footers refresh in place", () => {
+  const root = threadSetup();
+  try {
+    const { code } = refresh(root, false);
+    assert.equal(code, 0);
+    // closed thread: not pinned -> re-tiered from the reference log (sslu 5 > aw 4)
+    assert.equal(threadFields(root, "thread-closed-gap.md", "closed-gap").tier, "archive-candidate");
+    // open thread: pinned -> tier label preserved, factual fields still refresh
+    const opened = threadFields(root, "thread-open-gap.md", "open-gap");
+    assert.equal(opened.tier, "working");
+    assert.equal(opened.last_used, "2026-06-06");
+    // idempotent second run
+    const { msg } = refresh(root, false);
+    assert.ok(msg.includes("nothing to refresh"));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

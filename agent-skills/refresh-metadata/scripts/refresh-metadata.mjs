@@ -103,16 +103,33 @@ export function expected_tier(fields, fid, sslu_val, uses_val, created_ago, pinn
   return "archive-candidate";
 }
 
+export function fact_surfaces(root) {
+  // Every live file carrying fact footers: continuity.md plus the one-thread-per-file
+  // memory/open-threads/ layer (v4.39.0). Footers refresh identically everywhere —
+  // thread files edit in place, so their merge-free filenames never churn.
+  const mem = join(root, "memory");
+  const paths = [join(mem, "continuity.md")];
+  const tdir = join(mem, "open-threads");
+  if (existsSync(tdir)) {
+    for (const f of readdirSync(tdir).filter((x) => x.endsWith(".md")).sort()) {
+      paths.push(join(tdir, f));
+    }
+  }
+  return paths;
+}
+
 export function refresh(root, dry_run) {
-  const cont_path = join(root, "memory", "continuity.md");
-  const text = read_text(cont_path);
+  const surfaces = fact_surfaces(root).map((p) => [p, read_text(p)]);
   const { stems, refs } = load_sessions(root);
-  const pinned = pinned_open_threads(text);
+  const pinned = new Set();
+  for (const [, text] of surfaces) {
+    for (const fid of pinned_open_threads(text)) pinned.add(fid);
+  }
   const w = load_windows(root);
   const ww = w.working_window, acw = w.active_window;
 
   const changes = [];
-  const new_text = text.replace(FOOTER_RE, (full, fid, blob) => {
+  const footer_repl = (full, fid, blob) => {
     const fields = parse_fields(blob);
     if (fields.tier === "core" || fields.tier === "superseded" || fields["superseded-by"]) return full;
     const hits = [];
@@ -130,7 +147,14 @@ export function refresh(root, dry_run) {
     if ("tier" in fields && tier) next = next.replace(/(\btier:\s*)[a-z-]+/, `$1${tier}`);
     if (next !== full) changes.push([fid, fields.tier, tier, fields.uses, String(uses_val)]);
     return next;
-  });
+  };
+
+  const writes = []; // [path, new_text] for surfaces whose footers changed
+  for (const [path, text] of surfaces) {
+    const before = changes.length;
+    const new_text = text.replace(FOOTER_RE, footer_repl);
+    if (changes.length > before) writes.push([path, new_text]);
+  }
 
   if (changes.length === 0) return { code: 0, msg: "all fact footers already match the reference log — nothing to refresh" };
 
@@ -143,7 +167,9 @@ export function refresh(root, dry_run) {
   const summary = lines.join("\n");
   if (dry_run) return { code: 0, msg: `DRY-RUN — would refresh ${changes.length} footer(s):\n${summary}\n(no files changed)` };
 
-  writeFileSync(cont_path, new_text, "utf-8"); // safe: new_text already in memory
+  for (const [path, new_text] of writes) {
+    writeFileSync(path, new_text, "utf-8"); // safe: new_text already in memory
+  }
   return { code: 0, msg: `refreshed ${changes.length} footer(s) from the reference log:\n${summary}\nNow run memory-lint to confirm.` };
 }
 

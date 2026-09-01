@@ -140,12 +140,32 @@ def parse_args(args):
     return strict, root_arg, scan_files
 
 
+def load_thread_files(mem):
+    """memory/open-threads/*.md — one Open Thread per file (v4.39.0). Returns
+    [(basename, text)]; an absent directory (pre-4.39.0 layout) is an empty list.
+    Thread files are live continuity-domain facts: their footers merge into `cont`
+    and their checkbox state feeds the pinned set, so every decay/reference rule
+    applies to them unchanged — only the storage location moved (merge-scale)."""
+    tdir = os.path.join(mem, "open-threads")
+    if not os.path.isdir(tdir):
+        return []
+    return [
+        (os.path.basename(f), read_text(f))
+        for f in sorted(glob.glob(os.path.join(tdir, "*.md")))
+    ]
+
+
 def load_repo(root):
-    """Read the memory/ layer. Returns (cont, pinned, arch, extra, sessions, refs)."""
+    """Read the memory/ layer. Returns (cont, pinned, arch, extra, sessions, refs, threads)."""
     mem = os.path.join(root, "memory")
     cont_text = read_text(os.path.join(mem, "continuity.md"))
     cont = parse_footers(cont_text)
     pinned = pinned_open_threads(cont_text)
+
+    threads = load_thread_files(mem)
+    for _, ttext in threads:
+        cont.update(parse_footers(ttext))
+        pinned |= pinned_open_threads(ttext)
 
     archive_text = ""
     for f in glob.glob(os.path.join(mem, "archive", "*.md")):
@@ -168,7 +188,7 @@ def load_repo(root):
 
     sessions = sorted(glob.glob(os.path.join(mem, "sessions", "*.md")))
     refs = [memref_ids(read_text(s)) for s in sessions]
-    return cont, pinned, arch, extra, sessions, refs
+    return cont, pinned, arch, extra, sessions, refs, threads
 
 
 def make_sslu(refs):
@@ -264,7 +284,10 @@ def check_conflict_markers(root):
     out = []
     mem = os.path.join(root, "memory")
     marker = re.compile(r"^(<{7}|>{7}|\|{7})(\s|$)")
-    for path in sorted(glob.glob(os.path.join(mem, "*.md"))):
+    live = sorted(glob.glob(os.path.join(mem, "*.md"))) + sorted(
+        glob.glob(os.path.join(mem, "open-threads", "*.md"))  # thread files are live truth too (v4.39.0)
+    )
+    for path in live:
         for i, line in enumerate(read_text(path).splitlines(), 1):
             if marker.match(line):
                 rel = os.path.relpath(path, root)
@@ -273,6 +296,88 @@ def check_conflict_markers(root):
                     "— resolve it before committing"
                 )
                 break  # one report per file is enough
+    return out
+
+
+def check_thread_files(threads):
+    # (12) the thread-file contract (v4.39.0): memory/open-threads/ holds ONE Open Thread
+    # per file, named thread-<id>.md after its footer id. Filename = identity is what makes
+    # concurrent thread work merge-free (parallel branches touch different files), so drift
+    # here is an ERROR, not style: a wrong name or a second block re-creates the shared-file
+    # conflict surface this layout exists to remove.
+    out = []
+    for name, text in threads:
+        rel = f"memory/open-threads/{name}"
+        footers = FOOTER_RE.findall(text)
+        if not footers:
+            out.append(f"[thread-file] {rel} has no fact footer — a thread file carries exactly one `<!-- id: … -->`")
+            continue
+        if len(footers) > 1:
+            out.append(f"[thread-file] {rel} holds {len(footers)} footers — one thread per file; split it")
+            continue
+        fid = footers[0][0]
+        expect = f"thread-{fid}.md"
+        if name != expect:
+            out.append(f"[thread-file] {rel} should be named {expect} (filename = the footer id)")
+        first = next((ln for ln in text.splitlines() if ln.strip()), "")
+        if not first.startswith(("- [ ]", "- [x]", "- [X]")):
+            out.append(f"[thread-file] {rel} does not start with a `- [ ]`/`- [x]` bullet — file content is exactly the thread block")
+    return out
+
+
+def check_duplicate_ids(cont_text, threads):
+    # (13) an id exists exactly ONCE across the live layer (continuity + thread files).
+    # Two live footers with one id is the silent-fork shape a same-id creation collision
+    # on parallel branches (or a bad hand-merge) produces — [both] covers live-vs-archive,
+    # this covers live-vs-live. Without it, parse_footers' id-keyed map hides the twin.
+    where = {}
+    surfaces = [("memory/continuity.md", cont_text)] + [
+        (f"memory/open-threads/{n}", txt) for n, txt in threads
+    ]
+    for src, text in surfaces:
+        for m in FOOTER_RE.finditer(text):
+            where.setdefault(m.group(1), []).append(src)
+    return [
+        f"[duplicate-id] {fid} has {len(srcs)} footers across the live layer "
+        f"({', '.join(srcs)}) — an id exists exactly once; merge the copies or re-id one"
+        for fid, srcs in sorted(where.items())
+        if len(srcs) > 1
+    ]
+
+
+def check_duplicate_state_keys(root):
+    # (14) `## Project State` holds SCALARS — one value each, latest wins. This is the
+    # backstop for a union-style hand merge that kept both sides of a bumped scalar, or a
+    # hand-edited header. Deliberately scoped to `## Project State`: a repeated key anywhere
+    # else is a bullet, not a scalar, and repetition there is legitimate.
+    # (Absorbed from PR #27 — credit: Roland Heusser.)
+    out = []
+    path = os.path.join(root, "memory", "continuity.md")
+    if not os.path.isfile(path):
+        return out
+    in_state = False
+    seen = {}
+    key_re = re.compile(r"^-\s+\*\*([a-z_]+):\*\*")
+    for i, line in enumerate(read_text(path).splitlines(), 1):
+        if line.startswith("## "):
+            if in_state:
+                break
+            in_state = line.strip() == "## Project State"
+            continue
+        if not in_state:
+            continue
+        m = key_re.match(line)
+        if not m:
+            continue
+        key = m.group(1)
+        if key in seen:
+            out.append(
+                f"[duplicate-state-key] memory/continuity.md:{i} '{key}' is set twice "
+                f"(also line {seen[key]}) — Project State fields are scalars. Usually a union "
+                f"merge keeping both sides: delete the stale line, keeping the later value."
+            )
+        else:
+            seen[key] = i
     return out
 
 
@@ -416,10 +521,13 @@ def closed_narrative_lines(cont_text):
     return count
 
 
-def check_closed_thread_bloat(cont_text, cap):
+def check_closed_thread_bloat(cont_text, cap, threads=()):
     # (11) advisory: completed threads should wait out archive_window as terse
     # stubs (3–6 lines), not full ship narratives — REVIEW.md condenses them.
-    n = closed_narrative_lines(cont_text)
+    # Measured across every live surface: continuity + the thread files (v4.39.0).
+    n = closed_narrative_lines(cont_text) + sum(
+        closed_narrative_lines(txt) for _, txt in threads
+    )
     if n <= cap:
         return []
     return [
@@ -633,6 +741,7 @@ def check_secret_material(root):
     mem = os.path.join(root, "memory")
     files = (
         sorted(glob.glob(os.path.join(mem, "*.md")))
+        + sorted(glob.glob(os.path.join(mem, "open-threads", "*.md")))
         + sorted(glob.glob(os.path.join(mem, "sessions", "*.md")))
         + sorted(glob.glob(os.path.join(mem, "archive", "*.md")))
     )
@@ -658,7 +767,7 @@ def scan_secret_files(paths):
 
 def report(cont, arch, sessions, acw, aw, warns, errors, strict):
     print(
-        f"memory-lint: {len(cont)} continuity facts, {len(arch)} archived, "
+        f"memory-lint: {len(cont)} live facts (continuity + open-threads), {len(arch)} archived, "
         f"{len(sessions)} sessions; windows active={acw} archive={aw}"
     )
     for line in warns:
@@ -693,19 +802,21 @@ def main():
         print("memory-lint: could not find memory/continuity.md", file=sys.stderr)
         return 2
 
-    cont, pinned, arch, extra, sessions, refs = load_repo(root)
+    cont, pinned, arch, extra, sessions, refs, threads = load_repo(root)
     w = load_windows(root)
     aw, acw = w["archive_window"], w["active_window"]
     sslu = make_sslu(refs)
 
     cont_text = read_text(os.path.join(root, "memory", "continuity.md"))
     cont_lines = len(cont_text.splitlines())
-
     errors = (
         check_duplicates(cont, arch)
         + check_over_archived(arch, sslu, aw)
         + check_version_manifest(root)
         + check_conflict_markers(root)
+        + check_thread_files(threads)
+        + check_duplicate_ids(cont_text, threads)
+        + check_duplicate_state_keys(root)
     )
     stems = [os.path.basename(s)[:-3] for s in sessions]
     overdue = check_overdue(cont, pinned, sslu, aw)
@@ -721,7 +832,7 @@ def main():
             w["review_every"], w["continuity_max_facts"], w["continuity_max_lines"],
             pinned, archivable,
         )
-        + check_closed_thread_bloat(cont_text, w["closed_narrative_max_lines"])
+        + check_closed_thread_bloat(cont_text, w["closed_narrative_max_lines"], threads)
         + check_stale_metadata(cont, pinned, refs, stems, w["working_window"], acw, aw)
         + check_secret_material(root)
     )

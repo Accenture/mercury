@@ -25,9 +25,13 @@ Before responding or doing substantive work:
    skill adapters and activates the committed hook dispatchers. Git cannot activate hooks
    on clone.
 3. **Read, in order:** `memory/instructions.md`, `memory/continuity.md`,
-   `memory/vision.md`, then the newest 2–3 files in `memory/sessions/`.
-4. **Honor multi-agent continuity.** Read `last_session` in `continuity.md`; when it names
-   another agent family, read that named session log in full before proceeding.
+   `memory/vision.md`, then list `memory/open-threads/` and read the unchecked (`- [ ]`)
+   thread files (one thread per file — the live workstreams), then the newest 2–3 files
+   in `memory/sessions/`.
+4. **Honor multi-agent continuity.** The newest session log *is* the last session — its
+   `**Agent:**` header names the previous agent; when that is another agent family, read
+   that log in full before proceeding. (There is no `last_session` field to consult —
+   it was derivable and merge-hot, dropped in v4.39.0.)
 5. **Retrieve before declaring context absent.** Search `memory/archive/INDEX.md` and
    follow a fact's `origin` when the topic is unfamiliar. Retrieval is lexical and indexed;
    archived facts are never deleted (`DECAY.md` §11).
@@ -116,14 +120,16 @@ usage.
 
 ### Update continuity for a full log
 
-1. Set `last_session` to today's date, agent name, and log stem. Keep `status` a short
-   current-state line, never a version history; history belongs in logs and changelogs.
-   Keep one fact per line; when merging, take the later state of the same fact and keep
-   unrelated facts from both sides.
+1. Keep `status` a short current-state line, never a version history; history belongs in
+   logs and changelogs. Keep one fact per line; when merging, take the later state of the
+   same fact and keep unrelated facts from both sides. (The session log you just wrote is
+   itself the last-session record — there is no `last_session` field to bump.)
 2. Update changed fact substance, not usage metadata. Mark completed Open Threads `[x]`
-   and condense each to a 3–6-line close record — outcome, PR/commit/release refs, one
-   durable lesson, `origin:` pointer; the full narrative belongs in this session's log —
-   then leave them for review to sweep. Add newly surfaced Open Threads.
+   in their `memory/open-threads/thread-<id>.md` files and condense each to a 3–6-line
+   close record — outcome, PR/commit/release refs, one durable lesson, `origin:` pointer;
+   the full narrative belongs in this session's log — then leave the files for review to
+   sweep. Create newly surfaced Open Threads as new `thread-<id>.md` files (filename =
+   the fact id; content = the single bullet block with its footer).
 3. Before adding a fact, check existing and archived facts (`DECAY.md` §10). A new fact gets
    a kebab id and footer: `created`, `tier: working` (or `core` for an invariant),
    `origin: <this session's file>`, `last_used: today`, `uses: 1`. Raise an unchecked `Contradiction:` thread for

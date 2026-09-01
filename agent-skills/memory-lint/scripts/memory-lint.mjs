@@ -150,12 +150,32 @@ function parse_args(args) {
   return { strict, root_arg, scan_files };
 }
 
+export function load_thread_files(mem) {
+  // memory/open-threads/*.md — one Open Thread per file (v4.39.0). Returns
+  // [[basename, text]]; an absent directory (pre-4.39.0 layout) is an empty list.
+  // Thread files are live continuity-domain facts: their footers merge into `cont`
+  // and their checkbox state feeds the pinned set, so every decay/reference rule
+  // applies to them unchanged — only the storage location moved (merge-scale).
+  const tdir = join(mem, "open-threads");
+  if (!existsSync(tdir)) return [];
+  return readdirSync(tdir)
+    .filter((x) => x.endsWith(".md"))
+    .sort(byCodePoint)
+    .map((n) => [n, read_text(join(tdir, n))]);
+}
+
 export function load_repo(root) {
-  // Read the memory/ layer. Returns { cont, pinned, arch, extra, sessions, refs }.
+  // Read the memory/ layer. Returns { cont, pinned, arch, extra, sessions, refs, threads }.
   const mem = join(root, "memory");
   const cont_text = read_text(join(mem, "continuity.md"));
   const cont = parse_footers(cont_text);
   const pinned = pinned_open_threads(cont_text);
+
+  const threads = load_thread_files(mem);
+  for (const [, ttext] of threads) {
+    for (const [k, v] of parse_footers(ttext)) cont.set(k, v);
+    for (const fid of pinned_open_threads(ttext)) pinned.add(fid);
+  }
 
   let archive_text = "";
   const archiveDir = join(mem, "archive");
@@ -183,7 +203,7 @@ export function load_repo(root) {
     ? readdirSync(sessDir).filter((x) => x.endsWith(".md")).sort(byCodePoint)
     : [];
   const refs = sessions.map((s) => memref_ids(read_text(join(sessDir, s))));
-  return { cont, pinned, arch, extra, sessions, refs };
+  return { cont, pinned, arch, extra, sessions, refs, threads };
 }
 
 function make_sslu(refs) {
@@ -278,17 +298,119 @@ export function check_conflict_markers(root) {
   const mem = join(root, "memory");
   const marker = /^(<{7}|>{7}|\|{7})(\s|$)/;
   if (!existsSync(mem)) return out;
-  const files = readdirSync(mem).filter((n) => n.endsWith(".md")).sort(byCodePoint);
-  for (const name of files) {
-    const lines = read_text(join(mem, name)).split("\n");
+  const live = readdirSync(mem).filter((n) => n.endsWith(".md")).sort(byCodePoint)
+    .map((n) => [join(mem, n), `memory/${n}`]);
+  const tdir = join(mem, "open-threads"); // thread files are live truth too (v4.39.0)
+  if (existsSync(tdir)) {
+    for (const n of readdirSync(tdir).filter((x) => x.endsWith(".md")).sort(byCodePoint)) {
+      live.push([join(tdir, n), `memory/open-threads/${n}`]);
+    }
+  }
+  for (const [path, rel] of live) {
+    const lines = read_text(path).split("\n");
     for (let i = 0; i < lines.length; i++) {
       if (marker.test(lines[i])) {
         out.push(
-          `[conflict-marker] memory/${name}:${i + 1} unresolved merge-conflict marker ` +
+          `[conflict-marker] ${rel}:${i + 1} unresolved merge-conflict marker ` +
             "— resolve it before committing"
         );
         break; // one report per file is enough
       }
+    }
+  }
+  return out;
+}
+
+export function check_thread_files(threads) {
+  // (12) the thread-file contract (v4.39.0): memory/open-threads/ holds ONE Open Thread
+  // per file, named thread-<id>.md after its footer id. Filename = identity is what makes
+  // concurrent thread work merge-free (parallel branches touch different files), so drift
+  // here is an ERROR, not style: a wrong name or a second block re-creates the shared-file
+  // conflict surface this layout exists to remove.
+  const out = [];
+  for (const [name, text] of threads) {
+    const rel = `memory/open-threads/${name}`;
+    const footers = [...text.matchAll(FOOTER_RE)];
+    if (footers.length === 0) {
+      out.push(`[thread-file] ${rel} has no fact footer — a thread file carries exactly one \`<!-- id: … -->\``);
+      continue;
+    }
+    if (footers.length > 1) {
+      out.push(`[thread-file] ${rel} holds ${footers.length} footers — one thread per file; split it`);
+      continue;
+    }
+    const fid = footers[0][1];
+    const expect = `thread-${fid}.md`;
+    if (name !== expect) {
+      out.push(`[thread-file] ${rel} should be named ${expect} (filename = the footer id)`);
+    }
+    const first = text.split(/\r?\n/).find((ln) => ln.trim()) ?? "";
+    if (!first.startsWith("- [ ]") && !first.startsWith("- [x]") && !first.startsWith("- [X]")) {
+      out.push(`[thread-file] ${rel} does not start with a \`- [ ]\`/\`- [x]\` bullet — file content is exactly the thread block`);
+    }
+  }
+  return out;
+}
+
+export function check_duplicate_ids(cont_text, threads) {
+  // (13) an id exists exactly ONCE across the live layer (continuity + thread files).
+  // Two live footers with one id is the silent-fork shape a same-id creation collision
+  // on parallel branches (or a bad hand-merge) produces — [both] covers live-vs-archive,
+  // this covers live-vs-live. Without it, parse_footers' id-keyed map hides the twin.
+  const where = new Map();
+  const surfaces = [["memory/continuity.md", cont_text]];
+  for (const [n, txt] of threads) surfaces.push([`memory/open-threads/${n}`, txt]);
+  for (const [src, text] of surfaces) {
+    for (const m of text.matchAll(FOOTER_RE)) {
+      if (!where.has(m[1])) where.set(m[1], []);
+      where.get(m[1]).push(src);
+    }
+  }
+  const out = [];
+  for (const fid of [...where.keys()].sort(byCodePoint)) {
+    const srcs = where.get(fid);
+    if (srcs.length > 1) {
+      out.push(
+        `[duplicate-id] ${fid} has ${srcs.length} footers across the live layer ` +
+          `(${srcs.join(", ")}) — an id exists exactly once; merge the copies or re-id one`
+      );
+    }
+  }
+  return out;
+}
+
+export function check_duplicate_state_keys(root) {
+  // (14) `## Project State` holds SCALARS — one value each, latest wins. This is the
+  // backstop for a union-style hand merge that kept both sides of a bumped scalar, or a
+  // hand-edited header. Deliberately scoped to `## Project State`: a repeated key anywhere
+  // else is a bullet, not a scalar, and repetition there is legitimate.
+  // (Absorbed from PR #27 — credit: Roland Heusser.)
+  const out = [];
+  const p = join(root, "memory", "continuity.md");
+  if (!existsSync(p) || !statSync(p).isFile()) return out;
+  const keyRe = /^-\s+\*\*([a-z_]+):\*\*/;
+  const lines = read_text(p).split(/\r?\n/);
+  const seen = new Map();
+  let inState = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith("## ")) {
+      if (inState) break;
+      inState = line.trim() === "## Project State";
+      continue;
+    }
+    if (!inState) continue;
+    const m = keyRe.exec(line);
+    if (!m) continue;
+    const key = m[1];
+    if (seen.has(key)) {
+      out.push(
+        `[duplicate-state-key] memory/continuity.md:${i + 1} '${key}' is set twice ` +
+          `(also line ${seen.get(key)}) — Project State fields are scalars. Usually a union ` +
+          `merge keeping both sides: delete the stale line, keeping the later value.`
+      );
+    } else {
+      seen.set(key, i + 1);
     }
   }
   return out;
@@ -431,10 +553,12 @@ export function closed_narrative_lines(cont_text) {
   return count;
 }
 
-export function check_closed_thread_bloat(cont_text, cap) {
+export function check_closed_thread_bloat(cont_text, cap, threads = []) {
   // (11) advisory: completed threads should wait out archive_window as terse
   // stubs (3–6 lines), not full ship narratives — REVIEW.md condenses them.
-  const n = closed_narrative_lines(cont_text);
+  // Measured across every live surface: continuity + the thread files (v4.39.0).
+  let n = closed_narrative_lines(cont_text);
+  for (const [, txt] of threads) n += closed_narrative_lines(txt);
   if (n <= cap) return [];
   return [
     `[closed-thread-bloat] ${n} line(s) of completed [x] thread records > ` +
@@ -574,6 +698,7 @@ export function check_secret_material(root) {
     }
   };
   addDir(mem, "memory/");
+  addDir(join(mem, "open-threads"), "memory/open-threads/");
   addDir(join(mem, "sessions"), "memory/sessions/");
   addDir(join(mem, "archive"), "memory/archive/");
 
@@ -664,7 +789,7 @@ export function scan_secret_files(paths) {
 
 function report({ cont, arch, sessions, acw, aw, warns, errors, strict }) {
   console.log(
-    `memory-lint: ${cont.size} continuity facts, ${arch.size} archived, ` +
+    `memory-lint: ${cont.size} live facts (continuity + open-threads), ${arch.size} archived, ` +
       `${sessions.length} sessions; windows active=${acw} archive=${aw}`
   );
   for (const line of warns) console.log("WARN  " + line);
@@ -701,7 +826,7 @@ export function main(argv) {
     return 2;
   }
 
-  const { cont, pinned, arch, extra, sessions, refs } = load_repo(root);
+  const { cont, pinned, arch, extra, sessions, refs, threads } = load_repo(root);
   const w = load_windows(root);
   const aw = w.archive_window;
   const acw = w.active_window;
@@ -715,6 +840,9 @@ export function main(argv) {
     ...check_over_archived(arch, sslu, aw),
     ...check_version_manifest(root),
     ...check_conflict_markers(root),
+    ...check_thread_files(threads),
+    ...check_duplicate_ids(cont_text, threads),
+    ...check_duplicate_state_keys(root),
   ];
   const stems = sessions.map((s) => s.replace(/\.md$/, ""));
   const overdue = check_overdue(cont, pinned, sslu, aw);
@@ -731,7 +859,7 @@ export function main(argv) {
       cont, sessions, cont_text, cont_lines,
       w.review_every, w.continuity_max_facts, w.continuity_max_lines, pinned, archivable
     ),
-    ...check_closed_thread_bloat(cont_text, w.closed_narrative_max_lines),
+    ...check_closed_thread_bloat(cont_text, w.closed_narrative_max_lines, threads),
     ...check_stale_metadata(cont, pinned, refs, stems, w.working_window, acw, aw),
     ...check_secret_material(root),
   ];

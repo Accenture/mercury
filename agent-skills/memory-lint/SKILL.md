@@ -45,7 +45,15 @@ script, so the riskiest operation is verified against observable evidence.
    node --test          agent-skills/memory-lint/scripts/test_memory_lint.mjs
    ```
 2. It checks, deterministically:
-   - **no id lives in both `continuity.md` and the archive** (a fact exists in exactly one place);
+   - **no id lives in both the live layer and the archive** (a fact exists in exactly one place) —
+     the live layer is `continuity.md` **plus the one-thread-per-file `memory/open-threads/`**
+     directory (v4.39.0), whose facts and checkbox pinning count exactly like continuity's;
+   - **`[thread-file]`** — the thread-file contract: one thread block per file, filename
+     `thread-<id>.md` matching the footer id (filename = the merge-free identity);
+   - **`[duplicate-id]`** — an id must exist exactly once across the live layer; two live
+     footers is the silent-fork shape of a same-id creation collision on parallel branches;
+   - **`[duplicate-state-key]`** — a `## Project State` scalar set twice (a union-style hand
+     merge that kept both sides — absorbed from PR #27, credit: Roland Heusser);
    - **no archived-as-faded fact was referenced within `archive_window` sessions** — the decay-miscount
      guard: if it was, the count was wrong, so **reactivate it**;
    - *advisory* — continuity facts overdue for archival (`sslu > archive_window`), excluding `core`,
@@ -55,7 +63,7 @@ script, so the riskiest operation is verified against observable evidence.
      empty/malformed manifest breaks Mode B upgrade detection (this was a real bug: a truncating stamp
      one-liner emptied it). A *missing* file is the valid pre-versioning baseline and is not flagged.
    - **no leftover merge-conflict markers** (`<<<<<<<` / `>>>>>>>` / diff3 `|||||||`) in the **live
-     top-level `memory/*.md`** files (`continuity.md`, `instructions.md`, `vision.md`, `decay-policy.md`,
+     top-level `memory/*.md`** files plus `memory/open-threads/*.md` (`continuity.md`, `instructions.md`, `vision.md`, `decay-policy.md`,
      `smoke-test.md`) — an unresolved conflict there silently corrupts shared memory the agent reads as
      truth. `sessions/` and `archive/` are **excluded** (immutable/append narrative that legitimately
      *quotes* markers — e.g. a session log pasting a diff). A bare `=======` line is *not* flagged

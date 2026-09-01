@@ -8,7 +8,8 @@ provenance: agent-memory-builtin
 > in place — fork under a new name, or upstream a fix to the agent-memory project (see `SKILLS.md`).
 
 This skill performs **REVIEW.md steps 2–3 (apply events + re-tier)** as a **runnable script**. For every
-fact in `continuity.md` it recomputes `last_used`, `uses`, and `tier` from the `## Memory References` across
+fact in `continuity.md` **and every `memory/open-threads/thread-<id>.md`** (v4.39.0) it recomputes
+`last_used`, `uses`, and `tier` from the `## Memory References` across
 `memory/sessions/`, and writes the footers back. This is the **"full rebuild" path** `REVIEW.md` already
 calls *"deterministic and reproducible by any agent"* — pure arithmetic, no judgment — so it's safe to
 mechanize. **Agents routinely skip this pass** (they archive faded facts but don't re-tier the ones that
@@ -41,7 +42,9 @@ node    agent-skills/refresh-metadata/scripts/refresh-metadata.mjs [--dry-run]
 
 - `--dry-run` — print the footers that *would* change (tier / uses), change nothing. **Preview first.**
 
-It reads `continuity.md` into memory and writes once (truncate-before-read is impossible). For each fact:
+It reads each fact surface (`continuity.md` + the thread files) into memory and writes each once
+(truncate-before-read is impossible); thread files refresh **in place**, so their merge-free
+filenames never churn. For each fact:
 `uses` = number of sessions that reference it; `last_used` = the latest such session's date; `tier` =
 DECAY.md §5 applied to `sessions_since_last_used` (clamped at `archive-candidate`). Idempotent — a second
 run reports "nothing to refresh."

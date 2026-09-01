@@ -22,6 +22,9 @@ import {
   closed_narrative_lines,
   check_closed_thread_bloat,
   load_windows,
+  check_thread_files,
+  check_duplicate_ids,
+  check_duplicate_state_keys,
 } from "./memory-lint.mjs";
 
 // (8) advisory cadence/size triggers (v4.24.0). cont is a Map; cont.size is the fact count.
@@ -896,4 +899,173 @@ test("shipped scripts: prose identifiers stay scanner-neutral", () => {
     }
   }
   assert.deepEqual(offenders, []);
+});
+
+// (12) the thread-file contract (v4.39.0): one Open Thread per file, named after its
+// footer id. Filename = identity is what makes concurrent thread work merge-free.
+const VALID_THREAD = `- [ ] **Ship it.** The plan.
+  <!-- id: ship-it | created: 2026-09-01 | last_used: 2026-09-01 | uses: 1 | tier: working -->
+`;
+
+test("thread-file: valid file passes", () => {
+  assert.deepEqual(check_thread_files([["thread-ship-it.md", VALID_THREAD]]), []);
+});
+
+test("thread-file: misnamed file flagged", () => {
+  const out = check_thread_files([["thread-wrong-name.md", VALID_THREAD]]);
+  assert.equal(out.length, 1);
+  assert.ok(out[0].includes("[thread-file]"));
+  assert.ok(out[0].includes("should be named thread-ship-it.md"));
+});
+
+test("thread-file: missing footer flagged", () => {
+  const out = check_thread_files([["thread-x.md", "- [ ] no footer here\n"]]);
+  assert.equal(out.length, 1);
+  assert.ok(out[0].includes("no fact footer"));
+});
+
+test("thread-file: two footers flagged", () => {
+  const two =
+    VALID_THREAD +
+    "- [ ] second\n  <!-- id: other | created: 2026-09-01 | last_used: 2026-09-01 | uses: 1 | tier: working -->\n";
+  const out = check_thread_files([["thread-ship-it.md", two]]);
+  assert.equal(out.length, 1);
+  assert.ok(out[0].includes("holds 2 footers"));
+});
+
+test("thread-file: non-bullet start flagged", () => {
+  const out = check_thread_files([["thread-ship-it.md", "# A heading instead of the block\n" + VALID_THREAD]]);
+  assert.equal(out.length, 1);
+  assert.ok(out[0].includes("does not start with"));
+});
+
+// (13) an id exists exactly once across the live layer — the backstop for a same-id
+// creation collision on parallel branches (the silent-fork shape).
+test("duplicate-id: unique ids pass", () => {
+  const cont = "- fact\n  <!-- id: a-fact | tier: active -->\n";
+  const threads = [["thread-b-thread.md", "- [ ] t\n  <!-- id: b-thread | tier: working -->\n"]];
+  assert.deepEqual(check_duplicate_ids(cont, threads), []);
+});
+
+test("duplicate-id: continuity + thread file flagged", () => {
+  const cont = "- fact\n  <!-- id: same-id | tier: active -->\n";
+  const threads = [["thread-same-id.md", "- [ ] t\n  <!-- id: same-id | tier: working -->\n"]];
+  const out = check_duplicate_ids(cont, threads);
+  assert.equal(out.length, 1);
+  assert.ok(out[0].includes("[duplicate-id] same-id has 2 footers"));
+  assert.ok(out[0].includes("memory/open-threads/thread-same-id.md"));
+});
+
+test("duplicate-id: two thread files flagged", () => {
+  const threads = [
+    ["thread-same-id.md", "- [ ] t\n  <!-- id: same-id | tier: working -->\n"],
+    ["thread-other.md", "- [ ] t2\n  <!-- id: same-id | tier: working -->\n"],
+  ];
+  const out = check_duplicate_ids("# Continuity\n", threads);
+  assert.equal(out.length, 1);
+  assert.ok(out[0].includes("same-id"));
+});
+
+// (14) Project State fields are scalars — absorbed from PR #27 (Roland Heusser):
+// the backstop for a union-style hand merge that kept both sides of a bumped scalar.
+function stateRoot(cont_text) {
+  const root = mkdtempSync(join(tmpdir(), "memlint-state-"));
+  mkdirSync(join(root, "memory"), { recursive: true });
+  writeFileSync(join(root, "memory", "continuity.md"), cont_text);
+  return root;
+}
+
+test("duplicate-state-key: duplicate scalar flagged with both lines", () => {
+  const root = stateRoot(
+    "# C\n\n## Project State\n\n- **project:** x\n- **last_review:** 2026-08-01\n" +
+      "- **last_review:** 2026-08-20\n\n## Key Decisions\n"
+  );
+  try {
+    const out = check_duplicate_state_keys(root);
+    assert.equal(out.length, 1);
+    assert.ok(out[0].includes("[duplicate-state-key]"));
+    assert.ok(out[0].includes("'last_review' is set twice"));
+    assert.ok(out[0].includes("also line 6"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("duplicate-state-key: repeated key outside Project State ok", () => {
+  const root = stateRoot(
+    "# C\n\n## Project State\n\n- **project:** x\n\n## Key Decisions\n\n" +
+      "- **project:** mention one\n- **project:** mention two\n"
+  );
+  try {
+    assert.deepEqual(check_duplicate_state_keys(root), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("duplicate-state-key: unique scalars ok", () => {
+  const root = stateRoot("# C\n\n## Project State\n\n- **project:** x\n- **status:** y\n");
+  try {
+    assert.deepEqual(check_duplicate_state_keys(root), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// Thread files are live continuity-domain facts: load_repo merges their footers and
+// checkbox pinning; conflict markers and closed-thread bloat see them too.
+function threadLayer() {
+  const root = mkdtempSync(join(tmpdir(), "memlint-threads-"));
+  mkdirSync(join(root, "memory", "sessions"), { recursive: true });
+  mkdirSync(join(root, "memory", "open-threads"), { recursive: true });
+  writeFileSync(join(root, "memory", "continuity.md"), "# Continuity\n\n## Project State\n\n- **project:** t\n");
+  return root;
+}
+
+test("thread layer: load_repo merges thread facts and pins", () => {
+  const root = threadLayer();
+  try {
+    writeFileSync(
+      join(root, "memory", "open-threads", "thread-live-gap.md"),
+      "- [ ] **Gap.** open work\n  <!-- id: live-gap | created: 2026-09-01 | last_used: 2026-09-01 | uses: 1 | tier: working -->\n"
+    );
+    writeFileSync(
+      join(root, "memory", "open-threads", "thread-done-gap.md"),
+      "- [x] **Done.** closed work\n  <!-- id: done-gap | created: 2026-09-01 | last_used: 2026-09-01 | uses: 1 | tier: working -->\n"
+    );
+    const { cont, pinned, threads } = load_repo(root);
+    assert.ok(cont.has("live-gap"));
+    assert.ok(cont.has("done-gap"));
+    assert.ok(pinned.has("live-gap"));    // unchecked -> pinned, never decays
+    assert.ok(!pinned.has("done-gap"));   // checked -> decay-eligible for the sweep
+    assert.equal(threads.length, 2);
+    assert.deepEqual(check_thread_files(threads), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("thread layer: conflict marker in a thread file is an error", () => {
+  const root = threadLayer();
+  try {
+    writeFileSync(
+      join(root, "memory", "open-threads", "thread-t.md"),
+      "- [ ] t\n<<<<<<< HEAD\n  <!-- id: t | tier: working -->\n"
+    );
+    const out = check_conflict_markers(root);
+    assert.equal(out.length, 1);
+    assert.ok(out[0].includes("memory/open-threads/thread-t.md:2"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("thread layer: closed bloat counts thread files", () => {
+  // 4 closed-record lines in continuity + 4 in a thread file > cap 6 -> flagged once.
+  const cont_text = "- [x] closed A\n  line\n  line\n  <!-- id: a | tier: working -->\n";
+  const threads = [["thread-b.md", "- [x] closed B\n  line\n  line\n  <!-- id: b | tier: working -->\n"]];
+  const out = check_closed_thread_bloat(cont_text, 6, threads);
+  assert.equal(out.length, 1);
+  assert.ok(out[0].includes("8 line(s)"));
+  assert.deepEqual(check_closed_thread_bloat(cont_text, 8, threads), []);
 });
