@@ -46,3 +46,20 @@ functions they call use this port's Rust API.
 - REST automation: `docs/guides/rest-automation.md` — a flow binding needs BOTH
   `service: 'http.flow.adapter'` and `flow: '<flow-id>'`
 - Function authoring: `docs/guides/event-driven/ai-agent-guide.md` (the Rust contract)
+
+## Efficient lookup
+
+**For "how do I configure / use X" questions, start with the guide — not the source.**
+The guides served by `ai-contract-provider` (and exported into the `mercury-platform` skill)
+are the version-matched, token-efficient answer surface. A typical configuration question
+costs 3–5× more tokens when answered from source discovery instead of the guide.
+
+Lookup order:
+1. `docs/llms.txt` → find the matching guide page by keyword.
+2. Read the relevant guide section.
+3. Fall back to source only when the guide is genuinely silent on the specific behavior or you
+   need to verify a subtle invariant (exact constant name, safety contract, test-proven edge case).
+
+When source reveals something the guide missed, note the gap and consider raising an issue
+or PR against the upstream OSS project (github.com/Accenture/mercury) — that is how the
+guides improve.
