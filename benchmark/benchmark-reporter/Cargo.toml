@@ -5,13 +5,15 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+# not a library release artifact - never publish to crates.io
+publish = false
 
 [[bin]]
 name = "benchmark-reporter"
 path = "src/main.rs"
 
 [dependencies]
-platform-core = { path = "../../crates/platform-core" }
+mercury-platform-core = { path = "../../crates/platform-core" }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
 async-trait = "0.1"
 log = "0.4"

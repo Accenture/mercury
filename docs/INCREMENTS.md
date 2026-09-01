@@ -2569,3 +2569,19 @@ it), and lane selection is predictable in telemetry. Surfaced by the Java engine
 live agent-orchestration regression run — every sequential stream re-picked `.499`
 off the LIFO stack top — and fixed lock-step on both engines the same day. The
 `lane_checkout_is_lifo` pin became `lane_checkout_rotates_through_the_pool`.
+
+## Increment 96 — crates.io publication metadata: mercury-prefixed package names (2026-09-01)
+
+The seven library crates gained public-registry identities for the first crates.io
+release (v4.12.1): package names are mercury-prefixed (`mercury-platform-core`,
+`mercury-event-script`, `mercury-knowledge-graph`, the three macro crates, and
+`mercury-minigraph-state-redis`) because the registry namespace is global and the
+bare names say nothing about Mercury — all seven were verified free before claiming.
+Each crate pins `[lib] name` to its original snake_case name, so every `use` path and
+all macro-generated code stay byte-identical; only Cargo.toml dependency keys change.
+Internal dependencies carry `version` alongside `path` (a cargo publish requirement),
+application and example members are fenced with `publish = false`, the workspace
+`repository` URL now points at this repository (it pointed at the Java engine's), and
+each crate ships the root README plus keywords/categories for the registry page.
+Publication itself is one `cargo publish --workspace` from the v4.12.1 tag (cargo ≥1.90
+orders the graph and waits for index propagation); the publish act is the maintainer's.

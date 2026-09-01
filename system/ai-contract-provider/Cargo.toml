@@ -5,10 +5,12 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+# not a library release artifact - never publish to crates.io
+publish = false
 
 [dependencies]
-platform-core = { path = "../../crates/platform-core" }
-event-script = { path = "../../crates/event-script" }
+mercury-platform-core = { path = "../../crates/platform-core" }
+mercury-event-script = { path = "../../crates/event-script" }
 async-trait = "0.1"
 serde_json = "1"
 serde_yaml = "0.9"
@@ -19,6 +21,6 @@ log = "0.4"
 # anchor verification only: contract behavior anchors are resolved at compile
 # time by tests (the Java Class.forName analog) - a runtime dependency on the
 # knowledge-graph crate would preload the playground into this app
-knowledge-graph = { path = "../../crates/knowledge-graph" }
+mercury-knowledge-graph = { path = "../../crates/knowledge-graph" }
 rmpv = { version = "1", features = ["with-serde"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util"] }

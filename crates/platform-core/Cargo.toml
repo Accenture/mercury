@@ -1,10 +1,18 @@
 [package]
-name = "platform-core"
+name = "mercury-platform-core"
 description = "Rust port of mercury-composable platform-core — the event-driven foundation layer"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "../../README.md"
+keywords = ["event-driven", "composable", "microservices", "event-bus", "mercury"]
+categories = ["asynchronous", "network-programming"]
+
+# registry name is mercury-prefixed; the lib keeps its code-facing name so
+# every `use platform_core::...` (and macro-generated code) stays unchanged
+[lib]
+name = "platform_core"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -34,7 +42,7 @@ tokio-rustls = { version = "0.26", default-features = false, features = ["ring",
 rustls-native-certs = "0.8"
 # --- increment 10: annotation macros (Java @PreLoad/@BeforeApplication/@MainApplication) ---
 inventory = "0.3"
-platform-macros = { path = "../platform-macros" }
+mercury-platform-macros = { version = "4.12.1", path = "../platform-macros" }
 # --- increment 71: ManagedCache (docs/design/managed-cache-port.md — the Caffeine-lineage
 # engine, wrapped; EvictionPolicy::lru per the maintainer's deterministic-eviction ruling) ---
 moka = { version = "0.12", features = ["sync"] }

@@ -1,17 +1,27 @@
 [package]
-name = "knowledge-graph"
+name = "mercury-knowledge-graph"
+description = "Rust port of mercury-composable's Active Knowledge Graph engine (MiniGraph) — layer 3, graphs that execute behavior via node skills"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "../../README.md"
+keywords = ["knowledge-graph", "workflow", "orchestration", "low-code", "mercury"]
+categories = ["asynchronous"]
+# the webapp/ React SOURCE is build-time only (its built bundle ships in
+# resources/public); keep the registry artifact lean
+exclude = ["webapp/"]
+
+[lib]
+name = "knowledge_graph"
 
 [dependencies]
-platform-core = { path = "../platform-core" }
+mercury-platform-core = { version = "4.12.1", path = "../platform-core" }
 # layer 3 rides layer 2: the data-mapping mini-language (converter, rmpv
 # MultiLevelMap) is shared with event-script, and deployed graphs are
 # exposed through event-script flows
-event-script = { path = "../event-script" }
-knowledge-graph-macros = { path = "../knowledge-graph-macros" }
+mercury-event-script = { version = "4.12.1", path = "../event-script" }
+mercury-knowledge-graph-macros = { version = "4.12.1", path = "../knowledge-graph-macros" }
 async-trait = "0.1"
 log = "0.4"
 rmpv = { version = "1", features = ["with-serde"] }

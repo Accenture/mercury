@@ -13,13 +13,13 @@ dependencies = [
 
 [[package]]
 name = "ai-contract-provider"
-version = "4.12.0"
+version = "4.12.1"
 dependencies = [
  "async-trait",
- "event-script",
- "knowledge-graph",
  "log",
- "platform-core",
+ "mercury-event-script",
+ "mercury-knowledge-graph",
+ "mercury-platform-core",
  "rmpv",
  "serde_json",
  "serde_yaml",
@@ -114,11 +114,11 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "benchmark-reporter"
-version = "4.12.0"
+version = "4.12.1"
 dependencies = [
  "async-trait",
  "log",
- "platform-core",
+ "mercury-platform-core",
  "rmpv",
  "tokio",
 ]
@@ -348,35 +348,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "event-script"
-version = "4.12.0"
-dependencies = [
- "async-trait",
- "base64",
- "chrono",
- "chrono-tz",
- "event-script-macros",
- "iana-time-zone",
- "log",
- "platform-core",
- "rmpv",
- "serde_json",
- "serde_json_path",
- "tokio",
- "trybuild",
- "uuid",
-]
-
-[[package]]
-name = "event-script-macros"
-version = "4.12.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -483,12 +454,12 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "hello-flow"
-version = "4.12.0"
+version = "4.12.1"
 dependencies = [
  "async-trait",
- "event-script",
  "log",
- "platform-core",
+ "mercury-event-script",
+ "mercury-platform-core",
  "rmpv",
  "serde_json",
  "tokio",
@@ -496,11 +467,11 @@ dependencies = [
 
 [[package]]
 name = "hello-world"
-version = "4.12.0"
+version = "4.12.1"
 dependencies = [
  "async-trait",
  "log",
- "platform-core",
+ "mercury-platform-core",
  "rmpv",
  "serde",
  "serde_json",
@@ -751,35 +722,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "knowledge-graph"
-version = "4.12.0"
-dependencies = [
- "async-trait",
- "chrono",
- "event-script",
- "getrandom 0.4.3",
- "knowledge-graph-macros",
- "log",
- "platform-core",
- "rmpv",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "trybuild",
- "uuid",
-]
-
-[[package]]
-name = "knowledge-graph-macros"
-version = "4.12.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -813,28 +755,126 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
-name = "minigraph-playground"
-version = "4.12.0"
+name = "mercury-event-script"
+version = "4.12.1"
 dependencies = [
  "async-trait",
- "event-script",
- "knowledge-graph",
+ "base64",
+ "chrono",
+ "chrono-tz",
+ "iana-time-zone",
  "log",
- "minigraph-state-redis",
- "platform-core",
+ "mercury-event-script-macros",
+ "mercury-platform-core",
+ "rmpv",
+ "serde_json",
+ "serde_json_path",
+ "tokio",
+ "trybuild",
+ "uuid",
+]
+
+[[package]]
+name = "mercury-event-script-macros"
+version = "4.12.1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "mercury-knowledge-graph"
+version = "4.12.1"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "getrandom 0.4.3",
+ "log",
+ "mercury-event-script",
+ "mercury-knowledge-graph-macros",
+ "mercury-platform-core",
+ "rmpv",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "trybuild",
+ "uuid",
+]
+
+[[package]]
+name = "mercury-knowledge-graph-macros"
+version = "4.12.1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "mercury-minigraph-state-redis"
+version = "4.12.1"
+dependencies = [
+ "async-trait",
+ "log",
+ "mercury-platform-core",
+ "redis",
  "rmpv",
  "tokio",
  "uuid",
 ]
 
 [[package]]
-name = "minigraph-state-redis"
-version = "4.12.0"
+name = "mercury-platform-core"
+version = "4.12.1"
+dependencies = [
+ "async-channel",
+ "async-trait",
+ "base64",
+ "futures-util",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "inventory",
+ "log",
+ "mercury-platform-macros",
+ "moka",
+ "rcgen",
+ "rmp-serde",
+ "rmpv",
+ "rustls-native-certs",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-rustls",
+ "tokio-tungstenite",
+ "trybuild",
+ "uuid",
+]
+
+[[package]]
+name = "mercury-platform-macros"
+version = "4.12.1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "minigraph-playground"
+version = "4.12.1"
 dependencies = [
  "async-trait",
  "log",
- "platform-core",
- "redis",
+ "mercury-event-script",
+ "mercury-knowledge-graph",
+ "mercury-minigraph-state-redis",
+ "mercury-platform-core",
  "rmpv",
  "tokio",
  "uuid",
@@ -998,46 +1038,6 @@ name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
-
-[[package]]
-name = "platform-core"
-version = "4.12.0"
-dependencies = [
- "async-channel",
- "async-trait",
- "base64",
- "futures-util",
- "http-body-util",
- "hyper",
- "hyper-util",
- "inventory",
- "log",
- "moka",
- "platform-macros",
- "rcgen",
- "rmp-serde",
- "rmpv",
- "rustls-native-certs",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2",
- "thiserror 1.0.69",
- "tokio",
- "tokio-rustls",
- "tokio-tungstenite",
- "trybuild",
- "uuid",
-]
-
-[[package]]
-name = "platform-macros"
-version = "4.12.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
 
 [[package]]
 name = "portable-atomic"

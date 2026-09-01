@@ -1,12 +1,17 @@
 [package]
-name = "platform-macros"
+name = "mercury-platform-macros"
 description = "Attribute macros emulating mercury-composable's Java annotations (@PreLoad, @BeforeApplication, @MainApplication, @ZeroTracing) for the Rust platform-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "../../README.md"
+keywords = ["proc-macro", "annotations", "composable", "mercury"]
+categories = ["development-tools::procedural-macro-helpers"]
 
 [lib]
+# code-facing name preserved (see platform-core)
+name = "platform_macros"
 proc-macro = true
 
 [dependencies]
