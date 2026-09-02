@@ -2598,3 +2598,21 @@ results, and sleep-padded every command (measured 12 s vs 0.1 s for a 25-command
 The playground test's async hop became the 404 retirement pin. Companion guides
 rewritten around the single endpoint, with the "restart ends the session — export first"
 and "404 means the session is gone" operational warnings from the same feedback.
+
+## Increment 98 — The `json` simple plugin (2026-09-02)
+
+The `f:json(...)` plugin parses JSON text into a live dataset in one data-mapping
+statement — `f:json(text([])) -> my_empty_list` seeds an empty list,
+`f:json(text({"hello": [1, 2, {"nested": "demo"}]}))` builds a nested dataset, and a
+model variable works as the source. Lock-step with the Java engine, and same-day fruit
+of the AI-grammar feedback round: the field agent had no way to create a simple dataset
+without writing a composable function, and the guides' honest "there is no empty-list
+constant" is now retired on both engines. `BUILTIN_PLUGIN_COUNT` 47 → 48; the types.yml
+canonical fixture and the flow-runtime test carry the twin coverage. The error contract
+matches the Java engine ("Input is not JSON: …", "Input must be a JSON in string or
+byte array", "Unable to parse JSON: <reason>" — all 400-class at the flow edge). One
+documented engine difference: serde_json is strict where Gson is lenient (unquoted
+keys, trailing commas) — portable flows use strict JSON. The plugin docs on both
+engines also correct a stale claim: the argument tokenizer splits on top-level commas
+only (commas inside a nested constant are safe), and nested `f:` calls are deliberately
+ignored, not supported.

@@ -13,6 +13,16 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
+### Added
+
+- New `json` simple plugin (lock-step with the Java engine) - `f:json(text([])) ->
+  my_empty_list` parses JSON text (a constant or a model variable) into a live map or
+  list in one data-mapping statement:
+  `f:json(text({"hello": [1, 2, {"nested": "demo"}]})) -> my_nested_dataset`. Closes the
+  field feedback gap where creating a simple dataset required a composable function.
+  Engine difference documented: this parser is strict (no unquoted keys or trailing
+  commas) while the Java engine's is lenient - portable flows use strict JSON.
+
 ### Breaking
 
 - The fire-and-forget AI companion endpoint `POST /api/companion/{id}` is RETIRED

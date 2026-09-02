@@ -1191,6 +1191,25 @@ async fn flows_run_end_to_end_like_java() {
         body.get_element("to_bytestring"),
         Some(Value::from("SGVsbG8="))
     );
+    // --- the json plugin: parse JSON text into a live dataset in one
+    // statement (constants and model variables alike; Java-engine parity)
+    assert_eq!(
+        body.get_element("empty_list"),
+        Some(Value::Array(Vec::new()))
+    );
+    assert_eq!(body.get_element("empty_map"), Some(Value::Map(Vec::new())));
+    assert_eq!(
+        body.get_element("nested_json.hello[0]"),
+        Some(Value::from(1))
+    );
+    assert_eq!(
+        body.get_element("nested_json.hello[2].nested"),
+        Some(Value::from("demo"))
+    );
+    assert_eq!(
+        body.get_element("parsed_from_model[1]"),
+        Some(Value::from(20))
+    );
 
     // --- the setConfig plugin flow (canonical fixture, byte-identical to the
     // Java engine's set-config.yml): task one sets config parameters through

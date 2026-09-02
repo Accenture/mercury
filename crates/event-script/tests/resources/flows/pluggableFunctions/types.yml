@@ -66,6 +66,11 @@ tasks:
       - 'f:now(text(ms)) -> ms'
       - 'f:now(text(iso)) -> iso'
       - 'f:now(text(local)) -> local'
+      - 'f:json(text([])) -> empty_list'
+      - 'f:json(text({})) -> empty_map'
+      - 'f:json(text({"hello": [1, 2, {"nested": "demo"}]})) -> nested_json'
+      - 'text([10, 20, 30]) -> model.json_text'
+      - 'f:json(model.json_text) -> parsed_from_model'
     process: 'no.op'
     output:
       - 'text(application/json) -> output.header.content-type'
