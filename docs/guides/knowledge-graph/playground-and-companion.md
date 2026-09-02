@@ -72,22 +72,29 @@ explicitly. The full rules are in the [command grammar](command-reference.md#ses
 
 The companion endpoints let an HTTP client — a script, a test harness, or an AI agent —
 dispatch a Playground command into an **already-open** session, as if it were typed into the
-console. Two variants:
+console:
 
 | Endpoint | Behavior |
 |---|---|
-| `POST /api/companion/{session-id}/sync` | **Synchronous** — returns the command's outcome in-band as a JSON envelope. The preferred endpoint for AI agents. |
-| `POST /api/companion/{session-id}` | **Fire-and-forget** — returns an immediate `{"status": "accepted", …}` acknowledgment; the outcome streams to the WebSocket console only, so the caller is blind to errors. Kept for compatibility. |
+| `POST /api/companion/{session-id}/sync` | **Synchronous** — returns the command's outcome in-band as a JSON envelope, and tees every output line to the session's WebSocket console. |
 
-Both take `Content-Type: text/plain` with exactly **one** command in the body (multi-line
+It takes `Content-Type: text/plain` with exactly **one** command in the body (multi-line
 commands are one command). Status codes: `200` executed (read the body), `400`
-missing/empty/non-text body, `404` no active session for that id. To read the current model
-of a live session: `GET /api/graph/session/{session-id}`.
+missing/empty/non-text body, `404` no active session for that id — **operationally, a 404
+means the session is gone** (for example, the app was restarted): obtain a fresh session id.
+To read the current model of a live session: `GET /api/graph/session/{session-id}`.
+
+> **Retired:** the fire-and-forget `POST /api/companion/{session-id}` variant (immediate
+> `{"status":"accepted"}`, outcome on the console only — the caller was blind to errors) was
+> **retired in 2026-09, lock-step in both engines**. The bare URL answers 404.
+
+> **Restarting the app ends every session — export first.** The working graph lives in the
+> session, not on disk: `export graph as {name}` before any restart, or unexported work is lost.
 
 !!! note "Rust port"
-    The synchronous `/sync` endpoint originated in this Rust port and has been merged into
-    the Java engine upstream — it is available in **both** engines with a byte-identical
-    REST contract, so companion clients are engine-neutral.
+    The synchronous `/sync` endpoint originated in this Rust port and was merged into the
+    Java engine upstream — available in **both** engines with a byte-identical REST
+    contract, so companion clients are engine-neutral.
 
 ### The `/sync` envelope
 

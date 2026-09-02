@@ -111,64 +111,6 @@ pub async fn get_ws_html(event: EventEnvelope) -> Result<EventEnvelope, AppError
         .set_raw_body(Value::from(html.as_str())))
 }
 
-/// Java `PostCompanionCommand` (`post.companion.command`): the AI-companion
-/// hop — dispatches a text command to the singleton command handler.
-pub async fn post_companion_command(
-    platform: &Platform,
-    event: EventEnvelope,
-) -> Result<EventEnvelope, AppError> {
-    let (path_parameters, body, _) = request_view(&event);
-    let Some(id) = path_parameters.get("id") else {
-        return Err(invalid("Missing path parameter: id"));
-    };
-    let command = match &body {
-        Value::String(text) => text.as_str().unwrap_or_default().trim().to_string(),
-        _ => String::new(),
-    };
-    if command.is_empty() {
-        return Err(invalid("Body must be a non-empty text/plain command"));
-    }
-    if !commands::has_session(id) {
-        return Err(AppError::new(404, format!("No active session for id {id}")));
-    }
-    let route = id.replace('-', ".");
-    let in_route = format!("{route}.in");
-    let out_route = format!("{route}.out");
-    // Same restriction as the sync endpoint: only the read-only `session`
-    // status query is allowed from a companion (see `session_topology_subcommand`).
-    if let Some(sub) = session_topology_subcommand(&command) {
-        let error = refuse_session_topology(platform, &out_route, &command, sub).await;
-        return Err(AppError::new(400, error));
-    }
-    let po = PostOffice::new(platform);
-    let _ = po
-        .send(
-            EventEnvelope::new()
-                .set_to(commands::SINGLETON_COMMAND_HANDLER)
-                .set_raw_body(Value::Map(vec![
-                    (Value::from("type"), Value::from("command")),
-                    (Value::from("in"), Value::from(in_route.as_str())),
-                    (Value::from("out"), Value::from(out_route.as_str())),
-                    (Value::from("message"), Value::from(command.as_str())),
-                ])),
-        )
-        .await;
-    Ok(EventEnvelope::new()
-        .set_header("Content-Type", "application/json")
-        .set_raw_body(Value::Map(vec![
-            (Value::from("type"), Value::from("companion")),
-            (Value::from("status"), Value::from("accepted")),
-            (Value::from("id"), Value::from(id.as_str())),
-            (
-                Value::from("message"),
-                Value::from(
-                    "Command dispatched to graph.command.service. Output streams to the \
-                     WebSocket console for this session.",
-                ),
-            ),
-        ])))
-}
-
 /// Sentinel appended after a synchronous command so the capture route knows the
 /// command's (FIFO) output is fully drained. Not part of the returned output.
 const SYNC_SENTINEL: &str = "__companion_sync_done__";
@@ -311,8 +253,9 @@ fn is_traversal_terminal(line: &str) -> bool {
     line.starts_with("Graph traversal completed in") || line == "Graph traversal aborted"
 }
 
-/// **Synchronous** AI-companion command (design: `draft-design-specs/ai-companion-sync.md`).
-/// Additive sibling of [`post_companion_command`]: dispatches the same command but
+/// **Synchronous** AI-companion command (design: `draft-design-specs/ai-companion-sync.md`)
+/// — THE companion endpoint (its fire-and-forget sibling was retired 2026-09-02, both
+/// engines): dispatches the command and
 /// returns the command's **outcome in-band** — `ok`, the console `output` lines,
 /// the first `error` (if any), and any structured `result` (e.g. a run's
 /// `output.body`) — instead of a fire-and-forget `{status:"accepted"}`. The output

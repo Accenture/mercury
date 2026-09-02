@@ -32,12 +32,7 @@ rest:
     timeout: 10s
     tracing: true
 
-  - service: 'post.companion.command'
-    methods: ['POST']
-    url: '/api/companion/{id}'
-    timeout: 10s
-    tracing: true
-
+  # THE companion endpoint (synchronous; the fire-and-forget sibling was retired 2026-09-02)
   - service: 'post.companion.command.sync'
     methods: ['POST']
     url: '/api/companion/{id}/sync'

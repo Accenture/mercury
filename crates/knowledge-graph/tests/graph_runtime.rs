@@ -1876,44 +1876,10 @@ async fn companion_sync_rejects_session_topology_commands(platform: &Platform) {
         "refusal must be visible on the live console: {teed:?}"
     );
 
-    // 4) the legacy fire-and-forget endpoint enforces the same restriction (400),
-    //    while the read-only `session` status query still dispatches (accepted)
-    async fn legacy_cmd(
-        platform: &Platform,
-        sid: &str,
-        command: &str,
-    ) -> Result<EventEnvelope, AppError> {
-        let event = EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
-            (
-                rmpv::Value::from("parameters"),
-                rmpv::Value::Map(vec![(
-                    rmpv::Value::from("path"),
-                    rmpv::Value::Map(vec![(rmpv::Value::from("id"), rmpv::Value::from(sid))]),
-                )]),
-            ),
-            (rmpv::Value::from("body"), rmpv::Value::from(command)),
-            (rmpv::Value::from("method"), rmpv::Value::from("POST")),
-        ]));
-        knowledge_graph::rest::post_companion_command(platform, event).await
-    }
-    let refused = legacy_cmd(platform, sid, &format!("session subscribe {peer}")).await;
-    match refused {
-        Err(e) => {
-            assert_eq!(e.status(), 400, "legacy endpoint refuses with 400");
-            assert!(
-                e.message()
-                    .contains("not available on the companion endpoint"),
-                "legacy refusal carries the reason: {}",
-                e.message()
-            );
-        }
-        Ok(resp) => panic!("legacy endpoint must refuse session subscribe: {resp:?}"),
-    }
-    let status_ok = legacy_cmd(platform, sid, "session").await;
-    assert!(
-        status_ok.is_ok(),
-        "read-only 'session' stays allowed on the legacy endpoint: {status_ok:?}"
-    );
+    // 4) the fire-and-forget sibling is RETIRED (2026-09-02, lock-step with the
+    //    Java engine): the REST-layer 404 pin lives in tests/playground.rs; there is
+    //    no direct function to call anymore - /sync (tested above) is the only
+    //    companion endpoint.
 }
 
 /// The `/sync` `ok` flag is derived from the console output — and `import

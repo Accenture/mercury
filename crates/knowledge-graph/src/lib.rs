@@ -430,26 +430,11 @@ impl ComposableFunction for GetWsHtml {
     }
 }
 
-/// Java `PostCompanionCommand` (`post.companion.command`) — the AI-companion hop.
-#[preload(route = "post.companion.command", instances = 10)]
-#[optional_service("app.env=dev")]
-pub struct PostCompanionCommand;
-
-#[async_trait]
-impl ComposableFunction for PostCompanionCommand {
-    async fn handle_event(
-        &self,
-        _headers: HashMap<String, String>,
-        input: EventEnvelope,
-        _instance: usize,
-    ) -> Result<EventEnvelope, AppError> {
-        rest::post_companion_command(&Platform::get_instance(), input).await
-    }
-}
-
-/// Synchronous AI-companion command (`post.companion.command.sync`) — returns the
-/// command outcome in-band (design: `draft-design-specs/ai-companion-sync.md`). Additive
-/// sibling of `post.companion.command`; the fire-and-forget hop is unchanged.
+/// Synchronous AI-companion command (`post.companion.command.sync`) — THE companion
+/// endpoint; returns the command outcome in-band (design:
+/// `draft-design-specs/ai-companion-sync.md`). Its fire-and-forget sibling
+/// (`post.companion.command`, which returned only `{status:"accepted"}`) was RETIRED
+/// 2026-09-02 in lock-step with the Java engine — it hid errors from the caller.
 #[preload(route = "post.companion.command.sync", instances = 10)]
 #[optional_service("app.env=dev")]
 pub struct PostCompanionCommandSync;

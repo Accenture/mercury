@@ -188,7 +188,12 @@ graph.model.automation: classpath:/graphs.yaml
 ```
 
 Copy the model into the deployed-graph folder **and list its ID in the manifest**
-(`graphs.yaml`), then restart the app:
+(`graphs.yaml`), then restart the app.
+
+> **Export before you restart.** Restarting ends every Playground session, and the working
+> graph lives in the session — anything not exported with `export graph as {name}` is lost.
+> The export in the previous step is what makes this restart safe.
+
 
 ```bash
 cp /tmp/graph/my-first-graph.json resources/graph/

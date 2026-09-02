@@ -11,6 +11,24 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Unreleased
+
+### Breaking
+
+- The fire-and-forget AI companion endpoint `POST /api/companion/{id}` is RETIRED
+  (lock-step with the Java engine, its ADR-0021) - the bare URL now answers 404. Use the
+  synchronous `POST /api/companion/{id}/sync`, unchanged, which returns the command
+  outcome in-band and tees output to the session console. Driven by a field AI-agent
+  exercise: the async form hid errors and forced sleep-padded drivers.
+
+### Documentation
+
+- AI-grammar feedback round: the companion guides document /sync as the only endpoint;
+  "restart ends the session - export first" and "404 means the session is gone" warnings.
+  (graph.js needed no action here - this port never carried it and its guides already
+  say so; the Java engine formally deprecated it, ADR-0022.)
+
+---
 ## Version 4.12.1, 9/1/2026
 
 The first public-registry release: the seven library crates publish to crates.io
