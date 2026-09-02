@@ -11,7 +11,7 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
-## Unreleased
+## Version 4.12.2, 9/2/2026
 
 ### Added
 
