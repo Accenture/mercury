@@ -230,6 +230,37 @@ pub fn from_json(value: &serde_json::Value) -> Value {
     }
 }
 
+/// Java `TypeConversionUtils.parseJson`: parse JSON text (a string or byte
+/// array) into a live dataset — an object `{...}` becomes a map, an array
+/// `[...]` becomes a list; blank input yields an empty map (lenient by
+/// design); anything else is an error with the Java engine's message.
+///
+/// Engine difference: this parser (serde_json) is strict, while the Java
+/// engine's Gson accepts unquoted keys and trailing commas — portable flows
+/// use strict JSON.
+pub fn parse_json(value: &Value) -> Result<Value, String> {
+    let text = match value {
+        Value::String(s) => String::from_utf8_lossy(s.as_bytes()).to_string(),
+        Value::Binary(b) => String::from_utf8_lossy(b).to_string(),
+        _ => return Err("Input must be a JSON in string or byte array".to_string()),
+    };
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Ok(Value::Map(Vec::new()));
+    }
+    let is_map = trimmed.starts_with('{') && trimmed.ends_with('}');
+    let is_list = trimmed.starts_with('[') && trimmed.ends_with(']');
+    if is_map || is_list {
+        return match serde_json::from_str::<serde_json::Value>(trimmed) {
+            Ok(parsed) => Ok(from_json(&parsed)),
+            // serde errors are single-line with position info, matching the
+            // Java engine's normalized "Unable to parse JSON: <reason>" shape
+            Err(e) => Err(format!("Unable to parse JSON: {e}")),
+        };
+    }
+    Err(format!("Input is not JSON: {text}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -241,6 +272,52 @@ mod tests {
         assert_eq!(display(&Value::from(12.345f64)), "12.345");
         assert_eq!(display(&Value::Boolean(true)), "true");
         assert_eq!(display(&Value::from(42)), "42");
+    }
+
+    #[test]
+    fn parse_json_handles_composite_forms() {
+        // the headline use case: 'f:json(text([])) -> my_empty_list'
+        assert_eq!(parse_json(&Value::from("[]")), Ok(Value::Array(Vec::new())));
+        assert_eq!(parse_json(&Value::from("{}")), Ok(Value::Map(Vec::new())));
+        // nested dataset; whole numbers parse as integers, decimals as doubles
+        let nested =
+            parse_json(&Value::from(r#"{"hello": [1, 2.5, {"nested": "demo"}]}"#)).unwrap();
+        let map = crate::mlm::MultiLevelMap::from_value(nested);
+        assert_eq!(map.get_element("hello[0]"), Some(Value::from(1)));
+        assert_eq!(map.get_element("hello[1]"), Some(Value::F64(2.5)));
+        assert_eq!(
+            map.get_element("hello[2].nested"),
+            Some(Value::from("demo"))
+        );
+        // byte-array input and padded input
+        assert_eq!(
+            parse_json(&Value::Binary(br#"{"a": 1}"#.to_vec())),
+            Ok(Value::Map(vec![(Value::from("a"), Value::from(1))]))
+        );
+        assert_eq!(
+            parse_json(&Value::from("  [\"y\"] ")),
+            Ok(Value::Array(vec![Value::from("y")]))
+        );
+        // blank input yields an empty map instead of aborting the flow
+        assert_eq!(parse_json(&Value::from("   ")), Ok(Value::Map(Vec::new())));
+    }
+
+    #[test]
+    fn parse_json_rejects_bad_input_with_java_parity_messages() {
+        // scalars are not accepted - only the JSON composite forms
+        assert_eq!(
+            parse_json(&Value::from("42")),
+            Err("Input is not JSON: 42".to_string())
+        );
+        let wrong_type = "Input must be a JSON in string or byte array".to_string();
+        assert_eq!(parse_json(&Value::Nil), Err(wrong_type.clone()));
+        assert_eq!(parse_json(&Value::Boolean(true)), Err(wrong_type));
+        // this parser is strict where the Java engine is lenient (unquoted
+        // keys, trailing commas) - portable flows use strict JSON
+        let err = parse_json(&Value::from("{bad: 1}")).unwrap_err();
+        assert!(err.starts_with("Unable to parse JSON: "), "{err}");
+        let err = parse_json(&Value::from("[1, 2,]")).unwrap_err();
+        assert!(err.starts_with("Unable to parse JSON: "), "{err}");
     }
 
     #[test]

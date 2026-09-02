@@ -708,6 +708,14 @@ data mapping statements are the same as:
 - 'result.item2 -> model.items[1]'
 ```
 
+To create a list — or any JSON dataset — in a single statement instead of element by
+element, parse it with the `json` simple plugin (see [Simple Plugins](#simple-plugins)):
+
+```yaml
+- 'f:json(text([])) -> model.my_empty_list'                              # empty list
+- 'f:json(text({"hello": [1, 2, {"nested": "demo"}]})) -> model.data'   # nested dataset
+```
+
 ### JSON Path
 
 If basic retrieval method using the dot-bracket convention does not address your need, you may use
@@ -1381,9 +1389,12 @@ A plugin function can be configured in the left-hand-side of an input/output dat
 `f:` prefix with your plugin name. i.e. `f:pluginName(variables...)`
 
 A plugin can access variables in the `model.`, `input.`, `output.` namespaces. You may also use constants such as
-`text(value)`, `int(value)`. For constant text value, it should not contain the comma (`,`) character because comma
-is used as a separator for the plugin's argument variables. If comma must be used in a text constant, set the
-constant as a model variable and apply the model variable as an argument to a plugin.
+`text(value)`, `int(value)`. The argument tokenizer splits on **top-level commas only**, so a comma inside a
+nested constant is safe — e.g. `f:json(text({"a": 1, "b": 2}))` passes the whole JSON as one argument. One
+caution: an *unbalanced* close-parenthesis inside a text constant can confuse the splitter; if your text needs
+one, set the value in a model variable first and pass the model variable as the argument. Nested plugin calls
+(an `f:` expression as another plugin's argument) are not supported — the engine deliberately ignores them to
+prevent execution loops.
 
 For model, input and output variables, you may also use JSON-Path syntax to extract value as argument to a plugin.
 
@@ -1450,6 +1461,7 @@ For example:
 | **Type Conversion** | int             | A list of variables that can evaluate to an integer                                                                   |
 | **Type Conversion** | long            | A list of variables that can evaluate to a long integer                                                               |
 | **Type Conversion** | text            | A list of variables that can evaluate to a String                                                                     |
+| **Type Conversion** | json            | A single JSON text (String or byte array) — an object `{...}` becomes a map, an array `[...]` becomes a list. See details below. |
 | **Type Conversion** | listOfMap       | Convert "a map of lists" to "a list of maps" — **order-preserving**: list order follows array index order (guaranteed) |
 | **Type Conversion** | updateListOfMap | Update "a list of maps" with "maps of lists"                                                                          |
 | **Type Conversion** | removeKey       | Remove one or more keys from a map or "list of maps". Syntax: `f:removeKey(source, text(key1), text(key2), …)` — see the worked example below. |
@@ -1533,6 +1545,36 @@ throwing an validation error. For example,
 - f:validate(input.body.id, text(id; String; evaluate))
 
 Please note that the validation rule uses semicolon as separator because comma is used for tokenization.
+
+*JSON parsing plugin*
+
+The 'json' plugin parses JSON text into a live dataset in one data mapping statement —
+an object `{...}` becomes a map, an array `[...]` becomes a list. The input can be a text
+constant, a model variable, or any mapping source holding a JSON string or byte array.
+
+- f:json(text([])) -> model.my_empty_list
+- f:json(text({"hello": [1, 2, {"nested": "demo"}]})) -> model.my_nested_dataset
+- f:json(model.raw_json_text) -> model.parsed
+
+This makes simple dataset creation a one-liner — e.g. seeding an empty list before
+building it up with append-mode (`[]`) mapping rules — without writing a composable
+function for it.
+
+Behavior notes:
+
+1. Only the JSON composite forms are accepted. A scalar such as `42` or `hello` throws
+   "Input is not JSON" — the scalar constants (`text`, `int`, `long`, `float`, `double`,
+   `boolean`) already cover those.
+2. Whole numbers parse as integers and decimals as doubles.
+3. Blank input returns an empty map instead of aborting the flow.
+4. **This engine's parser is strict** — unquoted keys and trailing commas are rejected.
+   (The Java engine's parser is lenient and accepts both.) Portable flows use strict JSON.
+5. Malformed JSON throws "Unable to parse JSON: (reason)"; a null or non-text input
+   throws "Input must be a JSON in string or byte array". Both abort the task as a user
+   error (HTTP 400 at the flow edge).
+6. `{model.key}` and `[model.index]` references inside the JSON text are resolved as
+   runtime substitutions *before* parsing — useful for composing dynamic JSON; be aware
+   of it if your JSON legitimately contains such text.
 
 *Configuration override plugin*
 

@@ -41,14 +41,14 @@ use rmpv::Value;
 
 use crate::conversions::{
     convert_boolean, convert_double, convert_float, convert_integer, convert_long, get_b64,
-    get_binary_value, get_length, get_text_value,
+    get_binary_value, get_length, get_text_value, parse_json,
 };
 use crate::plugins_e8::value_type_name;
 
 /// The number of built-in `#[simple_plugin]` declarations the engine itself
 /// ships (this module + `plugins_e8`) — the startup floor the
 /// `SimplePluginLoader` asserts against linker elision.
-pub const BUILTIN_PLUGIN_COUNT: usize = 47;
+pub const BUILTIN_PLUGIN_COUNT: usize = 48;
 
 /// A plugin body (Java `PluginFunction.calculate`): evaluated argument values
 /// in, one value out; a descriptive error is the Java
@@ -71,8 +71,9 @@ platform_core::inventory::collect!(SimplePluginEntry);
 fn registry() -> &'static RwLock<HashMap<String, Registration>> {
     static PLUGINS: OnceLock<RwLock<HashMap<String, Registration>>> = OnceLock::new();
     PLUGINS.get_or_init(|| {
-        // Fold the link-time inventory exactly once. The engine's own 46
-        // built-ins are #[simple_plugin] declarations (the engine dogfoods
+        // Fold the link-time inventory exactly once. The engine's own
+        // built-ins (BUILTIN_PLUGIN_COUNT of them) are #[simple_plugin]
+        // declarations (the engine dogfoods
         // its extension point, like Java's @SimplePlugin classes under
         // com.accenture.services.plugins), collected together with user
         // plugins. A duplicate name warns + last-wins (the one conflict
@@ -207,6 +208,17 @@ fn plugin_binary(args: &[Value]) -> Result<Value, String> {
 #[simple_plugin("b64")]
 fn plugin_b64(args: &[Value]) -> Result<Value, String> {
     one_or_list(args, "Base64 conversion", get_b64)
+}
+
+#[simple_plugin("json")]
+fn plugin_json(args: &[Value]) -> Result<Value, String> {
+    // Java ParseJson: exactly one argument - JSON text as a string or byte
+    // array (a Nil argument - an absent model variable or a nested plugin -
+    // falls through to parse_json's own descriptive error)
+    match args {
+        [one] => parse_json(one),
+        _ => Err("Input must be a JSON in string or byte array".to_string()),
+    }
 }
 
 #[simple_plugin("uuid")]
