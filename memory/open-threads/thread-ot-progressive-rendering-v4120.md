@@ -10,4 +10,4 @@
   is unconditional — the Java twin's raw-EventEmitter demo did); /api/event serves
   local routes only by design (loop guard = the x-event-api marker, Eric ratified).
   origin: 2026-08-30-050502.
-  <!-- id: ot-progressive-rendering-v4120 | created: 2026-08-30 | last_used: 2026-08-30 | uses: 2 | tier: active | origin: 2026-08-30-050502 -->
+  <!-- id: ot-progressive-rendering-v4120 | created: 2026-08-30 | last_used: 2026-08-30 | uses: 2 | tier: archive-candidate | origin: 2026-08-30-050502 -->

@@ -56,3 +56,20 @@
 - thread-typed-async-http-request — (2026-07-26; MERGED same day as PR — faded — 2026-Q3.md
 - ot-managedcache-port — (backlog — DELIVERED 2026-07-28: increment 71 MERGED as PR — faded — 2026-Q3.md
 - ot-harvest-mercury-composable — (knowledge-harvest — CLOSED 2026-07-27 by Eric's ruling: per-layer harvest COMPLETE; — faded — 2026-Q3.md
+- conv-suspend-resume-regression-critical — Suspend/resume is CORE functionality for a few field installations — this surface — faded — 2026-Q3.md
+- conv-java-helper-servers-for-rust-tests — The Java repo's helper servers are the standard local test servers for Rust ports — faded — 2026-Q3.md
+- thread-dry-run-graph-scope-fix-rust — (fix — MERGED 2026-08-11 as mercury PR #204, merge `f5256ecc` carrying `8fc45b94` — faded — 2026-Q3.md
+- thread-dynamic-statement-targets-rust — (feature+fix — MERGED 2026-08-10 as mercury PR #201, merge `354c1134` carrying — faded — 2026-Q3.md
+- thread-graph-scoped-state-and-error-context-rust — (feature — MERGED 2026-08-10 as mercury PR #200, merge `283d41e2` carrying — faded — 2026-Q3.md
+- thread-graph-suspend-resume-p5 — (feature — 2026-07-29; MERGED 2026-07-30 as — faded — 2026-Q3.md
+- thread-graph-task-model-staging-rust — (lock-step — MERGED 2026-08-08 as mercury PR #197, merge `79212bc0` carrying — faded — 2026-Q3.md
+- thread-release-4-11-0 — (release — 2026-07-30; TAGGED, then RE-TAGGED pre-publication (Eric's ruling: — faded — 2026-Q3.md
+- thread-release-4-11-4-rust — (release — SHIPPED AND PUBLISHED 2026-08-08, lock-step with the Java engine — faded — 2026-Q3.md
+- thread-release-4-11-6-rust — (release — SHIPPED AND PUBLISHED 2026-08-10, both repos in lock-step at — faded — 2026-Q3.md
+- thread-release-4-11-8-rust — (release — SHIPPED AND PUBLISHED 2026-08-10 local / 2026-08-11 UTC, both repos in — faded — 2026-Q3.md
+- thread-release-4-11-9-rust — (release — SHIPPED AND PUBLISHED 2026-08-11, both repos in lock-step at v4.11.9; cut — faded — 2026-Q3.md
+- thread-suspend-resume-rationalization-rust — (lock-step — MERGED 2026-08-08 as mercury PR #195, merge `4e6bdf43` carrying — faded — 2026-Q3.md
+- thread-untitled-dry-run-identity-rust — (fix — MERGED 2026-08-11 as mercury PR #206, merge `3bdcd3b3` carrying `a901b1b7` — faded — 2026-Q3.md
+- thread-ai-contract-provider-port — (feature) `system/ai-contract-provider` — lock-step port of the Java AI discovery — faded — 2026-Q3.md
+- thread-release-4-11-10 — (release — SHIPPED AND PUBLISHED 2026-08-21 local, both repos in lock-step at — faded — 2026-Q3.md
+- thread-set-config-plugin — (feature) Event Script `f:setConfig` simple plugin (lock-step; Java PR #289). — faded — 2026-Q3.md

@@ -15,8 +15,8 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.12.2** (2026-09-02: the async-companion retirement + `json` plugin twin field release, Increment 98; all seven mercury-* crates live on crates.io at 4.12.2 (2026-09-02, one uninterrupted publish chain). v4.12.1 was the FIRST crates.io publication, 2026-09-01: seven mercury-prefixed crates with lib names unchanged; v4.12.0 was the progressive-rendering milestone 2026-08-30; version tracks the Java line, contents by design; the python/node packs stay at 4.12.1 this round - no wrapper changes). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `draft-design-specs/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-08-14 | through 2026-08-14-005444.md
-- **last_invariant_check:** 2026-07-26 | 2026-07-26-014908.md (all five never-decay facts confirmed against live code — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, and the Vision; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
+- **last_review:** 2026-09-02 | through 2026-09-02-182719.md
+- **last_invariant_check:** 2026-09-02 | 2026-09-02-184248.md (prompt raised — thread-reverify-invariants-20260902 lists the four never-decay facts + the Vision for Eric's re-confirmation; two core-tier drifts restored. Prior full walkthrough: 2026-07-26 | 2026-07-26-014908.md (all five never-decay facts confirmed against live code — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, and the Vision; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
 
@@ -83,31 +83,10 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Rust layer by layer, foundation → UI (platform-core, then event-script, then active
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
-  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-30 | uses: 104 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-30 | uses: 104 | tier: core | origin: 2026-07-15-215538.md -->
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
-
-- **Suspend/resume is CORE functionality for a few field installations — this surface
-  is regression-critical on BOTH engines (Eric, 2026-07-30, at the v4.11.0 publication).**
-  Operating rule: behavior changes to the suspend/resume surface (the two skills, the
-  walkers' suspension routing, the store contract, the reserved keys/normalization, the
-  gate's suspend rules, reply shapes and presentation) get RELEASE-LEVEL care — regression
-  suites on both engines, cross-engine interop verification when the wire contract is
-  touched, and lock-step shipping. The permanent baseline is the interop report
-  (docs/test-reports/suspend-resume-interop.md) + the twin test suites.
-  <!-- id: conv-suspend-resume-regression-critical | created: 2026-07-30 | last_used: 2026-08-01 | uses: 2 | tier: archive-candidate | origin: 2026-07-30-181400.md -->
-
-- **The Java repo's helper servers are the standard local test servers for Rust ports
-  (Eric, 2026-07-30).** `helpers/redis-standalone` for the suspend/resume arc;
-  `kafka-standalone` + the schema-registry-mock when minimalist-kafka is ported. WHY:
-  the helpers embed REAL redis/kafka servers behind a plain `java -jar`, motivated by
-  field reality — many developer machines are Windows, especially VDI environments with
-  no virtualization system, so Docker is unavailable; a jar works everywhere. Tier: unit
-  tests may use fast hermetic in-process doubles (e.g. the RESP2 test double — the
-  double stands in for the SERVER, never the client); the helper is the
-  integration/live-drive tier.
-  <!-- id: conv-java-helper-servers-for-rust-tests | created: 2026-07-30 | last_used: 2026-07-30 | uses: 4 | tier: archive-candidate | origin: 2026-07-30-015038.md -->
 
 - **`cargo fmt` + `cargo clippy --all-targets` clean** is part of "done" for every change
   (default settings, no custom rustfmt.toml yet).
@@ -132,7 +111,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-26: "ok with the tests/ui without license headers"): a header shifts every
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
-  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-08-30 | uses: 111 | tier: active | origin: 2026-07-15-224707.md -->
+  <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-09-02 | uses: 113 | tier: core | origin: 2026-07-15-224707.md -->
 
 ## Open Threads
 

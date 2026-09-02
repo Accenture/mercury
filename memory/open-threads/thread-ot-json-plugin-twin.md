@@ -5,4 +5,4 @@
   difference documented rather than papered over — serde strict vs Gson lenient;
   portable flows use strict JSON (same pattern as the length UTF-16/scalar note).
   origin: 2026-09-02-163225
-  <!-- id: ot-json-plugin-twin | created: 2026-09-02 | last_used: 2026-09-02 | uses: 2 | tier: working | origin: 2026-09-02-163225 -->
+  <!-- id: ot-json-plugin-twin | created: 2026-09-02 | last_used: 2026-09-02 | uses: 3 | tier: active | origin: 2026-09-02-163225 -->
