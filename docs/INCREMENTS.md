@@ -2585,3 +2585,16 @@ application and example members are fenced with `publish = false`, the workspace
 each crate ships the root README plus keywords/categories for the registry page.
 Publication itself is one `cargo publish --workspace` from the v4.12.1 tag (cargo ≥1.90
 orders the graph and waits for index propagation); the publish act is the maintainer's.
+
+## Increment 97 — The companion endpoint is synchronous only (2026-09-02)
+
+The fire-and-forget `POST /api/companion/{id}` hop is retired, lock-step with the Java
+engine (its ADR-0021): the handler and its rest.yaml mappings are removed, so the bare
+URL answers 404 through REST automation; `/sync` — which originated in this port — is
+unchanged and is now the only companion endpoint. Driven by a field AI-agent exercise
+against the Java engine: the guide that title-matched the task documented only the async
+form, and an agent following it was blind to errors, scraped the browser console for
+results, and sleep-padded every command (measured 12 s vs 0.1 s for a 25-command build).
+The playground test's async hop became the 404 retirement pin. Companion guides
+rewritten around the single endpoint, with the "restart ends the session — export first"
+and "404 means the session is gone" operational warnings from the same feedback.

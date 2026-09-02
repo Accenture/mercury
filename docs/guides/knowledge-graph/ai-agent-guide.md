@@ -29,7 +29,6 @@ related:
 |---|---|---|
 | **Execute a deployed graph** | `POST /api/graph/{graph-id}` | Send the request body; get the response. No session. |
 | **Build/edit a graph — AI agents, preferred** | `POST /api/companion/{session-id}/sync` | **Synchronous** — returns the command outcome **in-band** `{ok, output, error, result}`; output is *also* teed to the human's WS console. |
-| **Build/edit a graph — fire-and-forget (legacy)** | `POST /api/companion/{session-id}` | Dispatches the command; outcome streams to the WS console only (HTTP returns just an ack). Kept for Java parity. |
 | **Read the live model** | `GET /api/graph/session/{session-id}` | Returns the current graph as JSON. |
 
 This guide is about the **companion** flow — co-authoring a graph with a human watching the
@@ -69,9 +68,10 @@ can self-correct without a human relaying the console:
 Status codes: `200` executed (read `ok`/`error` in the body); `400` missing/empty/non-text body;
 `404` no active session for that id.
 
-> **Legacy fire-and-forget** (`POST /api/companion/{session-id}`, no `/sync`): returns only
-> `{status:"accepted"}`; the outcome streams to the WS console, not the HTTP response, so the caller
-> is **blind to errors**. Prefer `/sync`.
+> **Retired:** the fire-and-forget `POST /api/companion/{session-id}` (no `/sync`) was removed in
+> 2026-09, lock-step with the Java engine — it returned only `{status:"accepted"}`, leaving the
+> caller **blind to errors**. The bare URL answers 404. There is exactly one companion endpoint:
+> `/sync`.
 
 **Rules of engagement:** one command per POST (multi-line commands are fine — see the grammar);
 the session must already be open (you do not create it); single operator — don't POST while a

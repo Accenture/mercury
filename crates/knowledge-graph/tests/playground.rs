@@ -312,8 +312,8 @@ async fn playground_command_grammar_and_companion() {
     command(&po, in_route, out_route, "export graph as playtest").await;
     assert!(console_has(&lines, "Graph exported"), "export expected");
 
-    // --- the AI-companion REST hop: POST a command, output streams to the
-    // same session console (the field use case)
+    // --- the retired fire-and-forget companion URL answers 404 (retired
+    // 2026-09-02, lock-step with the Java engine): only /sync exists
     lines.lock().expect("console").clear();
     let public_id = "ws-100001-1";
     assert!(
@@ -335,12 +335,11 @@ async fn playground_command_grammar_and_companion() {
         )
         .await
         .expect("companion request");
-    let body = MultiLevelMap::from_value(reply.body().clone());
-    assert_eq!(Some(Value::from("accepted")), body.get_element("status"));
-    tokio::time::sleep(Duration::from_millis(120)).await;
-    assert!(
-        console_has(&lines, "mapper"),
-        "companion command output should reach the console"
+    assert_eq!(
+        404,
+        reply.status(),
+        "the retired async companion URL must answer 404: {:?}",
+        reply.body()
     );
 
     // --- the SYNCHRONOUS companion hop over REST: POST /api/companion/{id}/sync

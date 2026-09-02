@@ -58,14 +58,9 @@ rest:
     timeout: 30s
     tracing: true
 
-  - service: 'post.companion.command'
-    methods: ['POST']
-    url: '/api/companion/{id}'
-    timeout: 30s
-    tracing: true
-
-  # synchronous companion (design/ai-companion-sync.md) — returns the command
-  # outcome in-band {ok, output, error, result}; additive sibling of the above
+  # THE companion endpoint (design/ai-companion-sync.md, synchronous) — returns the
+  # command outcome in-band {ok, output, error, result} and tees every line to the
+  # session console. The fire-and-forget /api/companion/{id} was RETIRED 2026-09-02.
   - service: 'post.companion.command.sync'
     methods: ['POST']
     url: '/api/companion/{id}/sync'
