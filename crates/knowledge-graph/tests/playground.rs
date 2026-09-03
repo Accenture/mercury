@@ -795,3 +795,100 @@ async fn playground_command_grammar_and_companion() {
         "session cleared on close"
     );
 }
+
+/// Open a playground session and return its captured console (the .out route).
+async fn open_console(
+    platform: &Platform,
+    po: &PostOffice,
+    seq: &str,
+) -> (Arc<Mutex<Vec<String>>>, String, String) {
+    let lines: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let in_route = format!("ws.{seq}.1.in");
+    let out_route = format!("ws.{seq}.1.out");
+    platform
+        .register(
+            &out_route,
+            Arc::new(Console {
+                lines: lines.clone(),
+            }),
+            1,
+        )
+        .expect("console route");
+    let _ = po
+        .send(
+            EventEnvelope::new()
+                .set_to(knowledge_graph::commands::ROUTE)
+                .set_raw_body(Value::Map(vec![
+                    (Value::from("type"), Value::from("open")),
+                    (Value::from("in"), Value::from(in_route.as_str())),
+                ])),
+        )
+        .await;
+    tokio::time::sleep(Duration::from_millis(60)).await;
+    (lines, in_route, out_route)
+}
+
+/// The export guard validates the root name only when one is DECLARED: a missing or
+/// blank root name has no identity evidence to contradict the export target, so the
+/// export adopts the target id as the name (exactly like the no-root path already
+/// does). A declared, mismatching name still rejects the overwrite. (Java twin:
+/// CompanionSyncTest.exportAcceptsMissingRootNameAndStillRejectsMismatch)
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn export_name_guard_accepts_missing_and_rejects_mismatch() {
+    let platform = boot().await;
+    let po = PostOffice::new(&platform);
+    let file = std::env::temp_dir()
+        .join(format!("mercury-playground-{}", std::process::id()))
+        .join("export-guard-test.json");
+    let _ = std::fs::remove_file(&file);
+
+    // an unnamed root exports fine when the file does not exist yet
+    let (lines1, in1, out1) = open_console(&platform, &po, "100031").await;
+    command(&po, &in1, &out1, "create node root\nwith type Root").await;
+    command(&po, &in1, &out1, "export graph as export-guard-test").await;
+    assert!(
+        console_has(&lines1, "Graph exported"),
+        "first export expected: {:?}",
+        lines1.lock().expect("console")
+    );
+    assert!(file.exists(), "first export created the file");
+
+    // the friction case: ANOTHER session's unnamed graph re-exports over the
+    // existing file - a missing name must be accepted, not compared as "null"
+    let (lines2, in2, out2) = open_console(&platform, &po, "100032").await;
+    command(&po, &in2, &out2, "create node root\nwith type Root").await;
+    command(&po, &in2, &out2, "export graph as export-guard-test").await;
+    assert!(
+        console_has(&lines2, "Graph exported"),
+        "an unnamed root must be accepted over an existing file: {:?}",
+        lines2.lock().expect("console")
+    );
+    assert!(
+        !console_has(&lines2, "Expect root node name="),
+        "no identity rejection without a declared name"
+    );
+
+    // a DECLARED mismatching name still rejects the overwrite
+    let (lines3, in3, out3) = open_console(&platform, &po, "100033").await;
+    command(
+        &po,
+        &in3,
+        &out3,
+        "create node root\nwith type Root\nwith properties\nname=some-other-graph",
+    )
+    .await;
+    command(&po, &in3, &out3, "export graph as export-guard-test").await;
+    assert!(
+        console_has(
+            &lines3,
+            "Expect root node name=export-guard-test, Actual: some-other-graph"
+        ),
+        "a declared mismatch must still reject the overwrite: {:?}",
+        lines3.lock().expect("console")
+    );
+    assert!(
+        !console_has(&lines3, "Graph exported"),
+        "the mismatching graph must not be exported"
+    );
+    let _ = std::fs::remove_file(&file);
+}

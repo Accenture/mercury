@@ -11,6 +11,18 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Unreleased
+
+### Fixed
+
+- The Playground `export graph` overwrite guard no longer rejects a graph whose root
+  node has no `name` property (it compared "null" against the target filename). The
+  root name is validated only when declared - a declared, mismatching name still
+  rejects the overwrite; a missing or blank name is accepted and the export assigns
+  the target id as the root name, exactly like the no-root path. Lock-step with the
+  Java engine; found by the ai-enabled-repo-demo rehearsal loop.
+
+---
 ## Version 4.12.2, 9/2/2026
 
 ### Added

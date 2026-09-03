@@ -2616,3 +2616,17 @@ keys, trailing commas) — portable flows use strict JSON. The plugin docs on bo
 engines also correct a stale claim: the argument tokenizer splits on top-level commas
 only (commas inside a nested constant are safe), and nested `f:` calls are deliberately
 ignored, not supported.
+
+## Increment 99 — Export guard: identity is validated only when declared (2026-09-02)
+
+The `export graph` overwrite guard compared a missing root `name` as the string "null"
+against the target filename, so an unnamed draft could be exported once but never
+re-exported — exactly the rehearsal loop the ai-enabled-repo-demo runs (its follow-up
+report surfaced the friction). The rule is now coherent across the identity lattice:
+no evidence (no root node, missing or blank name) → the export proceeds and assigns
+the target id as the root name, as the no-root path always did; contradictory evidence
+(a declared, different name) → the overwrite is rejected with the unchanged
+"Expect root node name=..." message. Lock-step with the Java engine (its
+CompanionSyncTest twin); pinned here by
+playground::export_name_guard_accepts_missing_and_rejects_mismatch. The command
+reference documents the rule on both engines.
