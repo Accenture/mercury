@@ -122,6 +122,8 @@ through `/sync` as usual. See `scripts/README.md` in the example.
 
 > **Pre-send checklist**
 > - [ ] The root node is named `root`; the end node is named `end`.
+> - [ ] The root node's properties include `name={graph-id}` and `created={current timestamp}` —
+>       export authorization and content-uniqueness (see the recipe's best practice).
 > - [ ] Node names are **lowercase letters, digits and hyphen** (types: descriptive labels, conventionally Capitalized).
 > - [ ] Each node has **0 or 1** skill (`skill={route}`); the skill's required properties are present
 >       (see the [skill→property matrix](command-reference.md#skill-matrix)).
@@ -151,6 +153,15 @@ A reliable order for building a graph:
    execution are needed for `extension=` targets.
 2. **Create nodes:** `create node root` (type `Root`), the active/skill nodes, and `create node end`
    (type `End`, usually with `graph.data.mapper` to shape `output.body`).
+   **Best practice — give the root node these two properties at creation time:**
+   ```
+   name={graph-id}          # the id you will export/deploy as
+   created={ISO timestamp}  # e.g. 2026-09-03T18:55:00Z — the current time
+   ```
+   `name=` is what authorizes `export graph as {graph-id}` to overwrite an existing file —
+   without it the export is refused (or, in older engines, silently skipped); `created=` makes
+   every build's model content-unique, so a re-export is always recognized as a new graph and
+   always saved. Set both up front and export friction disappears.
 3. **Connect** them so traversal flows root → end, with no orphans.
 4. **Wire the knowledge layer:** whenever the graph has `Dictionary`/`Provider` or data-entity
    nodes, an `Island` (`skill=graph.island`) is **required** — connect
@@ -160,8 +171,15 @@ A reliable order for building a graph:
 5. **Instantiate** with mock input: `instantiate graph` + `{constant} -> input.body.{key}` lines.
 6. **Run and inspect:** `run` (or `execute {node}`), then `inspect output.body`; iterate.
    (`{node}` is a placeholder — you write e.g. `execute fetcher`, `inspect output.body`.)
-7. **Export & deploy:** `export graph as {name}`, deploy the JSON, then call
-   `POST /api/graph/{name}`.
+7. **Export & deploy:** export is file-based — it writes `/tmp/graph/{name}.json`. **Delete any
+   stale file of that name first** (`rm -f /tmp/graph/{name}.json`): an export onto an existing
+   file can report `ok: true` while writing **nothing** (overwriting requires `name={name}` on
+   the root node, and exporting as an already-deployed graph id never writes). Then
+   `export graph as {name}` and **verify the file now exists with fresh content** — never trust
+   the success line alone. (With the root-node `name=`/`created=` best practice from step 2 the
+   export overwrites cleanly; the delete-and-verify here is defense in depth.) Deploy the JSON
+   into your project's `resources/graph/`, list the id in `graphs.yaml`, rebuild, restart, then
+   call `POST /api/graph/{name}`.
 
 ## Worked example {#example}
 
