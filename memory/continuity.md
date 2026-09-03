@@ -84,6 +84,17 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
   <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-30 | uses: 104 | tier: core | origin: 2026-07-15-215538.md -->
+
+- **Playground session broker: an AI agent can HOST a Playground session (2026-09-03, Eric's
+  design, contributed from ai-enabled-repo-demo).**
+  `examples/minigraph-playground/scripts/playground-session-broker.mjs` (zero-dependency,
+  Node ≥ 22, byte-identical to the Java repo's copy) holds a `/ws/graph/playground` session with
+  the UI's welcome/ping handshake, auto-reconnects across app restarts, and exposes a localhost
+  control API (`GET /session`, `POST /start|/stop`). Humans join with `session subscribe <id>` as
+  equal co-authors; the agent drives via companion `/sync`. Smoke-tested against the Java engine;
+  `ws_ui.rs` implements the same handshake — a Rust-side smoke test is still owed. Dev-only.
+  <!-- id: playground-session-broker | created: 2026-09-03 | last_used: 2026-09-03 | uses: 1 | tier: working | origin: 2026-09-03-172834.md -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
