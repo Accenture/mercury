@@ -153,6 +153,10 @@ A reliable order for building a graph:
    execution are needed for `extension=` targets.
 2. **Create nodes:** `create node root` (type `Root`), the active/skill nodes, and `create node end`
    (type `End`, usually with `graph.data.mapper` to shape `output.body`).
+   A mapper can also set the **HTTP response status**: map an int to `output.status`
+   (e.g. `int(400) -> output.status` in a refusal node) — a graph is not limited to
+   `200` + an error flag in the body. A non-2xx status routes through the exception path;
+   see [workflow-suspension.md](workflow-suspension.md) for that pattern.
    **Best practice — give the root node these two properties at creation time:**
    ```
    name={graph-id}          # the id you will export/deploy as
@@ -180,6 +184,10 @@ A reliable order for building a graph:
    export overwrites cleanly; the delete-and-verify here is defense in depth.) Deploy the JSON
    into your project's `resources/graph/`, list the id in `graphs.yaml`, rebuild, restart, then
    call `POST /api/graph/{name}`.
+8. **Dry-running the deployed model in a fresh session:** a Playground session opened after the
+   restart starts **empty** — no root node — even though the graph is deployed. Run
+   `import graph from {name}` first (it falls back to the deployed classpath model, `ok:true`),
+   then `instantiate graph` and `run` as usual.
 
 ## Worked example {#example}
 
