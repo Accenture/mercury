@@ -101,6 +101,25 @@ A decision example (branch on a function result):
 A working end-to-end app lives at `examples/hello-flow/` — two functions, one flow YAML, a
 `rest.yaml` binding, and a decision branch (`lang=fr`).
 
+## Scaffolding a project from the example {#scaffolding}
+
+Start a new Event Script application from `examples/hello-flow` and trim against this manifest:
+
+| File | Role | Trim? |
+|---|---|---|
+| `Cargo.toml` | Build; set your own package name | keep (edit ids) |
+| `resources/application.yml` | App name, `rest.server.port` — use a distinct port for tests | keep (edit values) |
+| `resources/flows.yaml` + `resources/flows/*.yml` | Your flow definitions — list every flow file you ship | replace with yours |
+| `resources/rest.yaml` | Binds URLs to flows via `http.flow.adapter` | replace example routes with yours |
+| `resources/event-over-http.yaml` | Outbound event-over-HTTP targets | drop unless you call another app |
+| `resources/public/` | Static-content demo | drop unless used |
+| `src/main.rs` | App entry point | keep (adapt) |
+
+The minimal `rest.yaml` for a derived project is **one `http.flow.adapter` entry per endpoint**,
+each naming its `flow:` (plus the `cors`/`headers` blocks those entries reference). No
+function-route entries are needed — the flow adapter is the only HTTP boundary, which is exactly
+the point of this layer.
+
 ## See also {#see-also}
 
 - [Event Script flow grammar](flow-grammar.md) + [`event-script-flow.json`](event-script-flow.json) — the source of truth.

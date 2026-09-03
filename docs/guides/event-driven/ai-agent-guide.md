@@ -382,6 +382,24 @@ curl -s -X POST http://127.0.0.1:8100/api/greeting \
 
 ---
 
+## Scaffolding a project from the example {#scaffolding}
+
+Start a new event-driven application from `examples/hello-world` and trim against this manifest —
+every file below is load-bearing unless marked otherwise:
+
+| File | Role | Trim? |
+|---|---|---|
+| `Cargo.toml` | Build; set your own package name | keep (edit ids) |
+| `resources/application.yml` | App name, `rest.server.port` — use a distinct port for tests so a running app never collides | keep (edit values) |
+| `resources/rest.yaml` | Maps URLs to your function routes | replace the example's `hello.*` routes with yours; keep the `cors`/`headers` blocks your routes reference |
+| `resources/event-over-http.yaml` | Outbound event-over-HTTP targets | drop unless you call another app |
+| `resources/public/`, `resources/app-log-context.yaml` | Static-content and log-context demos | drop unless used |
+| `src/main.rs` | App entry point | keep (adapt) |
+
+The minimal `rest.yaml` for a derived project is **just your own endpoints**: one entry per
+URL → function route (plus a health endpoint if you register one). Everything else in the
+example's route list is demonstration.
+
 ## See also {#see-also}
 
 - [Event Script AI agent guide](../event-script/ai-agent-guide.md) — orchestrate this function as a flow task.

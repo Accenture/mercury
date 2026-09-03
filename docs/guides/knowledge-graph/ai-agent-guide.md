@@ -74,12 +74,43 @@ Status codes: `200` executed (read `ok`/`error` in the body); `400` missing/empt
 > `/sync`.
 
 **Rules of engagement:** one command per POST (multi-line commands are fine — see the grammar);
-the session must already be open (you do not create it); single operator — don't POST while a
-human is typing in the same instant; never expose this beyond a trusted dev host.
-**Session topology is off-limits:** a companion is an *assistant to* the session in the URL, not a
-WebSocket session of its own — both companion endpoints reject `session subscribe` /
+the session must already be open (over the companion endpoint you do not create it — but see
+[Hosting the session yourself](#hosting)); take turns — co-editing with humans is the design
+intent, just don't POST in the same instant a human is mid-keystroke; never expose this beyond a
+trusted dev host.
+**Session topology is off-limits over HTTP:** a companion is an *assistant to* the session in the
+URL, not a WebSocket session of its own — the companion endpoint rejects `session subscribe` /
 `session unsubscribe` / `session reset` (the read-only `session` status query is allowed).
 Subscriptions are managed from WebSocket-connected sessions only.
+**Session sync is symmetric:** when sessions are joined by `session subscribe`, **every command
+except the `session` topology commands propagates to the primary and all subscribers alike** —
+AI and humans are equal co-authors of one shared model, and anyone's command (typos included) is
+seen by everyone. It is collaboration, not a one-way broadcast.
+
+## Hosting the session yourself {#hosting}
+
+The flow above borrows a human's browser session. The stronger topology is the inverse: **the
+agent hosts the session and humans subscribe to it.** If a human's tab drops (backgrounded past
+the idle timeout, laptop lid closed), they simply re-subscribe and the current work-in-progress
+graph syncs back to them — nothing lives in anyone's browser.
+
+The WebSocket contract a host needs (identical in the Java and Rust engines):
+
+1. Connect to `ws://{host}/ws/graph/playground`.
+2. On open, send `{"type":"welcome"}`.
+3. The server announces the id as a plain-text frame: `session ws-NNNNNN-N started`.
+4. Keep-alive: send `{"type":"ping","message":"keep alive","time":"..."}` on an interval
+   (the web UI uses 20 s); the server answers `{"type":"pong"}`. Filter ping/pong frames from
+   any console you render.
+5. A restart of the app destroys the session (and any unexported graph — export first);
+   reconnect and parse the **new** id.
+
+You do not need to implement this: the example ships a zero-dependency reference,
+`scripts/playground-session-broker.mjs` (Node ≥ 22). It holds the session, keeps it alive,
+auto-reconnects across app restarts, and exposes a localhost control API (`GET /session`,
+`GET /console`, `POST /start`, `POST /stop`) so the agent reads the session id over HTTP, hands
+it to the humans (`session subscribe {id}` in their browsers), and keeps driving commands
+through `/sync` as usual. See `scripts/README.md` in the example.
 
 ## Generate deterministically {#deterministic}
 
@@ -163,6 +194,47 @@ curl -sS -X POST "http://{host}/api/companion/${SID}/sync" -H 'Content-Type: tex
 Because each response carries `ok`/`error`/`result`, an agent verifies and corrects **itself** — no
 need to relay the WebSocket console. The same lines are still teed to the human's console, so a
 watcher (and any `session subscribe`d session) follows along live.
+
+## Scaffolding a project from the example {#scaffolding}
+
+Start every knowledge-graph project from `examples/minigraph-playground` and trim — **against
+this manifest, not against your build passing** (`cargo test` and `curl` both stay green with
+Playground UI routes missing; only the browser notices).
+
+**Boilerplate manifest** — what a derived project keeps:
+
+| File | Role | Trim? |
+|---|---|---|
+| `Cargo.toml` | Build; set your own package name | keep (edit ids) |
+| `resources/application.yml` | App name, `rest.server.port`, `app.env: dev` for the Playground | keep (edit values) |
+| `resources/rest.yaml` | REST routes | keep — trim **by profile, below** |
+| `resources/graphs.yaml` | The CompileGraph deployment gate — list every graph id you serve, and point `location:` at your own models | replace with yours |
+| Your `resources/graph/*.json` models | Deployed graph models | yours |
+| `src/main.rs` | App entry point | keep (adapt) |
+
+(The `graph-executor` flow binding is engine-provided in the Rust engine — unlike the Java
+template there is no `flows.yaml` to carry over.)
+
+**`rest.yaml` — two named profiles.** The example's route list mixes three kinds of routes;
+know which bar you are building to:
+
+- **Example-specific (always safe to drop):** `mock.mdm.profile`, `mock.account.details` —
+  they belong to the support-triage demo, not the platform.
+- **Profile `headless-minimal`** — enough for CI, `curl`, and an agent-driven dry-run over
+  `/sync`; the Playground **UI will not work**:
+  `http.flow.adapter` (`/api/graph/{graph_id}`), `post.companion.command.sync`
+  (`/api/companion/{id}/sync`), `get.live.graph` (`/api/graph/session/{id}`).
+- **Profile `playground-enabled`** — headless-minimal **plus** the UI plumbing every example
+  ships: `get.index.html`, `get.ws.html` (`/api/ws/{id}`), `show.graph.model`
+  (`/api/graph/model/{graph_id}/{sequence}` — the Graph tab's D3 fetch after
+  `describe graph`/`export graph`), `upload.json.content` (`/api/json/content/{id}`) and
+  `upload.mock.content` (`/api/mock/{id}`) — the two-step handshake behind the console's
+  `upload` / `upload mock data` commands — and `inspect.state.machine`
+  (`/api/inspect/{id}/{key}`).
+
+If a human will ever open the Playground against your app — and in the
+[hosting topology](#hosting) they will — build to `playground-enabled`. When in doubt, diff your
+trimmed `rest.yaml` against the example's.
 
 ## See also {#see-also}
 
