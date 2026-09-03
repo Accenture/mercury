@@ -794,6 +794,10 @@ async fn playground_command_grammar_and_companion() {
         !knowledge_graph::commands::has_session(public_id),
         "session cleared on close"
     );
+
+    // additional playground cases run sequentially on the same booted server
+    // (a second `#[tokio::test]` would drop this runtime and kill the server)
+    export_name_guard_accepts_missing_and_rejects_mismatch(&platform).await;
 }
 
 /// Open a playground session and return its captured console (the .out route).
@@ -833,17 +837,20 @@ async fn open_console(
 /// export adopts the target id as the name (exactly like the no-root path already
 /// does). A declared, mismatching name still rejects the overwrite. (Java twin:
 /// CompanionSyncTest.exportAcceptsMissingRootNameAndStillRejectsMismatch)
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn export_name_guard_accepts_missing_and_rejects_mismatch() {
-    let platform = boot().await;
-    let po = PostOffice::new(&platform);
+///
+/// A plain `async fn` (not a second `#[tokio::test]`): the harness gives each
+/// `#[tokio::test]` its own runtime, which drops and kills the shared HTTP server
+/// task when the first test finishes, so every playground case runs sequentially
+/// inside the single booted test.
+async fn export_name_guard_accepts_missing_and_rejects_mismatch(platform: &Platform) {
+    let po = PostOffice::new(platform);
     let file = std::env::temp_dir()
         .join(format!("mercury-playground-{}", std::process::id()))
         .join("export-guard-test.json");
     let _ = std::fs::remove_file(&file);
 
     // an unnamed root exports fine when the file does not exist yet
-    let (lines1, in1, out1) = open_console(&platform, &po, "100031").await;
+    let (lines1, in1, out1) = open_console(platform, &po, "100031").await;
     command(&po, &in1, &out1, "create node root\nwith type Root").await;
     command(&po, &in1, &out1, "export graph as export-guard-test").await;
     assert!(
@@ -855,7 +862,7 @@ async fn export_name_guard_accepts_missing_and_rejects_mismatch() {
 
     // the friction case: ANOTHER session's unnamed graph re-exports over the
     // existing file - a missing name must be accepted, not compared as "null"
-    let (lines2, in2, out2) = open_console(&platform, &po, "100032").await;
+    let (lines2, in2, out2) = open_console(platform, &po, "100032").await;
     command(&po, &in2, &out2, "create node root\nwith type Root").await;
     command(&po, &in2, &out2, "export graph as export-guard-test").await;
     assert!(
@@ -869,7 +876,7 @@ async fn export_name_guard_accepts_missing_and_rejects_mismatch() {
     );
 
     // a DECLARED mismatching name still rejects the overwrite
-    let (lines3, in3, out3) = open_console(&platform, &po, "100033").await;
+    let (lines3, in3, out3) = open_console(platform, &po, "100033").await;
     command(
         &po,
         &in3,
