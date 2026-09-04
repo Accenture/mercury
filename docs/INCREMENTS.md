@@ -2630,3 +2630,14 @@ the target id as the root name, as the no-root path always did; contradictory ev
 CompanionSyncTest twin); pinned here by
 playground::export_name_guard_accepts_missing_and_rejects_mismatch. The command
 reference documents the rule on both engines.
+
+## Increment 100 — Docs toolchain unpinned to match the Java engine (2026-09-03)
+
+The `mkdocs-material` pin is removed: `docs-requirements.txt` is deleted and the docs
+workflow installs `pip install mkdocs-material` unpinned (the pip cache keyed on the
+requirements file goes with it), exactly like the Java engine's `docs.yml` (the
+reference implementation, which never pinned it). The docs site is a non-shipped
+artifact and both engines now build it against the latest Material theme at CI time;
+Dependabot's pip tracking (enabled via the repo UI, not a committed config) simply has
+nothing to bump. Supersedes the Increment-43 scaffold's pinned-`docs-requirements.txt`
+choice for the toolchain only.
