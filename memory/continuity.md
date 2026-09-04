@@ -161,6 +161,14 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   longer answer it. Full rationale: the 2026-07-15 enable log.
   <!-- id: why-ai-enabled-before-code | created: 2026-09-04 | last_used: 2026-09-04 | uses: 1 | tier: working | origin: 2026-09-04-043850 -->
 
+- **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
+  edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
+  `refresh-metadata`, so an undeclared consultation reads as non-use and decays the fact. In the
+  Java sibling this demoted a 42-use core convention after one log declared `(none)` while
+  reasoning explicitly from it. Rule of thumb: if you would have decided differently without the
+  fact, it is a reference. Twin of `conv-declare-consulted-references` in mercury-composable.
+  <!-- id: conv-declare-consulted-references-rust | created: 2026-09-04 | last_used: 2026-09-04 | uses: 1 | tier: core -->
+
 ## Open Threads
 
 > Open Threads live **one per file** in `memory/open-threads/` (`thread-<id>.md`;
@@ -173,8 +181,20 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 ## User Preferences
 
-(none recorded yet — record ONLY what the user explicitly states; never infer)
+- **Release rhythm (Eric; confirmed for this repo 2026-09-04, in force for many iterations
+  already).** Claude Code prepares every release artifact — branch, version sweep, build and test
+  verification, CHANGELOG, release notes — but never merges, tags, or publishes without Eric's
+  explicit go-ahead for that specific step; **PR-open and tag/publish are each individually
+  gated.** Same rhythm as the Java engine's `eric-release-rhythm`, which the two repos exercise
+  in lock-step at each shared version. Recorded here after the 2026-09-04 smoke test found this
+  section empty while the practice was visible throughout the archive and every recent log —
+  raised to Eric rather than inferred, since this section forbids inferring, and confirmed by him.
+  <!-- id: eric-release-rhythm-rust | created: 2026-09-04 | last_used: 2026-09-04 | uses: 1 | tier: core | note: an operating preference that does not decay in relevance; core so it cannot fade out of the layer as its Java twin nearly did -->
 
 ## Team / Members
 
-(none recorded yet)
+- **Eric Law** — maintainer. Directs commits, gates every merge/tag/publish (see the release
+  rhythm above), and is the human who confirms invariants and the Vision at the
+  `verify_invariants_every` cadence. Rulings recorded through the memory layer are his; the
+  agent never ratifies on his behalf.
+  <!-- id: team-eric-maintainer | created: 2026-09-04 | last_used: 2026-09-04 | uses: 1 | tier: core -->
