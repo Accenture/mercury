@@ -73,3 +73,6 @@
 - thread-ai-contract-provider-port — (feature) `system/ai-contract-provider` — lock-step port of the Java AI discovery — faded — 2026-Q3.md
 - thread-release-4-11-10 — (release — SHIPPED AND PUBLISHED 2026-08-21 local, both repos in lock-step at — faded — 2026-Q3.md
 - thread-set-config-plugin — (feature) Event Script `f:setConfig` simple plugin (lock-step; Java PR #289). — faded — 2026-Q3.md
+- thread-eoh-envelope-streaming-twin — (feature) Event-over-HTTP peer streaming in envelope mode — Java Phase 2 twin; — faded — completed thread not referenced in over archive_window (20) sessions — 2026-Q3.md
+- thread-graph-task-event-over-http — (feature — MERGED 2026-08-22 as — faded — completed thread not referenced in over archive_window (20) sessions — 2026-Q3.md
+- thread-release-4-11-11-rust — (release — SHIPPED and PUBLISHED 2026-08-23 local, lock-step with the Java — faded — completed thread not referenced in over archive_window (20) sessions — 2026-Q3.md
