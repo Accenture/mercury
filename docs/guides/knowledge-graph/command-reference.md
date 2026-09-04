@@ -250,6 +250,11 @@ import graph from {name}
 import node {node} from {name}
 ```
 
+- **Overwriting an existing file** validates the root `name` only when one is declared: a
+  declared name that differs from the export target rejects the overwrite
+  (`Expect root node name=...`) — protecting `graph123.json` from another graph's content —
+  while a **missing or blank root name is accepted**, and the export assigns the target id
+  as the root name (the same self-naming a brand-new export performs).
 - `export` writes JSON to `location.graph.temp`; it adds `name={name}` to the root node and
   **fails if any node is an orphan** (every node must connect to ≥1 other).
 - The export reply includes `Described in /api/graph/model/{name}/{token}` — a read-only HTTP

@@ -1800,19 +1800,27 @@ async fn handle_export(
     let file = temp_dir().join(format!("{filename}.json"));
     let root = match graph.get_root_node() {
         Some(root) => {
-            let name = root.get_property("name").map(|v| display(&v));
-            if name.as_deref() != Some(filename) && file.exists() {
-                say(
-                    po,
-                    out_route,
-                    format!(
-                        "Expect root node name={filename}, Actual: {}\nUpdate root node to \
-                         overwrite existing graph model",
-                        name.unwrap_or_else(|| "null".to_string())
-                    ),
-                )
-                .await;
-                return Ok(());
+            // the guard fires only on a DECLARED, mismatching identity - a missing or
+            // blank root name has no identity evidence to contradict the export target
+            // and adopts the target id below, exactly like the no-root path
+            let declared = root
+                .get_property("name")
+                .filter(|v| !matches!(v, Value::Nil))
+                .map(|v| display(&v).trim().to_string())
+                .filter(|s| !s.is_empty());
+            if let Some(declared) = declared {
+                if declared != filename && file.exists() {
+                    say(
+                        po,
+                        out_route,
+                        format!(
+                            "Expect root node name={filename}, Actual: {declared}\nUpdate root \
+                             node to overwrite existing graph model"
+                        ),
+                    )
+                    .await;
+                    return Ok(());
+                }
             }
             root
         }
