@@ -13,10 +13,10 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java v4.8.6), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.12.2** (2026-09-02: the async-companion retirement + `json` plugin twin field release, Increment 98; all seven mercury-* crates live on crates.io at 4.12.2 (2026-09-02, one uninterrupted publish chain). v4.12.1 was the FIRST crates.io publication, 2026-09-01: seven mercury-prefixed crates with lib names unchanged; v4.12.0 was the progressive-rendering milestone 2026-08-30; version tracks the Java line, contents by design; the python/node packs stay at 4.12.1 this round - no wrapper changes). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `draft-design-specs/`, session logs, and CHANGELOG — not this line.
+- **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.12.2** (2026-09-02: the async-companion retirement + `json` plugin twin field release, Increment 98; all seven mercury-* crates live on crates.io at 4.12.2 (2026-09-02, one uninterrupted publish chain). v4.12.1 was the FIRST crates.io publication, 2026-09-01: seven mercury-prefixed crates with lib names unchanged; v4.12.0 was the progressive-rendering milestone 2026-08-30; version tracks the Java line, contents by design; the python/node packs stay at 4.12.1 this round - no wrapper changes). History/detail lives in `docs/INCREMENTS.md` (increment ledger), `draft-design-specs/`, session logs, and CHANGELOG — not this line.
 - **last_enabled:** 2026-07-15
 - **last_review:** 2026-09-04 | through 2026-09-04-041456.md
-- **last_invariant_check:** 2026-09-02 | 2026-09-02-184705.md (all four never-decay facts + the Vision CONFIRMED by Eric — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, vision-mercury; the review's two core-tier drift restorations re-ratified; thread-reverify-invariants-20260902 closed. Prior walkthrough: 2026-07-26 | 2026-07-26-014908.md (all five never-decay facts confirmed against live code — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, and the Vision; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26)
+- **last_invariant_check:** 2026-09-02 | 2026-09-02-184705.md (all 4 never-decay facts + the Vision (5 ids total) CONFIRMED by Eric — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, vision-mercury; the review's two core-tier drift restorations re-ratified; thread-reverify-invariants-20260902 closed. Prior walkthrough: 2026-07-26 | 2026-07-26-014908.md (all five never-decay facts confirmed against live code — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, and the Vision; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26))
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
 
@@ -43,7 +43,7 @@ detail; built with `EvictionPolicy::lru` per Eric's deterministic-eviction rulin
 `target/`, `**/*.rs.bk`, `*.pdb`; Cargo.lock tracked).
 
 **Canonical source:** `mercury-composable` (Java, `com.accenture.mercury:parent-mercury`
-**v4.8.6**, Java 21, Maven reactor) at `~/sandbox/mercury-composable` (added by the maintainer
+Java 21, Maven reactor) at `~/sandbox/mercury-composable` (added by the maintainer
 2026-07-15, read-only reference). Its `docs/guides/` (architecture, event-envelope-reference,
 api-overview, event-script, knowledge-graph) is the authoritative behavior spec — map, don't
 mirror. Key Java deps to find Rust equivalents for: Vert.x event bus + Java 21 virtual threads
@@ -123,6 +123,43 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-09-02 | uses: 113 | tier: core | origin: 2026-07-15-224707.md -->
+
+## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
+
+> The `(blueprint)` items live one-per-file in `memory/open-threads/` (v4.39.0). This section is
+> the visible Vision link PROTOCOL expects; the threads carry the detail.
+>
+> - `thread-bp-foundation-to-ui` — continue **foundation → user interface** now that the three
+>   core layers stand; reframe into concrete UI-layer increments as they are picked up.
+> - `thread-bp-kafka-connectors-backlog` — port the lightweight cloud-native connectors
+>   (`minimalist-kafka`, `twin-kafka`) + sync-over-async. These are NOT the Kafka service mesh,
+>   which stays out of scope.
+>
+> <!-- restored 2026-09-04 after the smoke test found no Blueprint→Vision link in continuity -->
+
+- **This repo's `docs/llms.txt` is a CURATED agent map, not a full site map (Eric, 2026-09-04) —
+  a deliberate divergence from the Java twin that must not be "corrected" toward parity.** It maps
+  the agent-facing set (the three DSL spec kits + the reference tier); walkthroughs and concept
+  pages stay out, and the human-facing section points at the documentation site. Two consequences:
+  the guard here is **link integrity** (`scripts/check-llms-links.py`, run first in `docs.yml`),
+  NOT the Java repo's coverage check — porting that check would fail on ~20 intentionally omitted
+  pages; and paths resolve from **`docs/`**, not the repo root (the header once claimed otherwise,
+  which silently broke all 22 links). Governing benchmark, Eric's words: **doc discovery and token
+  efficiency** — the map must route to the right page in one hop and stay cheap to read, since the
+  docs are what make Human-AI collaboration work. Measured at adoption: +900 tokens of map routing
+  to ~46k of source-verified reference, against ~515k of `crates/`.
+  <!-- id: conv-llms-txt-curated-map | created: 2026-09-04 | last_used: 2026-09-04 | uses: 1 | tier: working | origin: 2026-09-04-041456 -->
+
+- **The memory layer and the Vision were installed BEFORE the first line of code (2026-07-15) —
+  deliberately, so every increment is derived from stated intent rather than reconstructed after
+  the fact.** That is what makes the VBDI loop real here: the Vision is the fixed north star, each
+  delivered increment becomes the next Current State, and the Blueprint is the measured gap between
+  them. It is also why this port is "map, don't mirror" rather than a transliteration — the intent
+  is the spec, the Java engine is the reference. Restored to the live layer 2026-09-04: the two
+  facts that carried this (`ai-enabled-greenfield`, `private-repo-then-accenture`) had faded to the
+  archive, and their INDEX one-liners record the *what*, not the *why* — the smoke test could no
+  longer answer it. Full rationale: the 2026-07-15 enable log.
+  <!-- id: why-ai-enabled-before-code | created: 2026-09-04 | last_used: 2026-09-04 | uses: 1 | tier: working | origin: 2026-09-04-043850 -->
 
 ## Open Threads
 

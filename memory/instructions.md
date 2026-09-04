@@ -18,9 +18,9 @@ sufficient, the repo **graduates to the official Accenture repo** — the privat
 rapid prototyping quiet for public readers. Treat the Vision as the north star and let each
 delivered increment become the next Current State (the VBDI loop — see `DECAY.md` §12).
 
-**Type:** Event-driven composable application platform (a Rust port; greenfield — no code yet)
-**Primary language:** Rust (target; nothing scaffolded yet)
-**Framework / stack:** Rust — specifics TBD; see `memory/continuity.md` → `## Stack & Tools`
+**Type:** Event-driven composable application platform (a Rust port of the Java engine)
+**Primary language:** Rust (edition 2021) — multi-crate Cargo workspace
+**Framework / stack:** tokio, hyper, serde, rmp-serde; see `memory/continuity.md` → `## Stack & Tools`
 
 > High-level only. The precise dependency list and current versions live in
 > `memory/continuity.md` → `## Stack & Tools` (the live source of truth) — keep this
@@ -28,12 +28,24 @@ delivered increment become the next Current State (the VBDI loop — see `DECAY.
 
 ## Repository Structure
 
-At enable time the only project file is `README.md` (a title placeholder). Everything else
-is the agent-memory layer: `memory/` (shared memory), the root steering files
-(`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`,
-`.github/copilot-instructions.md`), `agent-skills/` (portable capabilities), and the
-protocol docs (`DECAY.md`, `REVIEW.md`, `SKILLS.md`, `MERGE.md`). No source directories
-exist yet — record the structure here as it emerges.
+Cargo workspace; the seven published crates live under `crates/`:
+
+```
+crates/
+  platform-core          ← the engine: event bus, registry, PostOffice, REST automation (hyper)
+  platform-macros        ← #[preload], #[main_application], … the link-time inventory carriers
+  event-script           ← compiles & executes YAML flows (flow YAML is identical to Java's)
+  event-script-macros    ← #[simple_plugin]
+  knowledge-graph        ← MiniGraph: graph executor, skills, Playground
+  knowledge-graph-macros ← #[fetch_feature]
+  minigraph-state-redis  ← pluggable suspend/resume state store
+examples/<name>/         ← standalone workspace crates, never cargo examples in a library crate
+system/ai-contract-provider ← serves the version-matched AI documentation contract
+docs/ (guides, llms.txt, INCREMENTS.md)   draft-design-specs/   scripts/
+```
+
+(At enable time, 2026-07-15, the repo held only `README.md` plus the agent-memory layer —
+that history is preserved in the archive, not here.)
 
 ## Core Abstractions (inherited from mercury-composable — the behavior being ported)
 
@@ -60,7 +72,8 @@ addressed only by its **route name**; the only thing passed between functions is
 
 ## Port Scope & Source Mapping
 
-Canonical source: `mercury-composable` (Java, `com.accenture.mercury` v4.8.6). The
+Canonical source: `mercury-composable` (Java, `com.accenture.mercury`; released lock-step — see
+`continuity.md` → Project State for the current version). The
 authoritative behavior spec is that repo + its `docs/guides/` — we **map, don't mirror**.
 
 **In scope** (the three layers → Rust):
@@ -119,14 +132,25 @@ stale since increment 1; caught by the memory smoke test.)*
 
 ## Testing
 
-None yet — no code, no test framework chosen. Set up and document the test approach with
-the first code, and record the framework in `continuity.md` → `## Stack & Tools`.
+Built-in Rust test harness. Unit tests in-module (`#[cfg(test)]`); integration tests in each
+crate's `tests/` with fixtures under `tests/resources/`; compile-fail macro tests via `trybuild`
+in `tests/ui/`. `cargo fmt` + `cargo clippy --all-targets` clean is part of "done".
+
+```bash
+cargo test --workspace          # all tests
+cargo test -p mercury-event-script
+cargo clippy --all-targets -- -D warnings
+```
+
+**One integration file boots one shared server.** A second `#[tokio::test]` in the same file gets
+its own runtime, which drops the shared server the first test started — add further cases as
+sequential `async fn`s called from the single booted test (documented at `graph_runtime.rs:527`).
 
 ## CI / CD
 
-No project CI/CD yet. The agent-memory ritual floor
-(`.github/workflows/agent-memory.yml`) runs `memory-lint` and an advisory session-log
-check on push/PR — that governs the *memory layer*, not the (not-yet-existent) build.
+GitHub Actions: `rust.yml` (build + `cargo test`), `docs.yml` (llms.txt link-integrity check →
+`mkdocs build --strict` → gh-pages deploy on main), and `agent-memory.yml` (the ritual floor:
+`memory-lint` + an advisory session-log check).
 
 ## Editing These Instructions
 
