@@ -32,8 +32,11 @@ recipe verbatim where it applies:
   `content.tabs.link`.
 - Markdown extensions: `admonition`, `def_list`, `attr_list`, `footnotes`, `tables`, `toc`
   (permalinks), `pymdownx.details/superfences (mermaid)/tabbed/highlight/inlinehilite/snippets`.
-- `docs-requirements.txt` + a CI **build-only** check (`mkdocs build --strict`) on push;
-  GitHub Pages deployment is **deferred** until the repo graduates/goes public.
+- MkDocs Material installed **unpinned** (`pip install mkdocs-material`), matching the Java
+  engine — the reference implementation, which never pinned it (Increment 100 removed the
+  original `docs-requirements.txt` pin). CI runs a **strict** build check
+  (`mkdocs build --strict`) on push/PR and **deploys to GitHub Pages** on push to `main`
+  (the repo graduated 2026-07-20).
 - Palette: Material default unless the maintainer wants a brand color (open question Q3).
 
 ## 3. The presentation rule (decision D-H2 — the reason this design exists)
@@ -172,8 +175,8 @@ navigated): `llms.txt`,
 
 ## 8. Increments (each lands green; gate at phase 1)
 
-1. **Scaffold**: `mkdocs.yml` + `docs-requirements.txt` + CI build check + Home +
-   Getting Started (buildable site from day one).
+1. **Scaffold**: `mkdocs.yml` + `docs-requirements.txt` (later unpinned — Increment 100)
+   + CI build check + Home + Getting Started (buildable site from day one).
 2. **Concepts + event-driven/event-script guides.**
 3. **REST automation + knowledge-graph guides + the D-H2 reference conversions**
    (configuration/macros/envelope/api-overview/reserved-names/actuators/flow-schema).
