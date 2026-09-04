@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Mercury Story</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  /* ── The Mercury Story · presentation deck ──────────────────────────────
+     A deliberately single-theme, dark deck (violet-biased ground, amber for
+     measured numbers). Self-contained: works on the mkdocs site, in an
+     artifact, or from a local file. Print flips to a light handout. */
+  :root{
+    --ground:#171221; --surface:#201936; --surface-2:#291f44;
+    --ink:#F1ECFA; --muted:#A79DC2; --line:#382E52;
+    --accent:#A78BFA; --accent-ink:#CDBBFF; --amber:#FFC24B;
+    --display:"Fraunces", Georgia, "Times New Roman", serif;
+    --body:"Instrument Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono:ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:var(--body); font-size:clamp(15px,1.35vw,19px); line-height:1.55;
+    overflow:hidden;
+  }
+  .deck{position:fixed; inset:0; display:flex; flex-direction:column}
+
+  /* ── slides ── */
+  .slide{
+    position:absolute; inset:0 0 56px 0; display:none;
+    padding:clamp(28px,5.5vh,64px) clamp(24px,7vw,110px);
+    overflow-y:auto;
+  }
+  .slide.active{display:flex; flex-direction:column; justify-content:center}
+  @media (prefers-reduced-motion: no-preference){
+    .slide.active{animation:rise .45s ease-out}
+    @keyframes rise{from{opacity:.01; transform:translateY(10px)} to{opacity:1; transform:none}}
+  }
+  .eyebrow{
+    font-size:.72em; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:1.1em;
+  }
+  h1,h2{font-family:var(--display); font-weight:600; line-height:1.12; text-wrap:balance; letter-spacing:-.01em}
+  h1{font-size:clamp(34px,5.4vw,72px)}
+  h2{font-size:clamp(26px,3.6vw,48px); margin-bottom:.7em}
+  h3{font-family:var(--body); font-weight:600; font-size:1.05em; margin-bottom:.35em}
+  p{max-width:62ch}
+  .lede{font-size:1.12em; color:var(--muted); max-width:58ch}
+  .lede strong,.cols strong,li strong{color:var(--ink)}
+  em{font-family:var(--display); font-style:italic}
+  code{font-family:var(--mono); font-size:.85em; background:var(--surface); border:1px solid var(--line);
+       padding:.1em .4em; border-radius:5px; white-space:nowrap}
+  .muted{color:var(--muted)}
+  .amber{color:var(--amber)}
+  .accent{color:var(--accent-ink)}
+
+  /* layout helpers */
+  .cols{display:grid; gap:clamp(16px,2.5vw,40px); margin-top:1.4em}
+  .cols.two{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .cols.three{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .panel{background:var(--surface); border:1px solid var(--line); border-radius:12px;
+         padding:clamp(14px,1.8vw,26px)}
+  .panel .tag{font-size:.7em; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
+              color:var(--muted); margin-bottom:.6em}
+  ul.list{list-style:none; margin-top:1em; max-width:70ch}
+  ul.list li{padding:.42em 0 .42em 1.4em; position:relative}
+  ul.list li::before{content:""; position:absolute; left:0; top:.98em; width:.55em; height:.55em;
+                     border-radius:50%; background:var(--accent); opacity:.85}
+  .quote{font-family:var(--display); font-style:italic; font-weight:500;
+         font-size:clamp(22px,2.9vw,40px); line-height:1.3; max-width:26em; text-wrap:balance}
+  .quote .q{color:var(--accent-ink)}
+  .byline{margin-top:1.6em; color:var(--muted)}
+  .kv{display:grid; grid-template-columns:max-content 1fr; gap:.45em 1.2em; margin-top:1.2em; max-width:78ch}
+  .kv dt{font-weight:600; color:var(--accent-ink); white-space:nowrap}
+  .kv dd{color:var(--muted)}
+  .kv dd b{color:var(--ink); font-weight:600}
+
+  /* stat band */
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:clamp(14px,2vw,28px); margin:1.6em 0 1.2em}
+  .stat{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:1.1em 1.2em}
+  .stat .n{font-family:var(--display); font-weight:600; font-size:clamp(30px,3.4vw,52px);
+           font-variant-numeric:tabular-nums; color:var(--amber); line-height:1.1}
+  .stat .l{color:var(--muted); margin-top:.35em; font-size:.92em}
+  .stat.dim .n{color:var(--muted); text-decoration:line-through; text-decoration-thickness:2px;
+               text-decoration-color:var(--accent)}
+
+  /* steps (methodology) */
+  .steps{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:clamp(14px,2vw,28px); margin-top:1.4em; counter-reset:step}
+  .step{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:1.2em 1.3em; counter-increment:step}
+  .step::before{content:"Step " counter(step); display:block; font-size:.72em; font-weight:600;
+                letter-spacing:.13em; text-transform:uppercase; color:var(--amber); margin-bottom:.6em}
+  .step h3{font-family:var(--display); font-weight:600; font-size:1.25em; margin-bottom:.4em}
+  .step p{font-size:.95em; color:var(--muted)}
+  .step p b{color:var(--ink)}
+
+  figure{margin:1.4em 0 0}
+  figure svg{max-width:100%; height:auto; display:block}
+  figcaption{color:var(--muted); font-size:.88em; margin-top:.7em; max-width:70ch}
+
+  /* ── chrome ── */
+  .bar{
+    position:absolute; left:0; right:0; bottom:0; height:56px;
+    display:flex; align-items:center; gap:18px; padding:0 clamp(18px,4vw,48px);
+    border-top:1px solid var(--line); background:var(--ground); z-index:5;
+  }
+  .wordmark{font-family:var(--display); font-weight:600; letter-spacing:.02em}
+  .wordmark .dot{color:var(--accent)}
+  .counter{font-variant-numeric:tabular-nums; color:var(--muted); font-size:.85em; margin-left:auto}
+  .dots{display:flex; gap:7px}
+  .dots button{width:9px; height:9px; border-radius:50%; border:0; background:var(--line); cursor:pointer; padding:0}
+  .dots button.on{background:var(--accent)}
+  .dots button:focus-visible{outline:2px solid var(--amber); outline-offset:2px}
+  .navbtn{border:1px solid var(--line); background:var(--surface); color:var(--ink);
+          border-radius:8px; padding:.35em .8em; font:inherit; font-size:.85em; cursor:pointer}
+  .navbtn:hover{background:var(--surface-2)}
+  .navbtn:focus-visible{outline:2px solid var(--amber); outline-offset:2px}
+  .hint{color:var(--muted); font-size:.8em}
+  @media (max-width:720px){ .hint,.dots{display:none} }
+
+  /* invisible page-turn click zones (left third back, right two-thirds forward) */
+  .zone{position:absolute; top:0; bottom:56px; z-index:2; background:transparent; border:0; cursor:pointer}
+  .zone:focus-visible{outline:2px solid var(--amber); outline-offset:-4px}
+  .zone.back{left:0; width:22%} .zone.fwd{right:0; width:26%}
+
+  /* ── print: a light handout, one slide per page ── */
+  @media print{
+    body{background:#fff; color:#231b33; overflow:visible}
+    .deck{position:static}
+    .slide{position:static; display:block !important; inset:auto; padding:24px 8mm; page-break-after:always; overflow:visible}
+    .slide.active{animation:none}
+    :root{--ground:#fff; --surface:#f4f1fa; --surface-2:#ece7f6; --ink:#231b33; --muted:#5d5476;
+          --line:#d8d0e8; --accent:#6d4fc4; --accent-ink:#5636b8; --amber:#a06a00}
+    .bar,.zone{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1 · title -->
+  <section class="slide active" aria-label="Title">
+    <p class="eyebrow">Mercury Composable · white paper briefing</p>
+    <h1>The Mercury Story</h1>
+    <p class="lede" style="margin-top:.9em">Origin, evolution — and the <strong>AI grammar
+    methodology</strong>: how a platform makes itself legible to AI partners, and how everything
+    built on it stays legible too.</p>
+    <p class="byline">Eric Law · with Claude Code &nbsp;·&nbsp; 2026-09-04 &nbsp;·&nbsp;
+    on the occasion of the ai-enabled-repo-demo milestone</p>
+  </section>
+
+  <!-- 2 · two problems -->
+  <section class="slide" aria-label="Two problems">
+    <p class="eyebrow">Why now</p>
+    <h2>Two problems dominate serious AI-assisted engineering</h2>
+    <div class="cols two">
+      <div class="panel">
+        <p class="tag">The governance problem</p>
+        <p>AI writes imperative code fast — and ungoverned. Enterprises cannot certify what they
+        cannot read, and reviewing machine-authored code at machine speed does not scale.</p>
+      </div>
+      <div class="panel">
+        <p class="tag">The context problem</p>
+        <p>AI agents consume context expensively. The default way an agent learns a dependency is
+        to <em>read its source</em> — a cost that repeats for every dependency, every session,
+        every team.</p>
+      </div>
+    </div>
+    <p class="lede" style="margin-top:1.6em">Mercury answers both — and it started answering them
+    <strong>years before the questions were asked</strong>.</p>
+  </section>
+
+  <!-- 3 · origin -->
+  <section class="slide" aria-label="Origin">
+    <p class="eyebrow">Origin · 2018</p>
+    <h2>One rule, never broken: functions know nothing about each other</h2>
+    <p class="lede">From the actor-model lineage (Scala/Akka) onto the Eclipse Vert.x event bus:
+    every function is self-contained, addressed by a <strong>route-name string</strong>, exchanging
+    immutable <strong>event envelopes</strong>. No shared objects. No direct references. Nothing
+    to rot at the joints.</p>
+    <ul class="list">
+      <li><strong>The first architectural invariant</strong> — and it has never changed.</li>
+      <li>For years the honest cost was ergonomics: callbacks and reactive chains.</li>
+      <li><strong>Java 21 virtual threads dissolved that tax</strong> — plain sequential code now
+      performs on par with reactive, so the event-driven core became free to use.</li>
+    </ul>
+    <p class="quote" style="margin-top:1.3em"><span class="q">You can only compose what you never
+    coupled.</span></p>
+  </section>
+
+  <!-- 4 · the ascent -->
+  <section class="slide" aria-label="The ascent">
+    <p class="eyebrow">Evolution</p>
+    <h2>The ascent: code → configuration → knowledge</h2>
+    <figure>
+      <svg viewBox="0 0 960 330" role="img"
+           aria-label="Three layers: an Active Knowledge Graph model composes onto Event Script YAML flows, which sequence decoupled functions on the event bus. Each layer removes a class of imperative code.">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#A79DC2"/>
+          </marker>
+        </defs>
+        <!-- layer 3 -->
+        <rect x="40" y="20" width="560" height="80" rx="10" fill="#291f44" stroke="#A78BFA" stroke-width="1.5"/>
+        <text x="64" y="52" fill="#CDBBFF" font-size="13" font-weight="600" letter-spacing="2">LAYER 3 · SEMANTIC</text>
+        <text x="64" y="78" fill="#F1ECFA" font-size="16">Active Knowledge Graph — the model <tspan fill="#A79DC2">is</tspan> the application</text>
+        <!-- layer 2 -->
+        <rect x="40" y="125" width="560" height="80" rx="10" fill="#201936" stroke="#382E52" stroke-width="1.5"/>
+        <text x="64" y="157" fill="#CDBBFF" font-size="13" font-weight="600" letter-spacing="2">LAYER 2 · COMPOSABLE</text>
+        <text x="64" y="183" fill="#F1ECFA" font-size="16">Event Script — YAML flows choreograph functions</text>
+        <!-- layer 1 -->
+        <rect x="40" y="230" width="560" height="80" rx="10" fill="#201936" stroke="#382E52" stroke-width="1.5"/>
+        <text x="64" y="262" fill="#CDBBFF" font-size="13" font-weight="600" letter-spacing="2">LAYER 1 · EVENT-DRIVEN</text>
+        <text x="64" y="288" fill="#F1ECFA" font-size="16">Decoupled functions — route name + envelope only</text>
+        <!-- compose arrows -->
+        <line x1="620" y1="60" x2="620" y2="165" stroke="#A79DC2" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="620" y1="165" x2="620" y2="270" stroke="#A79DC2" stroke-width="1.5" marker-end="url(#arr)"/>
+        <text x="634" y="118" fill="#A79DC2" font-size="12.5">graph.task / graph.extension</text>
+        <text x="634" y="223" fill="#A79DC2" font-size="12.5">tasks call functions by route</text>
+        <!-- what each removes -->
+        <text x="880" y="52" fill="#FFC24B" font-size="13" font-weight="600" text-anchor="end">removes: application code</text>
+        <text x="880" y="78" fill="#A79DC2" font-size="12.5" text-anchor="end">zero-code default; certify &amp; deploy the model</text>
+        <text x="880" y="157" fill="#FFC24B" font-size="13" font-weight="600" text-anchor="end">removes: orchestration code</text>
+        <text x="880" y="183" fill="#A79DC2" font-size="12.5" text-anchor="end">~50% config / 50% code</text>
+        <text x="880" y="262" fill="#FFC24B" font-size="13" font-weight="600" text-anchor="end">removes: coupling</text>
+        <text x="880" y="288" fill="#A79DC2" font-size="12.5" text-anchor="end">code stays the unit of work, never the wiring</text>
+      </svg>
+      <figcaption>Each layer removes a class of imperative code. One atom, four roles: the same
+      function is a <em>service</em> under <code>rest.yaml</code>, a <em>task</em> in a flow, a
+      <em>skill</em> on a graph node. The layers compose downward with no coupling.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 5 · governed layer 3 -->
+  <section class="slide" aria-label="Compiled or 404">
+    <p class="eyebrow">Layer 3, governed</p>
+    <h2>Compiled — or 404</h2>
+    <p class="lede">The semantic layer is guarded the way production software must be. A graph
+    model deploys only through <strong>CompileGraph</strong>, the mandatory validation gate: a
+    model is compiled and listed, or its endpoint answers 404 as if it never existed.</p>
+    <ul class="list">
+      <li><strong>Dry-run</strong> the model in the Playground — with a human and an AI companion
+      in the same live session.</li>
+      <li><strong>Validate</strong> the whole graph at compile time — malformed intent is rejected
+      before it can run.</li>
+      <li><strong>Deploy</strong> as a standard endpoint; suspend/resume gives long-running
+      workflows a built-in human-in-the-loop primitive.</li>
+    </ul>
+    <p class="muted" style="margin-top:1.2em">The same compile-before-run discipline code has
+    always had — applied to knowledge.</p>
+  </section>
+
+  <!-- 6 · the turn -->
+  <section class="slide" aria-label="The turn">
+    <p class="eyebrow">The turn</p>
+    <h2>Don't review AI code harder.<br>Change the artifact the AI authors.</h2>
+    <p class="lede">An AI that authors a <strong>flow</strong> or a <strong>graph model</strong> is
+    producing a declarative, compiler-validated, human-legible artifact. CompileFlows and
+    CompileGraph reject malformed intent at build time; the Playground dry-runs it; a product
+    owner can read it and certify it.</p>
+    <p class="quote" style="margin-top:1.2em"><span class="q">Governed nondeterminism</span> — the
+    creativity of a model author, bounded by gates.</p>
+    <p class="muted" style="margin-top:1em">Never a determinism claim. A governance design.</p>
+  </section>
+
+  <!-- 7 · AI grammar defined -->
+  <section class="slide" aria-label="AI grammar defined">
+    <p class="eyebrow">The AI grammar</p>
+    <h2>Documentation engineered as a machine-consumable contract</h2>
+    <p class="lede">An <strong>AI grammar</strong> is the discovery map, reference guides,
+    machine-readable catalogs, and validation gates that let an AI agent author correct artifacts
+    <strong>without reading engine source</strong>.</p>
+    <div class="cols three">
+      <div class="panel"><p class="tag">Sufficient</p><p>An agent guide may claim “you can generate
+      correct artifacts from this page alone” — and only agent guides may claim it.</p></div>
+      <div class="panel"><p class="tag">Verified</p><p>CI binds every claim to the code: drift
+      tests, coverage and link-integrity gates, golden vectors, a version-matched manifest.</p></div>
+      <div class="panel"><p class="tag">Cheap</p><p>Measured in tokens, not pages. Discovery in
+      one hop; a map that stays lean enough to read every session.</p></div>
+    </div>
+  </section>
+
+  <!-- 8 · what mercury ships -->
+  <section class="slide" aria-label="What Mercury ships">
+    <p class="eyebrow">Shipped today</p>
+    <h2>The grammar Mercury carries</h2>
+    <dl class="kv">
+      <dt>llms.txt map</dt><dd>one-hop discovery — <b>CI coverage gate</b> on the Java engine’s exhaustive map; <b>link-integrity gate</b> on the Rust engine’s curated map</dd>
+      <dt>3 DSL spec kits</dt><dd><code>rest.yaml</code> · Event Script flows · MiniGraph commands — each a grammar reference + <b>machine-readable JSON catalog</b> + AI agent guide + <b>CI drift test</b></dd>
+      <dt>Contract provider</dt><dd>the doc set served as a <b>version-matched contract</b>: discovery endpoint, per-file SHA-256 manifest, exportable Agent Skill</dd>
+      <dt>Registration contract</dt><dd>the grammar of <i>declaring</i> functions — one metadata model, per-language carriers, proven by <b>golden vectors</b> shared between engines</dd>
+      <dt>Engine parity</dt><dd>Java is the reference; Rust ships in lock-step; flow YAML ports unchanged; python/node functions join as Event-over-HTTP peers</dd>
+      <dt>Memory layer</dt><dd>the <i>project’s</i> grammar — Vision, Blueprint, continuity — so sessions start oriented on intent, not just API shape</dd>
+    </dl>
+  </section>
+
+  <!-- 9 · the benchmark -->
+  <section class="slide" aria-label="The benchmark">
+    <p class="eyebrow">The benchmark</p>
+    <h2>Doc discovery and token efficiency</h2>
+    <p class="lede">A grammar is useful only if the agent finds the right page in one hop and the
+    map stays cheap. Measured on the Rust engine, 2026-09-04:</p>
+    <div class="stats">
+      <div class="stat"><div class="n">~2,500</div><div class="l">tokens — the whole discovery map</div></div>
+      <div class="stat"><div class="n">~46,000</div><div class="l">tokens of source-verified reference it routes to, one hop away</div></div>
+      <div class="stat dim"><div class="n">~515,000</div><div class="l">tokens of engine source — the hunt the map replaces</div></div>
+    </div>
+    <p class="muted">Completeness that costs discovery is a regression. The map is dense with the
+    exact tokens an agent searches for — and gated in CI so it cannot silently rot.</p>
+  </section>
+
+  <!-- 10 · the proof -->
+  <section class="slide" aria-label="Proven at the milestone">
+    <p class="eyebrow">Proven, not promised</p>
+    <h2>The milestone: fresh agents, grammar only</h2>
+    <p class="lede">The ai-enabled-repo-demo exercises put the grammar under load: fresh AI agents —
+    no project context, no human hints — built and ran applications from the grammar alone, through
+    repeated rehearsals and a live demonstration.</p>
+    <ul class="list">
+      <li>Every friction became a fix, shipped to the field in days (v4.12.2): a <code>json</code>
+      simple plugin closing a data-mapping gap, an export-guard correction, recipe lines where two
+      independent agents drew the same wrong conclusion.</li>
+      <li>Discovery gaps were closed <strong>with CI gates behind them</strong>, so they stay closed.</li>
+      <li>The loop — <strong class="accent">agent friction → grammar or engine fix → field
+      release</strong> — is the methodology working.</li>
+    </ul>
+  </section>
+
+  <!-- 11 · the methodology -->
+  <section class="slide" aria-label="The methodology">
+    <p class="eyebrow">The methodology</p>
+    <h2>How a developer builds with an AI partner</h2>
+    <div class="steps">
+      <div class="step"><h3>AI-enable the project</h3>
+        <p>Greenfield or existing: install the shared memory layer, write the <b>Vision</b> with
+        the AI partner (human-confirmed, never fabricated), derive the <b>Blueprint</b>, plan
+        increments. Every session thereafter starts oriented.</p></div>
+      <div class="step"><h3>Add mercury-composable, choose the path</h3>
+        <p>The engine arrives carrying its own grammar. <b>Recommended for applications: Layer 3</b>
+        — model the service as a knowledge graph, dry-run in the Playground, deploy behind the
+        CompileGraph gate. The path is a dial, not a wall.</p></div>
+      <div class="step"><h3>Build the app — or a building block</h3>
+        <p>Applications: intent → model → certify → deploy. Building blocks: layer-2 + layer-3
+        patterns — then <b>compile an AI grammar into the block’s own repo</b>, so it becomes as
+        legible as Mercury itself.</p></div>
+    </div>
+    <p class="muted" style="margin-top:1.3em">Proof point for step 1: <strong class="accent">this
+    repository</strong> was AI-enabled <em>before its first line of code</em> — about a hundred
+    increments later it ships in lock-step with the Java engine.</p>
+  </section>
+
+  <!-- 12 · recursion -->
+  <section class="slide" aria-label="Grammar composes like dependencies">
+    <p class="eyebrow">The recursion</p>
+    <h2>Grammar composes the way dependencies compose</h2>
+    <figure>
+      <svg viewBox="0 0 960 300" role="img"
+           aria-label="An application session loads Mercury's grammar plus each building block's grammar plus the app's own memory. Building blocks are built on Mercury and compile grammars of their own.">
+        <defs>
+          <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#A79DC2"/>
+          </marker>
+        </defs>
+        <!-- mercury -->
+        <rect x="30" y="190" width="270" height="80" rx="10" fill="#201936" stroke="#382E52" stroke-width="1.5"/>
+        <text x="165" y="223" fill="#F1ECFA" font-size="16" text-anchor="middle" font-weight="600">mercury-composable</text>
+        <text x="165" y="247" fill="#CDBBFF" font-size="12.5" text-anchor="middle">ships its AI grammar</text>
+        <!-- building block -->
+        <rect x="345" y="105" width="270" height="80" rx="10" fill="#201936" stroke="#382E52" stroke-width="1.5"/>
+        <text x="480" y="138" fill="#F1ECFA" font-size="16" text-anchor="middle" font-weight="600">building block</text>
+        <text x="480" y="162" fill="#CDBBFF" font-size="12.5" text-anchor="middle">compiles its own grammar</text>
+        <!-- app -->
+        <rect x="660" y="20" width="270" height="80" rx="10" fill="#291f44" stroke="#A78BFA" stroke-width="1.5"/>
+        <text x="795" y="53" fill="#F1ECFA" font-size="16" text-anchor="middle" font-weight="600">user application</text>
+        <text x="795" y="77" fill="#CDBBFF" font-size="12.5" text-anchor="middle">its own Vision + memory</text>
+        <!-- build-on arrows -->
+        <line x1="300" y1="215" x2="345" y2="160" stroke="#A79DC2" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <text x="318" y="176" fill="#A79DC2" font-size="12" text-anchor="middle">built on</text>
+        <line x1="615" y1="130" x2="660" y2="75" stroke="#A79DC2" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <text x="633" y="91" fill="#A79DC2" font-size="12" text-anchor="middle">depends on</text>
+        <!-- grammar-loads (dashed, amber) -->
+        <path d="M 165 190 C 240 60, 480 20, 655 44" fill="none" stroke="#FFC24B" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#arr2)"/>
+        <path d="M 480 105 C 545 60, 600 48, 655 52" fill="none" stroke="#FFC24B" stroke-width="1.6" stroke-dasharray="6 5"/>
+        <text x="60" y="34" fill="#FFC24B" font-size="12.5">grammars load into the app’s AI session</text>
+        <text x="60" y="52" fill="#FFC24B" font-size="12.5" opacity="0.75">— near-constant token cost per block</text>
+      </svg>
+      <figcaption>The session that builds the application loads Mercury’s grammar <em>plus</em> each
+      building block’s grammar. Already live inside the framework (on the Java engine): twin-kafka is a building block on a
+      building block — and while its map entry was missing, AI partners fell back to source.</figcaption>
+    </figure>
+    <p class="quote" style="margin-top:1em; font-size:clamp(19px,2.3vw,30px)"><span class="q">To an
+    AI partner, undocumented capability is absent capability.</span></p>
+  </section>
+
+  <!-- 13 · industry practice -->
+  <section class="slide" aria-label="Industry context">
+    <p class="eyebrow">Industry context</p>
+    <h2>Standing on recognized practice — then gating it</h2>
+    <dl class="kv">
+      <dt>llms.txt convention</dt><dd>adopted — then <b>held to a CI gate and a token budget</b>, which conventions alone cannot do</dd>
+      <dt>Docs-as-code</dt><dd>extended to <b>docs-as-contract</b>: the build fails when a guide and its engine disagree</dd>
+      <dt>Architecture Decision Records</dt><dd>the ADR ledger carries durable rationale; memory facts point at it, so agents inherit the <i>why</i></dd>
+      <dt>Contract testing</dt><dd>golden vectors shared verbatim between independent engines — the Pact-style trust mechanism, applied to a port</dd>
+      <dt>Agent-instruction files</dt><dd><code>AGENTS.md</code> and kin, with a routing shim: contributors → the memory protocol; consumers → the version-matched contract</dd>
+      <dt>Human-in-the-loop governance</dt><dd>dry-run, compile gates, certification, staged promotion — delivery-pipeline controls applied to model artifacts</dd>
+      <dt>Evaluation culture</dt><dd>fresh-agent rehearsals are evals for documentation; the memory smoke test is an eval for project memory — both run on cadence, both produced fixes</dd>
+    </dl>
+    <p class="muted" style="margin-top:1.2em">Each practice is known. <strong class="accent">Binding
+    them into one CI-enforced, token-budgeted contract an AI partner can build from — that is the
+    AI grammar.</strong></p>
+    <p class="muted" style="margin-top:.8em; font-size:.82em">Parnas 1972 · Hewitt 1973 · Nygard 2011 ·
+    Robinson 2006 · llms.txt (Howard 2024) · AGENTS.md · GitHub Spec Kit 2025 · NIST AI RMF · EU AI Act
+    art. 14 · ISO/IEC 42001 · DORA 2024–25 · HELM · SWE-bench — full citations in the white paper’s
+    References section.</p>
+  </section>
+
+  <!-- 14 · close -->
+  <section class="slide" aria-label="Where it goes">
+    <p class="eyebrow">Where it goes</p>
+    <h2>The north star does not move</h2>
+    <ul class="list">
+      <li><strong>AI agent orchestration on the graph runtime</strong> — bounded-agency decision
+      graphs; first experiment already run end-to-end, live LLM verdicts under one distributed trace.</li>
+      <li><strong>A pluggable AI companion backend</strong> — the collaboration layer matures.</li>
+      <li><strong>The governance lifecycle</strong> — dry-run → certify → stage → approve →
+      production, so models promote as standard endpoints.</li>
+    </ul>
+    <p class="quote" style="margin-top:1.4em"><span class="q">The Active Knowledge Graph is the
+    application.</span> Humans and AI co-author the model, the event-driven runtime executes it,
+    and changing behavior means editing knowledge — not shipping code.</p>
+    <p class="byline">White paper: <em>The Mercury Story — Origin, Evolution, and the AI Grammar
+    Methodology</em> · <span class="muted">accenture.github.io/mercury</span></p>
+  </section>
+
+  <!-- chrome -->
+  <button class="zone back" id="zback" aria-label="Previous slide" tabindex="-1"></button>
+  <button class="zone fwd" id="zfwd" aria-label="Next slide" tabindex="-1"></button>
+  <div class="bar">
+    <span class="wordmark">mercury<span class="dot">·</span>rust</span>
+    <span class="hint">← → to navigate · P to print the handout</span>
+    <nav class="dots" id="dots" aria-label="Slides"></nav>
+    <button class="navbtn" id="prev" aria-label="Previous">‹ Prev</button>
+    <button class="navbtn" id="next" aria-label="Next">Next ›</button>
+    <span class="counter" id="counter">1 / 1</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  var dots = document.getElementById("dots");
+  var counter = document.getElementById("counter");
+  var i = 0;
+
+  slides.forEach(function (s, k) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("aria-label", "Slide " + (k + 1) + ": " + (s.getAttribute("aria-label") || ""));
+    b.addEventListener("click", function () { go(k); });
+    dots.appendChild(b);
+  });
+
+  function go(k) {
+    if (k < 0 || k >= slides.length) return;
+    slides[i].classList.remove("active");
+    i = k;
+    slides[i].classList.add("active");
+    slides[i].scrollTop = 0;
+    counter.textContent = (i + 1) + " / " + slides.length;
+    Array.prototype.forEach.call(dots.children, function (d, k2) {
+      d.classList.toggle("on", k2 === i);
+    });
+    if (("#" + (i + 1)) !== location.hash) {
+      try { history.replaceState(null, "", "#" + (i + 1)); } catch (e) { /* file:// */ }
+    }
+  }
+  function fromHash() {
+    var n = parseInt(location.hash.slice(1), 10);
+    go(isNaN(n) ? 0 : n - 1);
+  }
+
+  document.getElementById("next").addEventListener("click", function () { go(i + 1); });
+  document.getElementById("prev").addEventListener("click", function () { go(i - 1); });
+  document.getElementById("zfwd").addEventListener("click", function () { go(i + 1); });
+  document.getElementById("zback").addEventListener("click", function () { go(i - 1); });
+  window.addEventListener("hashchange", fromHash);
+  document.addEventListener("keydown", function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    switch (e.key) {
+      case "ArrowRight": case "PageDown": case " ": go(i + 1); e.preventDefault(); break;
+      case "ArrowLeft": case "PageUp": go(i - 1); e.preventDefault(); break;
+      case "Home": go(0); e.preventDefault(); break;
+      case "End": go(slides.length - 1); e.preventDefault(); break;
+      case "p": case "P": window.print(); break;
+    }
+  });
+  fromHash();
+})();
+</script>
+</body>
+</html>

@@ -13,7 +13,7 @@ categories = ["database", "asynchronous"]
 name = "minigraph_state_redis"
 
 [dependencies]
-mercury-platform-core = { version = "4.12.2", path = "../../crates/platform-core" }
+mercury-platform-core = { version = "4.12.3", path = "../../crates/platform-core" }
 async-trait = "0.1"
 log = "0.4"
 rmpv = { version = "1", features = ["with-serde"] }

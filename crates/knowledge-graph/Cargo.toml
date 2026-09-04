@@ -16,12 +16,12 @@ exclude = ["webapp/"]
 name = "knowledge_graph"
 
 [dependencies]
-mercury-platform-core = { version = "4.12.2", path = "../platform-core" }
+mercury-platform-core = { version = "4.12.3", path = "../platform-core" }
 # layer 3 rides layer 2: the data-mapping mini-language (converter, rmpv
 # MultiLevelMap) is shared with event-script, and deployed graphs are
 # exposed through event-script flows
-mercury-event-script = { version = "4.12.2", path = "../event-script" }
-mercury-knowledge-graph-macros = { version = "4.12.2", path = "../knowledge-graph-macros" }
+mercury-event-script = { version = "4.12.3", path = "../event-script" }
+mercury-knowledge-graph-macros = { version = "4.12.3", path = "../knowledge-graph-macros" }
 async-trait = "0.1"
 log = "0.4"
 rmpv = { version = "1", features = ["with-serde"] }

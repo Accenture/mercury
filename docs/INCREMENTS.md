@@ -2641,3 +2641,39 @@ artifact and both engines now build it against the latest Material theme at CI t
 Dependabot's pip tracking (enabled via the repo UI, not a committed config) simply has
 nothing to bump. Supersedes the Increment-43 scaffold's pinned-`docs-requirements.txt`
 choice for the toolchain only.
+
+## Increment 101 — llms.txt reference tier + link-integrity guard (2026-09-04)
+
+The agent map gains the missing **reference tier** — macros, the registration metadata
+contract, API overview, EventEnvelope, reserved names, configuration, actuators/HTTP
+client, event over HTTP — plus `rest.yaml` authoring under Layer 1, the flow schema
+reference under Layer 2, and workflow suspension under MiniGraph. The map stays a
+*curated agent map* by deliberate ruling (not a full site map like the Java engine's;
+do not "fix" the divergence toward parity), and the human-facing section now points at
+the documentation site. Measured against the AI-grammar benchmark (doc discovery +
+token efficiency): ~900 added tokens routing to ~46k tokens of source-verified
+reference, replacing a hunt through ~515k tokens of `crates/`.
+
+Two defects fixed alongside: the map's header claimed paths were relative to the repo
+root while every link resolves from `docs/` (a literal reader missed all 22 links), and
+nothing guarded the map at all — `scripts/check-llms-links.py` now runs first in the
+docs workflow (markdown links resolve from `docs/`, backticked repo paths from the repo
+root; identifiers, bare filenames and URI schemes such as `classpath:/` are never
+guessed at). Verified against three regression shapes, including the header defect
+written out (22 of 30 links broken). Coverage checking is deliberately NOT ported from
+the Java engine — it would fail on ~20 intentionally omitted pages.
+
+## Increment 102 — The Mercury Story: white paper + deck, front and center (2026-09-04)
+
+The Rust edition of the shared product story lands on this site: the white paper
+(`docs/ai-grammar-methodology.md`) and the presentation deck
+(`docs/presentations/ai-grammar-story.html`, a self-contained HTML file mkdocs serves
+verbatim), featured on the home page with hero buttons in the agent-memory site's
+presentation. Adjustments from the Java edition are deliberate and small: this repository
+is named as the methodology's founding proof point (AI-enabled before its first line of
+code, 2026-07-15); the building-block examples and the twin-kafka discovery tale are
+attributed to the Java engine (no Kafka module here); the sources footnote names the
+canonical Java guides as the behavior specification. Hero links to the paper and deck are
+**absolute site URLs** because `references/index.md` (the packaged copy of the home page)
+ships inside the mercury-platform skill and the story is deliberately NOT packaged into
+the curated agent contract — the same docs-as-contract gate that caught the Java PR.

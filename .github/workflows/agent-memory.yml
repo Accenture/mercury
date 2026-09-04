@@ -71,7 +71,9 @@ jobs:
                 case "$pat" in ''|'#'*) continue ;; esac
                 case "$f" in $pat) keep=0; break ;; esac
               done < .agent/secret-scan-ignore
-              [ "$keep" = "1" ] && printf '%s\n' "$f"
+              # if/fi, not `[ ... ] && ...`: a waived LAST file would make the test the loop's
+              # final command, fail the substitution's assignment, and abort under `-e` (v4.39.2)
+              if [ "$keep" = "1" ]; then printf '%s\n' "$f"; fi
             done)"
           fi
           [ -z "$cfgs" ] && { echo "no changed config files; skipping."; exit 0; }
