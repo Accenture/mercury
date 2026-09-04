@@ -10,11 +10,13 @@ on:
     paths:
       - "docs/**"
       - "mkdocs.yml"
+      - "scripts/**"
       - ".github/workflows/docs.yml"
   pull_request:
     paths:
       - "docs/**"
       - "mkdocs.yml"
+      - "scripts/**"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
@@ -34,6 +36,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
+
+      - name: Check llms.txt link integrity
+        run: python3 scripts/check-llms-links.py
 
       - name: Install MkDocs toolchain
         run: pip install mkdocs-material
