@@ -77,3 +77,5 @@
 - thread-graph-task-event-over-http — (feature — MERGED 2026-08-22 as — faded — completed thread not referenced in over archive_window (20) sessions — 2026-Q3.md
 - thread-release-4-11-11-rust — (release — SHIPPED and PUBLISHED 2026-08-23 local, lock-step with the Java — faded — completed thread not referenced in over archive_window (20) sessions — 2026-Q3.md
 - thread-sse-client-twin — (feature) Progressive SSE consumption in the HTTP client — Java Phase 1 twin — faded — completed thread not referenced in over archive_window (20) sessions — 2026-Q3.md
+- ot-progressive-rendering-v4120 — (release+feature — MERGED 2026-08-30 as — faded — completed thread not referenced in over archive_window (20) sessions — 2026-Q3.md
+- thread-http-streaming-twin — (feature) HTTP response streaming ported engine-identical (Java PR #299/ADR-0018 — faded — completed thread not referenced in over archive_window (20) sessions — 2026-Q3.md
