@@ -10,13 +10,11 @@ on:
     paths:
       - "docs/**"
       - "mkdocs.yml"
-      - "docs-requirements.txt"
       - ".github/workflows/docs.yml"
   pull_request:
     paths:
       - "docs/**"
       - "mkdocs.yml"
-      - "docs-requirements.txt"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
@@ -36,11 +34,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-          cache: pip
-          cache-dependency-path: docs-requirements.txt
 
       - name: Install MkDocs toolchain
-        run: pip install -r docs-requirements.txt
+        run: pip install mkdocs-material
 
       - name: Build the site (strict)
         run: mkdocs build --strict
@@ -59,11 +55,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-          cache: pip
-          cache-dependency-path: docs-requirements.txt
 
       - name: Install MkDocs toolchain
-        run: pip install -r docs-requirements.txt
+        run: pip install mkdocs-material
 
       - name: Publish to GitHub Pages
         run: |
