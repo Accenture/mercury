@@ -3,4 +3,4 @@
 #   uv venv /tmp/mkdocs-venv
 #   uv pip install --python /tmp/mkdocs-venv/bin/python -r docs-requirements.txt
 #   /tmp/mkdocs-venv/bin/mkdocs serve
-mkdocs-material==9.7.6
+mkdocs-material==9.7.7
