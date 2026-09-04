@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "ai-contract-provider"
-version = "4.12.2"
+version = "4.12.3"
 dependencies = [
  "async-trait",
  "log",
@@ -114,7 +114,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "benchmark-reporter"
-version = "4.12.2"
+version = "4.12.3"
 dependencies = [
  "async-trait",
  "log",
@@ -454,7 +454,7 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "hello-flow"
-version = "4.12.2"
+version = "4.12.3"
 dependencies = [
  "async-trait",
  "log",
@@ -467,7 +467,7 @@ dependencies = [
 
 [[package]]
 name = "hello-world"
-version = "4.12.2"
+version = "4.12.3"
 dependencies = [
  "async-trait",
  "log",
@@ -756,7 +756,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "mercury-event-script"
-version = "4.12.2"
+version = "4.12.3"
 dependencies = [
  "async-trait",
  "base64",
@@ -776,7 +776,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-event-script-macros"
-version = "4.12.2"
+version = "4.12.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -785,7 +785,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-knowledge-graph"
-version = "4.12.2"
+version = "4.12.3"
 dependencies = [
  "async-trait",
  "chrono",
@@ -805,7 +805,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-knowledge-graph-macros"
-version = "4.12.2"
+version = "4.12.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -814,7 +814,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-minigraph-state-redis"
-version = "4.12.2"
+version = "4.12.3"
 dependencies = [
  "async-trait",
  "log",
@@ -827,7 +827,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-platform-core"
-version = "4.12.2"
+version = "4.12.3"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -858,7 +858,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-platform-macros"
-version = "4.12.2"
+version = "4.12.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -867,7 +867,7 @@ dependencies = [
 
 [[package]]
 name = "minigraph-playground"
-version = "4.12.2"
+version = "4.12.3"
 dependencies = [
  "async-trait",
  "log",

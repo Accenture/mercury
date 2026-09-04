@@ -13,7 +13,7 @@ categories = ["asynchronous"]
 name = "event_script"
 
 [dependencies]
-mercury-platform-core = { version = "4.12.2", path = "../platform-core" }
+mercury-platform-core = { version = "4.12.3", path = "../platform-core" }
 async-trait = "0.1"
 log = "0.4"
 # --- increment E-2: data-mapping engine ---
@@ -31,7 +31,7 @@ chrono = "0.4"
 # (the ZoneId.systemDefault() analog, same crate chrono uses internally)
 chrono-tz = "0.10"
 iana-time-zone = "0.1"
-mercury-event-script-macros = { version = "4.12.2", path = "../event-script-macros" }
+mercury-event-script-macros = { version = "4.12.3", path = "../event-script-macros" }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]

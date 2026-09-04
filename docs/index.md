@@ -9,7 +9,14 @@ realized here on **tokio** async/await, with the canonical
 [Java engine](https://accenture.github.io/mercury-composable/) as the behavior specification —
 same three layers, same flow YAML, behavior-synced release by release.
 
-> **New here?** Start with **[Getting Started](guides/getting-started.md)**.
+[Get started](guides/getting-started.md){ .md-button .md-button--primary }
+[Read the white paper](https://accenture.github.io/mercury/ai-grammar-methodology/){ .md-button }
+[View the deck](https://accenture.github.io/mercury/presentations/ai-grammar-story.html){ .md-button }
+
+*The white paper — **The Mercury Story: Origin, Evolution, and the AI Grammar Methodology** — tells
+why Mercury exists and how to build applications and building blocks with an AI partner; the deck is
+the same story in slides. This repository is the methodology's founding proof point: AI-enabled
+before its first line of code.*
 
 ## A layered ascent
 

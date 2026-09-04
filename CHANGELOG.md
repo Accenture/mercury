@@ -11,7 +11,33 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
-## Unreleased
+## Version 4.12.3, 9/4/2026
+
+### Added
+
+- **The Mercury Story** — the white paper (`docs/ai-grammar-methodology.md`, the Rust edition of
+  the shared product story) and the presentation deck (`docs/presentations/ai-grammar-story.html`,
+  self-contained HTML served by the docs site), featured front and center on the documentation
+  home page with hero buttons. The origin, the three-layer ascent, governed nondeterminism, and
+  the **AI grammar methodology** — with this repository named as the founding proof point
+  (AI-enabled before its first line of code). Grounded in 19 verified industry and academic
+  references.
+- `docs/llms.txt` gains the **reference tier** (macros, registration metadata contract, API
+  overview, EventEnvelope, reserved names, configuration, actuators/HTTP client, event over
+  HTTP) plus `rest.yaml` authoring, the flow schema reference, and workflow suspension — so an
+  agent needing an exact name, key, or contract no longer falls back to reading `crates/`. The
+  map stays a curated agent map by design (not a full site map); measured cost ~900 added tokens
+  routing to ~46k tokens of source-verified reference.
+- **Link-integrity guard for the agent map**: `scripts/check-llms-links.py` runs first in the
+  docs workflow — every markdown link resolves from `docs/`, every backticked repo path from the
+  repo root. Also fixed the map's header, which claimed paths were repo-root-relative and made
+  all 22 links unfollowable for a literal reader.
+
+### Changed
+
+- Docs toolchain unpinned: `pip install mkdocs-material` at CI time (matching the Java engine,
+  the reference implementation); `docs-requirements.txt` removed and the design spec brought in
+  line.
 
 ### Fixed
 
