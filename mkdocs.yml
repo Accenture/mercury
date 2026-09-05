@@ -105,7 +105,7 @@ nav:
   - Home: index.md
   - Orientation:
       - Getting Started: guides/getting-started.md
-      - The Mercury Story (white paper): ai-grammar-methodology.md
+      - Intent-Driven Development (white paper): ai-grammar-methodology.md
   - Foundations:
       - Architecture: guides/architecture.md
       - Methodology: guides/methodology.md

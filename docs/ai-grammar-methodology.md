@@ -1,286 +1,735 @@
-# The Mercury Story — Origin, Evolution, and the AI Grammar Methodology
+# Intent-Driven Development and the Architecture of Human-AI Collaboration
 
-*A white paper · Eric Law with Claude Code · 2026-09-04 · written at the ai-enabled-repo-demo
-milestone, where the AI grammar was proven end-to-end by fresh AI agents and the feedback loop
-from those runs shipped to the field in v4.12.2. This is the Rust engine's edition of the shared
-product story — and this repository is itself the methodology's founding proof point.*
+*The Mercury Story: from event-driven systems to AI co-authorship*
 
-> Prefer slides? This paper has a **[presentation deck](presentations/ai-grammar-story.html)**.
+*A white paper · Eric Law with Claude Code and GitHub Copilot · 2026-09-04 · the Rust engine's
+edition of the shared product story — this repository is itself the methodology's founding
+proof point.*
+
+> Prefer slides? The Mercury story within this paper has a
+> **[presentation deck](presentations/ai-grammar-story.html)**.
 
 ---
 
 ## Abstract
 
-Mercury Composable is an eight-year-old event-driven framework that spent its first years
-solving a people problem — teams coupling software at the joints — and, in doing so, quietly
-built the substrate the AI era turns out to need. Its three-layer ascent moved application
-behavior out of imperative code into **configuration** and then into **knowledge**: declarative
-artifacts that a compiler validates, a human certifies, and a machine can author. This paper
-tells that story, then articulates the discipline the milestone proved out: the **AI grammar
-methodology** — engineering a codebase's documentation as a machine-consumable, CI-verified
-contract, so an AI partner can build correct applications from the grammar alone, and so every
-building block created on Mercury can compile a grammar of its own and stay legible to the next
-project that depends on it.
+Mercury Composable began as an event-driven framework. Over eight years, it became a journey in
+progressively reducing coupling, moving behavior from code into configuration and knowledge, and
+ultimately revealing a new model for Human-AI collaboration.
 
----
+Its evolution exposed a recurring pattern. The most successful AI-assisted projects were not the
+ones with the cleverest prompts. They were the ones with the clearest intent.
 
-## 1 · Origin — composability before it was needed
+Humans define purpose, constraints, priorities, and judgment. AI partners help refine those ideas
+and translate them into designs, models, flows, tests, and implementation artifacts. Shared memory
+preserves continuity. AI Grammar makes systems legible to machines. Validation and governance keep
+generated artifacts aligned with their intended purpose.
 
-Mercury's copyright line starts in 2018, well before AI pair programmers existed. The problem it
-was built against is older still: enterprise backends rot at the joints. Direct calls between
-components, shared data structures, orchestration logic threaded through business code — every
-one of these is a coupling that makes the next change more expensive than the last.
+This paper argues that Human-AI collaboration is becoming an engineering discipline.
+**Intent-Driven Development** provides the collaboration model. **Mercury** provides a working
+reference implementation.
 
-The founding decision came from the actor-model lineage [2] (Scala/Akka) carried onto the Eclipse
-Vert.x event bus: **functions know nothing about each other** — information hiding [1], applied
-without exception. A Mercury function is a
-self-contained unit addressed by a route-name string, exchanging immutable event envelopes. There
-is no other coupling surface — no shared objects, no direct references, nothing to rot. That rule
-is the framework's first architectural invariant, and it has never changed.
+Together, they demonstrate a simple idea:
 
-For years the honest cost of this style was ergonomics: event-driven code asked developers to
-think in callbacks and reactive chains. Java 21 virtual threads dissolved that tax. A synchronous
-request in Mercury suspends a virtual thread instead of blocking a kernel thread, so plain
-sequential code performs on par with reactive code. The event-driven core became free to use —
-which mattered, because everything above it depends on it.
+> Productivity does not come from generating more code. It comes from reducing the distance
+> between human intent and a working, governed system.
 
-> You can only compose what you never coupled. The decade of discipline at layer one is the
-> precondition for everything this paper describes.
+## The Thesis in One View
 
-## 2 · The ascent — code → configuration → knowledge
+The first generation of AI-assisted development focused on prompts.
 
-Each layer of Mercury removes a class of imperative code, and each removal was learned from
-watching where coupling sneaks back in.
+The second focused on context.
 
-**Layer 1 — Event-driven (Platform Core).** Decoupled functions on the event bus. One atom, four
-roles: the same function is called a *service* when `rest.yaml` maps it to an HTTP endpoint, a
-*task* when a flow sequences it, a *skill* when a graph node carries it. Code remains the unit of
-work — never the unit of wiring.
+The next stage focuses on intent.
 
-**Layer 2 — Composable (Event Script, introduced in v4).** Orchestration written as code is where
-coupling returns, so orchestration became configuration: YAML flows that name tasks by route,
-map data field-by-field between them, declare execution types, branches, and the exception path.
-A flow file does two jobs code cannot do as well: it **communicates intent** — the sequence,
-branches, and failure path are legible without reading Java — and it **manages dependencies**,
-because the engine enforces the wiring. Roughly half of an application stops being code.
+> **Prompts tell AI what to do. Context helps AI understand. Intent explains what matters.**
 
-**Layer 3 — Semantic (the Active Knowledge Graph, executed by the MiniGraph engine).** The
-observation behind the third layer: most backend behavior — fetch, decide, transform, respond —
-is *knowledge about the business*, not engineering. So the model became the application: a
-property graph whose nodes carry skills that execute during traversal. Data contracts, decision
-logic, API composition, even long-running workflow suspension and resumption live in the model.
-For the common case, **zero imperative code**.
+|  | Prompt engineering | Context engineering | Intent-driven development |
+|---|---|---|---|
+| **Human provides** | Instructions | Instructions, knowledge, constraints, and project-specific information | Vision, goals, boundaries, priorities, and judgment |
+| **AI contributes** | Responses | Better responses | Collaboration in analysis, design, implementation, and refinement |
 
-The third layer is guarded the way production software must be: a graph deploys only through
-**CompileGraph**, the mandatory validation gate — a model is compiled and listed, or its endpoint
-answers 404 as if it never existed. Dry-run in the Playground, validate, then deploy: the same
-compile-before-run discipline that code has always had, applied to knowledge.
+Intent-Driven Development treats intent as the organizing force of delivery. Humans remain
+responsible for purpose, boundaries, trade-offs, and judgment. AI partners contribute analysis,
+critique, translation, implementation, and refinement. Memory preserves continuity. Grammar makes
+capabilities discoverable. Validation and governance keep generated artifacts aligned with
+approved outcomes.
 
-This is deliberately **not** a "no code ever" dogma. Zero-code is the default, not a limit;
-Event Script and custom functions remain the escape hatch for the demanding edge, and the three
-layers compose cleanly — graph → flow → function — with no coupling anywhere in the stack.
+The architecture can be summarized as:
 
-## 3 · The turn — why this matters to the AI world
+```text
+Intent
+  ↓
+Vision and boundaries
+  ↓
+Shared memory and blueprint
+  ↓
+AI-readable grammar
+  ↓
+Models, flows, and functions
+  ↓
+Validation and human certification
+  ↓
+Governed execution
+  ↓
+Feedback into intent
+```
 
-Two problems dominate serious AI-assisted engineering, and they meet exactly here.
+Mercury did not begin with this model. It discovered it gradually through eight years of
+architectural evolution.
 
-**The governance problem.** AI writes imperative code fast, and ungoverned. Enterprises cannot
-certify what they cannot read, and reviewing machine-authored code at machine speed does not
-scale. The evidence is measurable: AI-generated code reproduces known vulnerability patterns in a
-large fraction of security-relevant scenarios [3]; developers assisted by AI write less secure
-code while believing it more secure [4]; and industry-wide delivery research ties rising AI
-adoption to reduced delivery stability, even as throughput improves [5]. The industry's answer so
-far is more review. Mercury's answer is different: **change the
-artifact the AI authors.** An AI that authors a flow or a graph model is producing a declarative,
-compiler-validated, human-legible artifact. CompileFlows and CompileGraph reject malformed intent
-at build time; the Playground dry-runs it; a product owner can read and certify it. Mercury calls
-this **governed nondeterminism** — the creativity of a model author, bounded by gates. Never a
-determinism claim; a governance design.
+## 1 · Origin: Composability Before AI
 
-**The context problem.** AI agents consume context expensively. The default way an agent learns
-a dependency is to read its source — and that cost repeats for every dependency, every session,
-every team. Nor is a huge context window a substitute for curation: models measurably degrade at using
-information buried in the middle of long inputs [6]. A platform meant to be built *on* by AI
-partners has to make itself legible at a price that scales.
+Mercury's story begins in 2018, before AI pair programmers became part of everyday development.
+The original problem was familiar: enterprise systems tend to become coupled at their joints.
 
-The framework's decade of pushing behavior into declarations answers the first problem. The
-**AI grammar** answers the second.
+Components call one another directly. Shared structures spread across boundaries. Orchestration
+logic becomes entangled with business logic. Each shortcut makes the next change harder.
 
-## 4 · The AI grammar — making a platform legible to machines
+Mercury adopted a strict architectural invariant from the actor-model tradition [2]: **functions
+know nothing about one another** — information hiding [1], applied without exception. A function
+is addressed by a route name and exchanges immutable event envelopes. It has no direct reference
+to another function and no shared object through which hidden dependencies can grow.
 
-**Definition.** An AI grammar is the machine-consumable contract of a codebase: the discovery
-map, reference guides, machine-readable catalogs, and validation gates that together let an AI
-agent author correct artifacts **without reading engine source**. It is not documentation with an
-AI sticker on it. It is documentation engineered to be *sufficient* (an agent guide may claim
-"you can generate correct artifacts from this page alone" — and only agent guides may claim it),
-*verified* (CI ties every claim to the code), and *cheap* (measured in tokens, not pages).
+That principle created the foundation for everything that followed:
 
-**What Mercury ships today:**
+> You can only compose what you never coupled.
 
-| Component | What it does |
-|---|---|
-| `llms.txt` discovery map | Routes an agent to the right page in one hop. On the Java engine it is an exhaustive site map with a CI **coverage gate** (a new guide cannot ship unlisted); on the Rust engine it is a deliberately curated agent map with a CI **link-integrity gate**. |
-| Three DSL spec kits | For each authoring surface — `rest.yaml`, Event Script flows, MiniGraph commands — a grammar reference, a machine-readable JSON catalog, an AI agent guide, and a **CI drift test** binding them to the engine — the machine-readable-contract idea OpenAPI proved for HTTP APIs [7], applied to authoring surfaces. |
-| `ai-contract-provider` | Serves the documentation set as a **version-matched contract**: discovery endpoint, per-file SHA-256 manifest, exportable as an offline Agent Skill. The agent's docs match the engine it is actually driving. |
-| Registration Metadata Contract | The grammar of *declaring* functions — one metadata model with fixed boot semantics, carried by per-language idioms (Java annotations, Rust macros, future Python/Node decorators), proven by **golden vectors** shared verbatim between engines. |
-| Engine parity | The Java engine is the reference implementation; the Rust engine ships in lock-step; flow YAML ports unchanged; python/node functions join flows as Event-over-HTTP peers speaking the same envelope. The grammar is language-neutral because the contracts are. |
-| The shared memory layer | The *project's* grammar, distinct from the platform's: Vision, Blueprint, continuity, session logs — so every AI session starts oriented on intent and state, not just API shape. |
+The early cost was ergonomics. Event-driven development often required callbacks and reactive
+chains. Lightweight concurrency later made sequential programming practical over the event-driven
+core — Java virtual threads on the canonical engine, tokio async/await in this repository —
+allowing the architecture to retain its decoupling without forcing application developers into a
+reactive style.
 
-**The benchmark.** The maintainer's ruling, and the discipline behind every entry: **doc
-discovery and token efficiency**. A grammar is useful only if the agent finds the right page in
-one hop and the map stays cheap to read. Measured on the Rust engine this week: a ~2,500-token
-map routes to ~46,000 tokens of source-verified reference — replacing a hunt through ~515,000
-tokens of source. Completeness that costs discovery is a regression; the map is curated, dense
-with the exact tokens an agent searches for, and gated so it cannot silently rot.
+The importance of this history is not merely technical. Human-AI collaboration benefits from the
+same qualities that make systems composable: explicit boundaries, stable contracts, small units
+of capability, and limited hidden state.
 
-**"Compiled" is meant literally.** What separates an AI grammar from ordinary documentation is
-that CI binds it to the code: drift tests for the three DSLs, the coverage and link-integrity
-gates on the maps, golden vectors for the cross-language contracts, the version-matched manifest.
-When documentation can drift freely, agents rationally learn to distrust it and go read source —
-which defeats the entire economics. The gates are what make guide-first behavior rational.
+## 2 · The Ascent: Code to Configuration to Knowledge
 
-**The proof.** The ai-enabled-repo-demo exercises put the grammar under load: fresh AI agents —
-no project context, no human hints — built and ran applications from the grammar alone, through
-repeated rehearsals and a live demonstration. Every friction they hit became a fix within days,
-shipped to the field in v4.12.2: a `json` simple plugin closing a data-mapping gap, an
-export-guard correction in the Playground, recipe lines added to the agent guides where two
-independent fresh agents drew the same wrong conclusion, and discovery gaps closed with CI gates
-behind them. That loop — **agent friction → grammar or engine fix → field release** — is the
-methodology working, not a promise that it might.
+Mercury evolved through three layers. Each layer removed a class of imperative code and made
+system behavior easier to understand, compose, and govern.
 
-## 5 · The methodology — how a developer builds with an AI partner
+### Layer 1: Event-Driven Functions
 
-The developer journey has three steps. Each is ordinary on its own; the compounding effect is
-the point.
+At the platform core, functions are independent units of work connected through an event bus. The
+function contains capability, but it does not own the wiring.
 
-### Step 1 — AI-enable the project
+The same function may serve different roles depending on how it is composed. It can be exposed as
+a service, invoked as a task in a flow, or attached as a skill to a graph node. Mercury's
+conventions name this **one atom, four roles**: the function is the single atom, and _service_,
+_task_, and _skill_ only describe how it is wired.
 
-Greenfield or existing, the first act is not code: install the shared memory layer, and write
-the **Vision** with the AI partner — confirmed by the human, never fabricated by the machine.
-From the Vision, derive the **Blueprint**: the measured gap between the current state and the
-target. Plan implementation as increments that close it. Every subsequent session — any agent,
-any vendor — starts oriented: *Vision → Blueprint → Design → Implementation*, with feedback
-closing the loop.
+Code remains the unit of work, not the unit of orchestration.
 
-The proof point is **this repository**: the Rust engine was AI-enabled **before its first line
-of code**, so every increment was derived from stated intent rather than reconstructed after the
-fact — the Vision and memory layer landed on 2026-07-15, the code followed. Roughly a hundred
+### Layer 2: Event Script
+
+Orchestration written as code is a common place for coupling to return. Mercury therefore moved
+orchestration into declarative YAML flows.
+
+A flow names tasks by route, maps data between them, declares branches and execution patterns,
+and defines its exception path. The result is both executable and explainable. A reader can see
+the sequence, decisions, dependencies, and failure behavior without reconstructing them from
+application code.
+
+This shift moves a significant portion of an application from imperative implementation into
+configuration.
+
+### Layer 3: The Active Knowledge Graph
+
+The third layer follows from a broader observation: much backend behavior is knowledge about the
+business.
+
+Fetch this information. Apply this rule. Transform that result. Select a path. Compose a
+response. Suspend here and resume when a person or system provides new information.
+
+Mercury represents that behavior as an Active Knowledge Graph executed by the MiniGraph engine.
+Nodes can carry executable skills, and traversal turns the semantic model into a running
+application.
+
+For suitable use cases, the application becomes a model rather than a body of orchestration code.
+
+This is not a claim that all code disappears. Custom functions and Event Script remain available
+where the problem demands them. The layers compose downward:
+
+```text
+Graph → Flow → Function
+```
+
+The architectural direction is clear: place behavior at the highest level where it can remain
+understandable and governed.
+
+### Compile Before Run
+
+A graph becomes available only after it passes the CompileGraph validation gate. Flows follow the
+same compile-before-run discipline.
+
+The principle is straightforward:
+
+> A machine-authored artifact should not become executable merely because it looks plausible.
+
+It must satisfy the platform contract, survive validation, and remain available for human
+inspection and certification.
+
+## 3 · The Turn: Why This Matters in the AI Era
+
+AI-assisted engineering introduces two problems that meet directly in this architecture.
+
+### The Governance Problem
+
+AI can produce imperative code at high speed. That speed creates value, but the evidence for its
+cost is measurable: AI-generated code reproduces known vulnerability patterns in a large fraction
+of security-relevant scenarios [3]; developers assisted by AI write less secure code while
+believing it more secure [4]; and industry-wide delivery research ties rising AI adoption to
+reduced delivery stability, even as throughput improves [5].
+
+The common response is to add more review after generation. Mercury suggests a complementary
+strategy:
+
+> **Change the artifact the AI authors.**
+
+When an AI partner authors a flow or graph, it produces a bounded, declarative artifact.
+Compilers can validate its structure and contracts. A human can examine its intended behavior.
+Dry-runs and tests can challenge it before deployment.
+
+This does not make AI deterministic. It separates creative authorship from authorized execution.
+
+### The Context Problem
+
+AI agents require context, and context is not free. Asking every agent in every session to
+rediscover a platform from source code is slow, expensive, and inconsistent. Large context
+windows do not eliminate the need for curation, discovery, and reliable contracts — models
+measurably degrade at using information buried in the middle of long inputs [6].
+
+A platform designed for AI collaboration must make itself legible at a cost that scales.
+
+Mercury's declarative architecture addresses the governance problem. **AI Grammar** addresses the
+context problem.
+
+A third question remains:
+
+> Who decides what the system should become?
+
+That responsibility begins with intent.
+
+## 4 · Human-AI Collaboration as an Engineering Discipline
+
+The first generation of AI-assisted development treated AI primarily as a generator. A human
+supplied a prompt. An AI produced an answer, a design, or a piece of code. Context engineering
+improved the quality of those results by supplying knowledge, examples, instructions, and
+constraints.
+
+Those advances were important, but they left a central question unanswered:
+
+> How do we keep increasingly capable AI systems aligned with what humans actually intend?
+
+Without a disciplined answer, acceleration can amplify misunderstanding. A missing boundary
+becomes an implementation assumption. An outdated instruction becomes a design decision. A
+forgotten ruling is rediscovered inconsistently.
+
+More output is produced, but not necessarily better outcomes.
+
+> **Acceleration without direction is only faster drift.**
+
+Intent-Driven Development addresses this challenge by making intent, rather than generated
+output, the organizing force of delivery.
+
+It does not assume that intent is complete at the beginning. Intent is expressed, examined,
+refined, translated, implemented, evaluated, and corrected through a continuing Human-AI feedback
+loop.
+
+### Intent Is the Primary Human Artifact
+
+A prompt describes the next action. Intent gives that action meaning.
+
+Intent includes:
+
+- the purpose of the system;
+- the outcome the work should achieve;
+- the boundaries that must be respected;
+- the qualities that must be preserved;
+- the trade-offs that are acceptable;
+- the risks that require judgment;
+- and the evidence by which an outcome will be accepted.
+
+AI can help refine intent by exposing contradictions, identifying assumptions, comparing
+alternatives, and translating an emerging idea into a clearer Vision or Blueprint.
+
+The AI participates in refining intent. It does not become its owner.
+
+### Complementary Responsibility
+
+Human-AI collaboration works when responsibilities remain clear.
+
+#### Humans provide
+
+- purpose and desired outcomes;
+- accountability and ethical judgment;
+- boundaries and priorities;
+- architectural rulings and acceptable trade-offs;
+- certification of consequential artifacts;
+- and the final decision to place a system into use.
+
+#### AI partners contribute
+
+- synthesis and analysis;
+- critique and alternative generation;
+- translation of intent into structured artifacts;
+- implementation of bounded tasks;
+- consistency checking;
+- test and documentation support;
+- and identification of ambiguity or missing context.
+
+#### Platforms provide
+
+- contracts and constraints;
+- structural and semantic validation;
+- controlled execution;
+- deployment gates;
+- observability;
+- and operational feedback.
+
+This is not a model of autonomous replacement. It is a model of complementary responsibility.
+
+**Humans provide direction. AI provides leverage. Governance provides trust.**
+
+One practical refinement sharpens the AI side of this division: specialized reviewer personas
+invoked on demand. One critiques architecture. Another examines security. Another checks
+implementation consistency. Another assesses documentation clarity. These perspectives do not
+replace human judgment; they give the human architect structured, independent viewpoints from
+which better decisions are made.
+
+### From Conversation to Governed Artifact
+
+A valuable conversation may clarify an idea, but an unrecorded conversation is not a durable
+engineering artifact. It cannot orient the next session, bind an implementation, or establish
+what was approved.
+
+Intent-Driven Development therefore moves collaboration through progressively more executable
+artifacts:
+
+```text
+Intent
+  ↓
+Vision
+  ↓
+Blueprint
+  ↓
+Design and decisions
+  ↓
+Model, flow, contract, or function
+  ↓
+Validation and certification
+  ↓
+Execution and feedback
+```
+
+The Vision describes the desired future. The Blueprint measures the gap between that future and
+the current state. Design records preserve important reasoning. Models, flows, and functions
+realize the design. Compilers and tests evaluate conformance. Human certification evaluates
+meaning, risk, and fitness. Runtime evidence returns to the next cycle of refinement.
+
+The result is not a one-way handoff from human to machine. It is a cognitive loop that keeps
+purpose connected to execution.
+
+### Four Forms of Drift
+
+Intent-Driven Development can be understood by the problems it helps control.
+
+**Purpose drift.** The implementation gradually moves away from the outcome it was meant to
+achieve. Vision, intent, and human judgment keep delivery connected to purpose.
+
+**Context drift.** Documentation and instructions become disconnected from the implementation.
+AI Grammar binds the explanatory layer to the platform through versioning, machine-readable
+catalogs, manifests, and validation gates.
+
+**Continuity drift.** Decisions and rationale are forgotten across sessions, participants, or
+tools. Shared memory, Blueprints, continuity records, and architecture decisions preserve what
+was decided and why.
+
+**Implementation drift.** Generated artifacts violate approved designs, platform contracts, or
+deployment rules. Compilers, tests, dry-runs, staged promotion, and human certification constrain
+what becomes executable.
+
+These controls reinforce one another.
+
+> Grammar without intent can help AI build the wrong thing correctly. Intent without executable
+> contracts remains aspiration. Validation without human judgment can prove conformance without
+> proving value.
+
+## 5 · Memory and Grammar
+
+Human-AI collaboration requires both continuity and legibility. Shared memory and AI Grammar
+address these needs, but they solve different problems.
+
+### Shared Memory Preserves the Project
+
+Memory is project-specific. It explains:
+
+- why the project exists;
+- what is currently true;
+- what has been decided;
+- which assumptions were rejected;
+- what changed;
+- and what should happen next.
+
+Looking backward, memory preserves decisions, provenance, contradictions, and history. Looking
+forward, it carries intent through Vision, Blueprint, design, implementation, and feedback.
+
+Memory allows a new session or AI partner to continue the project rather than reconstruct it.
+
+### AI Grammar Explains the Capability
+
+Grammar is capability-specific. It explains:
+
+- what a platform or building block can express;
+- where authoritative guidance is found;
+- how correct artifacts are authored;
+- which contracts they must satisfy;
+- and how conformance is verified.
+
+An **AI Grammar** is the machine-consumable contract of a codebase: its discovery map, reference
+guides, machine-readable catalogs, and validation gates. Together, these let an AI partner author
+correct artifacts without repeatedly reading engine source. The test of a grammar is that system
+behavior becomes **derivable rather than guessable**.
+
+AI Grammar is not documentation with an AI label. It must be:
+
+- **sufficient**, so an AI partner can act from it;
+- **verified**, so its claims remain bound to the implementation;
+- **discoverable**, so the right guidance is found quickly;
+- **version-matched**, so the guidance corresponds to the running capability;
+- and **economical**, so context consumption scales with the task rather than the dependency tree.
+
+Within Intent-Driven Development, AI Grammar is the translation contract between project intent
+and platform capability. It does not decide what should be built. It makes the available building
+language explicit and verifiable.
+
+The distinction is concise:
+
+> **Memory explains the project. Grammar explains the platform.**
+
+Memory without grammar provides direction without a dependable means of execution. Grammar
+without memory provides capability without purpose or continuity.
+
+## 6 · What Mercury Ships
+
+Mercury makes the AI Grammar concrete through a small set of mutually reinforcing mechanisms.
+
+### Discovery Maps
+
+`llms.txt` routes an AI partner to the relevant guidance in one hop. The Java engine uses an
+exhaustive map with a CI coverage gate — a new guide cannot ship unlisted. This repository uses a
+deliberately curated agent map with a CI link-integrity gate.
+
+The goal is not to place all knowledge in the map. The goal is to make authoritative knowledge
+easy to find.
+
+### DSL Specification Kits
+
+Each major authoring surface — REST bindings, Event Script flows, MiniGraph commands — has a
+specification kit:
+
+- a grammar reference;
+- a machine-readable catalog;
+- an AI agent guide;
+- and a CI drift test binding the guidance to the engine.
+
+The approach applies the idea of machine-readable contracts to the surfaces through which
+applications are authored.
+
+### Version-Matched Contracts
+
+The `ai-contract-provider` serves the documentation set as a version-matched contract: a
+discovery endpoint, a per-file SHA-256 manifest, and an export for offline agent use.
+
+The AI partner receives guidance for the engine it is actually driving.
+
+### Cross-Language Registration Contracts
+
+A shared registration metadata model defines how functions declare themselves and how they behave
+during startup. Language-specific forms, including Java annotations and Rust macros, carry the
+same contract.
+
+Golden vectors test common contracts across engines so independent implementations can prove
+compatible behavior.
+
+### Engine and Language-Pack Parity
+
+The Java engine is the reference implementation, and this repository — the Rust engine — tracks
+the same contracts. Flow YAML can move across the two engines. Python and Node.js functions can
+participate as Event-over-HTTP peers using the same envelope.
+
+The grammar remains language-neutral because the contracts remain language-neutral.
+
+### Project Memory
+
+The project's memory is distinct from the platform's grammar. Vision, Blueprint, continuity,
+session records, and architecture decisions orient each AI session on purpose and state rather
+than only API shape.
+
+Together, these mechanisms make guide-first behavior rational. If documentation can drift freely,
+an AI partner learns to distrust it and returns to source. Verification gates preserve trust in
+the explanatory layer.
+
+The obligation runs both ways. The AI partner does not merely consume the explanatory layer; it
+helps maintain it. In Mercury's working practice, an agent that had to fall back to source
+records the guide gap in its session log, and the gap is closed in a follow-up documentation
+change.
+
+## 7 · The Methodology: Building with an AI Partner
+
+Intent-Driven Development becomes practical through a simple journey.
+
+### Step 1: Establish Intent and Memory
+
+The first act is not code.
+
+Human and AI partner define the Vision together. The human confirms it. From the Vision, they
+derive a Blueprint that describes the current state, desired state, and meaningful gaps between
+them.
+
+Implementation proceeds through increments that close those gaps. Each new session begins with
+the same orientation:
+
+```text
+Current state → Vision → Blueprint → Design → Implementation → Feedback
+```
+
+Memory preserves continuity, but judgment remains a shared human responsibility.
+
+> Mechanize the arithmetic. Do not mechanize the judgment.
+
+The proof point is **this repository**: the Rust engine was AI-enabled **before its first line of
+code** — the Vision and memory layer landed on 2026-07-15, the code followed — so every increment
+was derived from stated intent rather than reconstructed after the fact. Roughly a hundred
 increments later it ships in lock-step with the Java engine, with the same discipline intact.
 
-### Step 2 — add mercury-composable to the session, and choose the path
+### Step 2: Load the Capability Grammar
 
-The engine arrives carrying its own grammar — the `llms.txt` map, the version-matched contract,
-the exportable Agent Skill — so the session needs no source archaeology. Then choose the path:
+The platform arrives with its own AI Grammar: discovery map, version-matched contract, reference
+guides, catalogs, and validation rules. Both engines carry the same grammar and the same layers —
+choose the engine, keep the methodology.
 
-- **Recommended for user applications: Layer 3, the knowledge graph.** (Both engines carry
-  the same grammar and the same layers — choose the engine, keep the methodology.) Express the service as a
-  graph model; dry-run it in the Playground with the AI companion; deploy it behind the
-  CompileGraph gate. The application *is* the model.
-- **Layer 2, Event Script**, when a flow is the natural shape — and beneath any graph that
-  composes onto flows.
-- **Layer 1, custom functions**, where code is genuinely the unit of work.
+The team then chooses the highest appropriate authoring layer:
 
-The path is a dial, not a wall. The layers compose downward without coupling, so a project can
-start at the top and reach down exactly as far as the problem demands.
+1. **Active Knowledge Graph** for behavior naturally expressed as knowledge and traversal;
+2. **Event Script** when a flow is the clearest shape;
+3. **Custom functions** where code is genuinely the unit of work.
 
-### Step 3 — build the application — or a building block
+The layers are a dial, not a wall. A project can start with knowledge and reach down only as far
+as the problem requires.
 
-Two kinds of things get built on Mercury, and the methodology treats them differently on one
-crucial point.
+### Step 3: Produce Governed Artifacts
 
-**A user application** goes intent → model (plus flows where needed) → certify → deploy. Its
-behavior changes by refining the model — the Vision's core promise.
+A user application moves from intent to model, from model to validation, and from validation to
+certification and deployment.
 
-**A building block** — a common library or utility that rides on Mercury, the pattern of the
-Java engine's own Kafka adapter family — is implemented with **layer-2 and layer-3 patterns**:
-composable functions and reusable flows and skills, coupled to nothing, addressable by route
-name like everything else. And then the step that makes the methodology recursive:
+A reusable building block requires one additional step: it should publish its own AI Grammar.
 
-> **Compile an AI grammar into the building block's own repository.** Its guide, its map
-> entries, its machine-readable catalog where it has an authoring surface, its drift gates.
-> The block becomes legible to AI partners the same way Mercury is.
+Its repository should explain what the block provides, how it is discovered, how it is used,
+which contracts apply, and how those contracts remain verified. The block then becomes legible to
+the next application and the next AI partner.
 
-A new application session then loads Mercury's grammar **plus each building block's grammar**,
-alongside the application's own memory layer. Grammar composes the way dependencies compose —
-transitively, and at near-constant token cost per block, because each grammar routes the agent
-to exactly what it needs instead of handing it source.
+This makes the methodology recursive:
 
-**The recursion is already live inside the framework.** On the Java engine, twin-kafka is a
-building block built on a building block — a second Kafka cluster on top of minimalist-kafka — and this week supplied
-the cautionary tale that makes the premise concrete: while twin-kafka's entry was missing from
-the discovery map, the module was effectively invisible to AI partners, who fell back to source.
-The entry landed, with a CI gate behind it, and one hop of discovery replaced the hunt.
+> Dependencies compose. Their grammars must compose too.
 
-**To an AI partner, undocumented capability is absent capability.** That sentence is the whole
-methodology in eight words.
+The recursion is already live inside the framework, and it has already supplied its own
+cautionary tale. On the Java engine, twin-kafka is a building block built on a building block — a
+second Kafka cluster on top of the minimalist Kafka library. While its entry was missing from the
+discovery map, the module was effectively invisible to AI partners, who fell back to reading
+source. The entry landed, with a CI gate behind it, and one hop of discovery replaced the hunt.
 
-## 6 · Industry context — standing on recognized practice
+To an AI partner, undocumented capability is absent capability.
 
-The AI grammar is not a private invention; it is a hardening of practices the industry already
-trusts, assembled into one discipline and pointed at AI collaboration:
+## 8 · Governed Nondeterminism
 
-- **`llms.txt`** [8] — the emerging convention for machine-readable site maps, proposed on the
-  same premise as our benchmark: context is finite, so hand agents a curated, token-efficient
-  map. Mercury adopts it and
-  then does what conventions alone cannot: gates it in CI (coverage on the exhaustive map,
-  link integrity on the curated one) and holds it to a measured token-efficiency benchmark.
-- **Docs-as-code** [9] — documentation versioned, reviewed, and built like software. Mercury extends
-  it to *docs-as-contract*: drift tests fail the build when a guide and its engine disagree.
-- **Architecture Decision Records** (Nygard, 2011) [10] — Mercury's ADR ledger holds the durable rationale;
-  the memory layer's facts point at ADRs, so agents inherit the *why*, not just the what.
-- **Consumer-driven contract testing** [11] — the golden-vector suites (envelope wire format,
-  registration metadata) are contract tests shared verbatim between independent engine
-  implementations, the same trust mechanism Pact-style testing [12] brought to service boundaries.
-- **Agent-instruction conventions** (`AGENTS.md` and kin) [13] — Mercury layers a routing shim on
-  top: contributors are directed into the memory protocol, consumers into the version-matched
-  contract, so each audience gets its own grammar.
-- **Spec-driven development** [14] — the industry's 2025 turn toward the specification as the
-  primary artifact AI builds from, with generation validated against it. The AI grammar applies
-  the same principle one level down: the *platform's* contract, versioned and gated, is what the
-  AI builds *with*.
-- **Event-driven architecture and the actor model** [2] — the substrate itself is orthodox EDA;
-  Mercury's contribution is carrying its decoupling discipline up into configuration and
-  knowledge.
-- **Human-in-the-loop governance** — dry-run before deploy, compile gates, human certification,
-  and staged promotion mirror the review-and-release controls enterprises already run in their
-  delivery pipelines — and the oversight posture that AI risk frameworks and regulation now
-  require of consequential AI systems [15][16][17]; the graph lifecycle applies them to model
-  artifacts.
-- **Evaluation culture** [18][19] — the demo's fresh-agent rehearsals are evals for
-  documentation; the memory smoke test is an eval for project memory. Both run on cadence, both
-  produced fixes — the same systematic-measurement stance the LLM evaluation literature brought
-  to models themselves.
+Intent-Driven Development does not assume deterministic AI output.
 
-The synthesis is the contribution: each practice is known; **binding them into a single,
-CI-enforced, token-budgeted contract that an AI partner can build from is the AI grammar.**
+Two capable AI partners may suggest different designs from the same Vision. The same model may
+produce different implementations in separate runs. That variation can be useful because it
+supports exploration, alternative generation, and critique.
 
-## 7 · What this unlocks
+The goal is not deterministic authorship. The goal is governed execution.
 
-- **Enterprise-grade AI development.** The AI authors models and configuration; compilers and
-  humans gate; the certified artifact deploys. Nondeterministic authorship, governed outcome.
-- **Sustainable context economics.** An agent's context budget scales with the task, not with
-  the dependency tree — because every dependency worth using carries a grammar.
-- **Human–AI co-authorship as a first-class capability.** Playground sessions an AI can host
-  with humans joining as equal co-authors; a synchronous companion endpoint; suspend/resume as
-  the human-in-the-loop primitive inside a running workflow.
-- **Language independence.** The envelope and registration contracts make the grammar polyglot:
-  Java and Rust engines in lock-step, python and node functions joining the same flows as peers.
+1. AI partners propose and author within defined boundaries.
+2. Machine-readable contracts constrain the available forms.
+3. Compilers and tests reject invalid artifacts.
+4. Humans evaluate meaning, risk, and fitness.
+5. Promotion gates determine what becomes operational.
+6. Runtime evidence informs the next refinement.
 
-## 8 · Where it goes
+This is **governed nondeterminism**:
 
-The public Blueprint continues the same line: **AI agent orchestration on the graph runtime** —
-bounded-agency decision graphs where LLM reasoning and tools join as nodes, with the first
-experiment already run end-to-end (a support-triage graph driving live LLM verdicts through the
-engine under one distributed trace); a **pluggable AI companion backend** maturing the
-collaboration layer; and the **enterprise governance lifecycle** — dry-run → certify → stage →
-approve → production — so models promote to production as standard endpoints.
+> **Variation in exploration. Discipline in execution.**
 
-The north star does not move:
+Governance is not a review step added after AI generation. It is part of the architecture through
+which intent becomes executable.
 
-> **The Active Knowledge Graph is the application.** Humans and AI co-author the model, the
-> event-driven runtime executes it, and changing behavior means editing knowledge — not
-> shipping code.
+## 9 · Proof Through Fresh-Agent Evaluation
 
+A methodology for AI collaboration should be tested with AI collaborators.
+
+The `ai-enabled-repo-demo` exercises gave fresh AI agents no project history and no human hints
+beyond the available grammar. The agents were asked to discover the platform, author
+applications, and run them.
+
+The value of the exercise was not that every first attempt succeeded. The value was that friction
+became evidence.
+
+Repeated misunderstandings indicated defects in guidance, discovery, or platform behavior. Those
+findings led to concrete changes: a JSON data-mapping plugin, a Playground export correction,
+clearer recipe lines in agent guides, and the retirement of a fire-and-forget companion endpoint
+that hid errors from its callers — shipped in v4.12.2. Stronger discovery gates followed in
+v4.12.3: a coverage gate binding the Java engine's exhaustive map to the documentation tree, and
+a link-integrity gate on this repository's curated map.
+
+The evaluation loop was:
+
+```text
+Agent friction
+  ↓
+Grammar or engine diagnosis
+  ↓
+Verified correction
+  ↓
+Field release
+  ↓
+Fresh-agent re-evaluation
+```
+
+This is the methodology working as intended. The AI partner is not only a consumer of the
+platform. Its friction helps improve the platform's ability to explain itself.
+
+## 10 · Standing on Recognized Practice
+
+Intent-Driven Development and AI Grammar build on established ideas rather than replacing them.
+
+- **Information hiding and the actor model** provide the decoupled architectural substrate [1][2].
+- **Event-driven architecture** provides independent units of capability and message-based
+  composition.
+- **Docs-as-code** establishes documentation as a versioned engineering artifact [9].
+- **OpenAPI and machine-readable contracts** demonstrate the value of specifications that both
+  people and systems can consume [7].
+- **Architecture Decision Records** preserve durable rationale [10].
+- **Consumer-driven contract testing** provides a model for shared, executable expectations
+  across implementations [11][12].
+- **`llms.txt` and agent-instruction conventions** improve machine-oriented discovery and
+  guidance [8][13].
+- **Spec-driven development** treats the specification as a primary artifact from which AI can
+  build [14].
+- **Human-in-the-loop governance** keeps consequential decisions subject to oversight [15][16][17].
+- **Evaluation culture** replaces anecdotal confidence with repeatable evidence [18][19].
+
+The contribution lies in the synthesis:
+
+> A Human-AI collaboration model supported by shared memory, a CI-verified and token-conscious
+> capability grammar, governed artifacts, and an executable composable runtime.
+
+## 11 · What This Unlocks
+
+### Enterprise-Grade AI Development
+
+AI partners can author models and configuration while compilers and humans govern what advances.
+Creativity remains available, but operational outcomes stay bounded by contracts and approval.
+
+### Sustainable Context Economics
+
+An AI partner can navigate from a compact discovery map to authoritative guidance rather than
+repeatedly reading an entire dependency's source. Context consumption can follow the task instead
+of the full dependency tree.
+
+The effect is measurable. On this repository's documentation map (measured 2026-09-04, v4.12.3),
+a roughly 2,500-token discovery map routes an agent to about 46,000 tokens of source-verified
+reference, replacing a hunt through roughly 515,000 tokens of engine source. Completeness that
+costs discovery is a regression: the map must stay small, dense with the exact terms an agent
+searches for, and gated so it cannot silently rot.
+
+### Human-AI Co-Authorship
+
+Humans and AI partners can work on the same durable artifacts: Vision, Blueprint, decisions,
+models, flows, tests, and explanatory contracts. Collaboration becomes part of the engineering
+system rather than an informal conversation outside it.
+
+### Language Independence
+
+Shared envelope and registration contracts allow functions from multiple languages and engines
+to participate in the same composable architecture.
+
+### Reusable AI-Legible Building Blocks
+
+A building block can carry its own grammar, allowing capability and understanding to compose
+transitively.
+
+### Governed Knowledge-Driven Applications
+
+The Active Knowledge Graph allows business behavior to be examined, validated, and changed as
+knowledge rather than being buried entirely in imperative code.
+
+## 12 · Where It Goes
+
+The next step is AI agent orchestration on the graph runtime.
+
+In this direction, LLM reasoning and tools become bounded nodes in a decision graph. The graph
+controls where reasoning is invited, which tools are available, what context is supplied, and how
+results are validated or escalated. The first experiment has already run end-to-end: a
+support-triage graph driving live LLM verdicts through the engine under one distributed trace.
+
+A pluggable AI companion can support collaboration without binding the methodology to one model
+vendor. An enterprise governance lifecycle can move models through dry-run, certification,
+staging, approval, and production as standard endpoints.
+
+The north star does not change:
+
+> **The Active Knowledge Graph is the application.**
+
+Humans define and refine intent. AI partners help translate it into models, flows, functions,
+tests, and explanations. Shared memory preserves direction and decisions. AI Grammar makes the
+platform and its building blocks legible. Compiler and human gates govern what becomes
+executable. The event-driven runtime carries certified artifacts into operation, and operational
+evidence returns to the next cycle of refinement.
+
+Changing behavior then means more than generating or editing code. It means refining knowledge
+while preserving the chain from purpose to execution.
+
+## Conclusion: The Real Contribution
+
+The story presented here is not ultimately about Mercury.
+
+Mercury is the journey through which these ideas became visible and the environment in which they
+were proven together.
+
+The larger lesson is that Human-AI collaboration works best when responsibilities are explicit
+and artifacts remain connected.
+
+Humans provide intent.
+
+AI provides leverage.
+
+Memory provides continuity.
+
+Grammar provides understanding.
+
+Governance provides trust.
+
+The runtime provides execution.
+
+As AI systems become more capable, successful organizations will not be distinguished only by
+their access to models or their ability to produce code quickly. They will be distinguished by
+their ability to express intent, preserve knowledge, govern change, and collaborate effectively
+with AI partners.
+
+That is the promise of Intent-Driven Development:
+
+> **Human intent provides direction. AI partnership provides leverage. Governed systems turn
+> their shared work into durable outcomes.**
+
+And the working posture follows from it:
+
+> **Do not just prompt. Do not just vibe code. Do not expect magic. Express intent. Define
+> boundaries. Build living context. Guide your AI partners. Review the work. Improve the
+> system.**
 
 ## References
 
@@ -322,8 +771,16 @@ The north star does not move:
 
 ---
 
-*Sources: this repository's `docs/guides/` and `docs/arch-decisions/ADR.md` (with the canonical
-Java engine's guides as the behavior specification); the shared memory layer (`memory/vision.md`,
-`memory/continuity.md`); records of the ai-enabled-repo-demo exercises; measurements taken
-2026-09-04 on this repository's documentation map. All figures are reproducible from the cited
-artifacts.*
+*This paper succeeds and extends two earlier pieces: "From Context Engineering to Intent-Driven
+Development" (Eric Law, August 2026) and the Rust edition of "The Mercury Story — Origin,
+Evolution, and the AI Grammar Methodology" (this repository, September 2026), whose Mercury
+narrative it carries forward. Sources: this repository's `docs/guides/` and
+`docs/arch-decisions/ADR.md` (with the canonical Java engine's guides as the behavior
+specification); the shared memory layer (`memory/vision.md`, `memory/continuity.md`); records of
+the ai-enabled-repo-demo exercises; measurements taken 2026-09-04 on this repository's
+documentation map. All figures are reproducible from the cited artifacts.*
+
+*Mercury Composable is an official Accenture open-source project; this repository is its official
+Rust implementation (github.com/Accenture/mercury). agent-memory is a lightweight, vendor-neutral
+shared-memory and cognitive-loop framework for human-AI collaboration, published under
+Apache-2.0.*
