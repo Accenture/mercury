@@ -1,0 +1,4092 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The official Rust implementation of Mercury Composable — Accenture's event-driven, composable application platform: platform-core, Event Script, and the active knowledge graph.">
+      
+      
+        <meta name="author" content="Eric Law">
+      
+      
+        <link rel="canonical" href="https://accenture.github.io/mercury/ai-grammar-methodology/">
+      
+      
+        <link rel="prev" href="../guides/getting-started/">
+      
+      
+        <link rel="next" href="../guides/architecture/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Intent-Driven Development (white paper) - Composable for Rust</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../css/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#intent-driven-development-and-the-architecture-of-human-ai-collaboration" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Composable for Rust" class="md-header__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Composable for Rust
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Intent-Driven Development (white paper)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../guides/getting-started/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Orientation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../guides/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Foundations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../guides/event-driven/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 1 — Event-Driven
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../guides/event-script/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 2 — Event Script
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../guides/knowledge-graph/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 3 — Knowledge Graph
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../guides/observability/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Operate & integrate
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../guides/configuration-reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Composable for Rust" class="md-nav__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    Composable for Rust
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orientation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Orientation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Intent-Driven Development (white paper)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Intent-Driven Development (white paper)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#abstract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-thesis-in-one-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Thesis in One View
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-origin-composability-before-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1 · Origin: Composability Before AI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-ascent-code-to-configuration-to-knowledge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2 · The Ascent: Code to Configuration to Knowledge
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2 · The Ascent: Code to Configuration to Knowledge">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layer-1-event-driven-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 1: Event-Driven Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-2-event-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 2: Event Script
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-3-the-active-knowledge-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 3: The Active Knowledge Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compile-before-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compile Before Run
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-the-turn-why-this-matters-in-the-ai-era" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3 · The Turn: Why This Matters in the AI Era
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3 · The Turn: Why This Matters in the AI Era">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-governance-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Governance Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-context-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Context Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-human-ai-collaboration-as-an-engineering-discipline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4 · Human-AI Collaboration as an Engineering Discipline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4 · Human-AI Collaboration as an Engineering Discipline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#intent-is-the-primary-human-artifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intent Is the Primary Human Artifact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#complementary-responsibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complementary Responsibility
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Complementary Responsibility">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#humans-provide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Humans provide
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-partners-contribute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI partners contribute
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#platforms-provide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Platforms provide
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from-conversation-to-governed-artifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From Conversation to Governed Artifact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#four-forms-of-drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Four Forms of Drift
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-memory-and-grammar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5 · Memory and Grammar
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5 · Memory and Grammar">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#shared-memory-preserves-the-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared Memory Preserves the Project
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-grammar-explains-the-capability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Grammar Explains the Capability
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-what-mercury-ships" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6 · What Mercury Ships
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6 · What Mercury Ships">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#discovery-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discovery Maps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dsl-specification-kits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DSL Specification Kits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#version-matched-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version-Matched Contracts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-language-registration-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-Language Registration Contracts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#engine-and-language-pack-parity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engine and Language-Pack Parity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#project-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project Memory
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-the-methodology-building-with-an-ai-partner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7 · The Methodology: Building with an AI Partner
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7 · The Methodology: Building with an AI Partner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-establish-intent-and-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Establish Intent and Memory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-load-the-capability-grammar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Load the Capability Grammar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-produce-governed-artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Produce Governed Artifacts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-governed-nondeterminism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8 · Governed Nondeterminism
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-proof-through-fresh-agent-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9 · Proof Through Fresh-Agent Evaluation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-standing-on-recognized-practice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10 · Standing on Recognized Practice
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-what-this-unlocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11 · What This Unlocks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11 · What This Unlocks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enterprise-grade-ai-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enterprise-Grade AI Development
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sustainable-context-economics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sustainable Context Economics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#human-ai-co-authorship" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Human-AI Co-Authorship
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#language-independence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language Independence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reusable-ai-legible-building-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reusable AI-Legible Building Blocks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#governed-knowledge-driven-applications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Governed Knowledge-Driven Applications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-where-it-goes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12 · Where It Goes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conclusion-the-real-contribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conclusion: The Real Contribution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Foundations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Foundations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../guides/event-driven/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 1 — Event-Driven
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 1 — Event-Driven
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/event-driven/write-your-first-function/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Write Your First Function
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/event-driven/function-execution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/rest-automation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST Automation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/event-driven/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../guides/event-script/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 2 — Event Script
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 2 — Event Script
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/event-script/syntax/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Script Syntax
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/event-script/flow-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/flow-schema-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Schema Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/event-script/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../guides/knowledge-graph/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 3 — Knowledge Graph
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 3 — Knowledge Graph
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/knowledge-graph/build-your-first-graph/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Your First Graph
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/knowledge-graph/workflow-suspension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow Suspension
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/knowledge-graph/playground-and-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground & AI Companion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/knowledge-graph/composing-the-layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composing the Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/knowledge-graph/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/knowledge-graph/command-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MiniGraph Command Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/knowledge-graph/skills-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate & integrate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate & integrate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/event-over-http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event over HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/http-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Response Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/polyglot-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Polyglot Functions (Python & Node.js)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/macros-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macros
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/registration-metadata-contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Registration Metadata Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/event-envelope-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EventEnvelope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/api-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform & PostOffice API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/reserved-names-and-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reserved Names & Headers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/actuators-and-http-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Actuators & HTTP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test-reports/event-over-http-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report (Java ⇄ Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test-reports/progressive-rendering-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Progressive Rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test-reports/suspend-resume-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Suspend/Resume
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test-reports/AI-companion-test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Companion Test Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../background/port-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Port Scope & Fidelity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../arch-decisions/ADR/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CHANGELOG.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CONTRIBUTING.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CODE_OF_CONDUCT.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code of Conduct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/INCLUSIVITY.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inclusivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#abstract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-thesis-in-one-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Thesis in One View
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-origin-composability-before-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1 · Origin: Composability Before AI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-ascent-code-to-configuration-to-knowledge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2 · The Ascent: Code to Configuration to Knowledge
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2 · The Ascent: Code to Configuration to Knowledge">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layer-1-event-driven-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 1: Event-Driven Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-2-event-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 2: Event Script
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-3-the-active-knowledge-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 3: The Active Knowledge Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compile-before-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compile Before Run
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-the-turn-why-this-matters-in-the-ai-era" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3 · The Turn: Why This Matters in the AI Era
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3 · The Turn: Why This Matters in the AI Era">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-governance-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Governance Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-context-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Context Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-human-ai-collaboration-as-an-engineering-discipline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4 · Human-AI Collaboration as an Engineering Discipline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4 · Human-AI Collaboration as an Engineering Discipline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#intent-is-the-primary-human-artifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intent Is the Primary Human Artifact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#complementary-responsibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complementary Responsibility
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Complementary Responsibility">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#humans-provide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Humans provide
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-partners-contribute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI partners contribute
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#platforms-provide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Platforms provide
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from-conversation-to-governed-artifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From Conversation to Governed Artifact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#four-forms-of-drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Four Forms of Drift
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-memory-and-grammar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5 · Memory and Grammar
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5 · Memory and Grammar">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#shared-memory-preserves-the-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared Memory Preserves the Project
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-grammar-explains-the-capability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Grammar Explains the Capability
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-what-mercury-ships" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6 · What Mercury Ships
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6 · What Mercury Ships">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#discovery-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discovery Maps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dsl-specification-kits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DSL Specification Kits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#version-matched-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version-Matched Contracts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-language-registration-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-Language Registration Contracts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#engine-and-language-pack-parity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engine and Language-Pack Parity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#project-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project Memory
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-the-methodology-building-with-an-ai-partner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7 · The Methodology: Building with an AI Partner
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7 · The Methodology: Building with an AI Partner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-establish-intent-and-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Establish Intent and Memory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-load-the-capability-grammar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Load the Capability Grammar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-produce-governed-artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Produce Governed Artifacts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-governed-nondeterminism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8 · Governed Nondeterminism
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-proof-through-fresh-agent-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9 · Proof Through Fresh-Agent Evaluation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-standing-on-recognized-practice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10 · Standing on Recognized Practice
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-what-this-unlocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11 · What This Unlocks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11 · What This Unlocks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enterprise-grade-ai-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enterprise-Grade AI Development
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sustainable-context-economics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sustainable Context Economics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#human-ai-co-authorship" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Human-AI Co-Authorship
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#language-independence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language Independence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reusable-ai-legible-building-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reusable AI-Legible Building Blocks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#governed-knowledge-driven-applications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Governed Knowledge-Driven Applications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-where-it-goes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12 · Where It Goes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conclusion-the-real-contribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conclusion: The Real Contribution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="intent-driven-development-and-the-architecture-of-human-ai-collaboration">Intent-Driven Development and the Architecture of Human-AI Collaboration<a class="headerlink" href="#intent-driven-development-and-the-architecture-of-human-ai-collaboration" title="Permanent link">&para;</a></h1>
+<p><em>The Mercury Story: from event-driven systems to AI co-authorship</em></p>
+<p><em>A white paper · Eric Law with Claude Code and GitHub Copilot · 2026-09-04 · the Rust engine's
+edition of the shared product story — this repository is itself the methodology's founding
+proof point.</em></p>
+<blockquote>
+<p>Prefer slides? The Mercury story within this paper has a
+<strong><a href="../presentations/ai-grammar-story.html">presentation deck</a></strong>.</p>
+</blockquote>
+<hr />
+<h2 id="abstract">Abstract<a class="headerlink" href="#abstract" title="Permanent link">&para;</a></h2>
+<p>Mercury Composable began as an event-driven framework. Over eight years, it became a journey in
+progressively reducing coupling, moving behavior from code into configuration and knowledge, and
+ultimately revealing a new model for Human-AI collaboration.</p>
+<p>Its evolution exposed a recurring pattern. The most successful AI-assisted projects were not the
+ones with the cleverest prompts. They were the ones with the clearest intent.</p>
+<p>Humans define purpose, constraints, priorities, and judgment. AI partners help refine those ideas
+and translate them into designs, models, flows, tests, and implementation artifacts. Shared memory
+preserves continuity. AI Grammar makes systems legible to machines. Validation and governance keep
+generated artifacts aligned with their intended purpose.</p>
+<p>This paper argues that Human-AI collaboration is becoming an engineering discipline.
+<strong>Intent-Driven Development</strong> provides the collaboration model. <strong>Mercury</strong> provides a working
+reference implementation.</p>
+<p>Together, they demonstrate a simple idea:</p>
+<blockquote>
+<p>Productivity does not come from generating more code. It comes from reducing the distance
+between human intent and a working, governed system.</p>
+</blockquote>
+<h2 id="the-thesis-in-one-view">The Thesis in One View<a class="headerlink" href="#the-thesis-in-one-view" title="Permanent link">&para;</a></h2>
+<p>The first generation of AI-assisted development focused on prompts.</p>
+<p>The second focused on context.</p>
+<p>The next stage focuses on intent.</p>
+<blockquote>
+<p><strong>Prompts tell AI what to do. Context helps AI understand. Intent explains what matters.</strong></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Prompt engineering</th>
+<th>Context engineering</th>
+<th>Intent-driven development</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Human provides</strong></td>
+<td>Instructions</td>
+<td>Instructions, knowledge, constraints, and project-specific information</td>
+<td>Vision, goals, boundaries, priorities, and judgment</td>
+</tr>
+<tr>
+<td><strong>AI contributes</strong></td>
+<td>Responses</td>
+<td>Better responses</td>
+<td>Collaboration in analysis, design, implementation, and refinement</td>
+</tr>
+</tbody>
+</table>
+<p>Intent-Driven Development treats intent as the organizing force of delivery. Humans remain
+responsible for purpose, boundaries, trade-offs, and judgment. AI partners contribute analysis,
+critique, translation, implementation, and refinement. Memory preserves continuity. Grammar makes
+capabilities discoverable. Validation and governance keep generated artifacts aligned with
+approved outcomes.</p>
+<p>The architecture can be summarized as:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Intent
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  ↓
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>Vision and boundaries
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  ↓
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>Shared memory and blueprint
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  ↓
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>AI-readable grammar
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  ↓
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>Models, flows, and functions
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  ↓
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>Validation and human certification
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  ↓
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>Governed execution
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  ↓
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>Feedback into intent
+</code></pre></div>
+<p>Mercury did not begin with this model. It discovered it gradually through eight years of
+architectural evolution.</p>
+<h2 id="1-origin-composability-before-ai">1 · Origin: Composability Before AI<a class="headerlink" href="#1-origin-composability-before-ai" title="Permanent link">&para;</a></h2>
+<p>Mercury's story begins in 2018, before AI pair programmers became part of everyday development.
+The original problem was familiar: enterprise systems tend to become coupled at their joints.</p>
+<p>Components call one another directly. Shared structures spread across boundaries. Orchestration
+logic becomes entangled with business logic. Each shortcut makes the next change harder.</p>
+<p>Mercury adopted a strict architectural invariant from the actor-model tradition [2]: <strong>functions
+know nothing about one another</strong> — information hiding [1], applied without exception. A function
+is addressed by a route name and exchanges immutable event envelopes. It has no direct reference
+to another function and no shared object through which hidden dependencies can grow.</p>
+<p>That principle created the foundation for everything that followed:</p>
+<blockquote>
+<p>You can only compose what you never coupled.</p>
+</blockquote>
+<p>The early cost was ergonomics. Event-driven development often required callbacks and reactive
+chains. Lightweight concurrency later made sequential programming practical over the event-driven
+core — Java virtual threads on the canonical engine, tokio async/await in this repository —
+allowing the architecture to retain its decoupling without forcing application developers into a
+reactive style.</p>
+<p>The importance of this history is not merely technical. Human-AI collaboration benefits from the
+same qualities that make systems composable: explicit boundaries, stable contracts, small units
+of capability, and limited hidden state.</p>
+<h2 id="2-the-ascent-code-to-configuration-to-knowledge">2 · The Ascent: Code to Configuration to Knowledge<a class="headerlink" href="#2-the-ascent-code-to-configuration-to-knowledge" title="Permanent link">&para;</a></h2>
+<p>Mercury evolved through three layers. Each layer removed a class of imperative code and made
+system behavior easier to understand, compose, and govern.</p>
+<h3 id="layer-1-event-driven-functions">Layer 1: Event-Driven Functions<a class="headerlink" href="#layer-1-event-driven-functions" title="Permanent link">&para;</a></h3>
+<p>At the platform core, functions are independent units of work connected through an event bus. The
+function contains capability, but it does not own the wiring.</p>
+<p>The same function may serve different roles depending on how it is composed. It can be exposed as
+a service, invoked as a task in a flow, or attached as a skill to a graph node. Mercury's
+conventions name this <strong>one atom, four roles</strong>: the function is the single atom, and <em>service</em>,
+<em>task</em>, and <em>skill</em> only describe how it is wired.</p>
+<p>Code remains the unit of work, not the unit of orchestration.</p>
+<h3 id="layer-2-event-script">Layer 2: Event Script<a class="headerlink" href="#layer-2-event-script" title="Permanent link">&para;</a></h3>
+<p>Orchestration written as code is a common place for coupling to return. Mercury therefore moved
+orchestration into declarative YAML flows.</p>
+<p>A flow names tasks by route, maps data between them, declares branches and execution patterns,
+and defines its exception path. The result is both executable and explainable. A reader can see
+the sequence, decisions, dependencies, and failure behavior without reconstructing them from
+application code.</p>
+<p>This shift moves a significant portion of an application from imperative implementation into
+configuration.</p>
+<h3 id="layer-3-the-active-knowledge-graph">Layer 3: The Active Knowledge Graph<a class="headerlink" href="#layer-3-the-active-knowledge-graph" title="Permanent link">&para;</a></h3>
+<p>The third layer follows from a broader observation: much backend behavior is knowledge about the
+business.</p>
+<p>Fetch this information. Apply this rule. Transform that result. Select a path. Compose a
+response. Suspend here and resume when a person or system provides new information.</p>
+<p>Mercury represents that behavior as an Active Knowledge Graph executed by the MiniGraph engine.
+Nodes can carry executable skills, and traversal turns the semantic model into a running
+application.</p>
+<p>For suitable use cases, the application becomes a model rather than a body of orchestration code.</p>
+<p>This is not a claim that all code disappears. Custom functions and Event Script remain available
+where the problem demands them. The layers compose downward:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Graph → Flow → Function
+</code></pre></div>
+<p>The architectural direction is clear: place behavior at the highest level where it can remain
+understandable and governed.</p>
+<h3 id="compile-before-run">Compile Before Run<a class="headerlink" href="#compile-before-run" title="Permanent link">&para;</a></h3>
+<p>A graph becomes available only after it passes the CompileGraph validation gate. Flows follow the
+same compile-before-run discipline.</p>
+<p>The principle is straightforward:</p>
+<blockquote>
+<p>A machine-authored artifact should not become executable merely because it looks plausible.</p>
+</blockquote>
+<p>It must satisfy the platform contract, survive validation, and remain available for human
+inspection and certification.</p>
+<h2 id="3-the-turn-why-this-matters-in-the-ai-era">3 · The Turn: Why This Matters in the AI Era<a class="headerlink" href="#3-the-turn-why-this-matters-in-the-ai-era" title="Permanent link">&para;</a></h2>
+<p>AI-assisted engineering introduces two problems that meet directly in this architecture.</p>
+<h3 id="the-governance-problem">The Governance Problem<a class="headerlink" href="#the-governance-problem" title="Permanent link">&para;</a></h3>
+<p>AI can produce imperative code at high speed. That speed creates value, but the evidence for its
+cost is measurable: AI-generated code reproduces known vulnerability patterns in a large fraction
+of security-relevant scenarios [3]; developers assisted by AI write less secure code while
+believing it more secure [4]; and industry-wide delivery research ties rising AI adoption to
+reduced delivery stability, even as throughput improves [5].</p>
+<p>The common response is to add more review after generation. Mercury suggests a complementary
+strategy:</p>
+<blockquote>
+<p><strong>Change the artifact the AI authors.</strong></p>
+</blockquote>
+<p>When an AI partner authors a flow or graph, it produces a bounded, declarative artifact.
+Compilers can validate its structure and contracts. A human can examine its intended behavior.
+Dry-runs and tests can challenge it before deployment.</p>
+<p>This does not make AI deterministic. It separates creative authorship from authorized execution.</p>
+<h3 id="the-context-problem">The Context Problem<a class="headerlink" href="#the-context-problem" title="Permanent link">&para;</a></h3>
+<p>AI agents require context, and context is not free. Asking every agent in every session to
+rediscover a platform from source code is slow, expensive, and inconsistent. Large context
+windows do not eliminate the need for curation, discovery, and reliable contracts — models
+measurably degrade at using information buried in the middle of long inputs [6].</p>
+<p>A platform designed for AI collaboration must make itself legible at a cost that scales.</p>
+<p>Mercury's declarative architecture addresses the governance problem. <strong>AI Grammar</strong> addresses the
+context problem.</p>
+<p>A third question remains:</p>
+<blockquote>
+<p>Who decides what the system should become?</p>
+</blockquote>
+<p>That responsibility begins with intent.</p>
+<h2 id="4-human-ai-collaboration-as-an-engineering-discipline">4 · Human-AI Collaboration as an Engineering Discipline<a class="headerlink" href="#4-human-ai-collaboration-as-an-engineering-discipline" title="Permanent link">&para;</a></h2>
+<p>The first generation of AI-assisted development treated AI primarily as a generator. A human
+supplied a prompt. An AI produced an answer, a design, or a piece of code. Context engineering
+improved the quality of those results by supplying knowledge, examples, instructions, and
+constraints.</p>
+<p>Those advances were important, but they left a central question unanswered:</p>
+<blockquote>
+<p>How do we keep increasingly capable AI systems aligned with what humans actually intend?</p>
+</blockquote>
+<p>Without a disciplined answer, acceleration can amplify misunderstanding. A missing boundary
+becomes an implementation assumption. An outdated instruction becomes a design decision. A
+forgotten ruling is rediscovered inconsistently.</p>
+<p>More output is produced, but not necessarily better outcomes.</p>
+<blockquote>
+<p><strong>Acceleration without direction is only faster drift.</strong></p>
+</blockquote>
+<p>Intent-Driven Development addresses this challenge by making intent, rather than generated
+output, the organizing force of delivery.</p>
+<p>It does not assume that intent is complete at the beginning. Intent is expressed, examined,
+refined, translated, implemented, evaluated, and corrected through a continuing Human-AI feedback
+loop.</p>
+<h3 id="intent-is-the-primary-human-artifact">Intent Is the Primary Human Artifact<a class="headerlink" href="#intent-is-the-primary-human-artifact" title="Permanent link">&para;</a></h3>
+<p>A prompt describes the next action. Intent gives that action meaning.</p>
+<p>Intent includes:</p>
+<ul>
+<li>the purpose of the system;</li>
+<li>the outcome the work should achieve;</li>
+<li>the boundaries that must be respected;</li>
+<li>the qualities that must be preserved;</li>
+<li>the trade-offs that are acceptable;</li>
+<li>the risks that require judgment;</li>
+<li>and the evidence by which an outcome will be accepted.</li>
+</ul>
+<p>AI can help refine intent by exposing contradictions, identifying assumptions, comparing
+alternatives, and translating an emerging idea into a clearer Vision or Blueprint.</p>
+<p>The AI participates in refining intent. It does not become its owner.</p>
+<h3 id="complementary-responsibility">Complementary Responsibility<a class="headerlink" href="#complementary-responsibility" title="Permanent link">&para;</a></h3>
+<p>Human-AI collaboration works when responsibilities remain clear.</p>
+<h4 id="humans-provide">Humans provide<a class="headerlink" href="#humans-provide" title="Permanent link">&para;</a></h4>
+<ul>
+<li>purpose and desired outcomes;</li>
+<li>accountability and ethical judgment;</li>
+<li>boundaries and priorities;</li>
+<li>architectural rulings and acceptable trade-offs;</li>
+<li>certification of consequential artifacts;</li>
+<li>and the final decision to place a system into use.</li>
+</ul>
+<h4 id="ai-partners-contribute">AI partners contribute<a class="headerlink" href="#ai-partners-contribute" title="Permanent link">&para;</a></h4>
+<ul>
+<li>synthesis and analysis;</li>
+<li>critique and alternative generation;</li>
+<li>translation of intent into structured artifacts;</li>
+<li>implementation of bounded tasks;</li>
+<li>consistency checking;</li>
+<li>test and documentation support;</li>
+<li>and identification of ambiguity or missing context.</li>
+</ul>
+<h4 id="platforms-provide">Platforms provide<a class="headerlink" href="#platforms-provide" title="Permanent link">&para;</a></h4>
+<ul>
+<li>contracts and constraints;</li>
+<li>structural and semantic validation;</li>
+<li>controlled execution;</li>
+<li>deployment gates;</li>
+<li>observability;</li>
+<li>and operational feedback.</li>
+</ul>
+<p>This is not a model of autonomous replacement. It is a model of complementary responsibility.</p>
+<p><strong>Humans provide direction. AI provides leverage. Governance provides trust.</strong></p>
+<p>One practical refinement sharpens the AI side of this division: specialized reviewer personas
+invoked on demand. One critiques architecture. Another examines security. Another checks
+implementation consistency. Another assesses documentation clarity. These perspectives do not
+replace human judgment; they give the human architect structured, independent viewpoints from
+which better decisions are made.</p>
+<h3 id="from-conversation-to-governed-artifact">From Conversation to Governed Artifact<a class="headerlink" href="#from-conversation-to-governed-artifact" title="Permanent link">&para;</a></h3>
+<p>A valuable conversation may clarify an idea, but an unrecorded conversation is not a durable
+engineering artifact. It cannot orient the next session, bind an implementation, or establish
+what was approved.</p>
+<p>Intent-Driven Development therefore moves collaboration through progressively more executable
+artifacts:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Intent
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  ↓
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>Vision
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  ↓
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>Blueprint
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  ↓
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>Design and decisions
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>  ↓
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>Model, flow, contract, or function
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>  ↓
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>Validation and certification
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>  ↓
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>Execution and feedback
+</code></pre></div>
+<p>The Vision describes the desired future. The Blueprint measures the gap between that future and
+the current state. Design records preserve important reasoning. Models, flows, and functions
+realize the design. Compilers and tests evaluate conformance. Human certification evaluates
+meaning, risk, and fitness. Runtime evidence returns to the next cycle of refinement.</p>
+<p>The result is not a one-way handoff from human to machine. It is a cognitive loop that keeps
+purpose connected to execution.</p>
+<h3 id="four-forms-of-drift">Four Forms of Drift<a class="headerlink" href="#four-forms-of-drift" title="Permanent link">&para;</a></h3>
+<p>Intent-Driven Development can be understood by the problems it helps control.</p>
+<p><strong>Purpose drift.</strong> The implementation gradually moves away from the outcome it was meant to
+achieve. Vision, intent, and human judgment keep delivery connected to purpose.</p>
+<p><strong>Context drift.</strong> Documentation and instructions become disconnected from the implementation.
+AI Grammar binds the explanatory layer to the platform through versioning, machine-readable
+catalogs, manifests, and validation gates.</p>
+<p><strong>Continuity drift.</strong> Decisions and rationale are forgotten across sessions, participants, or
+tools. Shared memory, Blueprints, continuity records, and architecture decisions preserve what
+was decided and why.</p>
+<p><strong>Implementation drift.</strong> Generated artifacts violate approved designs, platform contracts, or
+deployment rules. Compilers, tests, dry-runs, staged promotion, and human certification constrain
+what becomes executable.</p>
+<p>These controls reinforce one another.</p>
+<blockquote>
+<p>Grammar without intent can help AI build the wrong thing correctly. Intent without executable
+contracts remains aspiration. Validation without human judgment can prove conformance without
+proving value.</p>
+</blockquote>
+<h2 id="5-memory-and-grammar">5 · Memory and Grammar<a class="headerlink" href="#5-memory-and-grammar" title="Permanent link">&para;</a></h2>
+<p>Human-AI collaboration requires both continuity and legibility. Shared memory and AI Grammar
+address these needs, but they solve different problems.</p>
+<h3 id="shared-memory-preserves-the-project">Shared Memory Preserves the Project<a class="headerlink" href="#shared-memory-preserves-the-project" title="Permanent link">&para;</a></h3>
+<p>Memory is project-specific. It explains:</p>
+<ul>
+<li>why the project exists;</li>
+<li>what is currently true;</li>
+<li>what has been decided;</li>
+<li>which assumptions were rejected;</li>
+<li>what changed;</li>
+<li>and what should happen next.</li>
+</ul>
+<p>Looking backward, memory preserves decisions, provenance, contradictions, and history. Looking
+forward, it carries intent through Vision, Blueprint, design, implementation, and feedback.</p>
+<p>Memory allows a new session or AI partner to continue the project rather than reconstruct it.</p>
+<h3 id="ai-grammar-explains-the-capability">AI Grammar Explains the Capability<a class="headerlink" href="#ai-grammar-explains-the-capability" title="Permanent link">&para;</a></h3>
+<p>Grammar is capability-specific. It explains:</p>
+<ul>
+<li>what a platform or building block can express;</li>
+<li>where authoritative guidance is found;</li>
+<li>how correct artifacts are authored;</li>
+<li>which contracts they must satisfy;</li>
+<li>and how conformance is verified.</li>
+</ul>
+<p>An <strong>AI Grammar</strong> is the machine-consumable contract of a codebase: its discovery map, reference
+guides, machine-readable catalogs, and validation gates. Together, these let an AI partner author
+correct artifacts without repeatedly reading engine source. The test of a grammar is that system
+behavior becomes <strong>derivable rather than guessable</strong>.</p>
+<p>AI Grammar is not documentation with an AI label. It must be:</p>
+<ul>
+<li><strong>sufficient</strong>, so an AI partner can act from it;</li>
+<li><strong>verified</strong>, so its claims remain bound to the implementation;</li>
+<li><strong>discoverable</strong>, so the right guidance is found quickly;</li>
+<li><strong>version-matched</strong>, so the guidance corresponds to the running capability;</li>
+<li>and <strong>economical</strong>, so context consumption scales with the task rather than the dependency tree.</li>
+</ul>
+<p>Within Intent-Driven Development, AI Grammar is the translation contract between project intent
+and platform capability. It does not decide what should be built. It makes the available building
+language explicit and verifiable.</p>
+<p>The distinction is concise:</p>
+<blockquote>
+<p><strong>Memory explains the project. Grammar explains the platform.</strong></p>
+</blockquote>
+<p>Memory without grammar provides direction without a dependable means of execution. Grammar
+without memory provides capability without purpose or continuity.</p>
+<h2 id="6-what-mercury-ships">6 · What Mercury Ships<a class="headerlink" href="#6-what-mercury-ships" title="Permanent link">&para;</a></h2>
+<p>Mercury makes the AI Grammar concrete through a small set of mutually reinforcing mechanisms.</p>
+<h3 id="discovery-maps">Discovery Maps<a class="headerlink" href="#discovery-maps" title="Permanent link">&para;</a></h3>
+<p><code>llms.txt</code> routes an AI partner to the relevant guidance in one hop. The Java engine uses an
+exhaustive map with a CI coverage gate — a new guide cannot ship unlisted. This repository uses a
+deliberately curated agent map with a CI link-integrity gate.</p>
+<p>The goal is not to place all knowledge in the map. The goal is to make authoritative knowledge
+easy to find.</p>
+<h3 id="dsl-specification-kits">DSL Specification Kits<a class="headerlink" href="#dsl-specification-kits" title="Permanent link">&para;</a></h3>
+<p>Each major authoring surface — REST bindings, Event Script flows, MiniGraph commands — has a
+specification kit:</p>
+<ul>
+<li>a grammar reference;</li>
+<li>a machine-readable catalog;</li>
+<li>an AI agent guide;</li>
+<li>and a CI drift test binding the guidance to the engine.</li>
+</ul>
+<p>The approach applies the idea of machine-readable contracts to the surfaces through which
+applications are authored.</p>
+<h3 id="version-matched-contracts">Version-Matched Contracts<a class="headerlink" href="#version-matched-contracts" title="Permanent link">&para;</a></h3>
+<p>The <code>ai-contract-provider</code> serves the documentation set as a version-matched contract: a
+discovery endpoint, a per-file SHA-256 manifest, and an export for offline agent use.</p>
+<p>The AI partner receives guidance for the engine it is actually driving.</p>
+<h3 id="cross-language-registration-contracts">Cross-Language Registration Contracts<a class="headerlink" href="#cross-language-registration-contracts" title="Permanent link">&para;</a></h3>
+<p>A shared registration metadata model defines how functions declare themselves and how they behave
+during startup. Language-specific forms, including Java annotations and Rust macros, carry the
+same contract.</p>
+<p>Golden vectors test common contracts across engines so independent implementations can prove
+compatible behavior.</p>
+<h3 id="engine-and-language-pack-parity">Engine and Language-Pack Parity<a class="headerlink" href="#engine-and-language-pack-parity" title="Permanent link">&para;</a></h3>
+<p>The Java engine is the reference implementation, and this repository — the Rust engine — tracks
+the same contracts. Flow YAML can move across the two engines. Python and Node.js functions can
+participate as Event-over-HTTP peers using the same envelope.</p>
+<p>The grammar remains language-neutral because the contracts remain language-neutral.</p>
+<h3 id="project-memory">Project Memory<a class="headerlink" href="#project-memory" title="Permanent link">&para;</a></h3>
+<p>The project's memory is distinct from the platform's grammar. Vision, Blueprint, continuity,
+session records, and architecture decisions orient each AI session on purpose and state rather
+than only API shape.</p>
+<p>Together, these mechanisms make guide-first behavior rational. If documentation can drift freely,
+an AI partner learns to distrust it and returns to source. Verification gates preserve trust in
+the explanatory layer.</p>
+<p>The obligation runs both ways. The AI partner does not merely consume the explanatory layer; it
+helps maintain it. In Mercury's working practice, an agent that had to fall back to source
+records the guide gap in its session log, and the gap is closed in a follow-up documentation
+change.</p>
+<h2 id="7-the-methodology-building-with-an-ai-partner">7 · The Methodology: Building with an AI Partner<a class="headerlink" href="#7-the-methodology-building-with-an-ai-partner" title="Permanent link">&para;</a></h2>
+<p>Intent-Driven Development becomes practical through a simple journey.</p>
+<h3 id="step-1-establish-intent-and-memory">Step 1: Establish Intent and Memory<a class="headerlink" href="#step-1-establish-intent-and-memory" title="Permanent link">&para;</a></h3>
+<p>The first act is not code.</p>
+<p>Human and AI partner define the Vision together. The human confirms it. From the Vision, they
+derive a Blueprint that describes the current state, desired state, and meaningful gaps between
+them.</p>
+<p>Implementation proceeds through increments that close those gaps. Each new session begins with
+the same orientation:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Current state → Vision → Blueprint → Design → Implementation → Feedback
+</code></pre></div>
+<p>Memory preserves continuity, but judgment remains a shared human responsibility.</p>
+<blockquote>
+<p>Mechanize the arithmetic. Do not mechanize the judgment.</p>
+</blockquote>
+<p>The proof point is <strong>this repository</strong>: the Rust engine was AI-enabled <strong>before its first line of
+code</strong> — the Vision and memory layer landed on 2026-07-15, the code followed — so every increment
+was derived from stated intent rather than reconstructed after the fact. Roughly a hundred
+increments later it ships in lock-step with the Java engine, with the same discipline intact.</p>
+<h3 id="step-2-load-the-capability-grammar">Step 2: Load the Capability Grammar<a class="headerlink" href="#step-2-load-the-capability-grammar" title="Permanent link">&para;</a></h3>
+<p>The platform arrives with its own AI Grammar: discovery map, version-matched contract, reference
+guides, catalogs, and validation rules. Both engines carry the same grammar and the same layers —
+choose the engine, keep the methodology.</p>
+<p>The team then chooses the highest appropriate authoring layer:</p>
+<ol>
+<li><strong>Active Knowledge Graph</strong> for behavior naturally expressed as knowledge and traversal;</li>
+<li><strong>Event Script</strong> when a flow is the clearest shape;</li>
+<li><strong>Custom functions</strong> where code is genuinely the unit of work.</li>
+</ol>
+<p>The layers are a dial, not a wall. A project can start with knowledge and reach down only as far
+as the problem requires.</p>
+<h3 id="step-3-produce-governed-artifacts">Step 3: Produce Governed Artifacts<a class="headerlink" href="#step-3-produce-governed-artifacts" title="Permanent link">&para;</a></h3>
+<p>A user application moves from intent to model, from model to validation, and from validation to
+certification and deployment.</p>
+<p>A reusable building block requires one additional step: it should publish its own AI Grammar.</p>
+<p>Its repository should explain what the block provides, how it is discovered, how it is used,
+which contracts apply, and how those contracts remain verified. The block then becomes legible to
+the next application and the next AI partner.</p>
+<p>This makes the methodology recursive:</p>
+<blockquote>
+<p>Dependencies compose. Their grammars must compose too.</p>
+</blockquote>
+<p>The recursion is already live inside the framework, and it has already supplied its own
+cautionary tale. On the Java engine, twin-kafka is a building block built on a building block — a
+second Kafka cluster on top of the minimalist Kafka library. While its entry was missing from the
+discovery map, the module was effectively invisible to AI partners, who fell back to reading
+source. The entry landed, with a CI gate behind it, and one hop of discovery replaced the hunt.</p>
+<p>To an AI partner, undocumented capability is absent capability.</p>
+<h2 id="8-governed-nondeterminism">8 · Governed Nondeterminism<a class="headerlink" href="#8-governed-nondeterminism" title="Permanent link">&para;</a></h2>
+<p>Intent-Driven Development does not assume deterministic AI output.</p>
+<p>Two capable AI partners may suggest different designs from the same Vision. The same model may
+produce different implementations in separate runs. That variation can be useful because it
+supports exploration, alternative generation, and critique.</p>
+<p>The goal is not deterministic authorship. The goal is governed execution.</p>
+<ol>
+<li>AI partners propose and author within defined boundaries.</li>
+<li>Machine-readable contracts constrain the available forms.</li>
+<li>Compilers and tests reject invalid artifacts.</li>
+<li>Humans evaluate meaning, risk, and fitness.</li>
+<li>Promotion gates determine what becomes operational.</li>
+<li>Runtime evidence informs the next refinement.</li>
+</ol>
+<p>This is <strong>governed nondeterminism</strong>:</p>
+<blockquote>
+<p><strong>Variation in exploration. Discipline in execution.</strong></p>
+</blockquote>
+<p>Governance is not a review step added after AI generation. It is part of the architecture through
+which intent becomes executable.</p>
+<h2 id="9-proof-through-fresh-agent-evaluation">9 · Proof Through Fresh-Agent Evaluation<a class="headerlink" href="#9-proof-through-fresh-agent-evaluation" title="Permanent link">&para;</a></h2>
+<p>A methodology for AI collaboration should be tested with AI collaborators.</p>
+<p>The <code>ai-enabled-repo-demo</code> exercises gave fresh AI agents no project history and no human hints
+beyond the available grammar. The agents were asked to discover the platform, author
+applications, and run them.</p>
+<p>The value of the exercise was not that every first attempt succeeded. The value was that friction
+became evidence.</p>
+<p>Repeated misunderstandings indicated defects in guidance, discovery, or platform behavior. Those
+findings led to concrete changes: a JSON data-mapping plugin, a Playground export correction,
+clearer recipe lines in agent guides, and the retirement of a fire-and-forget companion endpoint
+that hid errors from its callers — shipped in v4.12.2. Stronger discovery gates followed in
+v4.12.3: a coverage gate binding the Java engine's exhaustive map to the documentation tree, and
+a link-integrity gate on this repository's curated map.</p>
+<p>The evaluation loop was:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Agent friction
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  ↓
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>Grammar or engine diagnosis
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  ↓
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>Verified correction
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>  ↓
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>Field release
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>  ↓
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>Fresh-agent re-evaluation
+</code></pre></div>
+<p>This is the methodology working as intended. The AI partner is not only a consumer of the
+platform. Its friction helps improve the platform's ability to explain itself.</p>
+<h2 id="10-standing-on-recognized-practice">10 · Standing on Recognized Practice<a class="headerlink" href="#10-standing-on-recognized-practice" title="Permanent link">&para;</a></h2>
+<p>Intent-Driven Development and AI Grammar build on established ideas rather than replacing them.</p>
+<ul>
+<li><strong>Information hiding and the actor model</strong> provide the decoupled architectural substrate [1][2].</li>
+<li><strong>Event-driven architecture</strong> provides independent units of capability and message-based
+  composition.</li>
+<li><strong>Docs-as-code</strong> establishes documentation as a versioned engineering artifact [9].</li>
+<li><strong>OpenAPI and machine-readable contracts</strong> demonstrate the value of specifications that both
+  people and systems can consume [7].</li>
+<li><strong>Architecture Decision Records</strong> preserve durable rationale [10].</li>
+<li><strong>Consumer-driven contract testing</strong> provides a model for shared, executable expectations
+  across implementations [11][12].</li>
+<li><strong><code>llms.txt</code> and agent-instruction conventions</strong> improve machine-oriented discovery and
+  guidance [8][13].</li>
+<li><strong>Spec-driven development</strong> treats the specification as a primary artifact from which AI can
+  build [14].</li>
+<li><strong>Human-in-the-loop governance</strong> keeps consequential decisions subject to oversight [15][16][17].</li>
+<li><strong>Evaluation culture</strong> replaces anecdotal confidence with repeatable evidence [18][19].</li>
+</ul>
+<p>The contribution lies in the synthesis:</p>
+<blockquote>
+<p>A Human-AI collaboration model supported by shared memory, a CI-verified and token-conscious
+capability grammar, governed artifacts, and an executable composable runtime.</p>
+</blockquote>
+<h2 id="11-what-this-unlocks">11 · What This Unlocks<a class="headerlink" href="#11-what-this-unlocks" title="Permanent link">&para;</a></h2>
+<h3 id="enterprise-grade-ai-development">Enterprise-Grade AI Development<a class="headerlink" href="#enterprise-grade-ai-development" title="Permanent link">&para;</a></h3>
+<p>AI partners can author models and configuration while compilers and humans govern what advances.
+Creativity remains available, but operational outcomes stay bounded by contracts and approval.</p>
+<h3 id="sustainable-context-economics">Sustainable Context Economics<a class="headerlink" href="#sustainable-context-economics" title="Permanent link">&para;</a></h3>
+<p>An AI partner can navigate from a compact discovery map to authoritative guidance rather than
+repeatedly reading an entire dependency's source. Context consumption can follow the task instead
+of the full dependency tree.</p>
+<p>The effect is measurable. On this repository's documentation map (measured 2026-09-04, v4.12.3),
+a roughly 2,500-token discovery map routes an agent to about 46,000 tokens of source-verified
+reference, replacing a hunt through roughly 515,000 tokens of engine source. Completeness that
+costs discovery is a regression: the map must stay small, dense with the exact terms an agent
+searches for, and gated so it cannot silently rot.</p>
+<h3 id="human-ai-co-authorship">Human-AI Co-Authorship<a class="headerlink" href="#human-ai-co-authorship" title="Permanent link">&para;</a></h3>
+<p>Humans and AI partners can work on the same durable artifacts: Vision, Blueprint, decisions,
+models, flows, tests, and explanatory contracts. Collaboration becomes part of the engineering
+system rather than an informal conversation outside it.</p>
+<h3 id="language-independence">Language Independence<a class="headerlink" href="#language-independence" title="Permanent link">&para;</a></h3>
+<p>Shared envelope and registration contracts allow functions from multiple languages and engines
+to participate in the same composable architecture.</p>
+<h3 id="reusable-ai-legible-building-blocks">Reusable AI-Legible Building Blocks<a class="headerlink" href="#reusable-ai-legible-building-blocks" title="Permanent link">&para;</a></h3>
+<p>A building block can carry its own grammar, allowing capability and understanding to compose
+transitively.</p>
+<h3 id="governed-knowledge-driven-applications">Governed Knowledge-Driven Applications<a class="headerlink" href="#governed-knowledge-driven-applications" title="Permanent link">&para;</a></h3>
+<p>The Active Knowledge Graph allows business behavior to be examined, validated, and changed as
+knowledge rather than being buried entirely in imperative code.</p>
+<h2 id="12-where-it-goes">12 · Where It Goes<a class="headerlink" href="#12-where-it-goes" title="Permanent link">&para;</a></h2>
+<p>The next step is AI agent orchestration on the graph runtime.</p>
+<p>In this direction, LLM reasoning and tools become bounded nodes in a decision graph. The graph
+controls where reasoning is invited, which tools are available, what context is supplied, and how
+results are validated or escalated. The first experiment has already run end-to-end: a
+support-triage graph driving live LLM verdicts through the engine under one distributed trace.</p>
+<p>A pluggable AI companion can support collaboration without binding the methodology to one model
+vendor. An enterprise governance lifecycle can move models through dry-run, certification,
+staging, approval, and production as standard endpoints.</p>
+<p>The north star does not change:</p>
+<blockquote>
+<p><strong>The Active Knowledge Graph is the application.</strong></p>
+</blockquote>
+<p>Humans define and refine intent. AI partners help translate it into models, flows, functions,
+tests, and explanations. Shared memory preserves direction and decisions. AI Grammar makes the
+platform and its building blocks legible. Compiler and human gates govern what becomes
+executable. The event-driven runtime carries certified artifacts into operation, and operational
+evidence returns to the next cycle of refinement.</p>
+<p>Changing behavior then means more than generating or editing code. It means refining knowledge
+while preserving the chain from purpose to execution.</p>
+<h2 id="conclusion-the-real-contribution">Conclusion: The Real Contribution<a class="headerlink" href="#conclusion-the-real-contribution" title="Permanent link">&para;</a></h2>
+<p>The story presented here is not ultimately about Mercury.</p>
+<p>Mercury is the journey through which these ideas became visible and the environment in which they
+were proven together.</p>
+<p>The larger lesson is that Human-AI collaboration works best when responsibilities are explicit
+and artifacts remain connected.</p>
+<p>Humans provide intent.</p>
+<p>AI provides leverage.</p>
+<p>Memory provides continuity.</p>
+<p>Grammar provides understanding.</p>
+<p>Governance provides trust.</p>
+<p>The runtime provides execution.</p>
+<p>As AI systems become more capable, successful organizations will not be distinguished only by
+their access to models or their ability to produce code quickly. They will be distinguished by
+their ability to express intent, preserve knowledge, govern change, and collaborate effectively
+with AI partners.</p>
+<p>That is the promise of Intent-Driven Development:</p>
+<blockquote>
+<p><strong>Human intent provides direction. AI partnership provides leverage. Governed systems turn
+their shared work into durable outcomes.</strong></p>
+</blockquote>
+<p>And the working posture follows from it:</p>
+<blockquote>
+<p><strong>Do not just prompt. Do not just vibe code. Do not expect magic. Express intent. Define
+boundaries. Build living context. Guide your AI partners. Review the work. Improve the
+system.</strong></p>
+</blockquote>
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<ol>
+<li>D. L. Parnas, <em>On the Criteria To Be Used in Decomposing Systems into Modules</em>, Communications
+   of the ACM 15(12), 1972. <a href="https://dl.acm.org/doi/10.1145/361598.361623">https://dl.acm.org/doi/10.1145/361598.361623</a></li>
+<li>C. Hewitt, P. Bishop, R. Steiger, <em>A Universal Modular ACTOR Formalism for Artificial
+   Intelligence</em>, IJCAI 1973. <a href="https://www.ijcai.org/Proceedings/73/Papers/027B.pdf">https://www.ijcai.org/Proceedings/73/Papers/027B.pdf</a></li>
+<li>H. Pearce et al., <em>Asleep at the Keyboard? Assessing the Security of GitHub Copilot's Code
+   Contributions</em>, IEEE Symposium on Security and Privacy, 2022. <a href="https://arxiv.org/abs/2108.09293">https://arxiv.org/abs/2108.09293</a></li>
+<li>N. Perry, M. Srivastava, D. Kumar, D. Boneh, <em>Do Users Write More Insecure Code with AI
+   Assistants?</em>, ACM CCS 2023. <a href="https://arxiv.org/abs/2211.03622">https://arxiv.org/abs/2211.03622</a></li>
+<li>DORA / Google Cloud, <em>Accelerate State of DevOps Report 2024</em> and <em>State of AI-assisted
+   Software Development 2025</em> — AI adoption correlated with reduced delivery stability (−7.2%,
+   2024); throughput positive but stability still negative (2025). <a href="https://dora.dev">https://dora.dev</a></li>
+<li>N. F. Liu et al., <em>Lost in the Middle: How Language Models Use Long Contexts</em>, Transactions of
+   the ACL 12, 2024. <a href="https://aclanthology.org/2024.tacl-1.9/">https://aclanthology.org/2024.tacl-1.9/</a></li>
+<li>OpenAPI Initiative, <em>OpenAPI Specification</em>. <a href="https://spec.openapis.org/oas/latest.html">https://spec.openapis.org/oas/latest.html</a></li>
+<li>J. Howard, <em>The /llms.txt file</em> — proposal, Answer.AI, September 2024. <a href="https://llmstxt.org">https://llmstxt.org</a></li>
+<li>Write the Docs community, <em>Docs as Code</em>. <a href="https://www.writethedocs.org/guide/docs-as-code/">https://www.writethedocs.org/guide/docs-as-code/</a></li>
+<li>M. Nygard, <em>Documenting Architecture Decisions</em>, 2011.
+    <a href="https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions">https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions</a></li>
+<li>I. Robinson, <em>Consumer-Driven Contracts: A Service Evolution Pattern</em>, martinfowler.com, 2006.
+    <a href="https://www.martinfowler.com/articles/consumerDrivenContracts.html">https://www.martinfowler.com/articles/consumerDrivenContracts.html</a></li>
+<li>Pact — consumer-driven contract testing. <a href="https://docs.pact.io">https://docs.pact.io</a></li>
+<li><em>AGENTS.md — an open format for guiding coding agents</em> (donated to the Agentic AI Foundation,
+    Linux Foundation, 2025). <a href="https://agents.md">https://agents.md</a></li>
+<li>GitHub, <em>Spec-driven development with AI: get started with a new open source toolkit</em>, 2025.
+    <a href="https://github.blog/ai-and-ml/generative-ai/spec-driven-development-with-ai-get-started-with-a-new-open-source-toolkit/">https://github.blog/ai-and-ml/generative-ai/spec-driven-development-with-ai-get-started-with-a-new-open-source-toolkit/</a></li>
+<li>NIST, <em>Artificial Intelligence Risk Management Framework (AI RMF 1.0)</em>, NIST AI 100-1,
+    January 2023. <a href="https://nvlpubs.nist.gov/nistpubs/ai/nist.ai.100-1.pdf">https://nvlpubs.nist.gov/nistpubs/ai/nist.ai.100-1.pdf</a></li>
+<li>Regulation (EU) 2024/1689 (EU AI Act), Article 14 — Human oversight.
+    <a href="https://artificialintelligenceact.eu/article/14/">https://artificialintelligenceact.eu/article/14/</a></li>
+<li>ISO/IEC 42001:2023, <em>Artificial intelligence — Management system</em>.
+    <a href="https://www.iso.org/standard/42001">https://www.iso.org/standard/42001</a></li>
+<li>P. Liang et al., <em>Holistic Evaluation of Language Models</em>, 2022 (arXiv:2211.09110).
+    <a href="https://arxiv.org/abs/2211.09110">https://arxiv.org/abs/2211.09110</a></li>
+<li>C. E. Jimenez et al., <em>SWE-bench: Can Language Models Resolve Real-World GitHub Issues?</em>,
+    ICLR 2024. <a href="https://arxiv.org/abs/2310.06770">https://arxiv.org/abs/2310.06770</a></li>
+</ol>
+<hr />
+<p><em>This paper succeeds and extends two earlier pieces: "From Context Engineering to Intent-Driven
+Development" (Eric Law, August 2026) and the Rust edition of "The Mercury Story — Origin,
+Evolution, and the AI Grammar Methodology" (this repository, September 2026), whose Mercury
+narrative it carries forward. Sources: this repository's <code>docs/guides/</code> and
+<code>docs/arch-decisions/ADR.md</code> (with the canonical Java engine's guides as the behavior
+specification); the shared memory layer (<code>memory/vision.md</code>, <code>memory/continuity.md</code>); records of
+the ai-enabled-repo-demo exercises; measurements taken 2026-09-04 on this repository's
+documentation map. All figures are reproducible from the cited artifacts.</em></p>
+<p><em>Mercury Composable is an official Accenture open-source project; this repository is its official
+Rust implementation (github.com/Accenture/mercury). agent-memory is a lightweight, vendor-neutral
+shared-memory and cognitive-loop framework for human-AI collaboration, published under
+Apache-2.0.</em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../guides/getting-started/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Getting Started">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Getting Started
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../guides/architecture/" class="md-footer__link md-footer__link--next" aria-label="Next: Architecture">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Architecture
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache-2.0 &middot; mercury is the Rust port of <a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,20 @@
+/* Composable for Rust docs — small overrides on the Material theme.
+ *
+ * Reference tables should wrap long inline-code tokens (package and type
+ * names like org.platformlambda.core.annotations) instead of forcing the
+ * whole table to scroll horizontally.
+ */
+
+.md-typeset table:not([class]) td,
+.md-typeset table:not([class]) th {
+  vertical-align: top;
+}
+
+/* Break only genuinely long tokens, and only as a last resort. Unlike
+ * word-break / overflow-wrap:anywhere, this does NOT shrink a column below
+ * its longest word — short words like "String" are never split mid-word. */
+.md-typeset table:not([class]) td code,
+.md-typeset table:not([class]) th code {
+  overflow-wrap: break-word;
+  white-space: normal;
+}

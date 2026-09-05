@@ -1,0 +1,2916 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The official Rust implementation of Mercury Composable — Accenture's event-driven, composable application platform: platform-core, Event Script, and the active knowledge graph.">
+      
+      
+        <meta name="author" content="Eric Law">
+      
+      
+        <link rel="canonical" href="https://accenture.github.io/mercury/test-reports/progressive-rendering-interop/">
+      
+      
+        <link rel="prev" href="../event-over-http-interop/">
+      
+      
+        <link rel="next" href="../suspend-resume-interop/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Interop Test Report — Progressive Rendering, all four runtimes - Composable for Rust</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../css/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#interop-test-report-progressive-rendering-all-four-runtimes" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Composable for Rust" class="md-header__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Composable for Rust
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Interop Test Report — Progressive Rendering, all four runtimes
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/getting-started/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Orientation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Foundations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/event-driven/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 1 — Event-Driven
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/event-script/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 2 — Event Script
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/knowledge-graph/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 3 — Knowledge Graph
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/observability/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Operate & integrate
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../guides/configuration-reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Composable for Rust" class="md-nav__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    Composable for Rust
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orientation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Orientation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ai-grammar-methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Intent-Driven Development (white paper)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Foundations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Foundations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/event-driven/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 1 — Event-Driven
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 1 — Event-Driven
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/write-your-first-function/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Write Your First Function
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/function-execution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/rest-automation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST Automation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/event-script/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 2 — Event Script
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 2 — Event Script
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/syntax/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Script Syntax
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/flow-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/flow-schema-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Schema Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/knowledge-graph/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 3 — Knowledge Graph
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 3 — Knowledge Graph
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/build-your-first-graph/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Your First Graph
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/workflow-suspension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow Suspension
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/playground-and-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground & AI Companion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/composing-the-layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composing the Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/command-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MiniGraph Command Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/skills-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate & integrate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate & integrate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-over-http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event over HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/http-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Response Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/polyglot-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Polyglot Functions (Python & Node.js)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/macros-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macros
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/registration-metadata-contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Registration Metadata Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-envelope-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EventEnvelope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/api-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform & PostOffice API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/reserved-names-and-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reserved Names & Headers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/actuators-and-http-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Actuators & HTTP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-over-http-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report (Java ⇄ Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Progressive Rendering
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Progressive Rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-contract-under-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The contract under test
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-live-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The live matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#engine-engine-and-per-runtime-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engine ⇄ engine and per-runtime coverage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trace-continuity-opentelemetry-span-parent-span-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trace continuity (OpenTelemetry span / parent-span verification)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#business-correlation-id-continuity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Business correlation-id continuity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#defects-surfaced-by-the-round-fixed-and-re-verified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defects surfaced by the round (fixed and re-verified)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reproduce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproduce
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-telemetry-and-app-context-example-live-capture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix - telemetry and app context example (live capture)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suspend-resume-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Suspend/Resume
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../AI-companion-test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Companion Test Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/port-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Port Scope & Fidelity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arch-decisions/ADR/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CHANGELOG.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CONTRIBUTING.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CODE_OF_CONDUCT.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code of Conduct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/INCLUSIVITY.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inclusivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-contract-under-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The contract under test
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-live-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The live matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#engine-engine-and-per-runtime-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engine ⇄ engine and per-runtime coverage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trace-continuity-opentelemetry-span-parent-span-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trace continuity (OpenTelemetry span / parent-span verification)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#business-correlation-id-continuity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Business correlation-id continuity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#defects-surfaced-by-the-round-fixed-and-re-verified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defects surfaced by the round (fixed and re-verified)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reproduce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproduce
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-telemetry-and-app-context-example-live-capture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix - telemetry and app context example (live capture)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="interop-test-report-progressive-rendering-all-four-runtimes">Interop Test Report — Progressive Rendering, all four runtimes<a class="headerlink" href="#interop-test-report-progressive-rendering-all-four-runtimes" title="Permanent link">&para;</a></h1>
+<p><em>Live cross-runtime validation of the progressive streaming contract across the four
+Mercury Composable runtimes — the Java engine
+(<a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>), the Rust engine
+(<a href="https://github.com/Accenture/mercury">mercury</a>), and the Python
+(<a href="https://github.com/Accenture/mercury-python">mercury-python</a>) and Node.js
+(<a href="https://github.com/Accenture/mercury-nodejs">mercury-nodejs</a>) function hosts — conducted
+2026-08-30 (UTC) at the close of the streaming program's wrapper round. This report is a
+permanent record in the tradition of the
+<a href="../event-over-http-interop/">Event over HTTP interop report</a>: what was tested, the
+evidence, and the defects the round surfaced with their fixes.</em></p>
+<h2 id="the-contract-under-test">The contract under test<a class="headerlink" href="#the-contract-under-test" title="Permanent link">&para;</a></h2>
+<p>One paradigm on all four runtimes: <strong>the caller provides a reply address; the callee
+streams events to it until a terminal signal.</strong> Each segment is one event to the
+caller's <code>reply_to</code>, marked with the reserved envelope header
+<code>x-event-stream: data | eof | exception</code>. Across the Event-over-HTTP hop, the peer
+answers the one POST with a Server-Sent Events response in the <strong>hybrid envelope-mode
+dialect</strong>: envelope frames (the reserved SSE event name <code>envelope</code>, one base64-encoded
+serialized envelope per frame) wherever envelope semantics matter — the head, the
+terminals, and any segment that cannot round-trip as plain text — and raw SSE frames
+for text tokens. The consuming client decodes the dialect and forwards each event to
+the original reply address with the original correlation id, so a local stream and a
+remote stream are indistinguishable to the consumer.</p>
+<p>Delivered by: Java engine PRs
+<a href="https://github.com/Accenture/mercury-composable/pull/299">#299</a> (edge streaming),
+<a href="https://github.com/Accenture/mercury-composable/pull/300">#300</a> (SSE consumption),
+<a href="https://github.com/Accenture/mercury-composable/pull/301">#301</a> (envelope mode) —
+ADR-0018/0019; Rust engine PRs
+<a href="https://github.com/Accenture/mercury/pull/216">#216</a>,
+<a href="https://github.com/Accenture/mercury/pull/217">#217</a>,
+<a href="https://github.com/Accenture/mercury/pull/218">#218</a> — ADR-0015/0016; and the
+matching wrapper round in mercury-python and mercury-nodejs (interceptor functions,
+<code>EventStreamWriter</code>, streaming <code>/api/event</code> host, <code>stream()</code>/<code>stream_to()</code> client).</p>
+<h2 id="the-live-matrix">The live matrix<a class="headerlink" href="#the-live-matrix" title="Permanent link">&para;</a></h2>
+<p>Ten producer/consumer combinations were driven live with the SHIPPED demo applications
+— no test shims. Producers pace their segments (300 ms in these drives), so
+progressive delivery is directly observable in the arrival timestamps; buffered
+delivery would show all segments arriving together.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Consumer</th>
+<th>Producer</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Node.js client</td>
+<td>Python <code>hello.tokens</code></td>
+<td>segments at ~11/312/612/916 ms, eof metadata <code>{count, language: python}</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Python client</td>
+<td>Node.js <code>hello.tokens</code></td>
+<td>segments at ~5/304/606/908 ms, eof metadata <code>{count, language: node.js}</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Python client</td>
+<td><strong>Java engine</strong> <code>hello.sse</code></td>
+<td>segments at ~103/407/708/1012 ms, terminal <code>eof</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Node.js client</td>
+<td><strong>Java engine</strong> <code>hello.sse</code></td>
+<td>segments at ~13/320/620/924 ms, terminal <code>eof</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Python client</td>
+<td><strong>Rust engine</strong> <code>hello.sse</code></td>
+<td>segments at ~3/306/607 ms, terminal <code>eof</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Node.js client</td>
+<td><strong>Rust engine</strong> <code>hello.sse</code></td>
+<td>segments at ~10/312/615 ms, terminal <code>eof</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>Java engine</strong> edge (<code>/api/hello/remote</code>)</td>
+<td>Python <code>hello.tokens</code></td>
+<td>SSE out the engine edge at ~195/493/793/1094 ms, terminal <code>event: done</code> with the Python eof metadata</td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>Java engine</strong> edge</td>
+<td>Node.js <code>hello.tokens</code></td>
+<td>~217/516/817 ms, terminal metadata <code>{count, language: node.js}</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td><strong>Rust engine</strong> edge</td>
+<td>Python <code>hello.tokens</code></td>
+<td>~20/323/624 ms, same shape</td>
+</tr>
+<tr>
+<td>10</td>
+<td><strong>Rust engine</strong> edge</td>
+<td>Node.js <code>hello.tokens</code></td>
+<td>~19/320/622 ms, same shape</td>
+</tr>
+</tbody>
+</table>
+<p>Common observations across all ten:</p>
+<ul>
+<li><strong>Progressive on the wire</strong> — arrival gaps match the producer's pacing; nothing
+  buffers end-to-end (rows 7–10 traverse the full chain: HTTP edge → engine relay
+  function → Event-over-HTTP → wrapper host → wrapper function and back).</li>
+<li><strong>Correlation</strong> — the caller's correlation id is restored on every delivered
+  envelope (D7), and the engines' demo authentication (<code>authorization: demo</code>) rides
+  the per-target security headers unchanged.</li>
+<li><strong>Exact types</strong> — eof trailing metadata arrives as a real map, not text, on every
+  path (the envelope-frame escape hatch).</li>
+<li><strong>Explicit degradation, observed live</strong> — a missing token produced the engine's
+  401 and a private target its 403, both delivered as clean envelopes through the
+  buffered fallback; a caller without the <code>accept: text/event-stream</code> opt-in receives
+  the pinned <code>406 Streaming function requires a caller that accepts
+  text/event-stream</code>.</li>
+</ul>
+<h2 id="engine-engine-and-per-runtime-coverage">Engine ⇄ engine and per-runtime coverage<a class="headerlink" href="#engine-engine-and-per-runtime-coverage" title="Permanent link">&para;</a></h2>
+<p>Because the protocol signatures are identical across the four runtimes, each
+repository's unit suite exercises the full protocol against its own application
+instance (client consuming its own <code>/api/event</code> host in one process): Java
+<code>EventOverHttpStreamTest</code> (14 cases), Rust <code>event_over_http_stream.rs</code> (14), Python
+<code>test_event_stream.py</code> (17), Node.js <code>event-stream.test.ts</code> (17). Each suite also
+carries <strong>misbehaving-peer fixtures</strong> — a raw first frame, a transport end without a
+decoded terminal, trailing frames after the terminal — because a self-loop alone
+cannot catch a deviation implemented identically in both halves of one runtime; the
+live matrix above is the cross-implementation conformance check, and it passed with
+zero shims.</p>
+<h2 id="trace-continuity-opentelemetry-span-parent-span-verification">Trace continuity (OpenTelemetry span / parent-span verification)<a class="headerlink" href="#trace-continuity-opentelemetry-span-parent-span-verification" title="Permanent link">&para;</a></h2>
+<p>The drives were repeated with telemetry capture to verify distributed-trace
+continuity across the streaming hop. Findings, with the observed evidence:</p>
+<ul>
+<li><strong>One trace id end to end, both directions.</strong> In the engine→wrapper drive, the
+  Java edge minted trace <code>f22af2e005f2445198563e2dc4f1ba54</code>; every engine span
+  carried it (the relay function, the HTTP client leg, each reply-lane segment
+  delivery), the Python function received it (trace id and path ride inside the
+  wire envelope), and the demo now echoes it in the eof trailing metadata - so
+  the terminal frame rendered out the engine's own edge carries the same trace
+  id the edge minted: continuity is self-documenting in the demo output. In the
+  wrapper→engine drive, a Python caller supplied W3C trace id
+  <code>4bf92f3577b34da6a3ce929d0e0e4736</code> with trace path <code>PY /stream-drive</code>; the
+  engine's <code>event.api.auth</code>, <code>event.api.service</code> and <code>hello.sse</code> spans all
+  carried that id, and the function's span carried the caller's trace path.</li>
+<li><strong>Span parenting chains on the engines.</strong> The streaming target's span parents
+  onto the Event API service span - observed live:
+  <code>event.api.service span_id=bfcddb32dd597ddb</code> →
+  <code>hello.sse parent_span_id=bfcddb32dd597ddb</code>. Outbound, the engines' relay leg
+  sends the W3C <code>traceparent</code> header carrying the sending function's span id
+  (the trace-aware PostOffice stamps the span onto the outbound event), so a
+  receiving ENGINE parents its spans onto the caller's - the same cross-engine
+  parenting validated in the Event over HTTP interop report.</li>
+<li><strong>Wrapper executions are real spans</strong> (closed at this round - the wrappers
+  originally propagated the trace id but minted no spans, which broke the
+  lineage into disconnected segments at every wrapper hop). The function hosts
+  now implement the engines' exact span model: every traced execution mints a
+  16-hex span with the caller's span (from the inbound envelope) as its
+  parent; outbound calls and stream segments carry the current span onward;
+  and non-RPC executions emit the engines' distributed-trace dataset record on
+  the <code>distributed.tracing</code> log stream - the same
+  <code>{"trace": {...}, "annotations": {...}}</code> shape the Java engine logs - so one
+  log aggregation (or a stdout log-ingest agent forwarding to an observability
+  dashboard) stitches the full span tree across all four runtimes. RPC
+  round-trips emit no dataset, exactly like the engines: their metrics fold
+  into the caller's view.</li>
+<li><strong>The connected tree, live-proven in all three directions.</strong> Engine→wrapper:
+  under one Java-edge trace, the relay function's span <code>8cbc0b4d4be75362</code>
+  became the Python <code>hello.tokens</code> span's parent (<code>span_id=7b90847f4b8b617a</code>,
+  <code>parent_span_id=8cbc0b4d4be75362</code> in the wrapper's own trace record), and
+  the Java reply-lane delivery spans then parented onto the Python span -
+  edge → engine function → wrapper function → engine deliveries, one unbroken
+  chain. Wrapper→engine: a Python caller carrying external span
+  <code>00f067aa0ba902b7</code> (the shape of a user-edge OpenTelemetry span) produced
+  <code>event.api.auth</code> and <code>event.api.service</code> spans parented on it, with
+  <code>hello.sse</code> parented on the service span. Wrapper⇄wrapper: a Node.js
+  execution's record showed the Python caller's span as its parent. This is
+  the lineage the AI SDLC requires - user → agent → MCP → tools in one tree.</li>
+<li><strong>One deliberate exception</strong>: plain-text token segments ride raw SSE frames,
+  which carry no envelope metadata (the zero-overhead token path), so their
+  engine-side delivery spans join the trace unparented; a stream's head and
+  terminal segments ride envelope frames and parent correctly. The engines'
+  HTTP client leg (<code>async.http.request</code>) remains a sibling span - classic
+  Event-over-HTTP parity.</li>
+<li><strong>Correlation id</strong>: the caller's cid rode every delivered envelope in every
+  drive (<code>cid-trace-drive</code> on all four segments of the supplied-trace drive).</li>
+</ul>
+<p>The check itself surfaced defect #5: the engine demo relay originally built its
+forward event with the raw EventEmitter, which stamps no trace - the hop
+continued cid but DROPPED the trace id. Fixed by using a trace-aware
+PostOffice (its <code>touch</code> fill-stamps from/trace/span), and the wrapper demos'
+<code>hello.tokens</code> now echo their received trace id in the eof metadata so the
+continuity is visible in every future drive.</p>
+<h2 id="business-correlation-id-continuity">Business correlation-id continuity<a class="headerlink" href="#business-correlation-id-continuity" title="Permanent link">&para;</a></h2>
+<p>The same verification was run for the business correlation-id (<code>my_cid</code>) - the
+engine-managed envelope tag captured at an engine's HTTP edge from the
+configured header (default <code>X-Correlation-Id</code>) and injected into every
+receiving function's input headers as the read-only <code>my_correlation_id</code> view.
+The wrapper demos' <code>hello.tokens</code> echo the view in the eof metadata alongside
+the trace id, so every future drive self-documents both continuity dimensions.
+Live results:</p>
+<ul>
+<li><strong>Java engine edge → Python</strong>: <code>X-Correlation-Id: biz-e2w-001</code> on the edge
+  request came back in the terminal metadata rendered out the same edge -
+  edge header → <code>my_cid</code> tag → relay function's injected header view →
+  trace-aware PostOffice re-stamp → packed envelope over the hop → wrapper
+  host injection → function echo.</li>
+<li><strong>Rust engine edge → Python</strong>: <code>biz-rust-005</code> echoed identically. The Rust
+  demo relay needed no change: the Rust engine has one PostOffice and
+  <code>apply_current_trace</code> always stamps trace and business correlation-id from
+  the ambient context.</li>
+<li><strong>Python → Node.js and Node.js → Python</strong> (wrapper ⇄ wrapper): a caller-side
+  context (<code>trace_context(..., my_correlation_id=...)</code> / <code>runWithTrace({...,
+  myCorrelationId})</code>) produced <code>biz-w2w-002</code> / <code>biz-w2w-003</code> echoes from the
+  opposite wrapper - the tag crossed the hop and the receiving host injected
+  the view.</li>
+<li><strong>Wrapper → engine</strong>: the wrappers stamp the identical tag bytes (the same
+  codec proven above), and the engines' pinned suites cover the receiving
+  half: an <code>/api/event</code> caller carrying the <code>my_cid</code> tag reaches the target
+  function as <code>po.getMyCorrelationId()</code> (Java
+  <code>EventHttpTest.eventOverHttpPropagatesTraceAndCorrelationId</code>; Rust twin).</li>
+</ul>
+<p>The check surfaced one parity gap in the (unreleased) wrapper round, fixed and
+test-pinned in both wrappers: the wrapper clients inherited trace id/path and
+the internal correlation id into outbound events but did not re-stamp the
+business correlation-id as the <code>my_cid</code> tag, and local bus deliveries skipped
+the header-view injection that the HTTP host performs. Both halves now mirror
+the engines (<code>PostOffice.touch</code> / WorkerHandler parity): outbound events carry
+the context's business correlation-id as the tag, local deliveries inject the
+read-only view, and the trace context (<code>get_trace()</code> / <code>getTrace()</code>) exposes
+it to handlers and relays.</p>
+<p>By design (confirmed at this verification round): an engine's <code>/api/event</code>
+ingress serves LOCAL routes only - it answers 404 for a route it does not
+host, even when its own <code>yaml.event.over.http</code> map points that route at a
+peer. The map is caller-side routing for the app's own outbound calls;
+forwarding inbound calls onward would make every application an
+Event-over-HTTP relay and open routing loops (the <code>x-event-api</code> wire marker
+exists precisely to prevent such re-forwarding). Callers address the owning
+peer directly; deliberate hop-through composition is an explicit relay
+function - the demo <code>hello.remote.relay</code> is exactly that pattern.</p>
+<h2 id="defects-surfaced-by-the-round-fixed-and-re-verified">Defects surfaced by the round (fixed and re-verified)<a class="headerlink" href="#defects-surfaced-by-the-round-fixed-and-re-verified" title="Permanent link">&para;</a></h2>
+<p>Honest engineering record — each was caught by the twin-building discipline before
+any release:</p>
+<ol>
+<li><strong>Rust engine</strong>: the envelope-mode single-shot reply initially reached the caller
+   unwrapped (rendered as plain JSON instead of the classic packed-envelope wire);
+   fixed by wrapping at the one <code>SingleShot</code> outcome site — caught by the twin suite's
+   first run.</li>
+<li><strong>Node.js host</strong>: a <code>Promise.race</code> against a queue waiter abandoned the losing
+   waiter, which would steal and drop the next envelope; fixed by reusing one pending
+   promise across keep-alive cycles (<code>raceMs</code> documents the rule) — caught in design
+   review before the first test run.</li>
+<li><strong>Error-body contract</strong>: the in-band exception bodies converged on the standard
+   error key-values <code>type</code> / <code>status</code> / <code>message</code> across all four runtimes (three
+   Java sites and their twins were missing the <code>type</code> key or used a plain-text body).</li>
+<li><strong>Node.js</strong>: object error bodies would have stringified as <code>[object Object]</code>;
+   fixed with JSON rendering (<code>errorText</code>).</li>
+<li><strong>Java demo relay</strong>: the forward event was built with the raw (untraced)
+   EventEmitter, silently dropping the distributed trace across the hop; fixed
+   with a trace-aware PostOffice - found by the trace-continuity verification
+   above.</li>
+</ol>
+<h2 id="reproduce">Reproduce<a class="headerlink" href="#reproduce" title="Permanent link">&para;</a></h2>
+<p>Every row of the matrix uses shipped demo applications:</p>
+<ul>
+<li><strong>Engine as producer</strong>: run the Java <code>lambda-example</code> (port 8085) or Rust
+  <code>hello-world</code> (8085; any port with <code>-Drest.server.port=…</code>); their public
+  <code>hello.sse</code> streams paced test messages. Consume from a wrapper with
+  <code>PostOffice.stream("hello.sse", …, endpoint="http://host:port/api/event")</code> and the
+  demo <code>authorization: demo</code> header.</li>
+<li><strong>Engine as consumer</strong>: run a wrapper demo app (python <code>mercury-serve
+  examples/demo_app.py</code>, port 8086; node demo, 8087), then the engine demo with its
+  routing map (Java: <code>-Dyaml.event.over.http=classpath:/event-over-http.yaml</code>; Rust:
+  ships enabled) and <code>-Dpeer.demo.port</code> as needed, and watch
+  <code>curl -N -H 'accept: text/event-stream'
+  'http://127.0.0.1:8085/api/hello/remote?delay=300&amp;count=3'</code> render the wrapper's
+  tokens progressively out the engine's edge.</li>
+<li><strong>Wrapper ⇄ wrapper</strong>: point either wrapper's <code>stream()</code> at the other demo's
+  <code>/api/event</code>.</li>
+</ul>
+<p>Baselines at the time of the drives: Java engine main after PR #301, Rust engine main
+after PR #218, mercury-python and mercury-nodejs at the streaming feature round -
+shipped together as the v4.12.0 milestone release across all four repositories.</p>
+<h2 id="appendix-telemetry-and-app-context-example-live-capture">Appendix - telemetry and app context example (live capture)<a class="headerlink" href="#appendix-telemetry-and-app-context-example-live-capture" title="Permanent link">&para;</a></h2>
+<p>One live request, captured end to end, showing how the telemetry stream and
+the application log context connect the engine to the wrapper. Setup: the Java
+<code>lambda-example</code> (port 8085) with its event-over-http map pointing
+<code>hello.tokens</code> at the Python demo app (port 8086, <code>-Dlog.format=compact</code>).
+The caller supplies a business correlation-id; the engine's HTTP edge mints
+the trace:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-N<span class="w"> </span>-H<span class="w"> </span><span class="s1">'accept: text/event-stream'</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'X-Correlation-Id: biz-e2e-777'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="s1">'http://127.0.0.1:8085/api/hello/remote?delay=100&amp;count=1'</span>
+</code></pre></div>
+<p><strong>1. Java engine - the relay function's telemetry record</strong> (the root span of
+trace <code>710dcb0b706e4b5b949be138d0992b0b</code>, minted at the edge):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"level"</span><span class="p">:</span><span class="w"> </span><span class="s2">"INFO"</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">"time"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-08-29 21:24:17.734"</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">"source"</span><span class="p">:</span><span class="w"> </span><span class="s2">"org.platformlambda.core.services.Telemetry.handleEvent(Telemetry.java:81)"</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">"thread"</span><span class="p">:</span><span class="w"> </span><span class="mi">762</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="nt">"trace"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">      </span><span class="nt">"path"</span><span class="p">:</span><span class="w"> </span><span class="s2">"GET /api/hello/remote?delay=100&amp;count=1"</span><span class="p">,</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">      </span><span class="nt">"span_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"afa2897918e3871b"</span><span class="p">,</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">      </span><span class="nt">"service"</span><span class="p">:</span><span class="w"> </span><span class="s2">"hello.remote.relay"</span><span class="p">,</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">      </span><span class="nt">"success"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">      </span><span class="nt">"origin"</span><span class="p">:</span><span class="w"> </span><span class="s2">"20260830a0dcb550832b4683b4853c609778cd82"</span><span class="p">,</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">      </span><span class="nt">"start"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-08-30T04:24:17.733Z"</span><span class="p">,</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">      </span><span class="nt">"exec_time"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.728</span><span class="p">,</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">      </span><span class="nt">"from"</span><span class="p">:</span><span class="w"> </span><span class="s2">"http.request"</span><span class="p">,</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"710dcb0b706e4b5b949be138d0992b0b"</span><span class="p">,</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">      </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="mi">200</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>2. The wire</strong> - the relay's trace-aware PostOffice stamps the outbound event
+with the trace id and path, its own span id (<code>afa2897918e3871b</code>) and the
+<code>my_cid</code> tag (<code>biz-e2e-777</code>); the whole envelope crosses <code>POST /api/event</code>,
+with <code>X-Trace-Id</code> and the W3C <code>traceparent</code> on the HTTP headers.</p>
+<p><strong>3. Python wrapper - the function's own application log line.</strong> The handler
+runs <code>log.info("Streaming %d messages", count)</code>; the app-log-context feature
+adds the <code>context</code> block. Note the join keys: the engine's trace id, the
+business <code>cid</code> from the edge header, and this execution's <code>spanId</code> with the
+relay's span as <code>parentSpanId</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span><span class="nt">"time"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-08-29 21:24:17.847"</span><span class="p">,</span><span class="w"> </span><span class="nt">"level"</span><span class="p">:</span><span class="w"> </span><span class="s2">"INFO"</span><span class="p">,</span><span class="w"> </span><span class="nt">"logger"</span><span class="p">:</span><span class="w"> </span><span class="s2">"mercury_user_app:93"</span><span class="p">,</span><span class="w"> </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Streaming 1 messages"</span><span class="p">,</span><span class="w"> </span><span class="nt">"context"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"cid"</span><span class="p">:</span><span class="w"> </span><span class="s2">"biz-e2e-777"</span><span class="p">,</span><span class="w"> </span><span class="nt">"traceId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"710dcb0b706e4b5b949be138d0992b0b"</span><span class="p">,</span><span class="w"> </span><span class="nt">"tracePath"</span><span class="p">:</span><span class="w"> </span><span class="s2">"GET /api/hello/remote?delay=100&amp;count=1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"spanId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"55ebd6464ffdf9c2"</span><span class="p">,</span><span class="w"> </span><span class="nt">"parentSpanId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"afa2897918e3871b"</span><span class="p">,</span><span class="w"> </span><span class="nt">"service"</span><span class="p">:</span><span class="w"> </span><span class="s2">"hello.tokens"</span><span class="p">,</span><span class="w"> </span><span class="nt">"timestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-08-30T04:24:17.847Z"</span><span class="p">}}</span>
+</code></pre></div>
+<p><strong>4. Python wrapper - the telemetry record for the same execution</strong> (same
+<code>span_id</code> as the app log line's <code>spanId</code> - the join key between the two
+streams; <code>from</code> names the calling engine function):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span><span class="nt">"time"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-08-29 21:24:17.949"</span><span class="p">,</span><span class="w"> </span><span class="nt">"level"</span><span class="p">:</span><span class="w"> </span><span class="s2">"INFO"</span><span class="p">,</span><span class="w"> </span><span class="nt">"logger"</span><span class="p">:</span><span class="w"> </span><span class="s2">"distributed.tracing:158"</span><span class="p">,</span><span class="w"> </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"trace"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"origin"</span><span class="p">:</span><span class="w"> </span><span class="s2">"202608303cbae673831a4ab08cbb6f108fec0171"</span><span class="p">,</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"710dcb0b706e4b5b949be138d0992b0b"</span><span class="p">,</span><span class="w"> </span><span class="nt">"path"</span><span class="p">:</span><span class="w"> </span><span class="s2">"GET /api/hello/remote?delay=100&amp;count=1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"service"</span><span class="p">:</span><span class="w"> </span><span class="s2">"hello.tokens"</span><span class="p">,</span><span class="w"> </span><span class="nt">"start"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-08-30T04:24:17.847Z"</span><span class="p">,</span><span class="w"> </span><span class="nt">"success"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">"from"</span><span class="p">:</span><span class="w"> </span><span class="s2">"hello.remote.relay"</span><span class="p">,</span><span class="w"> </span><span class="nt">"exec_time"</span><span class="p">:</span><span class="w"> </span><span class="mf">101.673</span><span class="p">,</span><span class="w"> </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="mi">200</span><span class="p">,</span><span class="w"> </span><span class="nt">"span_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"55ebd6464ffdf9c2"</span><span class="p">,</span><span class="w"> </span><span class="nt">"parent_span_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"afa2897918e3871b"</span><span class="p">}}}</span>
+</code></pre></div>
+<p><strong>5. Java engine - a reply-lane delivery record.</strong> The wrapper's stream
+segments carry its span, so the engine-side delivery span parents onto the
+Python function (<code>parent_span_id = 55ebd6464ffdf9c2</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">"level"</span><span class="p">:</span><span class="w"> </span><span class="s2">"INFO"</span><span class="p">,</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">"time"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-08-29 21:24:17.853"</span><span class="p">,</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">"source"</span><span class="p">:</span><span class="w"> </span><span class="s2">"org.platformlambda.core.services.Telemetry.handleEvent(Telemetry.java:81)"</span><span class="p">,</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">"thread"</span><span class="p">:</span><span class="w"> </span><span class="mi">779</span><span class="p">,</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">"message"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="nt">"trace"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">      </span><span class="nt">"path"</span><span class="p">:</span><span class="w"> </span><span class="s2">"GET /api/hello/remote?delay=100&amp;count=1"</span><span class="p">,</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">      </span><span class="nt">"parent_span_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"55ebd6464ffdf9c2"</span><span class="p">,</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">      </span><span class="nt">"span_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"a50c19b7415406df"</span><span class="p">,</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">      </span><span class="nt">"service"</span><span class="p">:</span><span class="w"> </span><span class="s2">"async.http.response.stream.499"</span><span class="p">,</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">      </span><span class="nt">"success"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">      </span><span class="nt">"origin"</span><span class="p">:</span><span class="w"> </span><span class="s2">"20260830a0dcb550832b4683b4853c609778cd82"</span><span class="p">,</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">      </span><span class="nt">"start"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-08-30T04:24:17.851Z"</span><span class="p">,</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">      </span><span class="nt">"exec_time"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.202</span><span class="p">,</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">      </span><span class="nt">"from"</span><span class="p">:</span><span class="w"> </span><span class="s2">"hello.tokens"</span><span class="p">,</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"710dcb0b706e4b5b949be138d0992b0b"</span><span class="p">,</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">      </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="mi">200</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>6. The caller's view</strong> - the terminal SSE frame rendered back out the Java
+edge echoes both continuity dimensions:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>event: done
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>data: {"trace_id":"710dcb0b706e4b5b949be138d0992b0b","count":1,"my_correlation_id":"biz-e2e-777","language":"python"}
+</code></pre></div>
+<p><strong>Connectivity, in one paragraph.</strong> Every record above carries the one trace
+id the engine minted at its HTTP edge, and the span ids chain across the
+runtime boundary in both directions: the edge request → the relay function's
+span (<code>afa289...</code>) → the Python execution's span (<code>55ebd6...</code>, parented on the
+relay) → the engine's reply-lane delivery spans (parented on the Python span).
+The business correlation-id from the <code>X-Correlation-Id</code> edge header rides the
+<code>my_cid</code> envelope tag through every hop and surfaces as the <code>cid</code> in the
+wrapper's app-log context and in the demo's terminal metadata. The wrapper's
+application log line and its telemetry record share the same <code>span_id</code>, which
+is what lets a log aggregation (or a stdout log-ingest agent) attach a
+function's own log output to the exact span of the distributed trace - the
+complete telemetry and app-context story from user to engine to wrapper and
+back, assembled entirely from the four runtimes' stdout logs.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../event-over-http-interop/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Interop Test Report (Java ⇄ Rust)">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Interop Test Report (Java ⇄ Rust)
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../suspend-resume-interop/" class="md-footer__link md-footer__link--next" aria-label="Next: Interop Test Report — Suspend/Resume">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Interop Test Report — Suspend/Resume
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache-2.0 &middot; mercury is the Rust port of <a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
