@@ -2677,3 +2677,18 @@ canonical Java guides as the behavior specification. Hero links to the paper and
 **absolute site URLs** because `references/index.md` (the packaged copy of the home page)
 ships inside the mercury-platform skill and the story is deliberately NOT packaged into
 the curated agent contract — the same docs-as-contract gate that caught the Java PR.
+
+## Increment 103 — The white paper becomes Intent-Driven Development (2026-09-05)
+
+The site's white paper is succeeded in lock-step with the Java engine (its PR #321): the
+Rust edition of "Intent-Driven Development and the Architecture of Human-AI Collaboration"
+replaces "The Mercury Story" at the same URL, framing the Mercury narrative with the IDD
+collaboration model — the three eras (prompts → context → intent), intent as the primary
+human artifact, complementary responsibility, four forms of drift, and memory-vs-grammar.
+The deck grows 14 → 19 slides in the same design system (new title, three-eras thesis,
+complementary responsibility, four drifts, memory-vs-grammar, and the closing charge).
+Rust-edition adjustments carry forward unchanged: this repository named as the founding
+proof point (AI-enabled before its first line of code, 2026-07-15), the twin-kafka tale
+attributed to the Java engine, the canonical Java guides named as the behavior
+specification, and hero links kept as absolute site URLs for the packaged-home-page gate.
+mkdocs nav title and the hero caption follow the new paper title.

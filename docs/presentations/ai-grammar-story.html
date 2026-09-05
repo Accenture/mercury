@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Mercury Story</title>
+<title>Intent-Driven Development</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 <style>
-  /* ── The Mercury Story · presentation deck ──────────────────────────────
+  /* ── Intent-Driven Development · presentation deck ──────────────────────
      A deliberately single-theme, dark deck (violet-biased ground, amber for
      measured numbers). Self-contained: works on the mkdocs site, in an
      artifact, or from a local file. Print flips to a light handout. */
@@ -144,15 +144,37 @@
   <!-- 1 · title -->
   <section class="slide active" aria-label="Title">
     <p class="eyebrow">Mercury Composable · white paper briefing</p>
-    <h1>The Mercury Story</h1>
-    <p class="lede" style="margin-top:.9em">Origin, evolution — and the <strong>AI grammar
-    methodology</strong>: how a platform makes itself legible to AI partners, and how everything
-    built on it stays legible too.</p>
-    <p class="byline">Eric Law · with Claude Code &nbsp;·&nbsp; 2026-09-04 &nbsp;·&nbsp;
-    on the occasion of the ai-enabled-repo-demo milestone</p>
+    <h1>Intent-Driven Development</h1>
+    <p class="lede" style="margin-top:.9em"><strong>…and the architecture of Human-AI
+    collaboration.</strong> The Mercury story — from event-driven systems to AI co-authorship:
+    shared memory, an AI grammar, and governed execution.</p>
+    <p class="byline">Eric Law · with Claude Code and GitHub Copilot &nbsp;·&nbsp; 2026-09-04</p>
   </section>
 
-  <!-- 2 · two problems -->
+  <!-- 2 · the thesis: three eras -->
+  <section class="slide" aria-label="The three eras">
+    <p class="eyebrow">The thesis</p>
+    <h2>Prompts → context → intent</h2>
+    <p class="quote"><span class="q">Prompts tell AI what to do. Context helps AI understand.
+    Intent explains what matters.</span></p>
+    <div class="cols three" style="margin-top:1.5em">
+      <div class="panel"><p class="tag">Prompt engineering</p>
+        <p><strong>Human provides</strong> instructions.<br>
+        <strong>AI contributes</strong> responses.</p></div>
+      <div class="panel"><p class="tag">Context engineering</p>
+        <p><strong>Human provides</strong> instructions, knowledge, constraints, project
+        specifics.<br><strong>AI contributes</strong> better responses.</p></div>
+      <div class="panel"><p class="tag">Intent-driven development</p>
+        <p><strong>Human provides</strong> vision, goals, boundaries, priorities, judgment.<br>
+        <strong>AI contributes</strong> collaboration in analysis, design, implementation,
+        refinement.</p></div>
+    </div>
+    <p class="muted" style="margin-top:1.3em">Productivity does not come from generating more code.
+    It comes from <strong class="accent">reducing the distance between human intent and a working,
+    governed system</strong>.</p>
+  </section>
+
+  <!-- 3 · two problems -->
   <section class="slide" aria-label="Two problems">
     <p class="eyebrow">Why now</p>
     <h2>Two problems dominate serious AI-assisted engineering</h2>
@@ -266,6 +288,65 @@
     <p class="muted" style="margin-top:1em">Never a determinism claim. A governance design.</p>
   </section>
 
+  <!-- · complementary responsibility -->
+  <section class="slide" aria-label="Complementary responsibility">
+    <p class="eyebrow">The discipline</p>
+    <h2>Humans provide direction. AI provides leverage.<br>Governance provides trust.</h2>
+    <div class="cols three">
+      <div class="panel"><p class="tag">Humans provide</p>
+        <p>Purpose and outcomes · boundaries and priorities · architectural rulings and
+        trade-offs · certification of consequential artifacts · the decision to go live.</p></div>
+      <div class="panel"><p class="tag">AI partners contribute</p>
+        <p>Synthesis and critique · translation of intent into structured artifacts ·
+        implementation of bounded tasks · consistency checking · surfacing ambiguity.</p></div>
+      <div class="panel"><p class="tag">Platforms provide</p>
+        <p>Contracts and constraints · structural and semantic validation · controlled execution ·
+        deployment gates · observability and feedback.</p></div>
+    </div>
+    <p class="muted" style="margin-top:1.3em">Sharpened in practice by <strong>specialized reviewer
+    personas</strong> invoked on demand — architecture, security, consistency, documentation —
+    structured, independent perspectives for the human architect. Not autonomous replacement:
+    complementary responsibility.</p>
+  </section>
+
+  <!-- · four forms of drift -->
+  <section class="slide" aria-label="Four forms of drift">
+    <p class="eyebrow">What intent controls</p>
+    <h2>Four forms of drift — and what answers each</h2>
+    <dl class="kv">
+      <dt>Purpose drift</dt><dd>the implementation moves away from the outcome it was meant to
+      achieve — answered by <b>Vision, intent, and human judgment</b></dd>
+      <dt>Context drift</dt><dd>documentation disconnects from the implementation — answered by
+      the <b>AI grammar</b>: versioning, catalogs, manifests, validation gates</dd>
+      <dt>Continuity drift</dt><dd>decisions and rationale are forgotten across sessions and tools
+      — answered by <b>shared memory</b>, Blueprints, and architecture decisions</dd>
+      <dt>Implementation drift</dt><dd>generated artifacts violate approved designs or contracts —
+      answered by <b>compilers, tests, dry-runs, staged promotion, certification</b></dd>
+    </dl>
+    <p class="quote" style="margin-top:1.4em; font-size:clamp(20px,2.5vw,34px)"><span class="q">
+    Acceleration without direction is only faster drift.</span></p>
+  </section>
+
+  <!-- · memory and grammar -->
+  <section class="slide" aria-label="Memory and grammar">
+    <p class="eyebrow">Two instruments</p>
+    <h2>Memory explains the project.<br>Grammar explains the platform.</h2>
+    <div class="cols two">
+      <div class="panel"><p class="tag">Shared memory · continuity</p>
+        <p>Why the project exists, what is true, what was decided and rejected, what happens next.
+        Backward it preserves <b>decisions and provenance</b>; forward it carries intent through
+        <b>Vision → Blueprint → design → implementation → feedback</b>. A new session continues
+        the project instead of reconstructing it.</p></div>
+      <div class="panel"><p class="tag">AI grammar · legibility</p>
+        <p>What a platform or building block can express, where authoritative guidance lives,
+        which contracts artifacts must satisfy, and how conformance is verified — so behavior is
+        <b>derivable rather than guessable</b>.</p></div>
+    </div>
+    <p class="muted" style="margin-top:1.3em">Memory without grammar: direction without dependable
+    execution. Grammar without memory: capability without purpose. And in the memory layer itself —
+    <strong class="accent">mechanize the arithmetic; do not mechanize the judgment</strong>.</p>
+  </section>
+
   <!-- 7 · AI grammar defined -->
   <section class="slide" aria-label="AI grammar defined">
     <p class="eyebrow">The AI grammar</p>
@@ -323,7 +404,8 @@
       <li>Every friction became a fix, shipped to the field in days (v4.12.2): a <code>json</code>
       simple plugin closing a data-mapping gap, an export-guard correction, recipe lines where two
       independent agents drew the same wrong conclusion.</li>
-      <li>Discovery gaps were closed <strong>with CI gates behind them</strong>, so they stay closed.</li>
+      <li>Discovery gaps were closed <strong>with CI gates behind them</strong>, so they stay
+      closed — the coverage and link-integrity gates shipped in v4.12.3.</li>
       <li>The loop — <strong class="accent">agent friction → grammar or engine fix → field
       release</strong> — is the methodology working.</li>
     </ul>
@@ -431,8 +513,18 @@
     <p class="quote" style="margin-top:1.4em"><span class="q">The Active Knowledge Graph is the
     application.</span> Humans and AI co-author the model, the event-driven runtime executes it,
     and changing behavior means editing knowledge — not shipping code.</p>
-    <p class="byline">White paper: <em>The Mercury Story — Origin, Evolution, and the AI Grammar
-    Methodology</em> · <span class="muted">accenture.github.io/mercury</span></p>
+  </section>
+
+  <!-- · close: the charge -->
+  <section class="slide" aria-label="The charge">
+    <p class="eyebrow">The working posture</p>
+    <p class="quote" style="font-size:clamp(24px,3.2vw,44px)"><span class="q">Do not just prompt.
+    Do not just vibe code. Do not expect magic.</span></p>
+    <p class="quote" style="margin-top:1em; font-size:clamp(20px,2.5vw,34px)">Express intent.
+    Define boundaries. Build living context. Guide your AI partners. Review the work. Improve the
+    system.</p>
+    <p class="byline" style="margin-top:2em">White paper: <em>Intent-Driven Development and the
+    Architecture of Human-AI Collaboration</em> · <span class="muted">accenture.github.io/mercury</span></p>
   </section>
 
   <!-- chrome -->
