@@ -2692,3 +2692,12 @@ proof point (AI-enabled before its first line of code, 2026-07-15), the twin-kaf
 attributed to the Java engine, the canonical Java guides named as the behavior
 specification, and hero links kept as absolute site URLs for the packaged-home-page gate.
 mkdocs nav title and the hero caption follow the new paper title.
+
+## Increment 104 — White paper and deck renamed to mercury-story (2026-09-06)
+
+The flagship pair moves to names that describe the documents, in lock-step with the Java
+engine: `docs/ai-grammar-methodology.md` → `docs/mercury-story.md` and
+`docs/presentations/ai-grammar-story.html` → `docs/presentations/mercury-story.html`. All
+live references follow (mkdocs nav, the hero's absolute site URLs, the paper's deck
+pointer); the CHANGELOG and earlier increments keep the old paths as history. The old URLs
+are not redirected — the pages had been live for about a day.
