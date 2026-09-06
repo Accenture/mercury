@@ -10,8 +10,8 @@ realized here on **tokio** async/await, with the canonical
 same three layers, same flow YAML, behavior-synced release by release.
 
 [Get started](guides/getting-started.md){ .md-button .md-button--primary }
-[Read the white paper](https://accenture.github.io/mercury/ai-grammar-methodology/){ .md-button }
-[View the deck](https://accenture.github.io/mercury/presentations/ai-grammar-story.html){ .md-button }
+[Read the white paper](https://accenture.github.io/mercury/mercury-story/){ .md-button }
+[View the deck](https://accenture.github.io/mercury/presentations/mercury-story.html){ .md-button }
 
 *The white paper — **Intent-Driven Development and the Architecture of Human-AI Collaboration** —
 presents the collaboration model the AI era needs and the Mercury story that proved it: shared

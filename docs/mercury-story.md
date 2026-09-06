@@ -7,7 +7,7 @@ edition of the shared product story — this repository is itself the methodolog
 proof point.*
 
 > Prefer slides? The Mercury story within this paper has a
-> **[presentation deck](presentations/ai-grammar-story.html)**.
+> **[presentation deck](presentations/mercury-story.html)**.
 
 ---
 
