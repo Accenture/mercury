@@ -67,6 +67,8 @@ A streaming producer is an interceptor function - it receives the raw event enve
 (including `reply_to` and correlation id) and replies by sending events itself:
 
 ```rust
+use platform_core::{preload, AppError, ComposableFunction, EventEnvelope, EventStreamWriter, Platform};
+
 #[preload(route = "v1.token.producer", instances = 50, interceptor)]
 struct TokenProducer;
 

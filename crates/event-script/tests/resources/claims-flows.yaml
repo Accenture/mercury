@@ -1,0 +1,12 @@
+# Claims-registry engine pins (ADR-0023): manifest for the tests/claims.rs
+# binary only — loaded via a process-local 'yaml.flow.automation' override so
+# the fixture manifests (flows.yaml etc.) and their exact-set assertions in
+# compiler.rs / flow_runtime.rs never see these flows.
+#
+# This manifest deliberately OMITS the 'location' entry: the compiler must
+# fall back to its default flow folder (classpath:/flows/) — the
+# 'flows-location-default' claim. The listed files exist ONLY under
+# tests/resources/flows/.
+flows:
+  - 'claims-decision-coercion.yml'
+  - 'claims-default-location.yml'

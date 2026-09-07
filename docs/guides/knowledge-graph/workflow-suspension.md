@@ -58,7 +58,8 @@ the application, and any application instance can pick it up when the reply arri
 The reply — the batch completion, the manager's approval, the user's email — may take
 minutes, hours or days. Parking a live graph instance for that long would
 pin memory, defeat timeouts, and not survive a restart. Suspension inverts the problem:
-the run **ends** — the caller gets a `{"type": "suspended", "cid": ...}` reply — and the
+the run **ends** — the caller gets a `{"type": "suspended", "cid": ...}` reply (HTTP `200`:
+the run completed normally by suspending) — and the
 workflow's durable memory (the `model` namespace) waits in the state store under the
 business correlation ID with a time-to-live you choose. The resumed run is an ordinary
 graph execution that happens to start with restored state. Because the record key is the
@@ -365,8 +366,10 @@ curl -s -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   subgraph and resume in another. A delegated subgraph inherits the parent's business
   correlation ID and is fully resumable on its own; the parent orchestrates —
   see [the orchestrator pattern](#orchestrator-pattern).
-- Reserved model keys (`model.cid`, `model.instance`, `model.flow`, `model.ttl`,
-  `model.trace`, `model.run`) are never persisted — the resumed run's own identity is
+- The nine reserved model-metadata keys (`model.cid`, `model.instance`, `model.flow`,
+  `model.ttl`, `model.trace`, `model.parent`, `model.root`, `model.none`, `model.run` — the
+  full set in the [skills reference](skills-reference.md)) are never persisted — the resumed
+  run's own identity is
   authoritative. `model.run` is part of the read-only flow metadata family: `graph.resume`
   is its only writer, and the flow compiler rejects any data mapping that targets it
   (like the other reserved keys).
@@ -431,7 +434,7 @@ anything else plugs in the same way.
 ```
 
 Store the body **opaquely** (the reference implementations use MsgPack — binary values
-round-trip; note the platform's [serialization gotchas](../api-overview.md))
+round-trip; note the platform's [serialization rules](../event-envelope-reference.md#serialization))
 and reply 2xx only when the record is durable — the reply is the acknowledgement
 `graph.suspend` requires before the graph completes; any error fails the suspension.
 
@@ -462,7 +465,8 @@ independently under a shared business correlation ID. The consume strategy is
 `GET`+`DEL` transaction on older servers — detected once per connection from
 `INFO server` and stated in the startup log, since enterprise deployments rarely control
 their managed Redis version (and the community Windows binary used by `redis-standalone`
-is 5.0.14). Include the jar and the two functions register automatically; the connection
+is 5.0.14). Add the crate (`mercury-minigraph-state-redis = "4.12"` — the two functions
+register automatically at link time); the connection
 is lazy, so the application boots normally without Redis until a workflow actually
 suspends. Configuration uses the same
 `redis.*` keys as the sync-over-async extension (`redis.host`, `redis.port`,

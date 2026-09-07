@@ -960,6 +960,11 @@ mod tests {
     /// positives on longer names.
     #[test]
     fn reserved_model_metadata_is_immutable() {
+        // the set is exactly these nine names (claims-registry pin)
+        assert_eq!(
+            RESERVED_MODEL_METADATA,
+            ["cid", "instance", "flow", "ttl", "trace", "parent", "root", "none", "run"]
+        );
         for key in RESERVED_MODEL_METADATA {
             let target = format!("model.{key}");
             assert!(

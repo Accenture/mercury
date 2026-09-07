@@ -38,7 +38,10 @@ These are self-contained; you should not need the engine source or the tutorial 
 - [Workflow suspension](guides/knowledge-graph/workflow-suspension.md) — express a long-running
   process as a sequence of short graph runs: suspend while waiting on a person or another system,
   persist state to a pluggable store, resume with the same business correlation id without
-  re-executing completed steps.
+  re-executing completed steps. Deployment gating itself is documented in
+  [Build your first graph](guides/knowledge-graph/build-your-first-graph.md): a graph is
+  executable at `POST /api/graph/{graph-id}` only when manifest-listed AND passing
+  CompileGraph — compiled-or-404.
 - [Built-in skills reference](guides/knowledge-graph/skills-reference.md) — per-skill properties and
   examples.
 
@@ -57,11 +60,13 @@ unchanged; only the functions are written differently (Rust):
 - [Flow AI agent guide](guides/event-script/ai-agent-guide.md) — authoring flows deterministically:
   compile contract, pre-write checklist, recipe, worked examples.
 - [Flow grammar](guides/event-script/flow-grammar.md) — the rules: flow structure, task fields, the
-  eight execution types, the data-mapping mini-language.
+  eight execution types incl. `decision` branching (true/false or 1-based numeric), the exception
+  context (`error.task/.code/.message`), the data-mapping mini-language.
 - [`event-script-flow.json`](guides/event-script/event-script-flow.json) — the machine-readable flow
   schema; ingest and validate against it.
 - [Flow Schema Reference](guides/flow-schema-reference.md) — the field-level reference: every
-  field the flow compiler accepts and the validation it applies at startup.
+  field the flow compiler accepts and the validation it applies at startup, incl. the sub-flow
+  `ttl` deadline override (a catchable child timeout).
 - [Event Script Syntax](guides/event-script/syntax.md) — the full reference with worked examples:
   data-mapping catalog (constants, arrays, JSONPath, runtime model variables), all task types,
   pipelines/loops, Simple Plugins (`f:` functions), exception handling, external state machine.
@@ -110,7 +115,14 @@ repo's own source, so it answers the question without opening `crates/`.
   declarations (the Java list carries names from subsystems this port does not have).
 - [Configuration reference](guides/configuration-reference.md) — every key the port actually reads,
   with type, default and the crate reading it; `resources/application.yml`, the `classpath:/` and
-  `file:/` prefixes, `${ENV_VAR:default}` substitution.
+  `file:/` prefixes, `${ENV_VAR:default}` substitution, and override precedence (`-Dkey=value`
+  runtime arguments win over any configuration-file value; files merge in manifest order).
+- [claims-registry.json](guides/claims-registry.json) — the machine-readable registry of
+  **CI-pinned documentation behavior claims**: each entry names its normative sentence, its pages,
+  and the engine test that pins the behavior; an agent may treat these claims as source-verified.
+- [Observability](guides/observability.md) — tracing and telemetry, incl. the trace-context
+  lifecycle: the context is task-local, torn down when the function returns, and work you
+  `tokio::spawn` from inside a function does not inherit it.
 - [Actuators & HTTP client](guides/actuators-and-http-client.md) — the built-in health and
   introspection endpoints, and the async outbound HTTP client; both without extra wiring.
 - [Event over HTTP](guides/event-over-http.md) — call a function in another instance over the same

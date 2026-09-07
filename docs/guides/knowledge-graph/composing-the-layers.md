@@ -176,6 +176,9 @@ flow:
 first.task: 'graph.executor'
 
 tasks:
+  # the shipped graph-executor.yml also contains the graph.exception.handler task that the
+  # flow-level exception: above refers to (graph.exception.handler is an engine built-in) -
+  # include the handler task when copying this pattern into your own flow
   - input:
       - 'model.instance -> header.instance'
       - 'input.path_parameter.graph_id -> header.graph'

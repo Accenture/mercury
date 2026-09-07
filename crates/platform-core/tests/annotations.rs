@@ -97,6 +97,27 @@ impl ComposableFunction for UntypedEcho {
     }
 }
 
+/// The other half of the Java `envInstances` contract (claims-registry pin):
+/// an UNSET `env_instances` key falls back to the annotation's literal.
+#[preload(
+    route = "anno.fallback.echo",
+    env_instances = "claims.no.such.key",
+    instances = 3
+)]
+struct FallbackEcho;
+
+#[async_trait]
+impl ComposableFunction for FallbackEcho {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        Ok(EventEnvelope::new().set_raw_body(input.body().clone()))
+    }
+}
+
 /// Stacked marker (Java `@PreLoad` + `@ZeroTracing`): a traced request to
 /// this route must execute WITHOUT a trace bracket (no telemetry, no
 /// propagation).
@@ -418,9 +439,15 @@ async fn annotation_macros_end_to_end() {
         "unsatisfied condition must skip registration"
     );
     // instance counts: the literal for the typed echo; env_instances (7 from
-    // the override) beats the literal 2 for the untyped one
+    // the override) beats the literal 2 for the untyped one; an UNSET
+    // env_instances key falls back to the literal (claims-registry pin)
     assert_eq!(platform.instances("anno.typed.echo"), Some(4));
     assert_eq!(platform.instances("anno.untyped.echo"), Some(7));
+    assert_eq!(
+        platform.instances("anno.fallback.echo"),
+        Some(3),
+        "unset env_instances key must fall back to the literal"
+    );
 
     // a typed annotated function serves RPC with (de)serialization
     let po = PostOffice::new(&platform);

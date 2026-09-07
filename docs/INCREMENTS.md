@@ -2701,3 +2701,29 @@ engine: `docs/ai-grammar-methodology.md` → `docs/mercury-story.md` and
 live references follow (mkdocs nav, the hero's absolute site URLs, the paper's deck
 pointer); the CHANGELOG and earlier increments keep the old paths as history. The old URLs
 are not redirected — the pages had been live for about a day.
+
+## Increment 105 — Claims-fixture gate + the sibling doc sweep (2026-09-06)
+
+The engine adopts the claims-fixture mechanism in lock-step with the Java repo's ADR-0023:
+`docs/guides/claims-registry.json` registers 20 high-value prose **behavior claims**, each
+stating exactly what its named engine test pins — no more. `scripts/check-doc-claims.py`
+verifies both sides (the normative sentence still appears on its page, whitespace-normalized
+case-insensitive containment; the test pin still exists as a fn *definition*, block-comment-
+and call-site-proof) and runs in BOTH `docs.yml` and `rust.yml`, so a test rename fails the
+build even when no doc changed. The registry ships in the packaged contract and `llms.txt`
+— an AI agent may treat registered claims as source-verified. Three new pinning tests land
+(decision coercion-to-branch-1 + flows default location in `event-script/tests/claims.rs`;
+the `graph.extension` missing-target asymmetry in `knowledge-graph/tests/claims.rs`) and
+three existing pins were upgraded to cover their whole claim (the exact nine-name reserved
+model-metadata set; untraced `annotate_trace`/`update_context` as silent no-ops;
+`env_instances` fallback-to-literal on an unset key).
+
+The same round carried the **sibling sweep** of the Java engine's AI-grammar coverage-study
+findings, each item re-verified against THIS engine before editing (never assumed parity):
+`error.code` (not `error.status`) across the flow error dataset pages, full decision
+semantics (non-numeric coerces to branch 1 silently; missing aborts), the `stream: true`
+endpoint field, crates.io usage sections, the nine reserved keys, suspend's HTTP-200 reply,
+export/orphan honesty (neither export nor the CompileGraph gate checks connectivity), and
+the extension target asymmetry with the delegate's wrapped error object shape. Two
+adversarial verify rounds (engine-source refuters with live probes) ran before commit; every
+surviving finding — including three of this round's own over-claims — was applied.

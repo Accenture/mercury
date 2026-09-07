@@ -40,6 +40,9 @@ jobs:
       - name: Check llms.txt link integrity
         run: python3 scripts/check-llms-links.py
 
+      - name: Check documentation behavior claims
+        run: python3 scripts/check-doc-claims.py
+
       - name: Install MkDocs toolchain
         run: pip install mkdocs-material
 

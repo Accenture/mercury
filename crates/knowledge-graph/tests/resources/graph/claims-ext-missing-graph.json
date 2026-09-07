@@ -1,0 +1,119 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "claims pin: a graph.extension node naming a nonexistent GRAPH id rides the graph-executor flow, fails 404, and routes to its exception= handler",
+        "name": "claims-ext-missing-graph"
+      }
+    },
+    {
+      "alias": "ext",
+      "types": [
+        "Extension"
+      ],
+      "properties": {
+        "skill": "graph.extension",
+        "extension": "no-such-graph-id",
+        "exception": "catcher",
+        "input": [
+          "text(hello) -> hello"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "purpose": "delegate to a graph id that is not in the compiled registry"
+      }
+    },
+    {
+      "alias": "island",
+      "types": [
+        "Island"
+      ],
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "anchor: keeps the jump-only handler node non-orphan while plain traversal stops here"
+      }
+    },
+    {
+      "alias": "catcher",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "claims.error.probe",
+        "input": [
+          "error.code -> code",
+          "error.message -> message"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "purpose": "the exception handler: reads the staged error context (error.code / error.message)"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "ext",
+      "relations": [
+        {
+          "type": "run",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "root",
+      "target": "island",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "island",
+      "target": "catcher",
+      "relations": [
+        {
+          "type": "anchor",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "ext",
+      "target": "end",
+      "relations": [
+        {
+          "type": "finish",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "catcher",
+      "target": "end",
+      "relations": [
+        {
+          "type": "finish",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

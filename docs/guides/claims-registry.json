@@ -1,0 +1,168 @@
+{
+  "registry": "claims-fixture",
+  "version": "1.0",
+  "description": "Machine-readable registry of CI-pinned documentation behavior claims for the Rust engine (the engine-neutral mechanism of the Java repo's ADR-0023). Each claim states exactly what its named engine test pins - no more. The claim's normative sentence must appear on one of its pages (scripts/check-doc-claims.py: whitespace-normalized, case-insensitive containment) and the engine test pin must exist as a fn definition; the pinned tests run in the normal cargo test --workspace build. An AI agent may treat these claims as source-verified.",
+  "test_ref_format": "crates/<crate-dir>::<test-file-stem>::<fn>",
+  "claims": [
+    {
+      "id": "error-dataset-code-key",
+      "claim": "The error dataset of an exception handler exposes the failing status as error.code.",
+      "pages": ["docs/guides/event-script/syntax.md", "docs/guides/event-script/flow-grammar.md"],
+      "quote": "error.code - the status code of the exception",
+      "test": "crates/event-script::flow_runtime::flows_run_end_to_end_like_java",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "decision-branching",
+      "claim": "A decision task branches on true/false or a 1-based integer; an integer above the branch count aborts the flow.",
+      "pages": ["docs/guides/event-script/flow-grammar.md"],
+      "quote": "`true`→next[0]/`false`→next[1]; or numeric 1-indexed, multi-way",
+      "test": "crates/event-script::flow_runtime::flows_run_end_to_end_like_java",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "decision-invalid-value",
+      "claim": "A non-boolean, non-numeric decision value coerces to 1 and silently selects the first branch; a missing decision aborts the flow.",
+      "pages": ["docs/guides/event-script/syntax.md"],
+      "quote": "silently select the first branch",
+      "test": "crates/event-script::claims::non_numeric_decision_silently_routes_to_branch_one",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "flows-location-default",
+      "claim": "A flows.yaml manifest that omits 'location' loads its flow files from classpath:/flows/.",
+      "pages": ["docs/guides/configuration-reference.md", "docs/guides/flow-schema-reference.md"],
+      "quote": "`location` inside the manifest defaults to `classpath:/flows/`",
+      "test": "crates/event-script::claims::manifest_without_location_loads_flows_from_default_classpath",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "subflow-ttl-catchable",
+      "claim": "A task-level ttl on a flow:// task makes the child time out first, so its 408 is catchable by the parent's exception handler.",
+      "pages": ["docs/guides/event-script/flow-grammar.md"],
+      "quote": "overrides the propagated parent TTL so the sub-flow's timeout is catchable",
+      "test": "crates/event-script::flow_runtime::flows_run_end_to_end_like_java",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "no-handler-error-shape",
+      "claim": "An unhandled flow error reaches the caller as {type: error, status, message} with the matching HTTP status.",
+      "pages": ["docs/guides/flow-schema-reference.md"],
+      "quote": "the flow aborts and the caller receives the error as",
+      "test": "crates/event-script::flow_runtime::flows_run_end_to_end_like_java",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "duplicate-route-reload",
+      "claim": "Registering a duplicate route does not fail the application: the earlier registration is reloaded and the newest function serves.",
+      "pages": ["docs/guides/macros-reference.md"],
+      "quote": "a duplicate route RELOADS the existing one, exactly like Java `Platform.register`",
+      "test": "crates/platform-core::event_bus::route_validation_replacement_and_worker_clamp_match_java",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "env-instances-config-key",
+      "claim": "With env_instances, the configured value beats the annotation's instances literal when the key is set; a missing key falls back to the literal.",
+      "pages": ["docs/guides/macros-reference.md"],
+      "quote": "the instance count is configuration-driven — the literal loses to the configured value when the key is set",
+      "test": "crates/platform-core::annotations::annotation_macros_end_to_end",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "stream-field-parsed",
+      "claim": "rest.yaml's stream: true is parsed by the engine and streaming replies ride a dedicated ordered reply lane.",
+      "pages": ["docs/guides/http-streaming.md", "docs/guides/rest-automation.md"],
+      "quote": "Add `stream: true` to the endpoint definition in rest.yaml",
+      "test": "crates/platform-core::event_stream::sse_segments_arrive_progressively_with_terminal_done_event",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "config-override-precedence",
+      "claim": "A value in the runtime override registry (the -Dkey=value mechanism) beats the same key's configuration-file value.",
+      "pages": ["docs/guides/configuration-reference.md"],
+      "quote": "win over configuration-file values",
+      "test": "crates/platform-core::config::override_registry_beats_the_file_value",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "config-manifest-merge-order",
+      "claim": "Configuration files merge in the manifest order - a later manifest file's value overrides an earlier one's, and keys unique to one file survive the merge.",
+      "pages": ["docs/guides/configuration-reference.md"],
+      "quote": "merge in the manifest order",
+      "test": "crates/platform-core::config::later_manifest_files_override_earlier_ones",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "msgpack-typed-roundtrip",
+      "claim": "Envelope bodies are typed through serde on set_body/body_as - a small i64 round-trips as i64 with no Java-style Integer downcast surprise.",
+      "pages": ["docs/guides/event-envelope-reference.md"],
+      "quote": "typed values pass through `serde` on `set_body`/`body_as`",
+      "test": "crates/platform-core::event_bus::envelope_round_trips_through_msgpack",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "trace-noop-outside-bracket",
+      "claim": "Trace annotation and context calls are silent no-ops outside a trace bracket.",
+      "pages": ["docs/guides/observability.md"],
+      "quote": "outside a trace both calls are no-ops",
+      "test": "crates/platform-core::telemetry::untraced_request_emits_no_telemetry",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "inspect-returns-subtrees",
+      "claim": "The Playground inspect command resolves whole subtrees, not only leaf keys.",
+      "pages": ["docs/guides/knowledge-graph/command-reference.md"],
+      "quote": "a whole namespace: input | output | model | error",
+      "test": "crates/knowledge-graph::playground::playground_command_grammar_and_companion",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "export-identity-guard",
+      "claim": "Export validates the declared root name only when one is declared; a missing or blank root name is accepted and self-named.",
+      "pages": ["docs/guides/knowledge-graph/command-reference.md"],
+      "quote": "missing or blank root name is accepted",
+      "test": "crates/knowledge-graph::playground::export_name_guard_accepts_missing_and_rejects_mismatch",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "root-purpose-gate-only",
+      "claim": "A graph whose root node lacks a purpose fails the CompileGraph deployment gate.",
+      "pages": ["docs/guides/knowledge-graph/build-your-first-graph.md"],
+      "quote": "structure, the root node's `purpose`, data-mapping syntax",
+      "test": "crates/knowledge-graph::compiler::manifest_listed_graphs_are_compiled",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "reserved-model-keys-nine",
+      "claim": "The reserved model-metadata key set is exactly nine names: cid, instance, flow, ttl, trace, parent, root, none, run - and every one is rejected as a data-mapping write target.",
+      "pages": ["docs/guides/knowledge-graph/workflow-suspension.md"],
+      "quote": "The nine reserved model-metadata keys",
+      "test": "crates/knowledge-graph::common::reserved_model_metadata_is_immutable",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "compiled-or-404",
+      "claim": "A graph is deployed only when manifest-listed and passing CompileGraph; a failed or unlisted graph is absent from the executable registry.",
+      "pages": ["docs/guides/knowledge-graph/build-your-first-graph.md"],
+      "quote": "A graph that fails the gate, or is not listed",
+      "test": "crates/knowledge-graph::compiler::invalid_manifest_graphs_are_not_compiled",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "suspended-reply-200",
+      "claim": "A suspended run replies HTTP 200 with {type: suspended, cid} - the run completed normally by suspending.",
+      "pages": ["docs/guides/knowledge-graph/workflow-suspension.md"],
+      "quote": "the run completed normally by suspending",
+      "test": "crates/knowledge-graph::graph_runtime::suspend_resume_matches_java_semantics",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "extension-target-asymmetry",
+      "claim": "A missing flow:// target aborts the run before any call and is not exception=-routable; a missing graph id surfaces as the delegate's 404 reply, catchable by the exception= route.",
+      "pages": ["docs/guides/knowledge-graph/skills-reference.md"],
+      "quote": "a missing `flow://{flow-id}` aborts the run *before* any call is made",
+      "test": "crates/knowledge-graph::claims::extension_missing_flow_aborts_but_missing_graph_routes_to_handler",
+      "since": "4.12.3+"
+    }
+  ]
+}

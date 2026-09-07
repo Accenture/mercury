@@ -478,9 +478,11 @@ to a task or the generic exception handler that attaches to the flow itself.
 The error dataset includes the following:
 
 1. error.task - this is the task name of the task that throws exception
-2. error.status - the status code of the exception
+2. error.code - the status code of the exception
 3. error.message - the error message
-4. error.stack - stack trace if any
+
+> The Rust engine produces **no stack trace**: an `error.stack` mapping (a Java-engine key,
+> present there only when a stack trace exists) is tolerated but resolves null.
 
 The external state machine namespace uses the namespace `ext:` to indicate that the key-value is external.
 
@@ -1019,6 +1021,13 @@ tasks:
       - 'decision.case.one'
       - 'decision.case.two'
 ```
+
+**Runtime semantics for a bad decision value** — a `null` or missing decision aborts the flow
+("returned invalid decision"), and an integer **above** the branch count aborts likewise; but
+`0`, negative integers, and any non-boolean, non-numeric value (e.g. the *string* `"false"`)
+are coerced through integer conversion clamped to a minimum of `1`, so they **silently select
+the first branch**. Return a real boolean or a valid 1-based integer from the function, or
+stage the value through a typed model variable — never rely on coercion.
 
 ### Response task
 

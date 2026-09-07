@@ -168,13 +168,14 @@ export graph as my-first-graph
 
 ```
 > export graph as my-first-graph
-Added name=my-first-graph to Root node
 Graph exported to /tmp/graph/my-first-graph.json
 Described in /api/graph/model/my-first-graph/436-4
 ```
 
-Export fails if any node is an orphan — every node must connect to at least one other
-(see [the invariants](command-reference.md#invariants)).
+Export does not check connectivity — nor does the CompileGraph deployment gate (it
+re-validates structure, mapping syntax, and the root/end rules, not orphans) — but the
+authoring convention is **no node left unconnected** (wire configuration nodes under an
+island; see [the invariants](command-reference.md#invariants)).
 
 ## Step 6 — deploy it and call it over REST
 

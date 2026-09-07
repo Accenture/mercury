@@ -88,7 +88,7 @@ Every `input`/`output` entry is `'source -> target'` (one `->` per rule; a three
 | `input.*` | the HTTP request dataset (`input.body`, `input.header.*`, `input.query.*`, `input.path_parameter.*`, `input.method`, …) |
 | `model.*` | flow-instance state (dot/bracket/`{model.key}` dynamic keys) |
 | `model.parent.*` / `model.root.*` | parent-flow state (in sub-flows) |
-| `error.*` | exception context in a handler (`error.task/.status/.message/.stack`) |
+| `error.*` | exception context in a handler (`error.task/.code/.message`) |
 | `$.…` | a JSONPath expression |
 | `result` / `input` / `header` / `status` / `datatype` | (in `output` rules) the function's result, the task input, response headers, status code, or result type name |
 | constants | `text(…)`, `int(…)`, `long(…)`, `float(…)`, `double(…)`, `boolean(…)`, `map(k=v,…)`, `file(text:/json:/binary:path)`, `classpath(…)` |

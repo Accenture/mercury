@@ -565,7 +565,7 @@ the window aborts the traversal. Read by `crates/knowledge-graph`.
 How many visits to the same node within `graph.max.loop.interval` count as a runaway loop
 (floor 2). Read by `crates/knowledge-graph`.
 
-#### `redis.*` (the `minigraph-state-redis` extension crate)
+#### `redis.*` (the `minigraph-state-redis` extension crate — crates.io: `mercury-minigraph-state-redis`)
 
 | Key | Type | Default |
 |---|---|---|
