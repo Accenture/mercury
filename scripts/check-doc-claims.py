@@ -23,6 +23,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Optional
 
 REGISTRY_REL = "docs/guides/claims-registry.json"
 
@@ -38,7 +39,9 @@ def rel(p: Path, root: Path) -> str:
         return str(p)
 
 
-def read_text(p: Path) -> str | None:
+# Optional[str], not `str | None`: the annotation is evaluated at def time and
+# must import on Python 3.9 (macOS system python3), not only on CI's 3.10+.
+def read_text(p: Path) -> Optional[str]:
     try:
         return p.read_text(encoding="utf-8")
     except OSError:

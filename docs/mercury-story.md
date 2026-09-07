@@ -648,11 +648,21 @@ An AI partner can navigate from a compact discovery map to authoritative guidanc
 repeatedly reading an entire dependency's source. Context consumption can follow the task instead
 of the full dependency tree.
 
-The effect is measurable. On this repository's documentation map (measured 2026-09-04, v4.12.3),
-a roughly 2,500-token discovery map routes an agent to about 46,000 tokens of source-verified
-reference, replacing a hunt through roughly 515,000 tokens of engine source. Completeness that
-costs discovery is a regression: the map must stay small, dense with the exact terms an agent
-searches for, and gated so it cannot silently rot.
+The effect is measured — on both engines. On this repository's documentation map (2026-09-04,
+v4.12.3), a roughly 2,500-token discovery map routes an agent to about 46,000 tokens of
+source-verified reference, replacing a hunt through roughly 515,000 tokens of engine source. An
+empirical study then ran 46 agents through 24 use cases against the Java engine's grammar
+(2026-09-06): 17 of 17 docs-only builds were viable and none wrong — every edge-case gotcha
+trial came out correct; none of the 24 discovery routes was missing (19 obvious in one hop; the
+five ambiguous ones were map-annotation gaps, since annotated); and the median task consumed
+45,800 documentation tokens against a roughly 542,000-token source-corpus ceiling — 8.4 percent.
+
+The study's sharpest finding held here too: every drifted sentence lived in ungated prose, while
+generated and gated surfaces held — this repository's sibling sweep reproduced the same drift
+classes on its own pages before fixing them. Both engines now drift-test their documentation
+behavior claims in CI — 31 claims pinned to engine tests at this writing (20 here, 11 Java).
+Completeness that costs discovery is a regression: the map must stay small, dense with the exact
+terms an agent searches for, and gated so it cannot silently rot.
 
 ### Human-AI Co-Authorship
 
