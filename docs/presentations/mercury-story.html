@@ -388,9 +388,10 @@
     <p class="eyebrow">The benchmark — measured, both engines</p>
     <h2>Doc discovery and token efficiency</h2>
     <p class="lede">A grammar is useful only if the agent finds the right page in one hop, the docs
-    suffice without opening source, and the map stays cheap. This engine's map benchmark
-    (2026-09-04) and an empirical study — 46 agents running 24 use cases against the Java engine's
-    grammar (2026-09-06) — measured exactly that:</p>
+    suffice without opening source, and the map stays cheap. This engine's own benchmark
+    (2026-09-04: a ~2,500-token curated map routing to ~46,000 tokens of source-verified reference
+    instead of ~515,000 of <code>crates/</code>) and an empirical study — 46 agents running 24 use
+    cases against the Java engine's grammar (2026-09-06) — measured exactly that:</p>
     <div class="stats">
       <div class="stat"><div class="n">17/17</div><div class="l">docs-only builds viable in the Java study, zero wrong — every edge-case gotcha trial came out correct</div></div>
       <div class="stat"><div class="n">0/24</div><div class="l">discovery routes missing — 19 obvious in one hop; the 5 ambiguous were map-annotation gaps, since annotated</div></div>
@@ -398,11 +399,11 @@
       <div class="stat"><div class="n">31</div><div class="l">documentation behavior claims now CI-pinned across both engines (20 here + 11 Java) — the gate the study produced</div></div>
     </div>
     <p class="muted">The sharpest finding: every drifted sentence lived in ungated prose — generated
-    and gated surfaces held. This engine shows the same economics (its ~2,500-token curated map
-    routes to ~46,000 tokens of source-verified reference instead of ~515,000 of <code>crates/</code>,
-    2026-09-04), and this repo's sibling sweep reproduced the drift classes on its own pages before
-    fixing them — both engines now drift-test behavior claims in CI (ADR-0018 ⇄ the Java engine's
-    ADR-0023). Completeness that costs discovery is a regression.</p>
+    and gated surfaces held. The Java engine shows the same economics (its ~4,000-token exhaustive
+    map routes a median task to 45,800 tokens of documentation against ~542,000 of engine source —
+    the study's corpus inventory), and this repo's sibling sweep reproduced the drift classes on its
+    own pages before fixing them — both engines now drift-test behavior claims in CI (ADR-0018 ⇄ the
+    Java engine's ADR-0023). Completeness that costs discovery is a regression.</p>
   </section>
 
   <!-- 10 · the proof -->

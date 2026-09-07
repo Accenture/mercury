@@ -656,6 +656,9 @@ empirical study then ran 46 agents through 24 use cases against the Java engine'
 trial came out correct; none of the 24 discovery routes was missing (19 obvious in one hop; the
 five ambiguous ones were map-annotation gaps, since annotated); and the median task consumed
 45,800 documentation tokens against a roughly 542,000-token source-corpus ceiling — 8.4 percent.
+The economics mirror this repository's map: the Java engine's exhaustive llms.txt is itself only
+about 4,000 tokens, so on both engines a few thousand tokens of map route each task to a few tens
+of thousands of documentation tokens instead of half a million of source.
 
 The study's sharpest finding held here too: every drifted sentence lived in ungated prose, while
 generated and gated surfaces held — this repository's sibling sweep reproduced the same drift
