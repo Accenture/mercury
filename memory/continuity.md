@@ -85,16 +85,16 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   spec (map, don't mirror).
   <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-30 | uses: 104 | tier: core | origin: 2026-07-15-215538.md -->
 
-- **The claims-fixture gate drift-tests documentation BEHAVIOR claims (lock-step twin of the
-  Java repo's ADR-0023).** `docs/guides/claims-registry.json` registers high-value prose claims —
+- **The claims-fixture gate drift-tests documentation BEHAVIOR claims (ADR-0018, accepted
+  2026-09-06 — lock-step twin of the Java repo's ADR-0023).** `docs/guides/claims-registry.json`
+  registers high-value prose claims —
   a claim states exactly what its named engine test pins, never more; `scripts/check-doc-claims.py`
   verifies the normative sentence still appears on its page AND the test pin still exists as a fn
   DEFINITION (test ref `crates/<crate-dir>::<test-file-stem>::<fn>`; rglob fallback resolves
   src-embedded `#[cfg(test)]` pins); the pinned tests run in `cargo test --workspace`. Wired into
   BOTH docs.yml and rust.yml — a test rename does not trigger docs.yml's path filter. The registry
   is a grammar asset (packaged contract + llms.txt; agents may treat registered claims as
-  source-verified). New claims enter via the field feedback circuit. Rust ADR-0018 drafted for the
-  ledger, gated on Eric's approval (add the `(ADR-0018)` tag here when it lands).
+  source-verified). New claims enter via the field feedback circuit.
   <!-- id: claims-fixture-gate | created: 2026-09-06 | last_used: 2026-09-06 | uses: 1 | tier: working | origin: 2026-09-07-052947.md -->
 
 - **Playground session broker: an AI agent can HOST a Playground session (2026-09-03, Eric's
