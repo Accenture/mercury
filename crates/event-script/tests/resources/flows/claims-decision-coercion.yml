@@ -1,0 +1,42 @@
+# Claims pin 'decision-invalid-value': the decision task's process echoes the
+# caller-supplied decision value VERBATIM (no boolean/int conversion in the
+# function), so the raw string reaches the engine's decision router — unlike
+# the SimpleDecision fixture, which converts to a real boolean first.
+flow:
+  id: 'claims-decision-coercion'
+  description: 'Raw decision values reach the decision router unconverted'
+  ttl: 10s
+
+first.task: 'claims.decision.echo'
+
+tasks:
+  - input:
+      - 'input.query.decision -> value'
+    process: 'claims.decision.echo'
+    output:
+      - 'result.value -> decision'
+    description: 'echo the caller-supplied decision value verbatim'
+    execution: decision
+    next:
+      - 'branch.one'
+      - 'branch.two'
+
+  - name: 'branch.one'
+    input:
+      - 'text(one) -> value'
+    process: 'claims.decision.echo'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'text(one) -> output.body.from'
+    description: 'first branch'
+    execution: end
+
+  - name: 'branch.two'
+    input:
+      - 'text(two) -> value'
+    process: 'claims.decision.echo'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'text(two) -> output.body.from'
+    description: 'second branch'
+    execution: end

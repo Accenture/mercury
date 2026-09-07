@@ -12,3 +12,10 @@ Java repo.
 `rust-flows.yaml` + `flows-rust/` are Rust-side supplements (also not Java
 copies): trimmed flows covering features whose canonical fixtures depend on
 later increments (e.g. dynamic fork before sub-flows land in E-7).
+
+`claims-flows.yaml` plus `flows/claims-decision-coercion.yml` and
+`flows/claims-default-location.yml` are Rust-side **claims-gate fixtures**
+(pinning tests named in `docs/guides/claims-registry.json`), not Java copies.
+They must live inside `flows/` because the flows-location-default claim
+exercises the compiler's default `classpath:/flows/` — a verbatim re-sync of
+`flows/` from the Java repo must preserve them.

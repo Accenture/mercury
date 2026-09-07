@@ -233,8 +233,14 @@ output[]=result.sales_performance -> output.body.sales_performance
 
 - `extension={graph-id}` resolves among the **deployed graph models** (compiled at startup from
   the app's `resources/graph` folder — the same ids callable at `POST /api/graph/{graph-id}`).
-  A session draft is **not** addressable — export and deploy it first. A missing id fails the
-  node fast at run time.
+  A session draft is **not** addressable — export and deploy it first. Missing targets are
+  **asymmetric**: a missing `flow://{flow-id}` aborts the run *before* any call is made
+  (`node {n} -  flow://x does not exist` — double space after the dash, both engines; the
+  `exception=` route cannot catch it), while a missing `{graph-id}` surfaces as the
+  delegate's `404` reply — catchable by the node's `exception=` route, where the handler
+  sees `error.code=404` and, in `error.message`, the delegate's whole error object
+  (`{message: "{id} not found", status: 404, type: "error"}` — the plain text is at
+  `error.message.message`, not `error.message` itself).
 - Each `input[]` **target** is a bare key that becomes the sub-graph's `input.body.{key}` (e.g.
   `input[]=input.body.person_id -> person_id` feeds the sub-graph's `input.body.person_id`).
   There is **no whole-body `*` target** on `graph.extension` — map named keys (the `*` merge idiom

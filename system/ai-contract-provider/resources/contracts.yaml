@@ -32,6 +32,7 @@ contracts:
       - 'platform_core::automation::routing::RoutingTable'
     references:
       - 'references/guides/rest-automation.md'
+      - 'references/guides/http-streaming.md'
 
   - id: 'event-script'
     module: 'event-script'

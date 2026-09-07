@@ -171,6 +171,17 @@ sent to this route (with the endpoint's timeout). The contract:
     Only the simple form — one route for the endpoint — is ported. The Java routing specs
     (`'default: svc'`, `'header: svc'`, `'header: value: svc'`) are not yet available.
 
+#### `stream`
+
+| Type | Default |
+|---|---|
+| boolean | `false` |
+
+`stream: true` enables progressive response streaming for the endpoint — the reply rides a
+dedicated ordered reply lane from a bounded pool, rendered as SSE for `text/event-stream`
+callers and chunked JSON/text otherwise (pool exhaustion answers HTTP 503). See
+[HTTP Response Streaming](http-streaming.md).
+
 #### `tracing`
 
 | Type | Default |
@@ -348,8 +359,10 @@ anything else, or no content type
 !!! note "Rust port"
     The XML-to-map parse is deferred with the rest of the XML surface (the Java
     `SimpleXmlParser`/writer pair is not ported) — XML bodies pass through as raw text on both
-    the server and the HTTP-client side. Request/response **streaming** is also deferred:
-    bodies are aggregated, matching Java's fixed-length path. The Java `custom.content.types`
+    the server and the HTTP-client side. Request-body **streaming** is deferred (upload bodies
+    are aggregated, matching Java's fixed-length path), but **response streaming shipped**:
+    declare `stream: true` on the endpoint — see
+    [HTTP Response Streaming](http-streaming.md). The Java `custom.content.types`
     mapping feature is not ported.
 
 ## The response

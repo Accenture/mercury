@@ -1,0 +1,8 @@
+# Claims-registry engine pins (ADR-0023): manifest for the tests/claims.rs
+# binary only — loaded via a process-local 'graph.model.automation' override,
+# so graphs.yaml and its exact-count assertion in compiler.rs are untouched.
+# No 'location' entry: the default classpath:/graph resolves to
+# tests/resources/graph/.
+graphs:
+  - 'claims-ext-missing-flow'
+  - 'claims-ext-missing-graph'

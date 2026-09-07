@@ -93,6 +93,7 @@ not_in_nav: |
   llms.txt
   guides/knowledge-graph/minigraph-commands.json
   guides/event-script/event-script-flow.json
+  guides/claims-registry.json
 
 validation:
   nav:

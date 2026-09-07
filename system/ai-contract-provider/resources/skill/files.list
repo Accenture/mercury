@@ -4,6 +4,7 @@ references/background/port-scope.md
 references/guides/actuators-and-http-client.md
 references/guides/api-overview.md
 references/guides/architecture.md
+references/guides/claims-registry.json
 references/guides/configuration-reference.md
 references/guides/event-driven/ai-agent-guide.md
 references/guides/event-driven/function-execution.md

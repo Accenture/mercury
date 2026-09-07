@@ -160,6 +160,22 @@ is kept verbatim from the Java original so files port between the two implementa
 Spring-specific key names are retired in the Rust port (`APP_PROFILES_ACTIVE`,
 `application.name`).
 
+## Use from crates.io
+
+The seven library crates publish under `mercury-`prefixed package names, while the lib
+(code-facing) names stay short:
+
+```toml
+[dependencies]
+mercury-platform-core = "4.12"      # code: use platform_core::...
+mercury-event-script = "4.12"       # code: use event_script::...
+mercury-knowledge-graph = "4.12"    # code: use knowledge_graph::...
+```
+
+The macro crates (`mercury-platform-macros`, `mercury-event-script-macros`,
+`mercury-knowledge-graph-macros`) are pulled in automatically; add
+`mercury-minigraph-state-redis` for the Redis suspend/resume state store.
+
 ## Next steps
 
 - Write your own function: [the authoring walkthrough](event-driven/write-your-first-function.md)

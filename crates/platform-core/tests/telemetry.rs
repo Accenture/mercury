@@ -242,7 +242,8 @@ async fn untraced_request_emits_no_telemetry() {
                 platform: platform.clone(),
                 next: None,
                 seen_cid: cid.clone(),
-                annotate: None,
+                // the hop annotates during the UNTRACED request — must no-op
+                annotate: Some(("claims", "no-op")),
             }),
             1,
         )
@@ -256,9 +257,13 @@ async fn untraced_request_emits_no_telemetry() {
     tokio::time::sleep(Duration::from_millis(150)).await;
     assert!(
         datasets.lock().unwrap().is_empty(),
-        "no trace = no telemetry"
+        "no trace = no telemetry, even when the function annotated"
     );
-    // outside a trace, the business APIs are silent no-ops
+    // outside a trace, the business APIs are silent no-ops (claims-registry
+    // pin: annotate_trace above produced nothing; update_context here still
+    // succeeds without a bracket; the correlation id is absent)
+    po.update_context("claims", "no-op")
+        .expect("update_context outside a trace must be a silent no-op");
     assert_eq!(*cid.lock().unwrap(), None);
 }
 

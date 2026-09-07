@@ -26,6 +26,43 @@ or *Deprecated* (no longer relevant), with its text left in place.
 
 ---
 
+## ADR-0018 — The claims-fixture gate: documentation behavior claims are CI-pinned {#adr-0018}
+**Status:** Accepted · **Date:** 2026-09-06 · **Serves:** vision-mercury · **Formalizes:** claims-fixture-gate
+<!-- id: adr-0018 | status: accepted -->
+
+**Abstract.** `docs/guides/claims-registry.json` registers high-value documentation
+**behavior claims** — a claim states exactly what its named engine test pins, never more.
+`scripts/check-doc-claims.py` verifies both sides of every entry: the claim's normative
+sentence still appears on one of its pages (whitespace-normalized, case-insensitive
+containment — removal or rewording fails, re-casing passes), and its engine test pin
+(`crates/<crate-dir>::<test-file-stem>::<fn>`) still exists as a function *definition* in
+that crate's test tree (call sites, line comments and block-commented-out code do not
+count; an `rglob` fallback resolves pins living in `#[cfg(test)]` modules inside `src/`).
+The pinned tests themselves run in the normal `cargo test --workspace` build. The checker
+runs in BOTH workflows — `docs.yml` (doc edits) and `rust.yml` (deliberately, because a
+test rename does not trigger the docs workflow's path filter) — so neither side of a pin
+can drift silently. The registry is a grammar asset: packaged in the ai-contract-provider
+skill and mapped in `llms.txt`, so an AI agent may treat registered claims as
+source-verified without opening `crates/`. Lock-step twin of the Java engine's ADR-0023;
+the registry format is engine-neutral (only the test-ref grammar differs:
+`module::Class#method` there, `crate::file::fn` here).
+
+**Rationale.** The Java repo's AI-grammar coverage study found that all documentation
+drift lived in ungated prose while every generated/gated surface held — and this port's
+sibling sweep reproduced the pattern (the same `error.status` drift, a stale divergence
+note, an over-claimed export invariant). Shape gates (link integrity, packaging closure,
+compile-time anchors) cannot see a behavior sentence rot; the claims fixture extends
+drift-testing from shape to behavior at the granularity that matters — the specific
+sentences an agent acts on. The "states exactly what its named test pins" contract is
+load-bearing: this round's own adversarial verification found six claims whose prose
+bundled behavior their pin did not exercise, and the fix (narrow the claim or upgrade the
+pin) is exactly the discipline the contract encodes. Alternatives rejected: generating
+prose from tests (kills the narrative layer the grammar exists for), and pinning whole
+pages by checksum (fails on every harmless edit, so it would be bypassed). New claims
+enter via the field feedback circuit, one test-verified sentence at a time.
+
+---
+
 ## ADR-0017 — Route pools: numbered singleton lanes as a first-class platform registration {#adr-0017}
 **Status:** Accepted · **Date:** 2026-08-30 · **Serves:** vision-mercury · **Formalizes:** route-pool-registration-design
 <!-- id: adr-0017 | status: accepted -->

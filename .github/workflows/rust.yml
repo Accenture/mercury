@@ -44,3 +44,8 @@ jobs:
 
       - name: Test workspace
         run: cargo test --workspace
+
+      # a test rename must not silently orphan a documentation behavior claim
+      # (docs.yml does not trigger on crates/** changes; this lane does)
+      - name: Check documentation behavior claims
+        run: python3 scripts/check-doc-claims.py

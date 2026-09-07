@@ -255,8 +255,10 @@ import node {node} from {name}
   (`Expect root node name=...`) — protecting `graph123.json` from another graph's content —
   while a **missing or blank root name is accepted**, and the export assigns the target id
   as the root name (the same self-naming a brand-new export performs).
-- `export` writes JSON to `location.graph.temp`; it adds `name={name}` to the root node and
-  **fails if any node is an orphan** (every node must connect to ≥1 other).
+- `export` writes JSON to `location.graph.temp` and adds `name={name}` to the root node.
+  (Orphan nodes are not rejected at export — and the CompileGraph deployment gate does not
+  check connectivity either; the authoring convention *no node left unconnected* is upheld
+  by review, not by the engine.)
 - The export reply includes `Described in /api/graph/model/{name}/{token}` — a read-only HTTP
   view of the exported model.
 
@@ -784,13 +786,17 @@ the `COMPUTE` doubles through `f:add` (both forms are engine-verified).
 
 ## Invariants {#invariants}
 
-Hard rules the engine enforces — violate them and generation fails:
+Hard rules the engine enforces — violate them and generation fails (invariant 4 is the one
+exception: an authoring convention, marked below):
 
 1. The root node is named `root`; the end node is named `end`.
 2. A node has **0 or 1** skill.
 3. Node **names** are **lowercase letters, digits and hyphen** (`root`/`end` reserved). Node **types** are
    descriptive labels — shipped examples capitalize structural types (see [lexical](#lexical)).
-4. Every node **in the traversal path** must connect to ≥1 node, or `export` fails.
+4. *(authoring convention — not engine-enforced)* Every node **in the traversal path**
+   should connect to ≥1 node. Neither export nor the CompileGraph gate checks connectivity
+   (the gate re-validates structure, mapping syntax, the root/end rules, and the
+   suspend/ttl/metadata rules — not orphans).
    `Dictionary` and `Provider` configuration nodes are referenced *by name* (`dictionary[]=`,
    `provider=`) and are **not traversed** — but the convention is still **no node left
    unconnected**: wire them under a `graph.island` node

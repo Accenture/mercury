@@ -1,0 +1,18 @@
+# Claims pin 'flows-location-default': this file is listed by
+# claims-flows.yaml, a manifest WITHOUT a 'location' entry — it is loadable
+# only because the compiler defaults to classpath:/flows/.
+flow:
+  id: 'claims-default-location'
+  description: 'Loaded through a manifest that omits location (compiler default)'
+  ttl: 10s
+
+first.task: 'claims.decision.echo'
+
+tasks:
+  - input:
+      - 'text(default-location) -> value'
+    process: 'claims.decision.echo'
+    output:
+      - 'result.value -> output.body.value'
+    description: 'echo a marker so execution is observable'
+    execution: end

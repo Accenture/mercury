@@ -331,8 +331,10 @@ Runs the function, then passes control to exactly one `next` task.
 Branches on the value its `output` maps to `decision`. `true` (or `1`) routes to the first
 `next` entry, `false` (or `2`) to the second; an integer `N` is **1-based** — `N` routes to
 the Nth entry, so a decision can fan to more than two tasks. Requires at least two `next`
-entries and the `-> decision` output mapping; a value that is missing or out of range aborts
-the flow with status 500.
+entries and the `-> decision` output mapping; a missing value or an integer above the branch
+count aborts the flow with status 500, while `0`, negative integers, and non-numeric values
+are coerced through integer conversion clamped to a minimum of 1 and **silently select the
+first branch**.
 
 #### `parallel`
 
@@ -406,10 +408,9 @@ catchable by this flow's exception handler.
 :   The error message (a nested sub-flow error is unwrapped to its message).
 
 !!! note "Rust port"
-    The Java reference documents these keys as `error.status` and `error.stack`. The engine's
-    error dataset — here exactly as in the canonical fixture flows — uses **`error.code`**
-    for the status code, and the Rust engine produces **no stack trace**: an `error.stack`
-    mapping is tolerated but resolves null.
+    Both engines expose the status code as **`error.code`**. The Java engine additionally
+    supplies `error.stack` when a stack trace exists; the Rust engine produces **no stack
+    trace** — an `error.stack` mapping is tolerated but resolves null.
 
 If the flow-level handler itself throws, the flow aborts rather than looping (exception-loop
 guard). Without any handler, the flow aborts and the caller receives the error as

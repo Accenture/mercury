@@ -11,4 +11,7 @@
   method when unblocked: re-verify each Java fix class against the RUST engine (never assume
   parity), skip Kafka items (no Kafka modules here), coordinates become crates.io
   `cargo add` lines. Trigger: Eric's go, after the Java round's learnings are folded in.
+  **EXECUTED 2026-09-07** on branch `feat/claims-fixture-gate` (sweep + the claims-fixture
+  gate's Rust twin, 20 claims, two adversarial verify rounds applied — full narrative:
+  `2026-09-07-052947.md`). PR pending; mark `[x]` with the close record on merge.
   <!-- id: ot-rust-docs-sibling-sweep | created: 2026-09-06 | last_used: 2026-09-06 | uses: 1 | tier: working | origin: 2026-09-07-014642 -->
