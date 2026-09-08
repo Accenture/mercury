@@ -23,6 +23,19 @@ export const ToastContainer = ({ toasts, onRemove }: ToastContainerProps) => {
             {toast.type === 'info' && 'ℹ️'}
           </span>
           <span className={styles.toastMessage}>{toast.message}</span>
+          {toast.action && (
+            <button
+              type="button"
+              className={styles.toastAction}
+              onClick={(event) => {
+                event.stopPropagation();
+                toast.action?.onClick();
+                onRemove(toast.id);
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
         </div>
       ))}
     </div>

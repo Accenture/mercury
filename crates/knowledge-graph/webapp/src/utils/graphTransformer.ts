@@ -16,6 +16,8 @@ export interface GraphNodeData extends Record<string, unknown> {
   /** Back-edge target handles — rendered on the RIGHT side (incoming back-edges to this node). */
   backTargetHandles: GraphHandleData[];
   supportsConnectionAuthoring: boolean;
+  /** Thumbnail mode: render the header only, no property rows. */
+  compact: boolean;
   minHeight: number;
 }
 
@@ -37,6 +39,10 @@ export interface GraphEdgeData extends Record<string, unknown> {
 // updates accordingly, keeping NodeResizer in sync.
 const NODE_WIDTH  = 240;
 const NODE_HEIGHT = 100; // rough estimate; ResizeObserver will correct it post-mount
+// Thumbnail mode: every node is a uniform FIXED-height card — the header
+// (~40px) plus a clipped body peek of 1.5x the header showing the first
+// key-values.  Handle-spread floors still apply on top of it.
+const COMPACT_NODE_HEIGHT = 100;
 const ROW_GAP            = 60;   // vertical gap between nodes stacked in the same column
 const COL_GAP            = 120;  // horizontal gap between columns (levels)
 const COMPONENT_GAP      = 360;  // horizontal gap between independent flow trees
@@ -50,6 +56,11 @@ const MAX_TRANSPOSE_SEGMENTS = 256;
 const MAX_TRANSPOSE_GEOMETRY_PAIRS = 256;
 const MAX_TRANSPOSE_EVALUATIONS = 512;
 const NODE_INTRUSION_EPSILON = 0.001;
+// Post-layout intrusion relief: with content-driven node heights a tall node
+// can be a wall no slot ordering routes a long edge around.  Each pass fixes
+// one intrusion by shifting the intruded node's column chain vertically.
+const MAX_INTRUSION_RELIEF_PASSES = 8;
+const INTRUSION_RELIEF_MARGIN = 16;
 
 // ─── Edge styling constants ──────────────────────────────────────────────────
 // EDGE_STROKE: --text-muted (rgb 148 163 184) at 42% opacity — slate-400 tinted stroke
@@ -87,9 +98,39 @@ function edgeHandleOffset(index: number, total: number): number {
 }
 
 
-function nodeHeightForHandleCount(handleCount: number): number {
-  if (handleCount <= 1) return NODE_HEIGHT;
-  return Math.max(NODE_HEIGHT, ((handleCount - 1) * EDGE_HANDLE_GAP) + (EDGE_HANDLE_PADDING * 2));
+function nodeHeightForHandleCount(handleCount: number, baseHeight: number = NODE_HEIGHT): number {
+  if (handleCount <= 1) return baseHeight;
+  return Math.max(baseHeight, ((handleCount - 1) * EDGE_HANDLE_GAP) + (EDGE_HANDLE_PADDING * 2));
+}
+
+// ─── Content height estimation ───────────────────────────────────────────────
+// Nodes size to their content (no fixed height), so the layout must anticipate
+// how tall each node will render. MinigraphNodeBody draws a header plus one row
+// per property value (array values expand to one row per item), wrapping long
+// values at the fixed node width. These constants approximate that rendering so
+// the pre-measurement layout is already close to the real DOM height;
+// GraphView re-runs the layout via computeMeasuredPositions once React Flow
+// reports measured heights, which is what actually guarantees non-overlap.
+const NODE_HEADER_ESTIMATE      = 40;  // header bar: icon + alias + type badge
+const NODE_ROW_PADDING_ESTIMATE = 9;   // per-row vertical padding + divider
+const NODE_LINE_HEIGHT_ESTIMATE = 18;  // one wrapped line of 0.75rem value text
+const NODE_VALUE_CHARS_PER_LINE = 22;  // value column width at NODE_WIDTH
+
+function estimateRowLines(item: unknown): number {
+  const text = typeof item === 'string' ? item : JSON.stringify(item) ?? '';
+  return Math.max(1, Math.ceil(text.length / NODE_VALUE_CHARS_PER_LINE));
+}
+
+function estimateNodeContentHeight(node: MinigraphNodeModel): number {
+  let height = NODE_HEADER_ESTIMATE;
+  for (const value of Object.values(node.properties ?? {})) {
+    if (value === undefined || value === null) continue;
+    const items = Array.isArray(value) ? value : [value];
+    for (const item of items) {
+      height += NODE_ROW_PADDING_ESTIMATE + (estimateRowLines(item) * NODE_LINE_HEIGHT_ESTIMATE);
+    }
+  }
+  return Math.max(NODE_HEIGHT, height);
 }
 
 // ─── Layout node classification ─────────────────────────────────────────────
@@ -398,18 +439,23 @@ function parameterAtX(
   return (low + high) / 2;
 }
 
-function forwardBezierIntersectsNode(
+/**
+ * The y-range a forward edge's Bezier sweeps while crossing a node's x-range,
+ * or null when their x-ranges do not overlap.  Positive-distance left/right
+ * Beziers are monotonic in both axes, so the endpoint values bound the range.
+ */
+function forwardBezierYRangeOverNode(
   source: CandidateNodeGeometry,
   target: CandidateNodeGeometry,
   sourceOffset: number,
   targetOffset: number,
   node: CandidateNodeGeometry,
-): boolean {
+): { yLow: number; yHigh: number } | null {
   const sourceX = source.x + NODE_WIDTH;
   const targetX = target.x;
   const nodeLeft = node.x + NODE_INTRUSION_EPSILON;
   const nodeRight = node.x + NODE_WIDTH - NODE_INTRUSION_EPSILON;
-  if (nodeLeft >= targetX || nodeRight <= sourceX) return false;
+  if (nodeLeft >= targetX || nodeRight <= sourceX) return null;
 
   const controlX = sourceX + ((targetX - sourceX) / 2);
   const startParameter = parameterAtX(sourceX, controlX, targetX, nodeLeft);
@@ -430,10 +476,21 @@ function forwardBezierIntersectsNode(
     targetY,
     endParameter,
   );
+  return { yLow: Math.min(startY, endY), yHigh: Math.max(startY, endY) };
+}
+
+function forwardBezierIntersectsNode(
+  source: CandidateNodeGeometry,
+  target: CandidateNodeGeometry,
+  sourceOffset: number,
+  targetOffset: number,
+  node: CandidateNodeGeometry,
+): boolean {
+  const range = forwardBezierYRangeOverNode(source, target, sourceOffset, targetOffset, node);
+  if (!range) return false;
   const nodeTop = node.y + NODE_INTRUSION_EPSILON;
   const nodeBottom = node.y + node.height - NODE_INTRUSION_EPSILON;
-  return Math.max(startY, endY) > nodeTop &&
-    Math.min(startY, endY) < nodeBottom;
+  return range.yHigh > nodeTop && range.yLow < nodeBottom;
 }
 
 function collectGeometryPairs(
@@ -465,27 +522,26 @@ function collectGeometryPairs(
 }
 
 /**
- * Score the geometry that React Flow will actually draw for forward long
- * edges. Positive-distance left/right Beziers have monotonic x and y, so
- * testing their y-range while they traverse a node's x-range is exact.
+ * Derive per-connection handle offsets for flow-internal edges, mirroring how
+ * transformGraphData assigns real handles: entries on each node side sorted by
+ * the peer's top y, interleaving forward and back edges.  Connections with an
+ * endpoint outside `levelOfAlias` (segregated nodes) are ignored.
  */
-function countCandidateNodeIntrusions(
-  layers: Map<number, LayoutSlot[]>,
-  localLevelOf: Map<string, number>,
+function deriveFlowHandleOffsets(
   connections: MinigraphGraphData['connections'],
-  geometryPairs: GeometryPair[],
-): number {
-  const geometry = candidateNodeGeometry(layers);
+  levelOfAlias: Map<string, number>,
+  topYOf: (alias: string) => number,
+): { sourceOffsets: Map<number, number>; targetOffsets: Map<number, number> } {
   const rightSide = new Map<string, CandidateSideEntry[]>();
   const leftSide = new Map<string, CandidateSideEntry[]>();
-  for (const alias of localLevelOf.keys()) {
+  for (const alias of levelOfAlias.keys()) {
     rightSide.set(alias, []);
     leftSide.set(alias, []);
   }
 
   for (const [connectionIndex, connection] of connections.entries()) {
-    const sourceLevel = localLevelOf.get(connection.source);
-    const targetLevel = localLevelOf.get(connection.target);
+    const sourceLevel = levelOfAlias.get(connection.source);
+    const targetLevel = levelOfAlias.get(connection.target);
     if (sourceLevel === undefined || targetLevel === undefined) continue;
     const isBack = sourceLevel >= targetLevel;
     const stableKey = connectionStableKey(connection);
@@ -518,9 +574,8 @@ function countCandidateNodeIntrusions(
     }
   }
 
-  const peerY = (alias: string) => geometry.get(alias)?.y ?? 0;
   const compareEntries = (a: CandidateSideEntry, b: CandidateSideEntry) =>
-    peerY(a.peerAlias) - peerY(b.peerAlias) ||
+    topYOf(a.peerAlias) - topYOf(b.peerAlias) ||
     a.peerAlias.localeCompare(b.peerAlias) ||
     a.stableKey.localeCompare(b.stableKey) ||
     a.connectionIndex - b.connectionIndex;
@@ -543,6 +598,26 @@ function countCandidateNodeIntrusions(
       else targetOffsets.set(entry.connectionIndex, offset);
     }
   }
+  return { sourceOffsets, targetOffsets };
+}
+
+/**
+ * Score the geometry that React Flow will actually draw for forward long
+ * edges. Positive-distance left/right Beziers have monotonic x and y, so
+ * testing their y-range while they traverse a node's x-range is exact.
+ */
+function countCandidateNodeIntrusions(
+  layers: Map<number, LayoutSlot[]>,
+  localLevelOf: Map<string, number>,
+  connections: MinigraphGraphData['connections'],
+  geometryPairs: GeometryPair[],
+): number {
+  const geometry = candidateNodeGeometry(layers);
+  const { sourceOffsets, targetOffsets } = deriveFlowHandleOffsets(
+    connections,
+    localLevelOf,
+    alias => geometry.get(alias)?.y ?? 0,
+  );
 
   let intrusions = 0;
   for (const { connectionIndex, nodeAlias } of geometryPairs) {
@@ -798,6 +873,125 @@ function minimizeCrossings(
     if (baselineIntrusions < bestScore.nodeIntrusions) return baselineLayers;
   }
   return best;
+}
+
+interface IntrusionShift {
+  x: number;
+  y: number;
+  delta: number;
+  direction: 1 | -1;
+}
+
+/**
+ * Find the canonically-first remaining forward-edge intrusion among the
+ * budgeted candidate pairs and the minimal vertical shift that clears it.
+ * Scanning order is independent of the input connection order (stable keys),
+ * so equivalent reordered payloads relieve identically.
+ */
+function findIntrusionShift(
+  geometry: Map<string, CandidateNodeGeometry>,
+  connections: MinigraphGraphData['connections'],
+  geometryPairs: GeometryPair[],
+  sourceOffsets: Map<number, number>,
+  targetOffsets: Map<number, number>,
+): IntrusionShift | null {
+  const orderedPairs = geometryPairs.slice().sort((a, b) =>
+    connectionStableKey(connections[a.connectionIndex])
+      .localeCompare(connectionStableKey(connections[b.connectionIndex])) ||
+    a.nodeAlias.localeCompare(b.nodeAlias) ||
+    a.connectionIndex - b.connectionIndex,
+  );
+
+  for (const { connectionIndex, nodeAlias } of orderedPairs) {
+    const connection = connections[connectionIndex];
+    const source = geometry.get(connection.source);
+    const target = geometry.get(connection.target);
+    const node = geometry.get(nodeAlias);
+    if (!source || !target || !node) continue;
+
+    const range = forwardBezierYRangeOverNode(
+      source,
+      target,
+      sourceOffsets.get(connectionIndex) ?? 0,
+      targetOffsets.get(connectionIndex) ?? 0,
+      node,
+    );
+    if (!range) continue;
+    const nodeTop = node.y + NODE_INTRUSION_EPSILON;
+    const nodeBottom = node.y + node.height - NODE_INTRUSION_EPSILON;
+    if (range.yHigh <= nodeTop || range.yLow >= nodeBottom) continue;
+
+    const moveDown = (range.yHigh + INTRUSION_RELIEF_MARGIN) - node.y;
+    const moveUp = (node.y + node.height) - (range.yLow - INTRUSION_RELIEF_MARGIN);
+    return moveDown <= moveUp
+      ? { x: node.x, y: node.y, delta: moveDown, direction: 1 }
+      : { x: node.x, y: node.y, delta: moveUp, direction: -1 };
+  }
+  return null;
+}
+
+/**
+ * Bounded post-layout intrusion relief.  Slot reordering cannot always route a
+ * long edge around a tall node — with content-driven heights a single node can
+ * fill most of its column.  Each pass clears the first remaining intrusion by
+ * shifting the intruded node vertically, carrying every same-column node on
+ * the moving side along so column order and gaps (and therefore node
+ * non-overlap) are preserved.  Handle offsets are re-derived per pass exactly
+ * as transformGraphData will assign them.
+ */
+function relieveNodeIntrusions(
+  positions: Map<string, { x: number; y: number }>,
+  levelOf: Map<string, number>,
+  connections: MinigraphGraphData['connections'],
+  nodeHeights: Map<string, number>,
+): void {
+  // Same work budget as the ordering-time geometry scoring: adversarial-scale
+  // graphs skip relief entirely.  Shifts only change y, so the level-derived
+  // candidate pairs stay valid across passes.
+  const geometryPairs = collectGeometryPairs(connections, levelOf);
+  if (geometryPairs === null || geometryPairs.length === 0) return;
+
+  for (let pass = 0; pass < MAX_INTRUSION_RELIEF_PASSES; pass++) {
+    const geometry = new Map<string, CandidateNodeGeometry>();
+    for (const [alias, position] of positions) {
+      const level = levelOf.get(alias);
+      if (level === undefined) continue;
+      geometry.set(alias, {
+        alias,
+        level,
+        x: position.x,
+        y: position.y,
+        height: nodeHeights.get(alias) ?? NODE_HEIGHT,
+      });
+    }
+
+    const { sourceOffsets, targetOffsets } = deriveFlowHandleOffsets(
+      connections,
+      levelOf,
+      alias => geometry.get(alias)?.y ?? 0,
+    );
+    const shift = findIntrusionShift(
+      geometry,
+      connections,
+      geometryPairs,
+      sourceOffsets,
+      targetOffsets,
+    );
+    if (!shift) return;
+
+    for (const [alias, position] of positions) {
+      if (position.x !== shift.x) continue;
+      const onMovingSide = shift.direction === 1
+        ? position.y >= shift.y
+        : position.y <= shift.y;
+      if (onMovingSide) {
+        positions.set(alias, {
+          x: position.x,
+          y: position.y + (shift.delta * shift.direction),
+        });
+      }
+    }
+  }
 }
 
 /**
@@ -1105,6 +1299,11 @@ function computeLayout(
     componentXOffset = componentMaxX + NODE_WIDTH + COMPONENT_GAP;
   }
 
+  // ── Step 4.5: Bounded intrusion relief ─────────────────────────────────────
+  // Positions hold only flow nodes at this point; segregated rows are anchored
+  // below the (possibly shifted) flow bounding box in Step 6.
+  relieveNodeIntrusions(positions, levelOf, connections, nodeHeights);
+
   // ── Step 5: Bounding box of the main flow ─────────────────────────────────
   // Used to anchor the vertical start of the segregated rows.
   let mainMaxY = 0;
@@ -1149,20 +1348,16 @@ function computeLayout(
 }
 
 /**
- * Converts a MinigraphGraphData object into the ReactFlow `nodes` + `edges`
- * arrays ready to be passed to `<ReactFlow>`.
+ * Estimated node heights for layout: the content estimate (header-only in
+ * thumbnail mode), floored by the handle-count minimum.  Counts total
+ * outgoing/incoming for rough handle counts — accurate per-side counts only
+ * exist once back-edges are known.
  */
-export function transformGraphData(
-  data: MinigraphGraphData,
-  options: { supportsConnectionAuthoring?: boolean } = {},
-): { nodes: Node<GraphNodeData>[]; edges: Edge<GraphEdgeData>[] } {
-  const connections = data.connections ?? [];
-  const supportsConnectionAuthoring = options.supportsConnectionAuthoring === true;
-
-  // ── Approximate node heights for layout ────────────────────────────────────
-  // Count total outgoing/incoming to get rough handle counts.  The layout only
-  // needs heights for vertical stacking; accurate per-side counts come later
-  // once we know which edges are back-edges.
+function layoutNodeHeights(
+  nodes: MinigraphGraphData['nodes'],
+  connections: MinigraphGraphData['connections'],
+  compactNodes: boolean,
+): Map<string, number> {
   const totalOutgoing = new Map<string, number>();
   const totalIncoming = new Map<string, number>();
   for (const conn of connections) {
@@ -1170,15 +1365,57 @@ export function transformGraphData(
     totalIncoming.set(conn.target, (totalIncoming.get(conn.target) ?? 0) + 1);
   }
 
-  const approxNodeHeights = new Map(
-    data.nodes.map(n => [
-      n.alias,
-      nodeHeightForHandleCount(Math.max(
-        totalOutgoing.get(n.alias) ?? 0,
-        totalIncoming.get(n.alias) ?? 0,
-      )),
-    ]),
+  return new Map(
+    nodes.map(n => {
+      const handleFloor = nodeHeightForHandleCount(
+        Math.max(totalOutgoing.get(n.alias) ?? 0, totalIncoming.get(n.alias) ?? 0),
+        compactNodes ? COMPACT_NODE_HEIGHT : NODE_HEIGHT,
+      );
+      return [
+        n.alias,
+        compactNodes ? handleFloor : Math.max(handleFloor, estimateNodeContentHeight(n)),
+      ];
+    }),
   );
+}
+
+/**
+ * Recomputes node positions from real, measured node heights.
+ *
+ * The initial layout works from estimated heights because real heights only
+ * exist after React Flow measures the rendered DOM.  GraphView calls this once
+ * every node reports a measured height and applies the returned positions,
+ * which is what guarantees nodes never overlap regardless of content size.
+ * Aliases missing from `measuredHeights` fall back to their estimates.
+ */
+export function computeMeasuredPositions(
+  data: MinigraphGraphData,
+  measuredHeights: Map<string, number>,
+  options: { compactNodes?: boolean } = {},
+): Map<string, { x: number; y: number }> {
+  const connections = data.connections ?? [];
+  const heights = layoutNodeHeights(data.nodes, connections, options.compactNodes === true);
+  for (const [alias, measured] of measuredHeights) {
+    if (heights.has(alias) && Number.isFinite(measured) && measured > 0) {
+      heights.set(alias, measured);
+    }
+  }
+  return computeLayout(data.nodes, connections, heights).positions;
+}
+
+/**
+ * Converts a MinigraphGraphData object into the ReactFlow `nodes` + `edges`
+ * arrays ready to be passed to `<ReactFlow>`.
+ */
+export function transformGraphData(
+  data: MinigraphGraphData,
+  options: { supportsConnectionAuthoring?: boolean; compactNodes?: boolean } = {},
+): { nodes: Node<GraphNodeData>[]; edges: Edge<GraphEdgeData>[] } {
+  const connections = data.connections ?? [];
+  const supportsConnectionAuthoring = options.supportsConnectionAuthoring === true;
+  const compactNodes = options.compactNodes === true;
+
+  const approxNodeHeights = layoutNodeHeights(data.nodes, connections, compactNodes);
   const { positions, levelOf } = computeLayout(data.nodes, connections, approxNodeHeights);
 
   // ── Classify connections as forward or backward ───────────────────────────
@@ -1273,7 +1510,16 @@ export function transformGraphData(
   const rfNodes: Node<GraphNodeData>[] = data.nodes.map(n => {
     const right = rightSide.get(n.alias) ?? [];
     const left  = leftSide.get(n.alias) ?? [];
-    const nodeHeight = nodeHeightForHandleCount(Math.max(right.length, left.length));
+    // Handle-count floor: the box must span its spread edge handles even when
+    // the content is shorter.  Rendered height above the floor is content-driven.
+    const handleMinHeight = nodeHeightForHandleCount(
+      Math.max(right.length, left.length),
+      compactNodes ? COMPACT_NODE_HEIGHT : NODE_HEIGHT,
+    );
+    const estimatedHeight = Math.max(
+      handleMinHeight,
+      approxNodeHeights.get(n.alias) ?? NODE_HEIGHT,
+    );
 
     // ── Right side: interleaved source + back-target handles ──
     const sourceHandles:     GraphHandleData[] = [];
@@ -1319,9 +1565,20 @@ export function transformGraphData(
       // node toggling available while Shift+drag from empty canvas box-selects.
       className: 'nokey',
       position: positions.get(n.alias) ?? { x: 0, y: 0 },
-      width:  NODE_WIDTH,
-      height: nodeHeight,
-      style: getMinigraphNodeShellStyle(n.types[0] ?? 'unknown'),
+      // Fixed width; the height depends on the detail mode.  Expanded:
+      // `initialHeight` sizes the very first paint (before measurement) at the
+      // layout's estimate, then drops out of the inline style so the DOM
+      // height follows the content, floored by style.minHeight — a fixed
+      // `height` is only ever (re)introduced by the user through NodeResizer.
+      // Thumbnail: a fixed uniform card height; the body peek is clipped.
+      width: NODE_WIDTH,
+      ...(compactNodes
+        ? { height: estimatedHeight }
+        : { initialHeight: estimatedHeight }),
+      style: {
+        ...getMinigraphNodeShellStyle(n.types[0] ?? 'unknown'),
+        minHeight: handleMinHeight,
+      },
       data: {
         alias:         n.alias,
         nodeType:      n.types[0] ?? 'unknown',
@@ -1331,7 +1588,8 @@ export function transformGraphData(
         backSourceHandles,
         backTargetHandles,
         supportsConnectionAuthoring,
-        minHeight:     nodeHeight,
+        compact:       compactNodes,
+        minHeight:     handleMinHeight,
       },
     };
   });

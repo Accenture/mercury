@@ -7,6 +7,7 @@ import styles from './RightPanel.module.css';
 import { type ValidationResult } from '../../utils/validators';
 import type { MinigraphGraphData, MinigraphNode, MinigraphConnection } from '../../utils/graphTypes';
 import type { GraphClipItem } from '../GraphView/selectionTargets';
+import type { ConnectionRemovalRequest } from '../../graphActions/connectionEdits';
 
 export type RightTab = 'payload' | 'graph' | 'graph-data';
 
@@ -38,10 +39,13 @@ interface RightPanelProps {
   isConnected:             boolean;
   supportsAuthoring?:      boolean;
   onCreateNode?:           (source: 'empty-graph' | 'pane-context-menu') => void;
-  onCreateConnection?:     (sourceAlias: string, targetAlias: string) => void;
+  onCreateConnection?:     (sourceAlias: string, targetAlias: string, anchor?: { x: number; y: number }) => void;
   onEditNode?:             (node: MinigraphNode) => void;
   onDeleteNode?:           (node: MinigraphNode) => void;
   onDeleteNodes?:          (nodes: MinigraphNode[]) => void;
+  onDeleteConnections?:    (requests: ConnectionRemovalRequest[]) => void;
+  /** Changes whenever a panel toggle reshapes the graph pane; GraphView re-fits on change. */
+  panelLayoutKey?:         string;
   /**
    * When provided and non-null, the right panel renders a vertical split:
    * top = tab content, bottom = help panel.  Accepts either a plain ReactNode
@@ -83,6 +87,8 @@ export default function RightPanel({
   onEditNode,
   onDeleteNode,
   onDeleteNodes,
+  onDeleteConnections,
+  panelLayoutKey,
   helpPanel,
 }: RightPanelProps) {
   const uid              = useId();
@@ -176,6 +182,8 @@ export default function RightPanel({
               onEditNode={onEditNode}
               onDeleteNode={onDeleteNode}
               onDeleteNodes={onDeleteNodes}
+              onDeleteConnections={onDeleteConnections}
+              panelLayoutKey={panelLayoutKey}
             />
           </div>
         </div>

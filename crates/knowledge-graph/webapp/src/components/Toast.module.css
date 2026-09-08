@@ -56,6 +56,23 @@
   flex: 1;
 }
 
+.toastAction {
+  background: none;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  color: var(--primary-color);
+  cursor: pointer;
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+}
+
+.toastAction:hover {
+  background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+}
+
 @media (max-width: 768px) {
   .toastContainer {
     left: 1rem;

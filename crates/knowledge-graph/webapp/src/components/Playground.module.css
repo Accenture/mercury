@@ -39,8 +39,8 @@
   display: flex;
 }
 
-/* ── Clipboard toggle button ── */
-.clipboardToggle {
+/* ── Panel toggle buttons (Console / Workspace) ── */
+.panelToggle {
   background: none;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -51,12 +51,12 @@
   white-space: nowrap;
 }
 
-.clipboardToggle:hover {
+.panelToggle:hover {
   background: var(--bg-secondary);
   color: var(--text-primary);
 }
 
-.clipboardToggle[aria-pressed="true"] {
+.panelToggle[aria-pressed="true"] {
   background: var(--primary-color);
   color: #fff;
   border-color: var(--primary-color);

@@ -60,6 +60,10 @@ export function getMinigraphNodeTypeMeta(nodeType: string): MinigraphNodeTypeMet
   return TYPE_META[nodeType] ?? { icon: '📦', label: nodeType };
 }
 
+export function getMinigraphNodeAccent(nodeType: string): string {
+  return NODE_ACCENT[nodeType] ?? UNKNOWN_ACCENT;
+}
+
 export function getMinigraphNodeShellStyle(nodeType: string): CSSProperties {
   const accent = NODE_ACCENT[nodeType] ?? UNKNOWN_ACCENT;
   return {
