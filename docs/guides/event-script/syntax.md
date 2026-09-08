@@ -1443,8 +1443,8 @@ For example:
 | **Generator**       | uuid            | None                                                                                                                  |
 | **Generator**       | dateTime        | None.                                                                                                                 |
 | **Generator**       | now             | text(iso), text(local) or text(ms)                                                                                    |
-| **Logical**         | eq              | At least two Objects                                                                                                  |
-| **Logical**         | ne              | At least two Objects                                                                                                  |
+| **Logical**         | eq              | Two Objects, plus up to two optional modifiers: `text(ignoreCase)` compares two strings case-insensitively; `text(ignoreType)` compares the text forms of the two values, allowing relaxed comparison of numbers and booleans so that `"123" == 123`, `"123.456" == 123.456` and `"true" == true`; use both together for a case-insensitive text-form comparison. e.g. `f:eq(model.a, model.b, text(ignoreCase))` |
+| **Logical**         | ne              | Two Objects, plus the same optional `text(ignoreCase)` / `text(ignoreType)` modifiers as `eq` — returns the exact complement of `eq`                                                                  |
 | **Logical**         | isNull          | A single Object                                                                                                       |
 | **Logical**         | notNull         | A single Object                                                                                                       |
 | **Logical**         | ternary         | Three variables, the first variable must evaluate to a Boolean                                                        |
