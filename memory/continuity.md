@@ -25,7 +25,10 @@
 > Canonical live home for the current stack — language version, dependencies, tool
 > versions. `instructions.md` keeps only a high-level descriptor and points here.
 
-**Rust edition 2021**, toolchain 1.95.0 (latest stable at increments 1–2). Cargo **workspace**
+**Rust edition 2021**, toolchain = **current stable, kept in sync with CI** (1.98.1 as of
+2026-09-08; CI installs `dtolnay/rust-toolchain@stable` with no repo pin, so run
+`rustup update stable` when formatting disagrees — a 1.95-vs-1.98 rustfmt skew over
+match-arm block wrapping failed PR #242's format gate). Cargo **workspace**
 (`Cargo.toml` root, members `crates/*`); `crates/platform-core` is the first crate.
 **Deps in use:** serde 1, serde_json 1, serde_yaml 0.9 (⚠ archived upstream — works fine;
 swap for a maintained fork only if it ever blocks), thiserror 1, log 0.4 (std feature),

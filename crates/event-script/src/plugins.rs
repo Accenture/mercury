@@ -358,12 +358,14 @@ fn equals_with_modifiers(args: &[Value]) -> Result<bool, String> {
     let mut ignore_type = false;
     for value in &args[2..] {
         let modifier = display(value);
-        match modifier.as_str() {
-            "ignoreCase" => ignore_case = true,
-            "ignoreType" => ignore_type = true,
-            _ => return Err(format!(
+        if modifier == "ignoreCase" {
+            ignore_case = true;
+        } else if modifier == "ignoreType" {
+            ignore_type = true;
+        } else {
+            return Err(format!(
                 "Unknown modifier '{modifier}' - only 'ignoreCase' and 'ignoreType' are supported"
-            )),
+            ));
         }
     }
     let (a, b) = (&args[0], &args[1]);
