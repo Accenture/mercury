@@ -1171,6 +1171,46 @@ async fn flows_run_end_to_end_like_java() {
         body.get_element("less_than_positive"),
         Some(Value::Boolean(true))
     );
+    // eq/ne modifiers: 'ignoreCase' for strings, 'ignoreType' for text-form
+    // comparison (Java-engine parity, same fixture rows)
+    assert_eq!(body.get_element("positive_eq"), Some(Value::Boolean(true)));
+    assert_eq!(body.get_element("negative_eq"), Some(Value::Boolean(false)));
+    assert_eq!(
+        body.get_element("eq_case_sensitive"),
+        Some(Value::Boolean(false))
+    );
+    assert_eq!(
+        body.get_element("eq_ignore_case"),
+        Some(Value::Boolean(true))
+    );
+    assert_eq!(
+        body.get_element("eq_int_ignore_type"),
+        Some(Value::Boolean(true))
+    );
+    assert_eq!(
+        body.get_element("eq_decimal_ignore_type"),
+        Some(Value::Boolean(true))
+    );
+    assert_eq!(
+        body.get_element("eq_bool_ignore_type"),
+        Some(Value::Boolean(true))
+    );
+    assert_eq!(
+        body.get_element("eq_bool_case_sensitive"),
+        Some(Value::Boolean(false))
+    );
+    assert_eq!(
+        body.get_element("eq_both_modifiers"),
+        Some(Value::Boolean(true))
+    );
+    assert_eq!(
+        body.get_element("ne_case_sensitive"),
+        Some(Value::Boolean(true))
+    );
+    assert_eq!(
+        body.get_element("ne_ignore_case"),
+        Some(Value::Boolean(false))
+    );
     assert_eq!(
         body.get_element("substring_two"),
         Some(Value::from("World"))

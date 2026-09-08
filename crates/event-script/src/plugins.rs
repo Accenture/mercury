@@ -40,8 +40,8 @@ use event_script_macros::simple_plugin;
 use rmpv::Value;
 
 use crate::conversions::{
-    convert_boolean, convert_double, convert_float, convert_integer, convert_long, get_b64,
-    get_binary_value, get_length, get_text_value, parse_json,
+    convert_boolean, convert_double, convert_float, convert_integer, convert_long, display,
+    get_b64, get_binary_value, get_length, get_text_value, parse_json,
 };
 use crate::plugins_e8::value_type_name;
 
@@ -339,26 +339,69 @@ fn plugin_not_null(args: &[Value]) -> Result<Value, String> {
     }
 }
 
+/// Two-value equality shared by `eq` and `ne` (Java
+/// `SimplePluginUtils.equalsWithModifiers`). Arguments 3 and 4 are optional
+/// modifiers, each `ignoreCase` or `ignoreType`: `ignoreCase` compares two
+/// strings case-insensitively (non-string values are unaffected — types
+/// still matter); `ignoreType` compares the `String.valueOf` text forms,
+/// allowing the relaxed comparison of numbers and booleans — "123" == 123,
+/// "123.456" == 123.456 and "true" == true; both together compare the text
+/// forms case-insensitively.
+fn equals_with_modifiers(args: &[Value]) -> Result<bool, String> {
+    if args.len() > 4 {
+        return Err(
+            "Expected two values plus optional 'ignoreCase' and/or 'ignoreType' modifiers"
+                .to_string(),
+        );
+    }
+    let mut ignore_case = false;
+    let mut ignore_type = false;
+    for value in &args[2..] {
+        let modifier = display(value);
+        if modifier == "ignoreCase" {
+            ignore_case = true;
+        } else if modifier == "ignoreType" {
+            ignore_type = true;
+        } else {
+            return Err(format!(
+                "Unknown modifier '{modifier}' - only 'ignoreCase' and 'ignoreType' are supported"
+            ));
+        }
+    }
+    let (a, b) = (&args[0], &args[1]);
+    if ignore_type {
+        let first = display(a);
+        let second = display(b);
+        return Ok(if ignore_case {
+            first.to_lowercase() == second.to_lowercase()
+        } else {
+            first == second
+        });
+    }
+    if ignore_case {
+        if let (Value::String(s1), Value::String(s2)) = (a, b) {
+            let first = s1.as_str().unwrap_or_default();
+            let second = s2.as_str().unwrap_or_default();
+            return Ok(first.to_lowercase() == second.to_lowercase());
+        }
+    }
+    Ok(a == b)
+}
+
 #[simple_plugin("eq")]
 fn plugin_eq(args: &[Value]) -> Result<Value, String> {
-    let [first, rest @ ..] = args else {
-        return Err("Input is required to check for equality".to_string());
-    };
-    if rest.is_empty() {
+    if args.len() < 2 {
         return Err("Input is required to check for equality".to_string());
     }
-    Ok(Value::Boolean(rest.iter().all(|v| v == first)))
+    equals_with_modifiers(args).map(Value::Boolean)
 }
 
 #[simple_plugin("ne")]
 fn plugin_ne(args: &[Value]) -> Result<Value, String> {
-    let [first, rest @ ..] = args else {
-        return Err("Input is required to check for inequality".to_string());
-    };
-    if rest.is_empty() {
+    if args.len() < 2 {
         return Err("Input is required to check for inequality".to_string());
     }
-    Ok(Value::Boolean(rest.iter().any(|v| v != first)))
+    equals_with_modifiers(args).map(|equal| Value::Boolean(!equal))
 }
 
 // ---- Collection operators (contributed to the Java engine in
@@ -619,6 +662,176 @@ mod tests {
         assert_eq!(
             calculate("eq", &[Value::from("42"), Value::from(42)]),
             Ok(Value::Boolean(false))
+        );
+    }
+
+    #[test]
+    fn eq_ne_modifiers_match_java_semantics() {
+        // strict comparison without modifiers stays case- and type-sensitive
+        assert_eq!(
+            calculate("eq", &[Value::from("Hello"), Value::from("HELLO")]),
+            Ok(Value::Boolean(false))
+        );
+        // 'ignoreCase' compares two strings case-insensitively
+        assert_eq!(
+            calculate(
+                "eq",
+                &[
+                    Value::from("Hello"),
+                    Value::from("HELLO"),
+                    Value::from("ignoreCase")
+                ]
+            ),
+            Ok(Value::Boolean(true))
+        );
+        // ...and has no effect on non-string values (types still matter)
+        assert_eq!(
+            calculate(
+                "eq",
+                &[
+                    Value::from("123"),
+                    Value::from(123),
+                    Value::from("ignoreCase")
+                ]
+            ),
+            Ok(Value::Boolean(false))
+        );
+        // 'ignoreType' compares the String.valueOf text forms
+        assert_eq!(
+            calculate(
+                "eq",
+                &[
+                    Value::from("123"),
+                    Value::from(123),
+                    Value::from("ignoreType")
+                ]
+            ),
+            Ok(Value::Boolean(true))
+        );
+        assert_eq!(
+            calculate(
+                "eq",
+                &[
+                    Value::from("123.456"),
+                    Value::from(123.456),
+                    Value::from("ignoreType")
+                ]
+            ),
+            Ok(Value::Boolean(true))
+        );
+        assert_eq!(
+            calculate(
+                "eq",
+                &[
+                    Value::from("true"),
+                    Value::Boolean(true),
+                    Value::from("ignoreType")
+                ]
+            ),
+            Ok(Value::Boolean(true))
+        );
+        // 'ignoreType' alone stays case-sensitive
+        assert_eq!(
+            calculate(
+                "eq",
+                &[
+                    Value::from("TRUE"),
+                    Value::Boolean(true),
+                    Value::from("ignoreType")
+                ]
+            ),
+            Ok(Value::Boolean(false))
+        );
+        // both modifiers combine, in either order
+        assert_eq!(
+            calculate(
+                "eq",
+                &[
+                    Value::from("TRUE"),
+                    Value::Boolean(true),
+                    Value::from("ignoreCase"),
+                    Value::from("ignoreType")
+                ]
+            ),
+            Ok(Value::Boolean(true))
+        );
+        assert_eq!(
+            calculate(
+                "eq",
+                &[
+                    Value::from("TRUE"),
+                    Value::Boolean(true),
+                    Value::from("ignoreType"),
+                    Value::from("ignoreCase")
+                ]
+            ),
+            Ok(Value::Boolean(true))
+        );
+        // ne is the exact complement under the same modifiers
+        assert_eq!(
+            calculate(
+                "ne",
+                &[
+                    Value::from("Hello"),
+                    Value::from("HELLO"),
+                    Value::from("ignoreCase")
+                ]
+            ),
+            Ok(Value::Boolean(false))
+        );
+        assert_eq!(
+            calculate(
+                "ne",
+                &[
+                    Value::from("TRUE"),
+                    Value::Boolean(true),
+                    Value::from("ignoreType")
+                ]
+            ),
+            Ok(Value::Boolean(true))
+        );
+        // error messages match the Java engine
+        assert_eq!(
+            calculate("eq", &[Value::from(1)]),
+            Err("Input is required to check for equality".to_string())
+        );
+        assert_eq!(
+            calculate("ne", &[Value::from(1)]),
+            Err("Input is required to check for inequality".to_string())
+        );
+        assert_eq!(
+            calculate(
+                "eq",
+                &[Value::from(1), Value::from(2), Value::from("bogus")]
+            ),
+            Err(
+                "Unknown modifier 'bogus' - only 'ignoreCase' and 'ignoreType' are supported"
+                    .to_string()
+            )
+        );
+        // a third plain value is no longer a chained comparison
+        assert_eq!(
+            calculate("eq", &[Value::from(5), Value::from(5), Value::from(5)]),
+            Err(
+                "Unknown modifier '5' - only 'ignoreCase' and 'ignoreType' are supported"
+                    .to_string()
+            )
+        );
+        assert_eq!(
+            calculate(
+                "ne",
+                &[
+                    Value::from(1),
+                    Value::from(2),
+                    Value::from("ignoreCase"),
+                    Value::from("ignoreType"),
+                    Value::from("ignoreCase")
+                ]
+            ),
+            Err(
+                "Expected two values plus optional 'ignoreCase' and/or 'ignoreType' modifiers"
+                    .to_string()
+            )
         );
     }
 
