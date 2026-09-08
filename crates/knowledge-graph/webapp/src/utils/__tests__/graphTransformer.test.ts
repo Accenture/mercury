@@ -9,6 +9,7 @@ import tutorial12Fixture from '../../../../resources/graph/tutorial-12.json';
 import helloFixture from '../../../../tests/resources/graph/hello.json';
 import task4Fixture from '../../../../tests/resources/graph/unit-test-task-4.json';
 import {
+  computeMeasuredPositions,
   transformGraphData,
   type GraphEdgeData,
   type GraphHandleData,
@@ -47,7 +48,9 @@ function nodeWidth(node: Node<GraphNodeData>): number {
 }
 
 function nodeHeight(node: Node<GraphNodeData>): number {
-  return node.height ?? node.data.minHeight;
+  // The layout's assumed height: an explicit fixed height wins, then the
+  // content-driven first-paint estimate, then the handle-based floor.
+  return node.height ?? node.initialHeight ?? node.data.minHeight;
 }
 
 function findHandle(
@@ -584,5 +587,135 @@ describe('transformGraphData crossing minimization', () => {
     expect(nodesById.get('dictionary-orphan')!.position.y).toBeGreaterThan(mainBottom);
     expect(result.nodes.every(node => node.data.supportsConnectionAuthoring)).toBe(true);
     expectGraphSemanticsPreserved(graph, result.nodes, result.edges);
+  });
+});
+
+// ─── Node overlap prevention ────────────────────────────────────────────────
+// Nodes size to their content, so layout heights are content-aware estimates
+// at first paint and real measurements afterwards (computeMeasuredPositions).
+// These tests pin the invariant that boxes never intersect under the heights
+// the layout was given.
+
+function expectNoOverlap(
+  rects: Array<{ id: string; x: number; y: number; width: number; height: number }>,
+): void {
+  for (let i = 0; i < rects.length; i++) {
+    for (let j = i + 1; j < rects.length; j++) {
+      const a = rects[i];
+      const b = rects[j];
+      const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+      const overlapY = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+      expect(
+        overlapX > 0 && overlapY > 0,
+        `${a.id} and ${b.id} overlap by ${overlapX}x${overlapY}px`,
+      ).toBe(false);
+    }
+  }
+}
+
+describe('node overlap prevention', () => {
+  const measuredTutorial12 = new Map([
+    // Real DOM heights observed for tutorial-12 at NODE_WIDTH.
+    ['clear-exception', 210],
+    ['dictionary', 100],
+    ['end', 100],
+    ['error-handler', 438],
+    ['fetcher', 342],
+    ['mdm-profile', 399],
+    ['person-address', 200],
+    ['person-name', 200],
+    ['root', 210],
+  ]);
+
+  it('sizes nodes by content: no fixed height, estimate above the handle floor', () => {
+    const result = transformGraphData(tutorial12Fixture as MinigraphGraphData);
+
+    for (const node of result.nodes) {
+      expect(node.height).toBeUndefined();
+      expect(node.initialHeight).toBeGreaterThanOrEqual(node.data.minHeight);
+      expect((node.style as { minHeight?: number }).minHeight).toBe(node.data.minHeight);
+    }
+    // A property-heavy node estimates well above the bare minimum.
+    const errorHandler = result.nodes.find(node => node.id === 'error-handler')!;
+    expect(errorHandler.initialHeight).toBeGreaterThan(200);
+  });
+
+  it.each([
+    ['tutorial-3', tutorial3Fixture as MinigraphGraphData],
+    ['tutorial-4', tutorial4Fixture as MinigraphGraphData],
+    ['tutorial-5', tutorial5Fixture as MinigraphGraphData],
+    ['tutorial-6', tutorial6Fixture as MinigraphGraphData],
+    ['tutorial-9', tutorial9Fixture as MinigraphGraphData],
+    ['tutorial-12', tutorial12Fixture as MinigraphGraphData],
+  ])('lays out %s without overlapping boxes at estimated heights', (_name, graph) => {
+    const result = transformGraphData(graph);
+
+    expectNoOverlap(result.nodes.map(node => ({
+      id: node.id,
+      x: node.position.x,
+      y: node.position.y,
+      width: nodeWidth(node),
+      height: nodeHeight(node),
+    })));
+  });
+
+  it('computeMeasuredPositions restacks measured heights without overlap', () => {
+    const graph = tutorial12Fixture as MinigraphGraphData;
+    const positions = computeMeasuredPositions(graph, measuredTutorial12);
+
+    expect(new Set(positions.keys())).toEqual(new Set(graph.nodes.map(node => node.alias)));
+    expectNoOverlap(graph.nodes.map(node => ({
+      id: node.alias,
+      x: positions.get(node.alias)!.x,
+      y: positions.get(node.alias)!.y,
+      width: 240,
+      height: measuredTutorial12.get(node.alias)!,
+    })));
+  });
+
+  it('computeMeasuredPositions falls back to estimates for unmeasured aliases', () => {
+    const graph = tutorial12Fixture as MinigraphGraphData;
+    const partial = new Map([['error-handler', 438]]);
+    const positions = computeMeasuredPositions(graph, partial);
+    const estimates = new Map(
+      transformGraphData(graph).nodes.map(node => [node.id, nodeHeight(node)]),
+    );
+
+    expectNoOverlap(graph.nodes.map(node => ({
+      id: node.alias,
+      x: positions.get(node.alias)!.x,
+      y: positions.get(node.alias)!.y,
+      width: 240,
+      height: partial.get(node.alias) ?? estimates.get(node.alias)!,
+    })));
+  });
+
+  it('thumbnail mode renders uniform fixed-height cards with a clipped body peek', () => {
+    const graph = tutorial12Fixture as MinigraphGraphData;
+    const expanded = transformGraphData(graph);
+    const compact = transformGraphData(graph, { compactNodes: true });
+
+    for (const node of compact.nodes) {
+      expect(node.data.compact).toBe(true);
+      // Fixed uniform card: 100 (header + 1.5x-header peek), raised only by
+      // the handle-spread floor.  Content never drives the height.
+      expect(node.height).toBe(Math.max(100, node.data.minHeight));
+      expect(node.initialHeight).toBeUndefined();
+    }
+    expect(expanded.nodes.every(node => !node.data.compact)).toBe(true);
+
+    // Property-heavy nodes shrink to the uniform card in thumbnail mode.
+    const compactErrorHandler = compact.nodes.find(node => node.id === 'error-handler')!;
+    const expandedErrorHandler = expanded.nodes.find(node => node.id === 'error-handler')!;
+    expect(compactErrorHandler.height).toBe(100);
+    expect(compactErrorHandler.height!).toBeLessThan(expandedErrorHandler.initialHeight!);
+
+    expectNoOverlap(compact.nodes.map(node => ({
+      id: node.id,
+      x: node.position.x,
+      y: node.position.y,
+      width: nodeWidth(node),
+      height: nodeHeight(node),
+    })));
   });
 });

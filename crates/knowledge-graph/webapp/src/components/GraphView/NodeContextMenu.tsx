@@ -12,9 +12,11 @@ interface SingleNodeContextMenuProps extends BaseNodeContextMenuProps {
   mode: 'single-node';
   nodeAlias: string;
   canClipNode: boolean;
+  canConnectNode: boolean;
   canEditNode: boolean;
   canDeleteNode: boolean;
   onClipNode: () => void;
+  onConnectNode: () => void;
   onEditNode: () => void;
   onDeleteNode: () => void;
 }
@@ -46,11 +48,12 @@ export default function NodeContextMenu(props: NodeContextMenuProps) {
   const canClip = props.mode === 'multi-node'
     ? isMultiNode && props.canClipSelectedNodes
     : props.canClipNode;
+  const canConnect = props.mode === 'single-node' && props.canConnectNode;
   const canEdit = props.mode === 'single-node' && props.canEditNode;
   const canDelete = props.mode === 'multi-node'
     ? isMultiNode && props.canDeleteSelectedNodes
     : props.canDeleteNode;
-  const hasAnyAction = canClip || canEdit || canDelete;
+  const hasAnyAction = canClip || canConnect || canEdit || canDelete;
   const targetLabel = isMultiNode
     ? `${selectedCount} selected nodes`
     : props.mode === 'single-node' ? props.nodeAlias : '';
@@ -180,9 +183,23 @@ export default function NodeContextMenu(props: NodeContextMenuProps) {
               {isMultiNode ? `Clip ${selectedCount} selected nodes to Workspace` : 'Clip to Workspace'}
             </button>
           )}
-          {canEdit && props.mode === 'single-node' && (
+          {canConnect && props.mode === 'single-node' && (
             <button
               ref={canClip ? undefined : firstItemRef}
+              role="menuitem"
+              type="button"
+              className={styles.menuItem}
+              onClick={() => {
+                props.onConnectNode();
+                onClose();
+              }}
+            >
+              Connect to…
+            </button>
+          )}
+          {canEdit && props.mode === 'single-node' && (
+            <button
+              ref={canClip || canConnect ? undefined : firstItemRef}
               role="menuitem"
               type="button"
               className={styles.menuItem}
@@ -196,7 +213,7 @@ export default function NodeContextMenu(props: NodeContextMenuProps) {
           )}
           {canDelete && (
             <button
-              ref={!canClip && !canEdit ? firstItemRef : undefined}
+              ref={!canClip && !canConnect && !canEdit ? firstItemRef : undefined}
               role="menuitem"
               type="button"
               className={`${styles.menuItem} ${styles.dangerItem}`}

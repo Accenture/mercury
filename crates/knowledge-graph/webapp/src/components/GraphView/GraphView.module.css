@@ -84,10 +84,6 @@
   outline: none;
 }
 
-:global(.react-flow__node.selectable.selected .react-flow__resize-control) {
-  display: none;
-}
-
 /*
  * After box-select, React Flow renders a group bounding rectangle spanning the
  * selected nodes. The individual node borders already express selection here;
@@ -187,4 +183,89 @@
 
 @keyframes graphRefreshSpin {
   to { transform: rotate(360deg); }
+}
+
+/* ── Click-to-connect mode ── */
+.connectBanner {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.88);
+  border-radius: var(--radius-sm);
+  color: #e2e8f0;
+  display: flex;
+  font-size: 0.82rem;
+  gap: 0.75rem;
+  left: 50%;
+  padding: 0.45rem 0.75rem;
+  position: absolute;
+  top: 0.75rem;
+  transform: translateX(-50%);
+  z-index: 30;
+}
+
+.connectBanner strong {
+  color: #93c5fd;
+}
+
+.connectBannerCancel {
+  background: rgba(255, 255, 255, 0.12);
+  border: 0;
+  border-radius: var(--radius-xs, 4px);
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.connectBannerCancel:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* While picking a target, every node is a click target. */
+.graphSurface[data-connect-picking] :global(.react-flow__node) {
+  cursor: crosshair;
+}
+
+/* ── Selected connection ──
+ * Edge strokes are set inline by the transformer, so the selected state needs
+ * !important to win. Click an edge to select it; Delete/Backspace removes it.
+ */
+.graphSurface :global(.react-flow__edge.selected .react-flow__edge-path) {
+  stroke: var(--primary-color) !important;
+  stroke-width: 3 !important;
+}
+
+.graphSurface :global(.react-flow__edge.selected .react-flow__edge-textbg) {
+  stroke: var(--primary-color) !important;
+}
+
+/*
+ * ── Node detail-mode toggle icon ──
+ * A miniature node card rendered in HTML/CSS rather than SVG: React Flow's
+ * controls stylesheet forces `fill: currentColor` on control-button SVGs,
+ * which turned a stroked icon into a dark blob.  The mini card mirrors the
+ * real node look — accent border, tinted header band, body rows.
+ */
+.detailToggleIcon {
+  box-sizing: border-box;
+  display: block;
+  width: 15px;
+  height: 12px;
+  border: 1px solid var(--primary-color);
+  border-radius: 3px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.detailToggleHeader {
+  display: block;
+  height: 4px;
+  background: color-mix(in srgb, var(--primary-color) 45%, #fff);
+  border-bottom: 1px solid color-mix(in srgb, var(--primary-color) 55%, #fff);
+}
+
+.detailToggleLine {
+  display: block;
+  height: 1px;
+  margin: 1px 2px 0;
+  background: color-mix(in srgb, var(--primary-color) 60%, #fff);
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Handle, Position, NodeResizer, type NodeProps, type Node } from '@xyflow/react';
+import { Handle, Position, NodeResizer, useConnection, type NodeProps, type Node } from '@xyflow/react';
 import type { GraphNodeData } from '../../utils/graphTransformer';
 import { MinigraphNodeBody } from './MinigraphNodeBody';
 import styles from './NodeTypes.module.css';
@@ -19,9 +19,16 @@ export const AUTHORING_TARGET_HANDLE_ID = 'authoring-target';
 //   • This eliminates every wrapper-sizing workaround that was previously
 //     needed (initialWidth/initialHeight tricks, CSS overrides for
 //     .react-flow__node-default, overflow:visible hacks, etc.).
-function MinigraphNode({ data, isConnectable, selected }: NodeProps<MinigraphRFNode>) {
+function MinigraphNode({ id, data, isConnectable, selected }: NodeProps<MinigraphRFNode>) {
   const [isResizing, setIsResizing] = useState(false);
   const showConnectionAuthoring = data.supportsConnectionAuthoring && !isResizing;
+  // Neo4j-style connect gesture: the node BODY moves the node, the halo RING
+  // around it starts a connection.  While a connection drag is in progress,
+  // every other node becomes a full-body drop target.
+  const connection = useConnection();
+  const isConnectTarget = showConnectionAuthoring &&
+    connection.inProgress &&
+    connection.fromNode?.id !== id;
 
   return (
     <>
@@ -69,26 +76,42 @@ function MinigraphNode({ data, isConnectable, selected }: NodeProps<MinigraphRFN
         alias={data.alias}
         nodeType={data.nodeType}
         properties={data.properties}
+        compact={data.compact}
       />
 
       {showConnectionAuthoring && (
         <>
-          <div className={styles.authoringFrame} aria-hidden="true" />
+          {/*
+            * Connection source: a halo ring surrounding the node (Neo4j-style).
+            * The clip-path cuts out the node body, so events over the body
+            * still move the node while the whole perimeter starts a
+            * connection.  The ::before element draws the visible halo on
+            * hover/selection.
+            */}
           <Handle
             id={AUTHORING_SOURCE_HANDLE_ID}
             type="source"
             position={Position.Right}
             isConnectable={isConnectable}
             isConnectableEnd={false}
-            className={`${styles.authoringHandle} ${styles.authoringSourceHandle}`}
+            className={styles.authoringRing}
           />
+          {/*
+            * Connection target: covers the whole node, but stays inert until a
+            * connection drag is in progress from another node — then it lights
+            * up and accepts a drop anywhere on the node.
+            */}
           <Handle
             id={AUTHORING_TARGET_HANDLE_ID}
             type="target"
             position={Position.Left}
             isConnectable={isConnectable}
             isConnectableStart={false}
-            className={`${styles.authoringHandle} ${styles.authoringTargetHandle}`}
+            className={
+              isConnectTarget
+                ? `${styles.authoringTargetOverlay} ${styles.authoringTargetOverlayActive}`
+                : styles.authoringTargetOverlay
+            }
           />
         </>
       )}

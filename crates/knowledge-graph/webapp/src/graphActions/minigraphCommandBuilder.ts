@@ -3,6 +3,7 @@ import type { ConnectionFormState } from './connectionAuthoringTypes';
 import {
   validateCommandSize,
   validateConnectionFormState,
+  validateDeleteConnectionAliases,
   validateDeleteNodeAlias,
   validateNodeFormState,
   type DeleteNodeValidationOptions,
@@ -46,7 +47,8 @@ export function buildCreateNodeCommand(formState: NodeFormState): string {
 
   const alias = formState.alias.trim();
   const nodeType = formState.nodeType.trim();
-  const propertyRows = getSerializablePropertyRows(formState);
+  // Preserve multiline values: create and update share the ''' serialization.
+  const propertyRows = getSerializablePropertyRows(formState, true);
 
   // Match the existing multiline command grammar consumed by
   // GraphCommandService.handleMultiLineCommand.
@@ -101,6 +103,20 @@ export function buildDeleteNodeCommand(aliasInput: string, options: DeleteNodeVa
   }
 
   const command = `delete node ${alias}`;
+  assertValidCommandSize(command);
+  return command;
+}
+
+export function buildDeleteConnectionCommand(sourceInput: string, targetInput: string): string {
+  const source = sourceInput.trim();
+  const target = targetInput.trim();
+  const validation = validateDeleteConnectionAliases(source, target);
+  if (!validation.valid) {
+    throw new Error(Object.values(validation.errors)[0] ?? 'Invalid connection endpoints.');
+  }
+
+  // Backend grammar: deletes ALL connections between the two nodes.
+  const command = `delete connection ${source} and ${target}`;
   assertValidCommandSize(command);
   return command;
 }

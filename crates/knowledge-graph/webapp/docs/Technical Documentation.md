@@ -293,16 +293,18 @@ The JSON-Path Playground supports uploading large JSON payloads over REST:
 The Minigraph playground lets users save a named graph snapshot. The name is stored in localStorage and sent to the server via `export graph as {name}`. Loading re-issues `import graph from {name}`, and the auto-refresh hook re-renders the graph.
 
 **Save flow (connection required):** The save button is disabled when disconnected — `GraphSaveButton` enforces `disabled={disabled || !connected}`. When connected, `handleSaveGraph(name)` in `useSavedGraphWorkflow` does **not** write to localStorage immediately. Instead it arms `pendingSaveRef.current = { graphName: name, timeoutId }` and sends `export graph as {name}` over the WebSocket. Four resolution paths:
-- `graph.exported` event with matching `graphName` → `savedGraphs.saveGraph(name)` + `setLastSavedName(name)` + success toast (server-side file is guaranteed to exist for future import)
+- Any `graph.exported` event → `savedGraphs.saveGraph(event.graphName)` and the `Saved: {name}` indicator. This applies equally to the Save Graph button and `export graph as {name}` entered in the command console, so both paths also show the graph in `Load Graph`.
+- A `graph.exported` event matching the pending Save Graph action additionally clears its timeout and shows the success toast.
 - `graph.export.failed` event → typed error toast (invalid filename or root-name mismatch); no bookmark written
-- 10-second timeout → error toast; no bookmark written
+- 10-second timeout → error toast; the timeout itself writes no bookmark
 - Disconnect while in-flight → pending ref cleared + failure toast; no bookmark written
 
 **Key code locations:**
 - `src/hooks/useSavedGraphs.ts` — `UseSavedGraphsReturn` interface: `savedGraphs`, `saveGraph`, `deleteGraph`, `hasGraph`; implementation uses `useLocalStorage<SavedGraphsMap>` backing store; `useMemo` sorted newest-first
-- `src/hooks/useSavedGraphWorkflow.ts` — `handleSaveGraph(name)`: guards against disconnected calls (error toast + early return); when connected, arms `pendingSaveRef.current = { graphName, timeoutId }` and sends `export graph as ${name}`; four `useEffect`-based resolution paths: `graph.exported` (name-matched) → bookmark + success; `graph.export.failed` → typed error; 10 s timeout → error; disconnect → error
+- `src/hooks/useSavedGraphWorkflow.ts` — `subscribeGraphExportBookmarks()`: persists every confirmed `graph.exported` name, regardless of whether the export originated from the command console or Save Graph button
+- `src/hooks/useSavedGraphWorkflow.ts` — `handleSaveGraph(name)`: guards against disconnected calls (error toast + early return); when connected, arms `pendingSaveRef.current = { graphName, timeoutId }` and sends `export graph as ${name}`; matching success provides the button action's toast, while failure, timeout, and disconnect clear the pending action
 - `src/hooks/useSavedGraphWorkflow.ts` — `handleLoadGraph(name)`: guards `!connected`; sends `import graph from ${name}` — auto-refresh hook takes it from there
-- `src/components/GraphSaveButton/GraphSaveButton.tsx` — self-contained inline save form (open/close, pre-filled name, overwrite warning, Enter/Escape keyboard handling); `disabled={disabled || !connected}` prevents the form from opening while disconnected
+- `src/components/GraphSaveButton/GraphSaveButton.tsx` — self-contained inline save form (open/close, pre-filled name, overwrite warning, Enter/Escape keyboard handling); after a confirmed export the closed button shows `Saved: {name}` and remains clickable for another save
 - `src/components/SavedGraphsMenu/SavedGraphsMenu.tsx` — dropdown list reusing `NavMenu`; Load/Delete actions per entry
 
 ---
@@ -348,18 +350,16 @@ When the user opens the **💾 Save Graph** inline form, the input is pre-filled
 
 A new import always supersedes a previous save: when a new `import graph from {name}` echo is detected in the message stream, `lastSavedName` is cleared to `null` immediately, ensuring the imported name wins on the next form open.
 
+**Saved indicator semantics.** `useGraphSaveName` listens to every confirmed `graph.exported` event, including exports entered directly in the command console. The header button then changes to `Saved: {name}`, while `useSavedGraphWorkflow` writes the same confirmed name as a local bookmark so it appears in `Load Graph`. A later `graph.mutation` clears only the saved indicator, returning the button to `Save Graph`, while retaining the export name as the next form default. A session reset or WebSocket disconnect clears both imported and saved names. Failed exports never change the indicator or bookmark list.
+
+Name state is session-bound in a module-scoped map keyed per playground and guarded by the WebSocket slot's `connectionEpoch`. It survives Playground remounts during SPA navigation for the same live connection, but a disconnect or a new connection epoch invalidates it even if the playground was unmounted at the time.
+
 **Untitled counter semantics.** The counter only advances when the current `untitled-{n}` slot has actually been *used as a save name*. Clearing the console without ever saving reuses the same slot — so `untitled-2` will never appear in storage unless `untitled-1` was saved first. The counter is persisted in localStorage (keyed per playground) so it survives page refreshes.
 
 **Key code locations:**
-- `src/hooks/useGraphSaveName.ts` [L9–L37](../src/hooks/useGraphSaveName.ts#L9) — `UseGraphSaveNameReturn` interface with documented priority order and counter invariant
-- `src/hooks/useGraphSaveName.ts` [L75](../src/hooks/useGraphSaveName.ts#L75) — `useLocalStorage<number>(storageKey, 1)` — counter persisted, starts at 1
-- `src/hooks/useGraphSaveName.ts` [L82](../src/hooks/useGraphSaveName.ts#L82) — `untitledSlotConsumedRef = useRef(false)` — tracks whether the current slot has been used; stored as a ref (not state) because it never drives a re-render
-- `src/hooks/useGraphSaveName.ts` [L99–L103](../src/hooks/useGraphSaveName.ts#L99) — import-echo subscription: `bus.on('command.importGraph')` clears `lastSavedName` to `null` whenever a new `import graph from {name}` echo arrives, so the imported name takes over immediately
-- `src/hooks/useGraphSaveName.ts` [L107–L115](../src/hooks/useGraphSaveName.ts#L107) — `setLastSavedName(name)`: sets the saved name and marks `untitledSlotConsumedRef = true` only when the name equals the current `untitled-{n}` fallback
-- `src/hooks/useGraphSaveName.ts` [L117–L127](../src/hooks/useGraphSaveName.ts#L117) — `resetName()`: clears both names; advances counter only when `untitledSlotConsumedRef.current` is `true`, then resets the flag
-- `src/hooks/useGraphSaveName.ts` [L130–L133](../src/hooks/useGraphSaveName.ts#L130) — derived `defaultName`: `lastSavedName ?? importedName ?? \`untitled-${untitledCounter}\``
-- `src/components/Playground.tsx` [L234–L236](../src/components/Playground.tsx#L234) — hook instantiated with `bus` instead of `ws.messages`; key `\`${storageKeySavedGraphs}-untitled-counter\`` keeps the counter isolated per playground
-- `src/utils/messageParser.ts` [L243–L254](../src/utils/messageParser.ts#L243) — `extractImportGraphName()`: parses `> import graph from {name}` echoes; returns the trimmed name or `null`
+- `src/hooks/useGraphSaveName.ts` — return/state interfaces, pure reducer transitions, session-scoped map, protocol subscriptions, reset logic, and the `savedName`/`defaultName` derivations
+- `src/components/Playground.tsx` — hook instantiated with `bus` and `connected`; the storage-derived key isolates state per playground
+- `src/utils/messageParser.ts` — `extractImportGraphName()` parses `> import graph from {name}` echoes
 
 ---
 
@@ -601,7 +601,7 @@ Each Playground instance:
   ├── useLargePayloadDownload ← bus: payload.large → REST fetch → console (inline)
   ├── useAutoMockUpload     ← bus: upload.invitation → auto-open modal
   ├── useSavedGraphs        ← localStorage bookmark CRUD
-  ├── useGraphSaveName      ← bus: command.importGraph → save-form pre-fill name
+  ├── useGraphSaveName      ← bus: import/export/mutation/reset → save-form name + saved indicator
   ├── useClipboardContext   ← IndexedDB items + clipNode + confirmReplace
   ├── useGraphAuthoring     ← create-node modal lifecycle + raw command submit + result correlation
   │
@@ -631,7 +631,7 @@ Each Playground instance:
                                     ├── useSavedGraphWorkflow.on('graph.exported' | 'graph.export.failed')
                                     ├── useLargePayloadDownload.on('payload.large')
                                     ├── useAutoMockUpload.on('upload.invitation')
-                                    ├── useGraphSaveName.on('command.importGraph')
+                                    ├── useGraphSaveName.on('command.importGraph' | 'graph.exported' | 'graph.mutation' | 'session.reset')
                                     ├── useGraphAuthoring.on('minigraph.createNode.textResult')
                                     └── useWebSocket.on('upload.contentPath')  [when bus provided]
 ```
@@ -759,7 +759,7 @@ Key responsibilities:
 | Successful upload paths | `useState<Set<string>>(new Set())` — keyed by POST path; drives ✅ badge on invitation rows; session-only (cleared with `clearMessages`) |
 | Graph display name | `graphDisplayName = useMemo(...)` — resolves root node's `name` property → `graphSaveName` fallback; threaded as `graphName` prop to `RightPanel` → `GraphView` / `GraphDataView` → `GraphToolbar` |
 | Graph authoring | `createGraphAuthoringExecutor(ws.sendRawText)` + `useGraphAuthoring({ bus, connected, graphData, executor })`; modal state rendered through `GraphAuthoringModals`; `openCreateNode` threaded to `RightPanel` → `GraphView` |
-| Graph save-form name | `useGraphSaveName(storageKey, bus)` — provides `defaultName`, `setLastSavedName`, `resetName`; see §3.13 |
+| Graph save-form state | `useGraphSaveName(storageKey, bus, connected, connectionEpoch)` — provides `defaultName`, `savedName`, and `resetName`; see §3.13 |
 | Deferred graph export | `pendingSaveRef = useRef<PendingSave | null>(null)` where `PendingSave = { graphName, timeoutId }` — armed when connected save is sent; confirmed by `graph.exported` (name-matched), rejected by `graph.export.failed`, timeout (10 s), or disconnect |
 | Deferred JSON-Path send | `pendingJsonTransferRef = useRef<{ wsPath, json } | null>(null)` — last-write-wins mailbox; overwritten on each send while JSON-Path is `'connecting'`; consumed by a `useEffect` watching the slot once `phase === 'connected'` |
 | Clipboard integration | `useClipboardContext()` for `clipNode` / `confirmReplace`; `clipboardOpen` via `useLocalStorage`; `duplicateDialogState` via `useState`; guarded by `supportsClipboard` config flag |
@@ -978,7 +978,7 @@ Note: the `connected` prop is still accepted for interface symmetry with peer ho
 
 #### `useGraphSaveName`
 
-Subscribes to `bus.on('command.importGraph')` ([L99](../src/hooks/useGraphSaveName.ts#L99)) — clears `lastSavedName` to `null` when a new `import graph from {name}` echo arrives, so the imported name takes over immediately. See §3.13 for the full priority logic.
+Subscribes to `command.importGraph`, `graph.exported`, `graph.mutation`, and `session.reset`. Imports clear the prior saved status and establish the next form name; confirmed exports set the header's `Saved: {name}` state; graph mutations return the indicator to `Save Graph` while retaining the export name for the next save; session resets clear both imported and saved names. See §3.13 for the full priority logic.
 
 ---
 
@@ -1087,11 +1087,12 @@ User clicks Save → GraphSaveButton inline form
     ws.sendRawText(`export graph as ${name}`)  // server writes {name}.json
 
     Resolution paths (bus effects):
-      → bus.on('graph.exported', name-matched)
-              → clearTimeout(timeoutId)
-              → savedGraphs.saveGraph(name)       // localStorage bookmark written HERE
-              → setLastSavedName(name)            // in useGraphSaveName
-              → addToast(`Graph saved as "${name}"`, 'success')
+      → bus.on('graph.exported')
+              → savedGraphs.saveGraph(event.graphName)  // UI and command exports
+              → useGraphSaveName sets Saved: {name}
+              → if name matches pending Save Graph action:
+                    clearTimeout(timeoutId)
+                    addToast(`Graph saved as "${name}"`, 'success')
       → bus.on('graph.export.failed')
               → clearTimeout(timeoutId)
               → addToast(typed error message, 'error')   // NO bookmark written
@@ -1113,21 +1114,21 @@ User clicks Load in SavedGraphsMenu →
     → graph renders
 ```
 
-**Save-form pre-fill (`useGraphSaveName`):**
+**Save-form pre-fill and saved indicator (`useGraphSaveName`):**
 
-The name pre-filled in the save form is managed entirely by `useGraphSaveName` — `GraphSaveButton` receives only the already-computed `defaultName` string and a `setLastSavedName` callback; it knows nothing about the priority logic.
+The name pre-filled in the save form is managed entirely by `useGraphSaveName`. `GraphSaveButton` receives the computed `defaultName` and `savedName` values; it knows nothing about protocol classification or the priority logic.
 
 ```
 Priority (highest → lowest):
 
-1. lastSavedName   set by setLastSavedName(name) after a successful save
+1. lastSavedName   set from every confirmed graph.exported event
 2. importedName    extracted from "> import graph from {name}" echo in WS stream
 3. untitled-{n}    persisted localStorage counter, starts at 1, never skips
 ```
 
-The counter increment rule: `untitled-{n}` only advances to `untitled-{n+1}` when `untitled-{n}` was actually saved (i.e. `setLastSavedName` was called with a name matching the current untitled fallback). Clearing the console without ever saving reuses the same slot. This guarantees `untitled-2` never appears unless `untitled-1` was saved first.
+The counter increment rule: `untitled-{n}` only advances to `untitled-{n+1}` when `untitled-{n}` was confirmed by `graph.exported`. Clearing the console without ever saving reuses the same slot. This guarantees `untitled-2` never appears unless `untitled-1` was saved first.
 
-`importedName` always supersedes `lastSavedName` for a new import: the `bus.on('command.importGraph')` subscription calls `setLastSavedNameState(null)` immediately when a fresh `> import graph from {name}` arrives — `lastSavedName` is cleared in the same callback that sets `importedName`, so the priority chain reflects the new state in the very next render.
+`importedName` always supersedes `lastSavedName` for a new import: the `bus.on('command.importGraph')` subscription dispatches one `imported` transition that sets the imported name, clears the last export name, and marks the graph unsaved in the same render.
 
 See §3.13 for the full feature description and all code locations.
 
@@ -1197,7 +1198,7 @@ The mount adapter between hook state and modal props. It converts hook state int
 
 **Decision:** `WebSocket` instances, ping interval handles, and message ID counters live in `useRef` (not `useState` or inside the reducer).
 
-**Why:** These are imperative handles that must be accessible synchronously in event callbacks. Putting them in state would cause render cycles on every incoming message. The reducer owns only the serialisable view of state (phase + messages array) that React needs to diff and render.
+**Why:** These are imperative handles that must be accessible synchronously in event callbacks. Putting them in state would cause render cycles on every incoming message. The reducer owns only the serialisable view of state (phase, connection epoch, and messages array) that React needs to diff and render. `connectionEpoch` is the message id assigned by `CONNECTED`; session-bound UI caches use it to reject state from an older socket after an off-route reconnect.
 
 ---
 
@@ -1454,44 +1455,53 @@ handleSaveGraph("untitled-1"):   [in useSavedGraphWorkflow]
   pendingSaveRef.current = { graphName: "untitled-1", timeoutId }  // arm — no localStorage write yet
   ws.sendRawText("export graph as untitled-1") // server writes file
   → (server responds with graph.exported event, graphName === "untitled-1")
-  → bus.on('graph.exported') fires (name-matched):
-      clearTimeout(timeoutId)
-      savedGraphs.saveGraph("untitled-1")      // localStorage bookmark written HERE
-      setLastSavedName("untitled-1")           // in useGraphSaveName
-        → setLastSavedNameState("untitled-1")
-        → "untitled-1" === `untitled-${1}` → untitledSlotConsumedRef = true
-      addToast(`Graph saved as "untitled-1"`)
+  → bus.on('graph.exported') fires:
+      savedGraphs.saveGraph("untitled-1")      // shared UI/command bookmark path
+      matching pending Save Graph action clears its timeout and shows the success toast
+  → useGraphSaveName also receives graph.exported:
+      lastSavedName = "untitled-1"
+      isSaved = true
+      "untitled-1" === `untitled-${1}` → untitledSlotConsumed = true
+  → GraphSaveButton displays "Saved: untitled-1"
   → defaultName = "untitled-1"                 // lastSavedName wins
 
 ── User clears console (slot was consumed) ───────────────────────────
 handleClearMessages() → resetSaveName() → resetName():
-  setImportedName(null)
-  setLastSavedNameState(null)
-  untitledSlotConsumedRef.current === true
+  untitledSlotConsumed === true
     → setUntitledCounter(1 + 1 = 2)            // advances: slot was used
-  untitledSlotConsumedRef.current = false
+  → reset transition clears all session-bound name state
   → defaultName = "untitled-2"
 
 ── User clears console WITHOUT saving ────────────────────────────────
 resetName():
-  setImportedName(null)
-  setLastSavedNameState(null)
-  untitledSlotConsumedRef.current === false
+  untitledSlotConsumed === false
     → counter stays at 2                        // slot NOT advanced: never used
+  → reset transition clears all session-bound name state
   → defaultName = "untitled-2"                 // same slot reused
 
 ── User saves as "my-graph" (renaming away from untitled) ────────────
-setLastSavedName("my-graph"):
-  setLastSavedNameState("my-graph")
+graph.exported event for "my-graph":
+  savedGraphs.saveGraph("my-graph")
+  → Load Graph includes "my-graph"
+  lastSavedName = "my-graph"
+  isSaved = true
   "my-graph" !== `untitled-${2}` → flag stays false
   → defaultName = "my-graph"                   // lastSavedName wins
+  → GraphSaveButton displays "Saved: my-graph"
   → counter is still 2; "untitled-2" was never used
+
+── User changes a node after exporting ───────────────────────────────
+graph.mutation event:
+  → isSaved = false
+  → lastSavedName remains "my-graph"
+  → GraphSaveButton displays "Save Graph"
+  → next save form still defaults to "my-graph"
 
 ── User imports "other-graph" (supersedes lastSavedName) ─────────────
 WS echo: "> import graph from other-graph"
   → extractImportGraphName → "other-graph"
-  → setImportedName("other-graph")
-  → setLastSavedNameState(null)               // lastSavedName cleared
+  → imported transition sets importedName = "other-graph"
+  → lastSavedName = null and isSaved = false
   → defaultName = "other-graph"              // importedName wins
 ```
 
@@ -1607,9 +1617,7 @@ Disconnect while modal is open
 | Is refreshing | `useState` in `useGraphData` | Memory only | |
 | Saved graph names | `useLocalStorage` in `useSavedGraphs` | `localStorage` | Keyed per playground |
 | Untitled counter | `useLocalStorage` in `useGraphSaveName` | `localStorage` | Keyed per playground; only increments when slot was consumed by a save |
-| Last-saved name | `useState` in `useGraphSaveName` | Memory only | Cleared on import or reset |
-| Imported graph name | `useState` in `useGraphSaveName` | Memory only | Set from WS echo; cleared on reset |
-| Untitled slot consumed | `useRef` in `useGraphSaveName` | Memory only | Write-only flag; never drives a re-render |
+| Graph save-name state | `useState` + epoch-guarded module-scoped `Map` in `useGraphSaveName` | Memory only | Survives SPA route remounts for the same WebSocket epoch; tracks imported name, last export name, clean/saved flag, and untitled-slot consumption; invalidated by reset, disconnect, epoch change, or manual clear |
 | Toasts | `useReducer` in `useToast` | Memory only | Auto-expires |
 | Panel split ratio | `react-resizable-panels` | `localStorage` | Keyed per route path |
 | Autocomplete dropup state | `useState` in `useHistoryAutocomplete` | Memory only | `isOpen`, `activeIndex`; resets on unmount — intentional |
@@ -1769,7 +1777,7 @@ Because `bus.on()` registers a callback only once (the bus `useRef` identity nev
 The `classificationMap` is a `useMemo` that re-derives when `messages` changes. Components that receive it as a prop will see a new `Map` reference on every new WebSocket message. This is intentional — React Compiler handles memoisation — but avoid using `classificationMap` as a `useEffect` dependency without wrapping the effect in additional guards, as it will fire on every message.
 
 ### P15 — Never allow saves while disconnected
-`useSavedGraphs` stores only the graph **name**, not the graph data. A bookmark without a matching server-side `{name}.json` export file cannot be loaded — `import graph from {name}` will fail after reconnect. `useSavedGraphWorkflow.handleSaveGraph` guards against disconnected calls with an early-return error toast; `GraphSaveButton` enforces `disabled={disabled || !connected}` at the UI level. If you add any new path that calls `saveGraph(name)` directly, ensure the caller is always connected first. See §3.10 and §6.12.
+`useSavedGraphs` stores only the graph **name**, not the graph data. A bookmark without a matching server-side `{name}.json` export file cannot be loaded — `import graph from {name}` will fail after reconnect. `useSavedGraphWorkflow.handleSaveGraph` guards against disconnected calls with an early-return error toast; `GraphSaveButton` enforces `disabled={disabled || !connected}` at the UI level. Bookmark creation is driven only by the server-confirmed `graph.exported` event, including command-console exports, so no optimistic bookmark can precede the server file. See §3.10 and §6.12.
 
 ### P16 — Keep create-node serialization out of UI components
 `NodeDialog` must stay a typed form editor. If a future field is added, update the form model, validation, and `buildCreateNodeCommand()` together. String-building command text in JSX or in event handlers will bypass validation, command-size checks, and tests. See §6.13 and §7.12.

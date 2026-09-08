@@ -6,6 +6,8 @@ interface MinigraphNodeBodyProps {
   alias: string;
   nodeType: string;
   properties: Record<string, unknown>;
+  /** Thumbnail mode: the body is a clipped peek that fades out at the card edge. */
+  compact?: boolean;
 }
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -44,7 +46,7 @@ function PropertyRows({ properties }: { properties: Record<string, unknown> }) {
   );
 }
 
-export function MinigraphNodeBody({ alias, nodeType, properties }: MinigraphNodeBodyProps) {
+export function MinigraphNodeBody({ alias, nodeType, properties, compact = false }: MinigraphNodeBodyProps) {
   const meta = getMinigraphNodeTypeMeta(nodeType);
 
   return (
@@ -56,7 +58,7 @@ export function MinigraphNodeBody({ alias, nodeType, properties }: MinigraphNode
           <span className={styles.badge}>{meta.label}</span>
         </div>
 
-        <div className={styles.body}>
+        <div className={compact ? `${styles.body} ${styles.bodyPeek}` : styles.body}>
           <PropertyRows properties={properties} />
         </div>
       </div>

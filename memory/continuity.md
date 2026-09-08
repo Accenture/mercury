@@ -168,6 +168,22 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   fact, it is a reference. Twin of `conv-declare-consulted-references` in mercury-composable.
   <!-- id: conv-declare-consulted-references-rust | created: 2026-09-04 | last_used: 2026-09-04 | uses: 1 | tier: core -->
 
+- **Playground webapp lock-step sync: replace `crates/knowledge-graph/webapp/` wholesale
+  from the Java repo's `system/minigraph-playground-engine/webapp/`, EXCEPT the
+  engine-layout spots (2026-09-08, first codified sync).** Exclude Java-only agent
+  artifacts (webapp `memory/`, `AGENTS.md`, `CLAUDE.md`, `agent-skills/`, `.cursorrules`,
+  `codex.md`, `.codesight/`) and gitignored `node_modules`/`dist`. Preserve the Rust
+  variants of: `scripts/deploy.js` + `scripts/clean.js` (target `../resources/public`),
+  `src/data/helpContent.ts` glob (`../../../resources/help/*.md`), the `vite.config.ts`
+  fs-allow comment, `src/utils/__tests__/graphTransformer.test.ts` fixture imports
+  (`../../../../resources/graph/`, `../../../../tests/resources/graph/`), the
+  localHelpCommand test comment, and `docs/COMPANION_ENDPOINT_README.md`'s graph.js line
+  ("this Rust port never carried `graph.js`"). README.md and `docs/Technical
+  Documentation.md` deliberately ride the Java wording verbatim (established precedent).
+  After sync: `npm run typecheck && npm test`, `npm run release` (commits the rebuilt
+  `resources/public` bundle), and a live smoke test against the Rust engine.
+  <!-- id: webapp-lockstep-sync-preserved-paths | created: 2026-09-08 | last_used: 2026-09-08 | uses: 1 | tier: working | origin: 2026-09-08-203614.md -->
+
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 
 > The `(blueprint)` items live one-per-file in `memory/open-threads/` (v4.39.0). This section is

@@ -67,21 +67,27 @@ describe('validateNodeFormState', () => {
     expect(result.errors[getValidationErrorKeyForProperty('p1', 'key')]).toBeDefined();
   });
 
-  it('rejects property keys outside the backend name token', () => {
+  it('accepts dot/bracket path keys and multiline values in create mode', () => {
+    // Create and edit share one grammar: the backend parses both commands'
+    // property lines identically (path keys, [] appends, ''' multiline).
     const result = validateNodeFormState(formState({
-      properties: [{ id: 'p1', key: 'a.b', value: 'demo' }],
+      properties: [
+        { id: 'p1', key: 'a.b', value: 'demo' },
+        { id: 'p2', key: 'input[]', value: 'person_id' },
+        { id: 'p3', key: 'statement', value: 'IF: true\nTHEN: next' },
+      ],
     }));
-    expect(result.errors[getValidationErrorKeyForProperty('p1', 'key')]).toBeDefined();
+    expect(result.valid).toBe(true);
   });
 
-  it('rejects multiline and triple-quote property values', () => {
-    const newline = validateNodeFormState(formState({
-      properties: [{ id: 'p1', key: 'name', value: 'a\nb' }],
+  it('rejects malformed property keys and triple-quote values', () => {
+    const badKey = validateNodeFormState(formState({
+      properties: [{ id: 'p1', key: 'bad key', value: 'demo' }],
     }));
     const tripleQuote = validateNodeFormState(formState({
       properties: [{ id: 'p2', key: 'name', value: "a'''b" }],
     }));
-    expect(newline.errors[getValidationErrorKeyForProperty('p1', 'value')]).toBeDefined();
+    expect(badKey.errors[getValidationErrorKeyForProperty('p1', 'key')]).toBeDefined();
     expect(tripleQuote.errors[getValidationErrorKeyForProperty('p2', 'value')]).toBeDefined();
   });
 });
@@ -121,10 +127,24 @@ describe('validateNodeFormState edit mode', () => {
     expect(result.valid).toBe(true);
   });
 
+  it('accepts the [] append signature and repeated append keys', () => {
+    const result = validateNodeFormState(formState({
+      source: 'edit-node',
+      properties: [
+        { id: 'p1', key: 'mapping[]', value: 'text(hello) -> output.body' },
+        { id: 'p2', key: 'mapping[]', value: 'text(done) -> output.status' },
+      ],
+    }), {
+      mode: 'edit',
+      originalAlias: 'root',
+    });
+    expect(result.valid).toBe(true);
+  });
+
   it('rejects malformed flattened path keys', () => {
     const result = validateNodeFormState(formState({
       source: 'edit-node',
-      properties: [{ id: 'p1', key: 'mapping[]', value: 'demo' }],
+      properties: [{ id: 'p1', key: 'mapping[01]', value: 'demo' }],
     }), {
       mode: 'edit',
       originalAlias: 'root',
@@ -169,13 +189,13 @@ describe('createEditNodeFormState', () => {
       source: 'edit-node',
     });
     expect(result.formState?.properties.map(row => [row.key, row.value])).toEqual([
-      ['name', 'demo'],
       ['active', 'true'],
       ['count', '3'],
+      ['name', 'demo'],
     ]);
   });
 
-  it('flattens arrays, nested objects, and multiline leaf values', () => {
+  it('flattens arrays and nested objects into sorted []-signature rows', () => {
     const result = createEditNodeFormState({
       alias: 'root',
       types: ['Root'],
@@ -185,12 +205,27 @@ describe('createEditNodeFormState', () => {
       },
     });
     expect(result.valid).toBe(true);
+    // Keys are sorted (matching the backend edit-node listing) and array
+    // indices render as the [] append signature; row order = array order.
     expect(result.formState?.properties.map(row => [row.key, row.value])).toEqual([
-      ['mapping[0]', 'text(hello) -> output.body'],
-      ['mapping[1]', 'text(done) -> output.status'],
-      ['config.items[0].value', 'one'],
-      ['config.items[1].value', 'two\nlines'],
+      ['config.items[].value', 'one'],
+      ['config.items[].value', 'two\nlines'],
+      ['mapping[]', 'text(hello) -> output.body'],
+      ['mapping[]', 'text(done) -> output.status'],
     ]);
+  });
+
+  it('keeps array order for ten or more entries via zero-fill sorting', () => {
+    const values = Array.from({ length: 12 }, (_, index) => `entry-${index}`);
+    const result = createEditNodeFormState({
+      alias: 'root',
+      types: ['Root'],
+      properties: { mapping: values },
+    });
+    expect(result.valid).toBe(true);
+    // A plain lexicographic sort would put mapping[10] before mapping[2];
+    // the zero-fill compare preserves the true array order.
+    expect(result.formState?.properties.map(row => row.value)).toEqual(values);
   });
 
   it('rejects edit surfaces that cannot be represented safely', () => {

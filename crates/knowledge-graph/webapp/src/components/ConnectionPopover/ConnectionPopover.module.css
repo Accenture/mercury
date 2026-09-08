@@ -1,0 +1,144 @@
+/*
+ * Inline relation popover for a just-drawn connection — anchored at the drop
+ * point, no backdrop.  Chips carry the relation vocabulary with the same
+ * colors the edge labels use in the graph.
+ */
+
+.popover {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.22);
+  max-width: 340px;
+  padding: 0.6rem 0.7rem;
+  position: fixed;
+  width: 320px;
+  z-index: 1000;
+}
+
+.header {
+  align-items: center;
+  color: var(--text-primary);
+  display: flex;
+  font-size: 0.85rem;
+  font-weight: 600;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+  min-width: 0;
+}
+
+.endpoint {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  max-width: 45%;
+  overflow: hidden;
+  padding: 0.1rem 0.4rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arrow {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.55rem;
+}
+
+.chip {
+  background: color-mix(in srgb, var(--chip-color, var(--primary-color)) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chip-color, var(--primary-color)) 45%, transparent);
+  border-radius: 999px;
+  color: var(--chip-color, var(--primary-color));
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.14rem 0.55rem;
+}
+
+.chip:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--chip-color, var(--primary-color)) 22%, transparent);
+}
+
+.chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.customRow {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.input {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  flex: 1;
+  font: inherit;
+  font-size: 0.82rem;
+  min-width: 0;
+  padding: 0.3rem 0.45rem;
+}
+
+.input:focus-visible {
+  border-color: var(--primary-color);
+  outline: 2px solid color-mix(in srgb, var(--primary-color) 35%, transparent);
+  outline-offset: 0;
+}
+
+.input[aria-invalid="true"] {
+  border-color: #dc2626;
+}
+
+.submitButton {
+  background: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.7rem;
+  white-space: nowrap;
+}
+
+.submitButton:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.submitButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.errorText {
+  color: #b91c1c;
+  font-size: 0.74rem;
+  margin-top: 0.45rem;
+}
+
+.statusText,
+.warningText {
+  border-radius: var(--radius-sm);
+  font-size: 0.74rem;
+  margin-top: 0.45rem;
+  padding: 0.3rem 0.45rem;
+}
+
+.statusText {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--text-primary);
+}
+
+.warningText {
+  background: rgba(180, 83, 9, 0.1);
+  color: #92400e;
+}

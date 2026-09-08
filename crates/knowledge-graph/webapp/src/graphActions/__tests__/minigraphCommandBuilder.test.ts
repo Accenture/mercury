@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCreateConnectionCommand,
   buildCreateNodeCommand,
+  buildDeleteConnectionCommand,
   buildDeleteNodeCommand,
   buildUpdateNodeCommand,
 } from '../minigraphCommandBuilder';
@@ -67,10 +68,17 @@ describe('buildCreateNodeCommand', () => {
     }))).toThrow();
   });
 
-  it('rejects property value newline injection', () => {
-    expect(() => buildCreateNodeCommand(formState({
-      properties: [{ id: 'p1', key: 'name', value: 'demo\nwith properties' }],
-    }))).toThrow();
+  it('serializes multiline property values with triple-quote blocks', () => {
+    expect(buildCreateNodeCommand(formState({
+      properties: [{ id: 'p1', key: 'statement', value: 'IF: true\nTHEN: next' }],
+    }))).toBe([
+      'create node root',
+      'with type Root',
+      'with properties',
+      "statement='''",
+      'IF: true\nTHEN: next',
+      "'''",
+    ].join('\n'));
   });
 
   it('rejects multiline property delimiters', () => {
@@ -124,6 +132,38 @@ describe('buildUpdateNodeCommand', () => {
       'IF: true\nTHEN: next',
       "'''",
     ].join('\n'));
+  });
+
+  it('passes [] append-signature keys through in row order', () => {
+    expect(buildUpdateNodeCommand(formState({
+      nodeType: 'Fetcher',
+      properties: [
+        { id: 'p1', key: 'input[]', value: 'person_id' },
+        { id: 'p2', key: 'input[]', value: 'exception:false' },
+        { id: 'p3', key: 'provider', value: 'mdm-profile' },
+      ],
+      source: 'edit-node',
+    }), 'person-name')).toBe([
+      'update node person-name',
+      'with type Fetcher',
+      'with properties',
+      'input[]=person_id',
+      'input[]=exception:false',
+      'provider=mdm-profile',
+    ].join('\n'));
+  });
+});
+
+describe('buildDeleteConnectionCommand', () => {
+  it('emits the backend delete-connection grammar', () => {
+    expect(buildDeleteConnectionCommand('clear-exception', 'person-name'))
+      .toBe('delete connection clear-exception and person-name');
+  });
+
+  it('rejects invalid endpoints and self-connections', () => {
+    expect(() => buildDeleteConnectionCommand('bad alias', 'person-name')).toThrow();
+    expect(() => buildDeleteConnectionCommand('a\nand b', 'person-name')).toThrow();
+    expect(() => buildDeleteConnectionCommand('same', 'same')).toThrow();
   });
 });
 
