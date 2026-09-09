@@ -1,104 +1,152 @@
-/* ── Native <dialog> element ────────────────────────────────────────────── */
-/* The browser supplies focus-trap and backdrop rendering via showModal(). */
+/*
+ * Mock-data upload form in the left panel slot — the same in-place "card in
+ * the console's space" shell as NodeEditPanel, with the upload flow's amber
+ * accent on the ribbon and primary action.
+ */
 
-.dialog {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  padding: 0;
-  width: min(560px, 94vw);
-  max-height: 90vh;
-  box-shadow: var(--shadow-md);
-  display: flex;
-  flex-direction: column;
-
-  /* Override browser's default dialog positioning */
-  margin: auto;
-}
-
-.dialog::backdrop {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(2px);
-}
-
-/* Inner wrapper — stops click propagation from content to backdrop */
-.modalInner {
+.root {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  padding: 1rem 0.75rem 1rem 1rem;
+  background: var(--bg-secondary);
 }
 
-/* ── Header ─────────────────────────────────────────────────────────────── */
-.modalHeader {
+.card {
+  background: var(--bg-primary);
+  border: 1.5px solid var(--warning-60);
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12);
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border-color);
-  flex: 0 0 auto;
+  flex-direction: column;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.modalTitleGroup {
+/* ── Header ribbon — amber-tinted, mirrors the node editor's ribbon ─────── */
+.ribbon {
+  align-items: flex-start;
+  background: var(--warning-10);
+  border-bottom: 1px solid var(--warning-20);
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.6rem 0.8rem;
+}
+
+.titleGroup {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
   min-width: 0;
 }
 
-.modalTitle {
+.title {
   font-weight: 600;
   font-size: 1rem;
   color: var(--text-primary);
 }
 
-.modalPath {
+.path {
   font-family: var(--font-mono-terminal);
   font-size: 0.8rem;
   color: var(--text-secondary);
   word-break: break-all;
 }
 
-.closeButton {
+.ribbonClose {
   appearance: none;
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 0.9rem;
-  padding: 0.2rem 0.4rem;
-  line-height: 1;
+  padding: 0.2rem 0.3rem;
+  line-height: 0;
   flex-shrink: 0;
   transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.closeButton:hover:not(:disabled) {
+.ribbonClose:hover:not(:disabled) {
   background: var(--bg-secondary);
   border-color: var(--border-color);
   color: var(--text-primary);
 }
 
-.closeButton:focus-visible {
+.ribbonClose:focus-visible {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
 
-.closeButton:disabled {
+.ribbonClose:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
+.ribbonCloseIcon {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
 /* ── Body ────────────────────────────────────────────────────────────────── */
-.modalBody {
+.body {
   flex: 1 1 auto;
   overflow-y: auto;
   padding: 1rem 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.description {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.inputHints {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.inputHintsLabel {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.inputHintList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.inputHintList code,
+.moreHints {
+  max-width: 100%;
+  padding: 0.12rem 0.35rem;
+  border-radius: var(--radius-xs);
+  background: var(--bg-dark);
+  color: var(--console-text);
+  font-family: var(--font-mono-terminal);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inputHintsNote {
+  color: var(--text-muted);
+  font-size: 0.68rem;
 }
 
 /* ── Drop zone ───────────────────────────────────────────────────────────── */
@@ -123,7 +171,7 @@
   border-color: var(--primary-color);
 }
 
-/* Active drag-over state — amber to match the modal's accent colour */
+/* Active drag-over state — amber to match the panel's accent colour */
 .dropZoneActive {
   border-color: var(--warning-80);
   background: var(--warning-06);
@@ -244,7 +292,7 @@
 }
 
 /* ── Footer ──────────────────────────────────────────────────────────────── */
-.modalFooter {
+.footer {
   display: flex;
   align-items: center;
   justify-content: space-between;

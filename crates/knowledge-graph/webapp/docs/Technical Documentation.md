@@ -74,13 +74,13 @@ The **Minigraph Playground** is a React-based developer tool that communicates w
 The UI offers:
 - A **live WebSocket console** (like a REPL) where commands are sent and responses printed
 - A **ReactFlow graph visualiser** that renders the current graph model
-- A **bundled help panel** — `help` commands and their topics are served from files bundled at build time; the panel is a resizable right-side overlay toggled by a header button or `Ctrl + \``
+- A **profile-based help panel** — Minigraph's topic library and JSON-Path's focused Overview share the same resizable right-side overlay, header button, and `Ctrl + \`` shortcut
 - A **JSON/XML payload editor** for the JSON-Path playground
 - **Saved graph bookmarks** (export/import graph snapshots by name)
 - **Large payload handling** — payloads exceeding 64 KB are automatically fetched via REST and displayed inline
 - **Mock-data upload modal** — when the server responds to a command with an upload invitation, a modal dialog opens automatically so the user can paste, drag-and-drop, or browse a JSON file and POST it to the provided endpoint
 - **Clipboard panel** — a resizable sidebar (Minigraph only) for clipping nodes from the graph and pasting their create/update command templates into the console input; persisted in IndexedDB and synchronised across open tabs via BroadcastChannel
-- **UI node authoring** — Minigraph-only create-node workflow with an empty-graph entry point and a graph-pane context menu entry point; the modal serialises form values into the same raw text command grammar used by the console
+- **UI node authoring** — Minigraph-only create/edit workflow in the console panel slot, plus Neo4j-style connection gestures; all operations serialise to the same raw text command grammar used by the console
 
 The built output (`dist/`) is copied into the Java application's `src/main/resources/public/` directory and served as a static SPA by the same Spring Boot server that provides the WebSocket and REST endpoints.
 
@@ -163,9 +163,9 @@ Switching between the Minigraph and JSON-Path playgrounds does **not** close eit
 - Fetched via REST (`GET /api/graph/model/{graph_id}/{sequence}`) after the server emits a graph-link in the WebSocket stream
 - Rendered with **ReactFlow**: nodes are colour-coded by type (`Root`, `End`, `Fetcher`, `mapper`, `Math`, `JavaScript`, `Provider`, `Dictionary`, `Join`, `Extension`, `Island`, `Decision`), edges show relation labels
 - Nodes are **resizable** (NodeResizer) and can be re-arranged interactively
-- A **minimap** provides navigation for large graphs
+- A compact **minimap toggle** extends React Flow's bottom-left control stack. The overview is collapsed by default, opens beside the controls, supports viewport panning, and can be toggled with `Ctrl + M` without intercepting text input. A one-shot, pause-aware three-second hint introduces the shortcut only while the Graph tab is actually visible; mobile toasts honor the shared graph-overlay safe area
 - A **refreshing overlay** (spinner) is displayed during background re-fetches without clearing the existing graph
-- The **graph toolbar** displays a resolved graph name (root node name → save-name fallback → "Untitled"), with node/connection counts revealed on hover
+- The **graph toolbar** displays a resolved graph name (root node name → save-name fallback → "Untitled"), with node/connection counts revealed on hover. Minigraph also renders separate **Instantiate** and **Run** controls before Copy; backend acknowledgements, current graph identity, connection epoch, input upload completion, and host-session ownership gate their lifecycle
 - **Orphan node segregation** — nodes not participating in any connection are classified by type and placed in horizontal rows below the main flow: Dictionary → Provider → Module → Entity → unknown catch-all
 - **Cycle detection & back-edge routing** — cycles in the graph are detected via iterative DFS; back-edges (edges pointing from a deeper level to a shallower one) are excluded from BFS level assignment so the layout doesn't loop infinitely. Back-edges are still rendered: they exit from the **left** side of the source node and enter the **right** side of the target node (the reverse of forward edges), producing a natural backward-arcing bezier curve. Handles on each side are sorted by peer y-position and interleaved (forward + back-edge) to prevent crossing
 
@@ -194,8 +194,10 @@ So `/api/graph/session/{id}` is currently a backend shortcut for direct consumer
 - `src/components/GraphView/NodeTypes.tsx` [L9–L22](../src/components/GraphView/NodeTypes.tsx#L9) — `TYPE_META` icon/label map per node type
 - `src/components/GraphView/NodeTypes.tsx` — `MinigraphNode`: renders as `<Fragment>` (no wrapper div); `NodeResizer` + forward target handles (left) + back-edge source handles (left) + content + forward source handles (right) + back-edge target handles (right) as siblings
 - `src/components/GraphView/NodeTypes.tsx` — `nodeTypes` export map used by `<ReactFlow nodeTypes={nodeTypes}>`
-- `src/components/GraphView/GraphView.tsx` — `<ReactFlow>` with `fitView`, `<Controls>`, `<MiniMap>`, and `isRefreshing` overlay; accepts `graphName` prop and threads it to `GraphToolbar`
+- `src/components/GraphView/GraphView.tsx` — `<ReactFlow>` with `fitView`, a single delegated controls stack, the `GraphMinimap` toggle, measured node layout, and `isRefreshing` overlay; accepts `graphName` and optional graph-run controls and threads them to `GraphToolbar`
+- `src/components/GraphView/GraphMinimap.tsx` — owns the collapsed/pannable MiniMap, native toggle button, conflict-safe `Ctrl + M` shortcut, and Help-style onboarding hint; `useMinimapHint.ts` keeps the hint one-shot and pauses its countdown while the graph is hidden
 - `src/components/GraphToolbar/GraphToolbar.tsx` — displays `graphName` prominently with hover-reveal node/connection stats; accepts `graphName?` prop
+- `src/components/GraphToolbar/GraphRunControls.tsx` — accessible Instantiate/Run actions and lifecycle status tooltips; `useGraphRunWorkflow.ts` serialises existing text commands and mirrors only classified backend outcomes, quarantining stale responses after graph/session/connection changes
 - `src/components/Playground.tsx` — `graphDisplayName` memo: resolves root node's `name` property → `graphSaveName` fallback; threaded via `RightPanel` → `GraphView` / `GraphDataView` → `GraphToolbar`
 
 ---
@@ -225,17 +227,20 @@ Each mutation also emits a toast notification visible in the playground's toast 
 
 ---
 
-### 3.6 Bundled Help Panel (Developer Guides)
-Help content (`help.md`, `help create.md`, `help tutorial 1.md`, …) is bundled into the webapp at build time via `import.meta.glob`. When the user types `help` or `help <topic>` while connected, the command is **handled locally** by `handleLocalCommand` in `useWebSocket` — no WebSocket round-trip occurs. The console receives a local echo (`> help …`) that is classified identically to a server-echoed command, so `useAutoHelpNavigate` opens the help panel automatically.
+### 3.6 Profile-Based Help Panel (Developer Guides)
+The Help UI is shared across playgrounds, while `PlaygroundConfig.helpContentProfile` selects its content and navigation. Minigraph's full topic library (`help.md`, `help create.md`, `help tutorial 1.md`, …) is bundled via `import.meta.glob`. JSON-Path uses a focused starter Overview from `jsonPathHelpContent.ts`, so its panel does not expose Minigraph-specific Graph Model, Graph Skills, or Tutorials sections.
+
+When the user enters a help command that exists in the active profile while connected, it is **handled locally** by `handleLocalCommand` in `useWebSocket` — no WebSocket round-trip occurs. The console receives a local echo (`> help …`) that is classified identically to a server-echoed command, so `useAutoHelpNavigate` opens the matching content automatically. JSON-Path intentionally intercepts only bare `help`; unsupported topics such as `help create` continue to the backend.
 
 Access while disconnected: the header `?` button and the `Ctrl + \`` hotkey always open the help panel regardless of connection state.
 
 `describe …` responses remain **console-driven**; they are not captured by the help panel.
 
 **Key code locations:**
-- `src/data/helpContent.ts` — `getHelpContent(topic)`: looks up the bundled markdown string; `HELP_TOPIC_KEYS`: ordered list of all valid topic keys
+- `src/data/helpContent.ts` — profile-aware content/category lookup; Minigraph remains the default profile
+- `src/data/jsonPathHelpContent.ts` — starter JSON-Path Overview markdown
 - `src/utils/helpTopic.ts` — `extractHelpTopic(commandText)`: strips `"help "` prefix → bare topic key (lowercased)
-- `src/utils/localHelpCommand.ts` — `resolveBundledHelpTopic(commandText, supportsHelp)`: returns the topic key when the command should be handled locally, or `null` when it should go to the backend
+- `src/utils/localHelpCommand.ts` — `resolveBundledHelpTopic(commandText, supportsHelp, contentProfile)`: returns the topic key when the command exists in the active profile, or `null` when it should go to the backend
 - `src/hooks/useWebSocket.ts` — `handleLocalCommand` option: called inside `sendCommand` before the remote-send path; return `true` to intercept
 - `src/hooks/useAutoHelpNavigate.ts` — subscribes to `command.helpOrDescribe` on the bus; opens the help panel from server-echoed **and** locally-appended echoes (both classify identically)
 - `src/components/HelpBrowser/HelpBrowser.tsx` — the rendered help panel component; `activeTopic` + `onNavigate` props drive the current topic view
@@ -479,11 +484,16 @@ webapp/
 │   ├── index.css                 # Global resets / CSS variables
 │   ├── config/
 │   │   └── playgrounds.ts        # ★ SINGLE source of truth for all playgrounds
+│   ├── data/
+│   │   ├── helpContent.ts         # Profile-aware Help content/navigation registry
+│   │   └── jsonPathHelpContent.ts # JSON-Path starter Overview
+│   ├── graphRun/                  # Graph input-path discovery + text-protocol parsers
 │   ├── hooks/
 │   │   ├── useWebSocket.ts       # Per-playground WS + command input logic (handleLocalCommand extension)
 │   │   ├── useGraphData.ts       # REST fetch + graph state management
 │   │   ├── useAutoGraphRefresh.ts# Mutation detection → auto re-fetch (bus-based)
 │   │   ├── useAutoHelpNavigate.ts# help/describe echo → auto-open help panel (bus-based)
+│   │   ├── useGraphRunWorkflow.ts# Backend-authoritative Instantiate/Input/Run lifecycle
 │   │   ├── useLargePayloadDownload.ts # Large payload REST fetch → console (bus-based)
 │   │   ├── useAutoMockUpload.ts  # Mock-upload invitation → auto-open modal (bus-based)
 │   │   ├── useMockUpload.ts      # POST fetch lifecycle for mock-upload modal
@@ -671,7 +681,9 @@ interface PlaygroundConfig {
   supportsUpload?:       boolean;  // present → enables REST upload handshake
   supportsClipboard?:    boolean;  // true → enables node clip/paste sidebar (Minigraph only)
   supportsHelp?:         boolean;  // true → enables bundled help panel
+  helpContentProfile?:   HelpContentProfile; // selects Minigraph or JSON-Path content/navigation
   supportsAuthoring?:    boolean;  // true → enables create-node UI authoring (Minigraph only)
+  supportsGraphRun?:     boolean;  // true → enables graph toolbar Instantiate/Run controls
   storageKeyHelpTopic?:  string;   // localStorage key for the last help topic
   tabs:                  RightTab[]; // ordered list of right-panel tabs to show
 }
@@ -814,7 +826,7 @@ The three possible tabs:
 | `'graph'` | `GraphView` | Both playgrounds (receives `graphName` prop) |
 | `'graph-data'` | `GraphDataView` | Both playgrounds (receives `graphName` prop) |
 
-The help panel is **not** a tab. It is a resizable overlay rendered inside `RightPanel` when `supportsHelp` is true and `helpOpen` is set. Its split position and maximised state are persisted in `localStorage`.
+The help panel is **not** a tab. It is a resizable overlay rendered inside `RightPanel` when `supportsHelp` is true and `helpOpen` is set. Open state and each playground's active topic are persisted in `localStorage`; split position and maximised state are persisted for the browser tab in `sessionStorage`.
 
 ---
 
@@ -962,9 +974,13 @@ Disconnect cleanup: when `connected` flips to false, pending debounce timers are
 
 #### `useAutoHelpNavigate`
 
-Subscribes to `bus.on('command.helpOrDescribe')`. When the echo is a bundled `help` topic, calls `onTabSwitch()` to open the help panel and sets `activeHelpTopic` via `setHelpTopic`. Both server-echoed and locally-appended help command echoes classify identically, so the hook works for both connected and disconnected local-help paths.
+Subscribes to `bus.on('command.helpOrDescribe')` when Help is enabled. When the echo resolves inside the active content profile, calls `onTabSwitch()` to open the help panel and sets `activeHelpTopic` via `setHelpTopic`. Both server-echoed and locally-appended help command echoes classify identically; profile filtering prevents JSON-Path from opening Minigraph-only topics.
 
 `useAutoMarkdownPin` has been removed. `describe` responses are console-driven and are not captured by the help panel.
+
+#### `useGraphRunWorkflow`
+
+Minigraph-only state machine for toolbar-driven graph execution. It sends the existing `instantiate graph`, `upload mock data`, and `run` text commands, then advances only from typed ProtocolBus lifecycle events. Run stays locked until instance creation and any required `input.body` upload are acknowledged. Graph mutation/export, identity changes, session reset, connection-epoch changes, disconnect, and loss of host ownership invalidate Ready or quarantine an outstanding response. Because the text protocol has no correlation id, upload success/cancel also carries the modal's exact invitation path and cannot complete a different workflow-owned prompt.
 
 #### `useLargePayloadDownload`
 
@@ -972,9 +988,7 @@ Subscribes to `bus.on('payload.large')`. An `isFetchingRef` ([L25](../src/hooks/
 
 #### `useAutoMockUpload`
 
-Subscribes to `bus.on('upload.invitation')` ([L31](../src/hooks/useAutoMockUpload.ts#L31)). Uses `pendingModalRef` ([L22](../src/hooks/useAutoMockUpload.ts#L22)) as a first-match guard — only the first invitation in a batch opens the modal. A `modalOpen: boolean` prop ([L8](../src/hooks/useAutoMockUpload.ts#L8)) tracks the modal's open/closed state; a dedicated clearing effect ([L26](../src/hooks/useAutoMockUpload.ts#L26)) resets `pendingModalRef` to `false` when `modalOpen` flips from `true` to `false`, so the next server invitation will trigger the modal normally.
-
-Note: the `connected` prop is still accepted for interface symmetry with peer hooks but has no effect on the hook's behaviour — its JSDoc describes exactly why the watermark pattern was **not** reset on disconnect (replaying stale invitations on reconnect would be worse than missing a new one).
+Subscribes to `bus.on('upload.invitation')` and delegates every exact endpoint path to `useMockUploadModal`. The modal hook keeps one active path plus a deduplicated FIFO of later invitations, so a graph-workflow prompt is not silently lost behind an already-open manual prompt. Closing or completing the current modal advances to the next path; lifecycle invalidation can remove one exact active or queued path without disturbing another modal.
 
 #### `useGraphSaveName`
 
@@ -1700,7 +1714,7 @@ Source maps are enabled for production (`sourcemap: true`).
 1. Add the type string to `NODE_ACCENT` in `graphTransformer.ts` (gives it an accent colour)
 2. Add the type to `TYPE_META` in `NodeTypes.tsx` (gives it an icon and label)
 3. Add the type to the `nodeTypes` export in `NodeTypes.tsx` (maps it to `MinigraphNode`)
-4. (Optionally) add it to the MiniMap `colorMap` in `GraphView.tsx`
+4. (Optionally) add it to the MiniMap `NODE_COLORS` map in `GraphMinimap.tsx`
 5. If the new type should be **segregated when orphaned** (not connected to any edge), add it to `SEGREGATED_ROW_ORDER` in `graphTransformer.ts` and handle it in `classifyNode()`. Connected nodes of any type always participate in the main BFS flow regardless of classification
 
 ### Add a new mutation command to auto-refresh

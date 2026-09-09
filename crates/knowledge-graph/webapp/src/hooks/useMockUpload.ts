@@ -23,7 +23,7 @@ export interface UseMockUploadReturn {
 /**
  * Owns the fetch lifecycle for a mock-data upload POST request.
  *
- * Keeping this logic out of the modal component means MockUploadModal is a
+ * Keeping this logic out of the panel component means MockUploadPanel is a
  * pure renderer and this hook is independently testable.
  *
  * Design decisions:
@@ -34,7 +34,7 @@ export interface UseMockUploadReturn {
  *    surfaced in the console or toast — that decision belongs to Playground.tsx.
  *  - On failure (non-2xx or network error): calls `onError` with a message
  *    of the form "HTTP 400 — <server response body>" or the caught error message.
- *  - `isUploading` is set false before calling callbacks so the modal can
+ *  - `isUploading` is set false before calling callbacks so the panel can
  *    re-enable its button immediately on error (for retry) or unmount on success.
  */
 export function useMockUpload({

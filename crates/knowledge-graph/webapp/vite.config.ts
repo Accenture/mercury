@@ -21,7 +21,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id: string) => {
-          if (id.includes('react-router-dom')) return 'vendor-router';
+          // react-router v8 is a single package (react-router-dom retired);
+          // the substring also matches the old name if it ever returns.
+          if (id.includes('react-router')) return 'vendor-router';
           if (id.includes('@xyflow/react')) return 'vendor-xyflow';
           if (id.includes('react-markdown') || id.includes('remark-gfm')) return 'vendor-markdown';
           if (id.includes('react-json-view-lite')) return 'vendor-json-view';

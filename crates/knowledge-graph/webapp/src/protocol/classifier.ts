@@ -20,6 +20,12 @@ import {
   parseSessionCommandResult,
   parseSessionNotification,
 } from '../session/sessionParser';
+import {
+  isGraphInstanceCleared,
+  parseCommandError,
+  parseGraphInstanceCreated,
+  parseGraphRunTerminal,
+} from '../graphRun/graphRunProtocol';
 
 export const SESSION_RESTARTED_MSG = 'Session restarted';
 
@@ -150,7 +156,37 @@ export function classifyMessage(msgId: number, raw: string): ProtocolEvent[] {
     });
   }
 
-  // ── Rule 7a: Minigraph node-action text result ────────────────────────────
+  // ── Rule 7a: Graph run lifecycle ─────────────────────────────────────────
+  const instanceCreated = parseGraphInstanceCreated(raw);
+  if (instanceCreated) {
+    events.push({
+      ...base,
+      kind: 'graph.instance.created',
+      mockEntries: instanceCreated.mockEntries,
+      ttlMs: instanceCreated.ttlMs,
+    });
+  }
+
+  if (isGraphInstanceCleared(raw)) {
+    events.push({ ...base, kind: 'graph.instance.cleared' });
+  }
+
+  const runTerminal = parseGraphRunTerminal(raw);
+  if (runTerminal) {
+    events.push({
+      ...base,
+      kind: 'graph.run.terminal',
+      status: runTerminal.status,
+      elapsedMs: runTerminal.elapsedMs,
+    });
+  }
+
+  const commandError = parseCommandError(raw);
+  if (commandError) {
+    events.push({ ...base, kind: 'command.error', message: commandError });
+  }
+
+  // ── Rule 7b: Minigraph node-action text result ────────────────────────────
   const nodeActionResult = parseNodeActionTextResult(raw);
   if (nodeActionResult) {
     events.push({
@@ -164,7 +200,7 @@ export function classifyMessage(msgId: number, raw: string): ProtocolEvent[] {
     });
   }
 
-  // ── Rule 7b: Backward-compatible create-node text result ─────────────────
+  // ── Rule 7c: Backward-compatible create-node text result ─────────────────
   if (
     nodeActionResult &&
     (nodeActionResult.action === 'create-node' || nodeActionResult.status === 'error')
@@ -178,13 +214,13 @@ export function classifyMessage(msgId: number, raw: string): ProtocolEvent[] {
     });
   }
 
-  // ── Rule 7c: Session reset ────────────────────────────────────────────────
+  // ── Rule 7d: Session reset ────────────────────────────────────────────────
   if (raw === SESSION_RESTARTED_MSG) {
     matchedSession = true;
     events.push({ ...base, kind: 'session.reset' });
   }
 
-  // ── Rule 7d: Session collaboration text events ──────────────────────────
+  // ── Rule 7e: Session collaboration text events ──────────────────────────
   const sessionStarted = parseSessionStarted(raw);
   if (sessionStarted) {
     matchedSession = true;

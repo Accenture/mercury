@@ -1,5 +1,5 @@
 import { extractHelpTopic } from './helpTopic';       // src/utils/helpTopic.ts
-import { getHelpContent } from '../data/helpContent'; // src/data/helpContent.ts
+import { getHelpContent, type HelpContentProfile } from '../data/helpContent'; // src/data/helpContent.ts
 
 /**
  * Resolves the bundled help topic key for a command, or null if the command
@@ -13,10 +13,11 @@ import { getHelpContent } from '../data/helpContent'; // src/data/helpContent.ts
 export function resolveBundledHelpTopic(
   commandText: string,
   supportsHelp: boolean,
+  contentProfile: HelpContentProfile = 'minigraph',
 ): string | null {
   if (!supportsHelp) return null;
   const lower = commandText.trim().toLowerCase();
   if (lower !== 'help' && !lower.startsWith('help ')) return null;
   const topic = extractHelpTopic(commandText);          // strips "help " prefix + lowercases
-  return getHelpContent(topic) !== null ? topic : null; // null when not bundled
+  return getHelpContent(topic, contentProfile) !== null ? topic : null; // null when not bundled
 }

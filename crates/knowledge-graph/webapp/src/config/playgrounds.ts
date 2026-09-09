@@ -12,6 +12,7 @@
 // tabs each playground shows.  We import only the type so there is no runtime
 // dependency from config → component.
 import type { RightTab } from '../components/RightPanel/RightPanel';
+import type { HelpContentProfile } from '../data/helpContent';
 
 // ---------------------------------------------------------------------------
 // Shared runtime limits (used by both the hook and the UI)
@@ -44,12 +45,14 @@ export interface PlaygroundConfig {
   storageKeySavedGraphs?: string;   // localStorage key for graphs saved from the Graph Data tab (omit to hide the feature)
   supportsUpload?:       boolean;    // true when the backend supports POST /api/json/content/{id} upload
   supportsClipboard?:    boolean;    // true when clip/paste features are enabled (Minigraph only)
-  supportsHelp?:         boolean;    // true when the help panel is available (Minigraph only)
+  supportsHelp?:         boolean;    // true when the shared help panel is available
+  helpContentProfile?:   HelpContentProfile; // content/navigation profile rendered by HelpBrowser
   supportsAuthoring?:    boolean;    // true when UI graph authoring is enabled (Minigraph only)
+  supportsGraphRun?:     boolean;    // true when Graph toolbar Run/Instantiate controls are enabled (Minigraph only)
   supportsSessionCollaboration?: boolean; // true when the Session collaboration dropdown is enabled
   /**
    * localStorage key for the last-viewed help topic.
-   * Only used when the playground includes the 'help' tab.
+   * Only used when the playground enables the help panel.
    * Omit to use a static fallback key (not recommended for production configs).
    */
   storageKeyHelpTopic?:  string;
@@ -75,9 +78,12 @@ export const PLAYGROUND_CONFIGS: PlaygroundConfig[] = [
     storageKeyPayload: 'jsonpath-last-payload',
     storageKeyHistory: 'jsonpath-command-history',
     storageKeyTab: 'jsonpath-right-tab',
+    storageKeyHelpTopic: 'jsonpath-help-topic',
     supportsUpload: true,
-    // JSON-Path needs a payload input and graph views.
-    tabs: ['payload', 'graph', 'graph-data'],
+    supportsHelp: true,
+    helpContentProfile: 'json-path',
+    // JSON-Path is a payload tool — it renders no graph views.
+    tabs: ['payload'],
   },
   {
     path: '/',
@@ -91,7 +97,9 @@ export const PLAYGROUND_CONFIGS: PlaygroundConfig[] = [
     storageKeyHelpTopic: 'minigraph-help-topic',
     supportsClipboard: true,
     supportsHelp: true,
+    helpContentProfile: 'minigraph',
     supportsAuthoring: true,
+    supportsGraphRun: true,
     supportsSessionCollaboration: true,
     // Minigraph works with graph commands and text responses; it has no payload input.
     tabs: ['graph', 'graph-data'],

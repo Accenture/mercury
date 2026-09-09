@@ -75,6 +75,7 @@
 
 @media (max-width: 768px) {
   .toastContainer {
+    bottom: var(--pg-graph-overlay-safe-bottom);
     left: 1rem;
     right: 1rem;
     max-width: none;

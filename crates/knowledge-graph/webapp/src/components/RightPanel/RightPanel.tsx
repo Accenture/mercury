@@ -8,6 +8,7 @@ import { type ValidationResult } from '../../utils/validators';
 import type { MinigraphGraphData, MinigraphNode, MinigraphConnection } from '../../utils/graphTypes';
 import type { GraphClipItem } from '../GraphView/selectionTargets';
 import type { ConnectionRemovalRequest } from '../../graphActions/connectionEdits';
+import type { GraphRunControlsProps } from '../GraphToolbar/GraphRunControls';
 
 export type RightTab = 'payload' | 'graph' | 'graph-data';
 
@@ -29,6 +30,7 @@ interface RightPanelProps {
   onGraphDataCopySuccess?: () => void;
   /** Called when the clipboard write fails from the Graph Data tab. */
   onGraphDataCopyError?:   () => void;
+  graphRunControls?:       GraphRunControlsProps;
   /** When true, forwards the loading-overlay state to GraphView. */
   isGraphRefreshing?:      boolean;
   /** Callback for "Clip to Workspace" from a single-node context menu in GraphView. */
@@ -76,6 +78,7 @@ export default function RightPanel({
   onGraphRenderError,
   onGraphDataCopySuccess,
   onGraphDataCopyError,
+  graphRunControls,
   isGraphRefreshing,
   onClipNode,
   onClipNodes,
@@ -96,9 +99,22 @@ export default function RightPanel({
   const graphPanelId     = `${uid}-tab-graph`;
   const graphDataPanelId = `${uid}-tab-graph-data`;
 
+  const helpPanelActive = !!helpPanel;
+  const helpSizeRef = useRef(
+    Number(sessionStorage.getItem(STORAGE_KEY)) || DEFAULT_HELP_PCT
+  );
+  const helpPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const tabPanelRef  = useRef<PanelImperativeHandle | null>(null);
+  const [helpMaximized, setHelpMaximized] = useState(
+    () => sessionStorage.getItem(MAXIMIZED_KEY) === '1'
+  );
+  const helpMaximizedRef = useRef(helpMaximized);
+
   const tabContent = (
     <div className={styles.rightPanel}>
-      {/* Tab strip — only tabs listed in `tabs` are rendered */}
+      {/* Tab strip — only tabs listed in `tabs` are rendered; a single-tab
+          playground needs no strip at all (nothing to switch between). */}
+      {tabs.length > 1 && (
       <div className={styles.tabStrip} role="tablist" aria-label="Right panel tabs">
         {tabs.includes('payload') && (
           <button
@@ -137,6 +153,7 @@ export default function RightPanel({
           </button>
         )}
       </div>
+      )}
 
       {/* Payload Editor tab body — only mounted when enabled for this playground */}
       {tabs.includes('payload') && (
@@ -172,9 +189,11 @@ export default function RightPanel({
               isRefreshing={isGraphRefreshing}
               onCopySuccess={onGraphDataCopySuccess}
               onCopyError={onGraphDataCopyError}
+              graphRunControls={graphRunControls}
               onClipNode={onClipNode}
               onClipNodes={onClipNodes}
               onClipboardDrop={onClipboardDrop}
+              isActive={activeTab === 'graph'}
               isConnected={isConnected}
               supportsAuthoring={supportsAuthoring}
               onCreateNode={onCreateNode}
@@ -214,19 +233,6 @@ export default function RightPanel({
   //   • help open/close toggles (ref persists — RightPanel stays mounted)
   //   • playground navigation   (sessionStorage survives Playground remount)
   // sessionStorage clears on tab close, matching server-session lifetime.
-  const helpSizeRef = useRef(
-    Number(sessionStorage.getItem(STORAGE_KEY)) || DEFAULT_HELP_PCT
-  );
-
-  const helpPanelRef = useRef<PanelImperativeHandle | null>(null);
-  const tabPanelRef  = useRef<PanelImperativeHandle | null>(null);
-
-  // Restore maximized state from sessionStorage so close/reopen preserves it.
-  const [helpMaximized, setHelpMaximized] = useState(
-    () => sessionStorage.getItem(MAXIMIZED_KEY) === '1'
-  );
-  const helpMaximizedRef = useRef(helpMaximized);
-
   const handleHelpSplitChanged = useCallback((layout: Record<string, number>) => {
     const helpSize = layout['help-split-help'];
     if (helpSize === undefined) return;
@@ -267,7 +273,6 @@ export default function RightPanel({
   // When the help panel reopens in maximized state, the Group remounts with
   // defaultSize from helpSizeRef (the resting size).  Imperatively resize to
   // 100% after mount so the visual state matches the persisted flag.
-  const helpPanelActive = !!helpPanel;
   useEffect(() => {
     if (helpPanelActive && helpMaximizedRef.current) {
       // Defer to next frame so the panel refs are populated after mount.

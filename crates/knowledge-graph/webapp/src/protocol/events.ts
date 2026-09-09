@@ -117,6 +117,27 @@ export interface GraphExportFailedEvent extends ProtocolEventBase {
   reason: 'invalid-name' | 'root-name-conflict';
 }
 
+export interface GraphInstanceCreatedEvent extends ProtocolEventBase {
+  kind: 'graph.instance.created';
+  mockEntries: number;
+  ttlMs: number;
+}
+
+export interface GraphInstanceClearedEvent extends ProtocolEventBase {
+  kind: 'graph.instance.cleared';
+}
+
+export interface GraphRunTerminalEvent extends ProtocolEventBase {
+  kind: 'graph.run.terminal';
+  status: 'completed' | 'aborted';
+  elapsedMs: number | null;
+}
+
+export interface CommandErrorEvent extends ProtocolEventBase {
+  kind: 'command.error';
+  message: string;
+}
+
 /** Catch-all for messages that match no other classifier rule. */
 export interface UnclassifiedEvent extends ProtocolEventBase {
   kind: 'unclassified';
@@ -164,6 +185,10 @@ export type ProtocolEvent =
   | NodeActionTextResultEvent
   | GraphExportedEvent
   | GraphExportFailedEvent
+  | GraphInstanceCreatedEvent
+  | GraphInstanceClearedEvent
+  | GraphRunTerminalEvent
+  | CommandErrorEvent
   | LargePayloadEvent
   | UploadInvitationEvent
   | UploadContentPathEvent

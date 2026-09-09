@@ -1,18 +1,27 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import styles from './MockUploadModal.module.css';
+import styles from './MockUploadPanel.module.css';
 import { tryParseJSON } from '../../utils/messageParser';
 import { formatJSON } from '../../utils/validators';
 import { useMockUpload } from '../../hooks/useMockUpload';
+import CloseIcon from '../../icons/CloseIcon.svg?react';
 
-interface MockUploadModalProps {
+interface MockUploadPanelProps {
   /** The POST path extracted from the server message, e.g. "/api/mock/ws-417669-24" */
   uploadPath: string;
-  /** Called (with the drained response body) on a 2xx response. */
-  onSuccess: (responseBody: string) => void;
-  /** Called to close the modal. Playground restores focus. */
-  onClose: () => void;
+  /** Called with the drained response body and owning path on a 2xx response. */
+  onSuccess: (responseBody: string, uploadPath: string) => void;
+  /** Called with the owning path to close the panel. Playground restores focus. */
+  onClose: (uploadPath: string) => void;
   /** Called with a human-readable error string on failure. */
   onError: (errorMessage: string) => void;
+  /** Optional workflow-specific title. Defaults to the manual mock-upload title. */
+  title?: string;
+  /** Optional context shown above the JSON editor. */
+  description?: string;
+  /** Derived graph paths shown as non-authoritative input hints. */
+  inputPathHints?: string[];
+  /** Submit action label. Defaults to the existing Upload action. */
+  submitLabel?: string;
 }
 
 // Derive macOS status once — no hook needed; navigator APIs are synchronous.
@@ -48,13 +57,32 @@ function validateFileType(file: File): string | null {
   return null;
 }
 
-export function MockUploadModal({ uploadPath, onSuccess, onClose, onError }: MockUploadModalProps) {
+/**
+ * Mock-data upload form rendered in the left panel slot (the console's
+ * space) instead of a modal — the same in-place pattern as NodeEditPanel:
+ * Esc / Cancel / a successful upload closes the session and the slot
+ * returns to whatever it held before (console back if it was open,
+ * full-width graph if hidden). consoleOpen itself is never touched.
+ *
+ * Serves both entry points: the manual re-open button on a console
+ * invitation row, and the graph-run workflow's "Mock Graph Input" step
+ * (title / description / hints / submit label come in as props).
+ */
+export default function MockUploadPanel({
+  uploadPath,
+  onSuccess,
+  onClose,
+  onError,
+  title = '⬆️ Upload Mock Data',
+  description,
+  inputPathHints = [],
+  submitLabel = 'Upload',
+}: MockUploadPanelProps) {
   const [json,        setJson]        = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [fileError,   setFileError]   = useState<string | null>(null);
   const [isDragOver,  setIsDragOver]  = useState(false);
 
-  const dialogRef   = useRef<HTMLDialogElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,48 +98,33 @@ export function MockUploadModal({ uploadPath, onSuccess, onClose, onError }: Moc
   const { isUploading, upload, cancel } = useMockUpload({
     uploadPath,
     json,
-    onSuccess,
+    onSuccess: (responseBody) => onSuccess(responseBody, uploadPath),
     onError: (msg) => {
       setUploadError(msg);   // inline error banner
       onError(msg);          // Playground fires a toast
     },
   });
 
-  // ── Open the native dialog on mount ─────────────────────────────────────
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (!dialog.open) {
-      dialog.showModal();
-    }
-    // Focus the textarea after the dialog is shown
-    textareaRef.current?.focus();
-
-    return () => {
-      // Gracefully close the dialog on unmount to avoid "dialog already closed" warnings.
-      if (dialog.open) {
-        dialog.close();
-      }
-    };
-  }, []);
-
   // ── Close handling ───────────────────────────────────────────────────────
   const handleClose = useCallback(() => {
     cancel();
-    onClose(); // Playground unmounts the component and restores focus.
-  }, [cancel, onClose]);
+    onClose(uploadPath); // Playground unmounts the component and restores focus.
+  }, [cancel, onClose, uploadPath]);
 
-  // Distinguish backdrop click (target === dialog element) from inner content.
-  const handleBackdropClick = useCallback((e: React.MouseEvent<HTMLDialogElement>) => {
-    if (e.target === dialogRef.current) {
-      handleClose();
-    }
-  }, [handleClose]);
-
-  // Browser fires `cancel` event on Escape — delegate to our close handler.
-  const handleCancel = useCallback((e: React.SyntheticEvent<HTMLDialogElement>) => {
-    e.preventDefault(); // prevent automatic dialog.close() — we control unmounting
-    handleClose();
+  // Focus the editor on mount; Escape closes the panel and restores the
+  // previous left-panel content (same contract as NodeEditPanel). An upload
+  // in flight blocks Esc, exactly like the disabled Cancel button.
+  const isUploadingRef = useRef(isUploading);
+  useEffect(() => { isUploadingRef.current = isUploading; }, [isUploading]);
+  useEffect(() => {
+    textareaRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      if (!isUploadingRef.current) handleClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleClose]);
 
   // ── Upload handling ──────────────────────────────────────────────────────
@@ -198,37 +211,43 @@ export function MockUploadModal({ uploadPath, onSuccess, onClose, onError }: Moc
   const showValidationError = !isValidJson && json.trim() !== '';
 
   return (
-    <dialog
-      ref={dialogRef}
-      className={styles.dialog}
-      aria-modal="true"
-      aria-labelledby="mock-upload-modal-title"
-      onClick={handleBackdropClick}
-      onCancel={handleCancel}
-    >
-      <div className={styles.modalInner} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.root}>
+      <section className={styles.card} aria-label={title}>
 
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className={styles.modalHeader}>
-          <div className={styles.modalTitleGroup}>
-            <span id="mock-upload-modal-title" className={styles.modalTitle}>
-              ⬆️ Upload Mock Data
-            </span>
-            <span className={styles.modalPath}>{uploadPath}</span>
+        {/* ── Header ribbon ──────────────────────────────────────────── */}
+        <header className={styles.ribbon}>
+          <div className={styles.titleGroup}>
+            <span className={styles.title}>{title}</span>
+            <span className={styles.path}>{uploadPath}</span>
           </div>
           <button
-            className={styles.closeButton}
+            className={styles.ribbonClose}
             onClick={handleClose}
-            aria-label="Close upload modal"
-            title="Close"
+            aria-label="Close upload panel"
+            title="Close (Esc)"
             disabled={isUploading}
           >
-            ✕
+            <CloseIcon className={styles.ribbonCloseIcon} aria-hidden="true" focusable="false" />
           </button>
-        </div>
+        </header>
 
         {/* ── Body ───────────────────────────────────────────────────── */}
-        <div className={styles.modalBody}>
+        <div className={styles.body}>
+
+          {description && <p className={styles.description}>{description}</p>}
+
+          {inputPathHints.length > 0 && (
+            <div className={styles.inputHints} aria-label="Referenced graph input paths">
+              <span className={styles.inputHintsLabel}>Referenced input paths</span>
+              <div className={styles.inputHintList}>
+                {inputPathHints.slice(0, 6).map(path => <code key={path}>{path}</code>)}
+                {inputPathHints.length > 6 && (
+                  <span className={styles.moreHints}>+{inputPathHints.length - 6} more</span>
+                )}
+              </div>
+              <span className={styles.inputHintsNote}>Hints are derived from graph references.</span>
+            </div>
+          )}
 
           {/* ── Drop zone ──────────────────────────────────────────── */}
           <div
@@ -295,7 +314,7 @@ export function MockUploadModal({ uploadPath, onSuccess, onClose, onError }: Moc
             </span>
           )}
           <span className={styles.keyboardHint}>
-            {isMac ? '⌘+Enter to upload' : 'Ctrl+Enter to upload'}
+            {isMac ? `⌘+Enter to ${submitLabel.toLowerCase()}` : `Ctrl+Enter to ${submitLabel.toLowerCase()}`}
           </span>
           {uploadError && (
             <div className={styles.errorBanner} role="alert">
@@ -305,7 +324,7 @@ export function MockUploadModal({ uploadPath, onSuccess, onClose, onError }: Moc
         </div>
 
         {/* ── Footer ─────────────────────────────────────────────────── */}
-        <div className={styles.modalFooter}>
+        <footer className={styles.footer}>
           <button
             className={styles.formatButton}
             onClick={handleFormat}
@@ -332,14 +351,13 @@ export function MockUploadModal({ uploadPath, onSuccess, onClose, onError }: Moc
               {isUploading ? (
                 <><span className={styles.spinner} aria-hidden="true" /> Uploading…</>
               ) : (
-                'Upload ▶'
+                submitLabel === 'Upload' ? 'Upload ▶' : submitLabel
               )}
             </button>
           </div>
-        </div>
+        </footer>
 
-      </div>
-    </dialog>
+      </section>
+    </div>
   );
 }
-

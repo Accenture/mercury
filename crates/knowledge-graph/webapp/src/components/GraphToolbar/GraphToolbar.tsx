@@ -1,5 +1,6 @@
 import { useCallback, type ReactNode } from 'react';
 import type { MinigraphGraphData } from '../../utils/graphTypes';
+import { CopyIcon } from '../../icons/GraphToolbarIcons';
 import styles from './GraphToolbar.module.css';
 
 interface GraphToolbarProps {
@@ -44,12 +45,13 @@ export default function GraphToolbar({
       <div className={styles.toolbarActions}>
         {extraActions}
         <button
-          className={styles.toolbarButton}
+          type="button"
+          className={`${styles.toolbarButton} ${styles.toolbarIconButton}`}
           onClick={handleCopy}
           title="Copy raw graph JSON to clipboard"
           aria-label="Copy raw graph JSON to clipboard"
         >
-          📑
+          <CopyIcon className={styles.toolbarIcon} aria-hidden="true" focusable="false" />
         </button>
       </div>
     </div>
