@@ -2727,3 +2727,34 @@ export/orphan honesty (neither export nor the CompileGraph gate checks connectiv
 the extension target asymmetry with the delegate's wrapped error object shape. Two
 adversarial verify rounds (engine-source refuters with live probes) ran before commit; every
 surviving finding — including three of this round's own over-claims — was applied.
+
+## Increment 106 — Playground webapp lock-step: the two UI arcs (2026-09-08)
+
+`crates/knowledge-graph/webapp/` replaced wholesale from the Java repo at its main
+`af9f5600` (Java PRs #330 + #331), carrying both Playground UI polishing arcs: the
+console hide/restore toggle, overlap-free content-sized node layout with measured
+relayout, thumbnail/expanded node modes, the in-place "magnified node" editor for
+create and edit (the pop-up dialogs are deleted — the Playground has zero modals),
+Neo4j-style connection authoring (body = move, halo ring = connect; anchored relation
+popover), selectable edges with per-relation right-click deletion planned as
+direction-correct compounds, frontend-only undo via paced compensating console
+commands, and panel-aware graph auto-fit. Engine-layout spots preserved per the
+continuity convention (deploy/clean targets, help glob, fixture imports, the graph.js
+README line). Verified live against THIS engine: per-relation delete, reverse-direction
+preservation and undo reproduce the Java behavior exactly — the engine-identical
+console messages carried the undo executor's mutation-confirmation pacing unchanged
+(254 webapp tests, identical totals to the Java repo).
+
+## Increment 107 — eq/ne: two values + ignoreCase/ignoreType modifiers (2026-09-08)
+
+Lock-step twin of Java PR #332: the `eq`/`ne` simple plugins now compare exactly two
+values (consistent with `gt`/`lt`; the chained all-equal-to-first form is removed) with
+optional 3rd/4th modifiers — `ignoreCase` (strings compare case-insensitively) and
+`ignoreType` (compares the `String.valueOf` text forms: "123" == 123, "true" == true).
+The shared `equals_with_modifiers` helper reuses the crate's parity primitives
+(`conversions::display`, the `to_lowercase()` case-fold idiom); error strings match the
+Java engine byte-for-byte. The `types.yml` fixture re-mirrored byte-identical and
+`flow_runtime` asserts all eleven new keys. Side lesson: CI runs current stable and the
+local toolchain must track it — a 1.95-vs-1.98 rustfmt disagreement over match-arm
+block wrapping failed the format gate until the dispatch was restructured to a shape
+both vintages format identically (and `rustup update stable` closed the skew).

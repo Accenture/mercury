@@ -11,6 +11,44 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Version 4.12.4, 9/8/2026
+
+### Added
+
+- The `eq` and `ne` simple plugins accept **optional `ignoreCase` / `ignoreType`
+  modifiers** in argument positions 3 and 4: `text(ignoreCase)` compares two strings
+  case-insensitively; `text(ignoreType)` compares the text forms of the two values,
+  allowing the relaxed comparison of numbers and booleans — `"123" == 123`,
+  `"123.456" == 123.456` and `"true" == true`; both together compare the text forms
+  case-insensitively. Lock-step with the Java engine, including error messages
+  (Increment 107).
+- **MiniGraph Playground UI overhaul** (webapp lock-step, Increment 106): an in-place
+  "magnified node" editor for creating and editing nodes (the pop-up dialogs are gone —
+  zero modals), console hide/restore, thumbnail/expanded node modes, an overlap-free
+  content-sized graph layout, Neo4j-style connection authoring (halo-ring drag or
+  click-to-connect, anchored relation popover), selectable edges with per-relation
+  right-click deletion planned as direction-correct compounds, frontend undo
+  (Ctrl/Cmd+Z and per-toast Undo via compensating console commands), and panel-aware
+  graph auto-fit. Verified live against this engine: the compounds and undo pacing ride
+  the engine-identical console messages unchanged.
+- **Claims-fixture gate** (ADR-0018, the Java ADR-0023 twin; Increment 105): 20
+  documentation behavior claims registered in `docs/guides/claims-registry.json`, each
+  pinned to a named engine test; `scripts/check-doc-claims.py` verifies sentence and pin
+  in both the docs and rust workflows. Landed with the sibling sweep of the AI-grammar
+  coverage-study findings, each item re-verified against this engine before editing.
+
+### Changed
+
+- **`eq` and `ne` compare exactly two values**, consistent with `gt`/`lt`. The previous
+  open-ended chained form (three or more plain values, all equal to the first) is
+  removed — a 3rd/4th argument must now be a modifier. Breaking only for flows that
+  used the chained form; the two-value form is unchanged.
+- Documentation: the white paper and deck are finalized as **the Mercury Story**
+  (`docs/mercury-story.md` + the self-contained HTML deck, retitled Intent-Driven
+  Development) with the cross-engine benchmark study — the deck owns this engine's
+  measurements first-person and cross-references the Java economics.
+
+---
 ## Version 4.12.3, 9/4/2026
 
 ### Added
