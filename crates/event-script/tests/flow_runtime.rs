@@ -1219,6 +1219,11 @@ async fn flows_run_end_to_end_like_java() {
         body.get_element("concat"),
         Some(Value::from("Hello World!"))
     );
+    // a null operand renders as "null" (String.valueOf semantics; Java-engine parity)
+    assert_eq!(
+        body.get_element("concat_null"),
+        Some(Value::from("Hellonull World!"))
+    );
     assert_eq!(body.get_element("isNull"), Some(Value::Boolean(true)));
     assert_eq!(body.get_element("isNotNull"), Some(Value::Boolean(true)));
     // binary conversion produced real bytes (Java byte[] parity)
