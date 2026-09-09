@@ -6,9 +6,10 @@ import {
   resolveCategory,
   getCategoryPages,
   getChipLabel,
-  ORDERED_HELP_PAGES,
-  HELP_CATEGORIES,
+  getHelpCategories,
+  getOrderedHelpPages,
   type HelpCategory,
+  type HelpContentProfile,
 } from '../../data/helpContent';
 import { useHelpScrollNavigation } from '../../hooks/useHelpScrollNavigation';
 import styles from './HelpBrowser.module.css';
@@ -24,6 +25,8 @@ interface HelpBrowserProps {
   onToggleMaximize?: () => void;
   /** Whether the help panel is currently maximized. */
   isMaximized?: boolean;
+  /** Selects the playground-specific content and navigation set. */
+  contentProfile?: HelpContentProfile;
 }
 
 /**
@@ -58,7 +61,14 @@ function extractTopicFromListText(text: string): string | null {
   return topic.length > 0 ? topic : null;
 }
 
-export default function HelpBrowser({ activeTopic, onNavigate, onClose, onToggleMaximize, isMaximized }: HelpBrowserProps) {
+export default function HelpBrowser({
+  activeTopic,
+  onNavigate,
+  onClose,
+  onToggleMaximize,
+  isMaximized,
+  contentProfile = 'minigraph',
+}: HelpBrowserProps) {
   const scrollRef         = useRef<HTMLDivElement>(null);
   const helpRootRef       = useRef<HTMLDivElement>(null);
   const contentWrapperRef = useRef<HTMLDivElement>(null);
@@ -82,20 +92,31 @@ export default function HelpBrowser({ activeTopic, onNavigate, onClose, onToggle
   }, [activeTopic]);
 
   // ── Category-scoped navigation ────────────────────────────────────────────
-  const activeCategory: HelpCategory = resolveCategory(activeTopic);
-  const categoryPages = useMemo(() => getCategoryPages(activeCategory), [activeCategory]);
+  const helpCategories = useMemo(
+    () => getHelpCategories(contentProfile),
+    [contentProfile]
+  );
+  const orderedHelpPages = useMemo(
+    () => getOrderedHelpPages(contentProfile),
+    [contentProfile]
+  );
+  const activeCategory: HelpCategory = resolveCategory(activeTopic, contentProfile);
+  const categoryPages = useMemo(
+    () => getCategoryPages(activeCategory, contentProfile),
+    [activeCategory, contentProfile]
+  );
   const categoryTotal = categoryPages.length;
 
   // Label rendered inside the chip strip before the topic chips (e.g. "Chapters").
   const chipStripLabel = useMemo(
-    () => HELP_CATEGORIES.find(cat => cat.id === activeCategory)?.chipStripLabel ?? null,
-    [activeCategory]
+    () => helpCategories.find(cat => cat.id === activeCategory)?.chipStripLabel ?? null,
+    [activeCategory, helpCategories]
   );
 
   // Index within the GLOBAL page list (for cross-category scroll wrapping).
-  const globalIndex = ORDERED_HELP_PAGES.indexOf(activeTopic);
+  const globalIndex = orderedHelpPages.indexOf(activeTopic);
   const safeGlobalIndex = globalIndex < 0 ? 0 : globalIndex;
-  const globalTotal = ORDERED_HELP_PAGES.length;
+  const globalTotal = orderedHelpPages.length;
 
   // ── Scroll-navigation hook (uses global index for cross-category wrap) ────
   useHelpScrollNavigation({
@@ -104,22 +125,22 @@ export default function HelpBrowser({ activeTopic, onNavigate, onClose, onToggle
     contentWrapperRef,
     currentIndex: safeGlobalIndex,
     totalPages:   globalTotal,
-    onNavigatePrev: () => onNavigate(ORDERED_HELP_PAGES[safeGlobalIndex - 1] ?? ''),
+    onNavigatePrev: () => onNavigate(orderedHelpPages[safeGlobalIndex - 1] ?? ''),
     onNavigateNext: () =>
       onNavigate(
-        ORDERED_HELP_PAGES[safeGlobalIndex + 1] ??
-        ORDERED_HELP_PAGES[ORDERED_HELP_PAGES.length - 1]!
+        orderedHelpPages[safeGlobalIndex + 1] ??
+        orderedHelpPages[orderedHelpPages.length - 1]!
       ),
   });
 
-  const content = getHelpContent(activeTopic);
+  const content = getHelpContent(activeTopic, contentProfile);
 
   // Reusable custom `li` renderer — makes list items that match "help <topic>"
   // clickable buttons so the user can navigate without typing in the console.
   const liRenderer = ({ children, ...props }: React.ComponentPropsWithoutRef<'li'>) => {
     const text = extractTextContent(children).trim();
     const topic = extractTopicFromListText(text);
-    if (topic !== null && getHelpContent(topic) !== null) {
+    if (topic !== null && getHelpContent(topic, contentProfile) !== null) {
       return (
         <li {...props}>
           <button
@@ -140,7 +161,7 @@ export default function HelpBrowser({ activeTopic, onNavigate, onClose, onToggle
       {/* ── Category tabs ──────────────────────────────────────────────── */}
       <nav className={styles.categoryNav} aria-label="Help categories">
         <div className={styles.categoryTabScroller}>
-          {HELP_CATEGORIES.map(cat => (
+          {helpCategories.map(cat => (
             <button
               key={cat.id}
               className={[
@@ -149,7 +170,7 @@ export default function HelpBrowser({ activeTopic, onNavigate, onClose, onToggle
               ].join(' ').trim()}
               aria-current={cat.id === activeCategory ? 'true' : undefined}
               onClick={() => {
-                const pages = getCategoryPages(cat.id);
+                const pages = getCategoryPages(cat.id, contentProfile);
                 onNavigate(pages[0] ?? '');
               }}
             >

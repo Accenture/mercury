@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
-  Controls,
   ControlButton,
   useNodesState,
   useEdgesState,
@@ -28,9 +27,11 @@ import type { ConnectionRemovalRequest } from '../../graphActions/connectionEdit
 import { hasClipboardItemType, readClipboardItemId } from '../../clipboard/dnd';
 import { findNodeByAlias, extractDirectConnections } from '../../clipboard/helpers';
 import GraphToolbar from '../GraphToolbar/GraphToolbar';
+import GraphRunControls, { type GraphRunControlsProps } from '../GraphToolbar/GraphRunControls';
 import GraphContextMenu from './GraphContextMenu';
 import NodeContextMenu from './NodeContextMenu';
 import EdgeContextMenu from './EdgeContextMenu';
+import GraphMinimap from './GraphMinimap';
 import GraphMultiSelectTip from './GraphMultiSelectTip';
 import {
   filterAliasesToGraphNodes,
@@ -48,6 +49,7 @@ interface GraphViewProps {
   onCopySuccess?:  () => void;
   /** Called when the clipboard write fails. */
   onCopyError?:    () => void;
+  graphRunControls?: GraphRunControlsProps;
   onRenderError?:  (message: string) => void;
   /** When true, renders a semi-transparent overlay with a spinner to indicate a background re-fetch. */
   isRefreshing?:   boolean;
@@ -55,6 +57,8 @@ interface GraphViewProps {
   onClipNode?:     (node: MinigraphNode, connections: MinigraphConnection[]) => void;
   onClipNodes?:    (items: GraphClipItem[]) => void;
   onClipboardDrop?: (itemId: string) => void;
+  /** Whether the Graph tab is currently visible and may handle graph-only hotkeys. */
+  isActive:        boolean;
   isConnected:     boolean;
   supportsAuthoring?: boolean;
   onCreateNode?:   (source: 'empty-graph' | 'pane-context-menu') => void;
@@ -93,11 +97,13 @@ export default function GraphView({
   graphName,
   onCopySuccess,
   onCopyError,
+  graphRunControls,
   onRenderError,
   isRefreshing = false,
   onClipNode,
   onClipNodes,
   onClipboardDrop,
+  isActive,
   isConnected,
   supportsAuthoring = false,
   onCreateNode,
@@ -127,6 +133,7 @@ export default function GraphView({
   const [clipboardDragActive, setClipboardDragActive] = useState(false);
   const [tipVisible, setTipVisible] = useState(false);
   const [tipFading, setTipFading] = useState(false);
+  const [minimapOpen, setMinimapOpen] = useState(false);
   const clipboardDragDepthRef = useRef(0);
   const tipShownRef = useRef(false);
   const tipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -528,6 +535,7 @@ export default function GraphView({
             graphName={graphName}
             onCopySuccess={onCopySuccess}
             onCopyError={onCopyError}
+            extraActions={graphRunControls ? <GraphRunControls {...graphRunControls} /> : undefined}
           />
         )}
 
@@ -645,7 +653,11 @@ export default function GraphView({
               }}
             >
               <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="rgba(255,255,255,0.07)" />
-              <Controls showInteractive={false}>
+              <GraphMinimap
+                open={minimapOpen}
+                onOpenChange={setMinimapOpen}
+                hotkeyEnabled={isActive}
+              >
                 {/* Thumbnail / expanded node detail toggle — lives with the
                     other view controls (+ / − / fit). */}
                 <ControlButton
@@ -667,7 +679,7 @@ export default function GraphView({
                     )}
                   </span>
                 </ControlButton>
-              </Controls>
+              </GraphMinimap>
             </ReactFlow>
           ) : (
             <div className={styles.empty}>

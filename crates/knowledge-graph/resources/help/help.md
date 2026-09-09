@@ -23,6 +23,11 @@ process the data attributes of other nodes (the "data entities").
 
 For more information about each feature, try the following help topics.
 
+Keyboard shortcuts
+------------------
+- `Ctrl + M` - Toggle the minimap while viewing the Graph tab
+- `Ctrl + backtick` - Toggle the Help panel
+
 For graph model
 ---------------
 - help create (node)

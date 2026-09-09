@@ -1,0 +1,76 @@
+/* ── Floating minimap island ─────────────────────────────────────────────
+   Absolutely positioned inside the React Flow pane; the grip bar is the
+   drag handle (the map surface itself keeps React Flow's pannable
+   viewport-drag behavior). */
+
+.island {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.islandDragging {
+  box-shadow: var(--shadow-lg, var(--shadow-md));
+}
+
+.islandGrip {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: grab;
+  font-size: 0.7rem;
+  font-weight: 600;
+  user-select: none;
+  touch-action: none;
+}
+
+.islandDragging .islandGrip {
+  cursor: grabbing;
+}
+
+.islandGrip:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+.islandGripDots {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.islandGripLabel {
+  letter-spacing: 0.02em;
+}
+
+.minimap {
+  display: block;
+}
+
+.controls {
+  z-index: 6;
+}
+
+.toggleButton:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.toggleButton .toggleIcon {
+  width: 0.75rem;
+  height: 0.75rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}

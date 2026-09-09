@@ -1,3 +1,5 @@
+import { JSON_PATH_OVERVIEW } from './jsonPathHelpContent';
+
 /**
  * All help markdown files bundled as raw strings via Vite's import.meta.glob.
  *
@@ -36,6 +38,16 @@ const FILE_MAP: Record<string, string> = Object.fromEntries(
   Object.entries(RAW_FILES).map(([key, content]) => [toBaseName(key), content])
 );
 
+const JSON_PATH_FILE_MAP: Readonly<Record<string, string>> = {
+  help: JSON_PATH_OVERVIEW,
+};
+
+export type HelpContentProfile = 'minigraph' | 'json-path';
+
+function getFileMap(profile: HelpContentProfile): Readonly<Record<string, string>> {
+  return profile === 'json-path' ? JSON_PATH_FILE_MAP : FILE_MAP;
+}
+
 /**
  * Get the raw markdown string for a given topic key.
  *
@@ -45,9 +57,12 @@ const FILE_MAP: Record<string, string> = Object.fromEntries(
  *               "tutorial 1"      = "help tutorial 1.md"
  * @returns      The raw markdown string, or null if the topic is not found.
  */
-export function getHelpContent(topic: string): string | null {
+export function getHelpContent(
+  topic: string,
+  profile: HelpContentProfile = 'minigraph',
+): string | null {
   const baseName = topic === '' ? 'help' : `help ${topic}`;
-  return FILE_MAP[baseName] ?? null;
+  return getFileMap(profile)[baseName] ?? null;
 }
 
 /**
@@ -90,6 +105,16 @@ export const HELP_CATEGORIES: ReadonlyArray<HelpCategoryInfo> = [
   { id: 'tutorials',      label: 'Tutorials', chipStripLabel: 'Chapters' },
 ];
 
+const JSON_PATH_HELP_CATEGORIES: ReadonlyArray<HelpCategoryInfo> = [
+  { id: 'overview', label: 'Overview' },
+];
+
+export function getHelpCategories(
+  profile: HelpContentProfile = 'minigraph',
+): ReadonlyArray<HelpCategoryInfo> {
+  return profile === 'json-path' ? JSON_PATH_HELP_CATEGORIES : HELP_CATEGORIES;
+}
+
 /**
  * Instance Model topic keys — the smaller of the two command groups.
  * Only these need explicit listing; all other bare commands default
@@ -109,7 +134,11 @@ const INSTANCE_MODEL_TOPICS: ReadonlySet<string> = new Set([
  *   INSTANCE_MODEL_TOPICS          → instance-model
  *   everything else                → graph-model (default for bare commands)
  */
-export function resolveCategory(key: string): HelpCategory {
+export function resolveCategory(
+  key: string,
+  profile: HelpContentProfile = 'minigraph',
+): HelpCategory {
+  if (profile === 'json-path') return 'overview';
   if (key === '')                     return 'overview';
   if (key.startsWith('tutorial '))    return 'tutorials';
   if (key.startsWith('graph-'))       return 'graph-skills';
@@ -123,9 +152,13 @@ export function resolveCategory(key: string): HelpCategory {
  * For 'tutorials', returns topic keys in numeric order (1, 2 … 11).
  * For other categories, returns the alphabetically sorted topic keys.
  */
-export function getCategoryPages(categoryId: HelpCategory): ReadonlyArray<string> {
+export function getCategoryPages(
+  categoryId: HelpCategory,
+  profile: HelpContentProfile = 'minigraph',
+): ReadonlyArray<string> {
   if (categoryId === 'overview') return [''];
-  const pages = HELP_TOPIC_KEYS.filter(key => resolveCategory(key) === categoryId);
+  if (profile === 'json-path') return [];
+  const pages = HELP_TOPIC_KEYS.filter(key => resolveCategory(key, profile) === categoryId);
   if (categoryId === 'tutorials') {
     return [...pages].sort((a, b) => {
       const numA = parseInt(a.replace(/^tutorial\s+/, ''), 10);
@@ -151,5 +184,10 @@ export function getChipLabel(topic: string, category: HelpCategory): string {
  * scroll wrapping. Overview (root) first, then each category in display
  * order, topics within each category in alphabetical order.
  */
-export const ORDERED_HELP_PAGES: ReadonlyArray<string> =
-  HELP_CATEGORIES.flatMap(cat => getCategoryPages(cat.id));
+export function getOrderedHelpPages(
+  profile: HelpContentProfile = 'minigraph',
+): ReadonlyArray<string> {
+  return getHelpCategories(profile).flatMap(cat => getCategoryPages(cat.id, profile));
+}
+
+export const ORDERED_HELP_PAGES: ReadonlyArray<string> = getOrderedHelpPages();

@@ -9,6 +9,8 @@
      padding + 2px tab border + 1px container border = 2.4375rem). */
   --pg-panel-header-row-height: 2.4375rem;
   --pg-panel-control-row-height: 2.5rem;
+  /* 150px MiniMap + 2px border + 15px React Flow panel margin + 9px gap. */
+  --pg-graph-overlay-safe-bottom: 11rem;
 
   /* ── Semantic colours ── */
   --primary-color: #2563eb;

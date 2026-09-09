@@ -3,7 +3,8 @@ import { resolveBundledHelpTopic } from '../localHelpCommand';
 
 // getHelpContent uses import.meta.glob (Vite-only) — mock at the module level.
 vi.mock('../../data/helpContent', () => ({
-  getHelpContent: (topic: string): string | null => {
+  getHelpContent: (topic: string, profile = 'minigraph'): string | null => {
+    if (profile === 'json-path') return topic === '' ? '# JSON-Path Overview' : null;
     // Simulate the bundled topics that exist in resources/help/
     const bundled = new Set(['', 'create', 'export', 'import', 'list',
       'tutorial 1', 'tutorial 2', 'tutorial 3', 'tutorial 4', 'tutorial 5', 'tutorial 6',
@@ -44,5 +45,10 @@ describe('resolveBundledHelpTopic', () => {
 
   it('returns null for a non-help, non-describe command', () => {
     expect(resolveBundledHelpTopic('export graph as foo', true)).toBeNull();
+  });
+
+  it('handles only the Overview command locally for the JSON Path profile', () => {
+    expect(resolveBundledHelpTopic('help', true, 'json-path')).toBe('');
+    expect(resolveBundledHelpTopic('help create', true, 'json-path')).toBeNull();
   });
 });

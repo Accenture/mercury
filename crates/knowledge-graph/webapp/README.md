@@ -216,6 +216,8 @@ The navigation bar in the header has two sections:
 | **Shift+Enter** | Single-line command | New line (no send) |
 | **Ctrl/⌘+Enter** | Multiline command | Send command |
 | **Enter** | Multiline command | New line |
+| **Ctrl + backtick** | Anywhere in a Help-enabled playground | Toggle the Help panel |
+| **Ctrl + M** | Active Minigraph Graph tab | Toggle the graph minimap |
 | **↑** | Command input | Recall previous command from history |
 | **↓** | Command input | Move forward in history (↓ past index 0 clears the field) |
 
@@ -252,11 +254,20 @@ Each playground has its own independent storage keys, so switching between playg
 6. Use dot-bracket notation for simple retrieval: `response.hello` returns `"world"` given `{ "hello": "world" }`.
 7. Use JSONPath for richer queries: `$.response.hello` — see e.g. [SmartBear JSONPath docs](https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html).
 
+After loading a graph, use the toolbar's separate **Instantiate** and **Run** actions. Run remains
+disabled until the backend confirms the instance; graphs that reference `input.body` prompt for JSON
+input before becoming ready. In collaborative sessions, only the host controls this lifecycle.
+
 ### JSON-Path quick start
 
-1. Click **Start** to connect.
-2. Paste any JSON document into the Payload Editor and send `load`.
-3. Enter a JSONPath expression (starting with `$`) in the command input and press **Enter**.
+1. Open the top-right **?** button (or press **Ctrl + backtick**) for a short JSON-Path Overview; this works before connecting.
+2. Click **Start** to connect.
+3. Paste any JSON document into the Payload Editor and send `load`.
+4. Enter a JSONPath expression (starting with `$`) in the command input and press **Enter**.
+
+The JSON-Path Help panel uses the same resizable, maximizable panel as Minigraph, but intentionally
+exposes only its own **Overview** section. While connected, the bare `help` command opens that
+Overview locally; unsupported Minigraph topics continue to the backend.
 
 ---
 

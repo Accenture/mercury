@@ -28,6 +28,13 @@ export interface UseGraphDataReturn {
   /** True while an auto-refresh re-fetch is in-flight (NOT set during initial load). */
   isRefreshing: boolean;
   /**
+   * True once the initial fetch of the CURRENT pinned path has failed
+   * (typically an expired temp model answering HTTP 400 after navigation).
+   * Resets whenever the pinned path changes. Consumed by the session
+   * live-graph restore as its "the model path is a dead end" signal.
+   */
+  initialFetchFailed: boolean;
+  /**
    * Imperatively trigger a re-fetch of the currently pinned graph path.
    * - Does NOT null graphData — stale graph remains visible under the overlay.
    * - Does NOT switch the right tab.
@@ -62,6 +69,11 @@ export interface UseGraphDataReturn {
  * @param storageKeyTab    localStorage key for persisting the selected tab across
  *                         navigation. Each playground supplies its own key so
  *                         selections are independent and survive page refreshes.
+ * @param quietInitialFetchFailure  When true, an initial-load failure sets
+ *                         `initialFetchFailed` without a toast — for playgrounds
+ *                         where the session live-graph restore handles the
+ *                         expected expired-model case (a temp model path answers
+ *                         HTTP 400 about a minute after it was described).
  */
 export function useGraphData(
   pinnedGraphPath: string | null,
@@ -69,8 +81,10 @@ export function useGraphData(
   initialTab: RightTab,
   validTabs: readonly RightTab[],
   storageKeyTab: string,
+  quietInitialFetchFailure = false,
 ): UseGraphDataReturn {
   const [graphData, setGraphData] = useState<MinigraphGraphData | null>(null);
+  const [initialFetchFailed, setInitialFetchFailed] = useState(false);
   // useLocalStorage re-reads from storage whenever `storageKeyTab` changes
   // (playground switch), so the correct persisted tab is restored immediately
   // without any additional synchronisation effect.
@@ -119,6 +133,7 @@ export function useGraphData(
   // the network level (not just guarded by a flag) when the path changes or
   // the component unmounts.
   useEffect(() => {
+    setInitialFetchFailed(false); // each pinned path gets a fresh verdict
     if (!pinnedGraphPath) {
       setGraphData(null);
       return;
@@ -136,15 +151,22 @@ export function useGraphData(
         if (isMinigraphGraphData(json)) {
           setGraphData(json);
           setRightTab('graph'); // auto-switch to Graph tab on success
+        } else {
+          // HTTP 200 with a non-graph body (e.g. an error envelope) is a
+          // dead end too — let the session restore take over quietly.
+          setInitialFetchFailed(true);
         }
       })
       .catch((err: Error) => {
         if (err.name === 'AbortError') return; // intentional cancellation — no toast
-        addToast(`Graph fetch failed: ${err.message}`, 'error');
+        setInitialFetchFailed(true);
+        if (!quietInitialFetchFailure) {
+          addToast(`Graph fetch failed: ${err.message}`, 'error');
+        }
       });
 
     return () => { controller.abort(); };
-  }, [pinnedGraphPath, addToast]);
+  }, [pinnedGraphPath, addToast, quietInitialFetchFailure]);
 
   // ── Imperative re-fetch (auto-refresh path) ─────────────────────────────
   // Empty dep array — this function is intentionally stable across renders.
@@ -191,5 +213,5 @@ export function useGraphData(
     return () => { refetchAbortRef.current?.abort(); };
   }, []);
 
-  return { graphData, setGraphData, rightTab, setRightTab, isRefreshing, refetchGraph };
+  return { graphData, setGraphData, rightTab, setRightTab, isRefreshing, initialFetchFailed, refetchGraph };
 }
