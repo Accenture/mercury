@@ -133,12 +133,16 @@ async fn invalid_arguments_are_rejected() {
     assert!(platform
         .register_route_pool("unit.test.pool.d", echo(), 0)
         .is_err());
+    // a pool needs at least 2 lanes - a single lane is just a private function
+    assert!(platform
+        .register_route_pool("unit.test.pool.d", echo(), 1)
+        .is_err());
     // member names must validate: "{prefix}.{n}" through the standard rules
     assert!(platform
-        .register_route_pool("Unit.Test.Pool", echo(), 1)
+        .register_route_pool("Unit.Test.Pool", echo(), 2)
         .is_err());
     assert!(platform
-        .register_route_pool("unit.test.pool.d.", echo(), 1)
+        .register_route_pool("unit.test.pool.d.", echo(), 2)
         .is_err());
     assert!(!platform.has_route("unit.test.pool.d.0"));
 }
@@ -149,10 +153,10 @@ async fn individual_updates_to_members_are_tolerated_and_cleaned_up() {
     platform
         .register_route_pool("unit.test.pool.e", echo(), 3)
         .expect("pool registration");
-    // an individual release of a member is warned, never refused (house semantics)
+    // an individual release of a member is tolerated, never refused (house semantics)
     assert!(platform.release("unit.test.pool.e.1"));
     assert!(!platform.has_route("unit.test.pool.e.1"));
-    // an individual re-registration over a member reloads it, also warned
+    // an individual re-registration over a member reloads it, also tolerated
     platform
         .register_private("unit.test.pool.e.2", echo(), 1)
         .expect("member reload");

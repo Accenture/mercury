@@ -233,7 +233,6 @@ impl Platform {
         options: FunctionOptions,
     ) -> Result<(), AppError> {
         validate_route(route)?;
-        self.warn_if_pool_member("Registering", route);
         // Java ServiceDef.setConcurrency: Math.max(1, Math.min(n, 1000)) —
         // zero is accepted (→ 1) and the worker count is capped, silently
         // (F10 parity fix, 2026-07-21; previously 0 was rejected and there
@@ -306,7 +305,6 @@ impl Platform {
             .remove(route);
         match removed {
             Some(entry) => {
-                self.warn_if_pool_member("Releasing", route);
                 entry.stop.notify_one();
                 true
             }
@@ -315,7 +313,8 @@ impl Platform {
     }
 
     /// Register a route pool — a set of private singleton routes
-    /// `{prefix}.{n}` for n = 0 to count-1 (Java `Platform.registerRoutePool`).
+    /// `{prefix}.{n}` for n = 0 to count-1, at least 2 lanes (Java
+    /// `Platform.registerRoutePool`).
     /// Each member runs with one worker, so it is a strict FIFO lane; a caller
     /// may check out a lane for exclusive use to preserve event order while
     /// other lanes serve concurrent traffic. One function instance is shared
@@ -332,8 +331,8 @@ impl Platform {
         function: Arc<dyn ComposableFunction>,
         count: usize,
     ) -> Result<Vec<String>, AppError> {
-        if count == 0 {
-            return Err(AppError::new(400, "Route pool count must be at least 1"));
+        if count < 2 {
+            return Err(AppError::new(400, "Route pool count must be at least 2"));
         }
         validate_route(&format!("{prefix}.0"))?;
         let _mutation = self
@@ -359,6 +358,7 @@ impl Platform {
             .write()
             .expect("pool registry poisoned")
             .insert(prefix.to_string(), count);
+        log::info!("Route pool {prefix} with {count} instances started as async tasks");
         Ok(members)
     }
 
@@ -369,8 +369,6 @@ impl Platform {
             .pool_mutations
             .lock()
             .expect("pool mutation lock poisoned");
-        // remove the pool entry first so the member release calls below are
-        // not reported as individual updates to an active pool
         let count = self
             .pools
             .write()
@@ -379,6 +377,7 @@ impl Platform {
         match count {
             Some(count) => {
                 self.release_pool_members(prefix, count);
+                log::info!("Route pool {prefix} stopped");
                 true
             }
             None => false,
@@ -389,41 +388,6 @@ impl Platform {
         for n in 0..count {
             self.release(&format!("{prefix}.{n}"));
         }
-    }
-
-    /// Log a warning when an individual registration or release touches a
-    /// member of a registered route pool (Java `warnIfPoolMember`) — warned,
-    /// never refused (house reload semantics).
-    fn warn_if_pool_member(&self, action: &str, route: &str) {
-        if let Some(pool) = self.pool_of(route) {
-            log::warn!("{action} {route} which belongs to route pool {pool}");
-        }
-    }
-
-    /// The pool a route belongs to, if any: its prefix is registered and its
-    /// last segment is canonical digits (no leading zeros) within the pool's
-    /// range — a neighbor such as `{prefix}.10` beside a count-3 pool is
-    /// never misclassified. The `< 10` digit-length guard mirrors the Java
-    /// twin exactly.
-    fn pool_of(&self, route: &str) -> Option<String> {
-        let dot = route.rfind('.')?;
-        if dot == 0 {
-            return None;
-        }
-        let prefix = &route[..dot];
-        let count = *self
-            .pools
-            .read()
-            .expect("pool registry poisoned")
-            .get(prefix)?;
-        let suffix = &route[dot + 1..];
-        if !suffix.is_empty() && suffix.len() < 10 && suffix.bytes().all(|b| b.is_ascii_digit()) {
-            let n: usize = suffix.parse().ok()?;
-            if suffix == n.to_string() && n < count {
-                return Some(prefix.to_string());
-            }
-        }
-        None
     }
 
     /// Registered route names (sorted, for stable output).
