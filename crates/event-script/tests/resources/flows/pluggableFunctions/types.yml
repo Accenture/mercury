@@ -64,6 +64,7 @@ tasks:
       - 'f:substring(model.text_two, model.substring_start) -> substring_one'
       - 'f:substring(model.text_two, model.substring_start, model.substring_end) -> substring_two'
       - 'f:concat(model.text_one, model.text_two) -> concat'
+      - 'f:concat(model.text_one, model.none, model.text_two) -> concat_null'
       - 'f:b64(model.b64_str) -> model.to_b64_bytes'
       - 'model.to_b64_bytes -> to_b64_bytes'
       - 'f:b64(model.to_b64_bytes) -> to_bytestring'

@@ -647,6 +647,12 @@ mod tests {
             ),
             Ok(Value::from("a b"))
         );
+        // a null operand renders as "null" (String.valueOf semantics; the Java
+        // engine relaxed its getTextValue to match this behavior)
+        assert_eq!(
+            calculate("concat", &[Value::from("a"), Value::Nil, Value::from("b")]),
+            Ok(Value::from("anullb"))
+        );
         assert_eq!(
             calculate(
                 "substring",
