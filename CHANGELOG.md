@@ -11,6 +11,29 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Version 4.12.5, 9/9/2026
+
+### Added
+
+- **Route pool lifecycle logging** (lock-step with the Java engine, Increment 108):
+  registering a route pool logs one INFO — "Route pool {prefix} with {count} instances
+  started as async tasks" — and releasing logs "Route pool {prefix} stopped".
+  `register_route_pool` now requires at least 2 lanes with the same error message as the
+  Java engine, and direct updates to a pool member are tolerated silently (the per-touch
+  warnings are removed).
+
+### Changed
+
+- MiniGraph Playground graph view tuning (webapp lock-step; community contribution in
+  the Java repo, PR #339): a freshly loaded graph fills more of the panel (fit padding
+  0.25 → 0.1), the zoom ceiling rises from 2.5 to 4, and the zoom/pinch behaviors are
+  pinned explicitly. Bundle rebuilt. The webapp also carries the Java engine's
+  dev-dependency refresh (js-yaml 4.3.2, vitest 4.1.11 — test tooling only).
+- The Java engine's field fix for null operands in `f:concat`/`f:text` restores parity
+  with this engine's existing behavior (null renders as "null" text) — now pinned by
+  tests on both sides so the shared semantics cannot drift (Increment 109).
+
+---
 ## Version 4.12.4, 9/8/2026
 
 ### Added

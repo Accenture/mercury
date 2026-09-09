@@ -300,7 +300,7 @@ export default function GraphView({
     // Re-fit even when nothing moved: a detail-mode toggle changes the graph
     // bounds drastically while the estimate layout may already be exact.
     requestAnimationFrame(() => {
-      rfInstanceRef.current?.fitView({ padding: 0.25 });
+      rfInstanceRef.current?.fitView({ padding: 0.1 });
     });
   }, [compactNodes, graphData, nodes, setNodes]);
 
@@ -467,7 +467,7 @@ export default function GraphView({
     let innerFrame: number | null = null;
     const outerFrame = requestAnimationFrame(() => {
       innerFrame = requestAnimationFrame(() => {
-        rfInstanceRef.current?.fitView({ padding: 0.25 });
+        rfInstanceRef.current?.fitView({ padding: 0.1 });
       });
     });
     return () => {
@@ -558,9 +558,18 @@ export default function GraphView({
               onBeforeDelete={handleBeforeDelete}
               nodeTypes={nodeTypes}
               fitView
-              fitViewOptions={{ padding: 0.25 }}
+              fitViewOptions={{ padding: 0.1 }}
               minZoom={0.2}
-              maxZoom={2.5}
+              maxZoom={4}
+              // Trackpad pinch sends wheel events with ctrlKey set; zoomOnPinch
+              // (mobile/tablet multi-touch) and zoomOnScroll (desktop wheel +
+              // trackpad pinch) are spelled out explicitly here — rather than
+              // left as library defaults — so a future React Flow upgrade
+              // can't silently change this behaviour.
+              zoomOnScroll
+              zoomOnPinch
+              zoomOnDoubleClick
+              panOnScroll={false}
               selectionKeyCode="Shift"
               multiSelectionKeyCode={NODE_MULTI_SELECTION_KEYS}
               selectionOnDrag={false}
