@@ -2758,3 +2758,29 @@ Java engine byte-for-byte. The `types.yml` fixture re-mirrored byte-identical an
 local toolchain must track it — a 1.95-vs-1.98 rustfmt disagreement over match-arm
 block wrapping failed the format gate until the dispatch was restructured to a shape
 both vintages format identically (and `rustup update stable` closed the skew).
+
+## Increment 108 — Route pool lifecycle logging (2026-09-09)
+
+Lock-step twin of the Java route-pool logging change: `register_route_pool` requires
+count ≥ 2 with the matching error message ("Route pool count must be at least 2",
+checked before prefix validation), the pool lifecycle logs one INFO each way — "Route
+pool {prefix} with {count} instances started as async tasks" (the Java line says
+kernel/virtual thread; the runner-type token has no analog here) and "Route pool
+{prefix} stopped" — and the member-touch warning twins (`warn_if_pool_member`/`pool_of`)
+are removed; direct member updates stay tolerated, silently. This engine already
+registered routes silently, so no per-member lines needed demoting. Tests pin the new
+floor explicitly and the invalid-prefix cases use count 2 so they still reach route
+validation. Side lesson recorded in continuity: CI runs current stable and the local
+toolchain must track it — a 1.95-vs-1.98 rustfmt skew over match-arm block wrapping
+failed the first format gate.
+
+## Increment 109 — Field-fix twin pins + graph-view tuning mirror (2026-09-09)
+
+The Java engine fixed a field NPE in its text conversion (null operand to `f:concat`),
+restoring parity with THIS engine's existing `display(Nil)` → "null" rendering — pinned
+here so it can never drift (mirrored `types.yml` `concat_null` row asserted in
+`flow_runtime`, plus a `plugins.rs` unit case). The Java round's date-parsing fix has no
+twin (no `str2date`/OffsetDateTime surface here). The webapp mirror carries the
+community graph-view tuning (Java PR #339 by @skofgar): fit padding 0.1, max zoom 4,
+zoom/pinch behaviors pinned explicitly — 254 webapp tests green and the bundle rebuilt
+into `resources/public`.
