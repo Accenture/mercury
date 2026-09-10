@@ -511,7 +511,10 @@ fn upload_ok() -> EventEnvelope {
 }
 
 /// Java `DescribeGraph` (`show.graph.model`): read a draft graph from the
-/// Playground temp folder.
+/// Playground temp folder. The `{sequence}` path parameter is deliberately
+/// NOT part of the resource identity: it is an artificial counter minted per
+/// describe/export reply to defeat browser caching of this URL — the draft
+/// file alone decides.
 pub async fn show_graph_model(event: EventEnvelope) -> Result<EventEnvelope, AppError> {
     let (path_parameters, _, _) = request_view(&event);
     let Some(filename) = path_parameters.get("graph_id") else {
@@ -519,7 +522,12 @@ pub async fn show_graph_model(event: EventEnvelope) -> Result<EventEnvelope, App
     };
     let file = commands::temp_dir().join(format!("{filename}.json"));
     if !file.exists() {
-        return Err(invalid(format!("Draft graph '{filename}' does not exist")));
+        // a nonexistent (or expired) draft answers 404 as if it does not
+        // exist - the deployed-graph "compiled or 404" precedent (Java parity)
+        return Err(AppError::new(
+            404,
+            format!("Draft graph '{filename}' does not exist"),
+        ));
     }
     let text = std::fs::read_to_string(&file).map_err(|e| invalid(e.to_string()))?;
     let parsed: serde_json::Value =

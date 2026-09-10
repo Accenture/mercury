@@ -2811,3 +2811,14 @@ where the inline label carries the correlation). Gated by `graph.traversal.log` 
 true; `-Dgraph.traversal.log=false` to quiet busy installs). Byte-matched wording with the
 Java engine (its `GraphTraversalLoggingTest` pins the trail); here the correlation-label
 fallback is pinned in `model.rs` unit tests.
+
+## Increment 112 — Temp graph-model endpoint answers 404 for a missing draft (2026-09-10)
+
+Maintainer bug ruling: `GET /api/graph/model/{graph_id}/{sequence}` returned 400 for a
+nonexistent or housekeeping-expired draft — a missing resource now answers **404** as if
+it does not exist (the deployed-graph "compiled or 404" precedent), byte-matched with the
+Java engine. The `{sequence}` is documented for what it is: an artificial cache-buster
+minted per describe/export reply, deliberately not part of the resource identity — the
+draft file alone decides. Pinned by `rest_model_endpoint.rs`. The describe/export temp
+snapshot stays a human-operator and companion-agent surface; the Playground UI's move to
+the live session endpoint is the next arc.
