@@ -48,7 +48,7 @@ use crate::plugins_e8::value_type_name;
 /// The number of built-in `#[simple_plugin]` declarations the engine itself
 /// ships (this module + `plugins_e8`) — the startup floor the
 /// `SimplePluginLoader` asserts against linker elision.
-pub const BUILTIN_PLUGIN_COUNT: usize = 48;
+pub const BUILTIN_PLUGIN_COUNT: usize = 50;
 
 /// A plugin body (Java `PluginFunction.calculate`): evaluated argument values
 /// in, one value out; a descriptive error is the Java
@@ -488,6 +488,144 @@ fn plugin_set_config(args: &[Value]) -> Result<Value, String> {
         }
         _ => Ok(Value::Boolean(false)),
     }
+}
+
+/// Key-normalization core for `f:camelCase` / `f:snakeCase` (Java
+/// `KeyNormalizationUtils`): legacy systems — often XML-to-JSON
+/// transformations — deliver maps whose key formats vary per source
+/// (MyExampleKey, My_Example_key, my_example_Key). Both plugins segmentize
+/// each key and re-case the segments, recursively through nested maps and
+/// lists (values are never touched; only keys).
+///
+/// Segmentation: underscore, hyphen and dot are separators; a
+/// lower-case-or-digit to upper-case transition starts a new segment; an
+/// upper-case run followed by a lower-case letter splits before its last
+/// upper-case letter (the acronym rule: XMLKey -> XML + Key). Digits ride
+/// with their segment. Empty segments drop; a key with no segments at all
+/// (e.g. "___") is kept as-is. Colliding normalized keys resolve to the
+/// later entry at the first key's position (Java LinkedHashMap semantics).
+/// Normalization is idempotent.
+fn key_segments(key: &str) -> Vec<String> {
+    let chars: Vec<char> = key.chars().collect();
+    let mut segments = Vec::new();
+    let mut current = String::new();
+    for (i, &c) in chars.iter().enumerate() {
+        if c == '_' || c == '-' || c == '.' {
+            if !current.is_empty() {
+                segments.push(std::mem::take(&mut current));
+            }
+            continue;
+        }
+        if let Some(previous) = current.chars().last() {
+            let lower_to_upper =
+                (previous.is_lowercase() || previous.is_numeric()) && c.is_uppercase();
+            let acronym_end = previous.is_uppercase()
+                && c.is_uppercase()
+                && chars.get(i + 1).is_some_and(|next| next.is_lowercase());
+            if lower_to_upper || acronym_end {
+                segments.push(std::mem::take(&mut current));
+            }
+        }
+        current.push(c);
+    }
+    if !current.is_empty() {
+        segments.push(current);
+    }
+    segments
+}
+
+fn to_camel_case(key: &str) -> String {
+    let segments = key_segments(key);
+    if segments.is_empty() {
+        return key.to_string();
+    }
+    let mut out = segments[0].to_lowercase();
+    for segment in &segments[1..] {
+        let lower = segment.to_lowercase();
+        let mut rest = lower.chars();
+        if let Some(first) = rest.next() {
+            out.extend(first.to_uppercase());
+            out.push_str(rest.as_str());
+        }
+    }
+    out
+}
+
+fn to_snake_case(key: &str) -> String {
+    let segments = key_segments(key);
+    if segments.is_empty() {
+        return key.to_string();
+    }
+    segments
+        .iter()
+        .map(|s| s.to_lowercase())
+        .collect::<Vec<_>>()
+        .join("_")
+}
+
+fn normalize_keys(value: &Value, mapper: fn(&str) -> String) -> Value {
+    match value {
+        Value::Map(entries) => {
+            let mut normalized: Vec<(Value, Value)> = Vec::with_capacity(entries.len());
+            for (key, item) in entries {
+                let name = mapper(&get_text_value(key));
+                let item = normalize_keys(item, mapper);
+                // a collision resolves to the later entry at the first key's
+                // position (Java LinkedHashMap put semantics)
+                if let Some(existing) = normalized
+                    .iter_mut()
+                    .find(|(k, _)| k.as_str() == Some(name.as_str()))
+                {
+                    existing.1 = item;
+                } else {
+                    normalized.push((Value::from(name), item));
+                }
+            }
+            Value::Map(normalized)
+        }
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|item| normalize_keys(item, mapper))
+                .collect(),
+        ),
+        other => other.clone(),
+    }
+}
+
+fn normalize_top_level(
+    args: &[Value],
+    plugin: &str,
+    mapper: fn(&str) -> String,
+) -> Result<Value, String> {
+    let [value] = args else {
+        return Err(format!(
+            "One input is required for {plugin} key normalization"
+        ));
+    };
+    match value {
+        Value::Nil => Err(format!(
+            "Input cannot be null for {plugin} key normalization"
+        )),
+        Value::Map(_) | Value::Array(_) => Ok(normalize_keys(value, mapper)),
+        _ => Err(format!(
+            "Input must be a map or a list for {plugin} key normalization"
+        )),
+    }
+}
+
+/// `f:camelCase(mapOrList)` — normalize every key to camelCase, recursively
+/// (Java `CamelCaseNormalization`).
+#[simple_plugin("camelCase")]
+fn plugin_camel_case(args: &[Value]) -> Result<Value, String> {
+    normalize_top_level(args, "camelCase", to_camel_case)
+}
+
+/// `f:snakeCase(mapOrList)` — normalize every key to snake_case, recursively
+/// (Java `SnakeCaseNormalization`).
+#[simple_plugin("snakeCase")]
+fn plugin_snake_case(args: &[Value]) -> Result<Value, String> {
+    normalize_top_level(args, "snakeCase", to_snake_case)
 }
 #[cfg(test)]
 mod tests {
@@ -1264,5 +1402,95 @@ mod tests {
         overrides::clear("set.config.plugin.direct");
         overrides::clear("set.config.plugin.number");
         overrides::clear("set.config.plugin.flag");
+    }
+
+    /// Twin of the Java `KeyNormalizationTest`: the field's legacy key
+    /// variants converge, the acronym rule, hyphen/dot separators, digits
+    /// riding with their segment, recursion through nested maps and lists,
+    /// last-wins collisions, idempotency, and exact Java-parity error
+    /// messages.
+    #[test]
+    fn key_normalization_matches_java_semantics() {
+        assert!(contains_simple_plugin("camelCase"));
+        assert!(contains_simple_plugin("snakeCase"));
+        let map = |k: &str| Value::Map(vec![(Value::from(k), Value::from(1))]);
+        for variant in ["MyExampleKey", "My_Example_key", "my_example_Key"] {
+            assert_eq!(
+                calculate("camelCase", &[map(variant)]),
+                Ok(map("myExampleKey"))
+            );
+            assert_eq!(
+                calculate("snakeCase", &[map(variant)]),
+                Ok(map("my_example_key"))
+            );
+        }
+        // the acronym rule: an upper-case run splits before its last upper
+        assert_eq!(
+            calculate("camelCase", &[map("myXMLKey")]),
+            Ok(map("myXmlKey"))
+        );
+        assert_eq!(
+            calculate("snakeCase", &[map("customerID")]),
+            Ok(map("customer_id"))
+        );
+        assert_eq!(
+            calculate("camelCase", &[map("XMLHttpRequest")]),
+            Ok(map("xmlHttpRequest"))
+        );
+        // hyphen/dot separators; digits ride with their segment
+        assert_eq!(
+            calculate("camelCase", &[map("my-example.key")]),
+            Ok(map("myExampleKey"))
+        );
+        assert_eq!(
+            calculate("snakeCase", &[map("Address1_Line")]),
+            Ok(map("address1_line"))
+        );
+        // recursion: keys normalize at every depth; values are never touched
+        let nested = Value::Map(vec![(
+            Value::from("Outer_Key"),
+            Value::Array(vec![
+                Value::Map(vec![(Value::from("Item_Name"), Value::from("Some_Value"))]),
+                Value::from("scalar"),
+            ]),
+        )]);
+        let expected = Value::Map(vec![(
+            Value::from("outerKey"),
+            Value::Array(vec![
+                Value::Map(vec![(Value::from("itemName"), Value::from("Some_Value"))]),
+                Value::from("scalar"),
+            ]),
+        )]);
+        assert_eq!(calculate("camelCase", &[nested]), Ok(expected));
+        // collision: the later entry wins, at the first key's position
+        let colliding = Value::Map(vec![
+            (Value::from("MyKey"), Value::from(1)),
+            (Value::from("my_key"), Value::from(2)),
+        ]);
+        assert_eq!(
+            calculate("camelCase", &[colliding]),
+            Ok(Value::Map(vec![(Value::from("myKey"), Value::from(2))]))
+        );
+        // idempotency
+        let once = calculate("camelCase", &[map("My_Example_Key")]).unwrap();
+        assert_eq!(
+            calculate("camelCase", std::slice::from_ref(&once)),
+            Ok(once)
+        );
+        // a key with no segments is kept as-is
+        assert_eq!(calculate("snakeCase", &[map("-.-")]), Ok(map("-.-")));
+        // exact Java-parity error messages
+        assert_eq!(
+            calculate("camelCase", &[]),
+            Err("One input is required for camelCase key normalization".to_string())
+        );
+        assert_eq!(
+            calculate("snakeCase", &[Value::Nil]),
+            Err("Input cannot be null for snakeCase key normalization".to_string())
+        );
+        assert_eq!(
+            calculate("camelCase", &[Value::from("MyKey")]),
+            Err("Input must be a map or a list for camelCase key normalization".to_string())
+        );
     }
 }

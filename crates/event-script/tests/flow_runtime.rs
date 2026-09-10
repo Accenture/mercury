@@ -1255,6 +1255,37 @@ async fn flows_run_end_to_end_like_java() {
         body.get_element("parsed_from_model[1]"),
         Some(Value::from(20))
     );
+    // --- key normalization: f:camelCase / f:snakeCase converge legacy key
+    // variants; keys normalize recursively (incl. maps inside lists) and
+    // values are never touched (Java-engine parity)
+    assert_eq!(
+        body.get_element("camel_map.myExampleKey"),
+        Some(Value::from("1"))
+    );
+    assert_eq!(
+        body.get_element("camel_map.customerId"),
+        Some(Value::from("2"))
+    );
+    assert_eq!(
+        body.get_element("snake_map.my_example_key"),
+        Some(Value::from("1"))
+    );
+    assert_eq!(
+        body.get_element("snake_map.customer_id"),
+        Some(Value::from("2"))
+    );
+    assert_eq!(
+        body.get_element("camel_dotted.myExampleKey"),
+        Some(Value::from(3))
+    );
+    assert_eq!(
+        body.get_element("camel_dotted.nestedList[0].itemName"),
+        Some(Value::from("Some_Value"))
+    );
+    assert_eq!(
+        body.get_element("snake_list[0].item_name"),
+        Some(Value::from("Some_Value"))
+    );
 
     // --- the setConfig plugin flow (canonical fixture, byte-identical to the
     // Java engine's set-config.yml): task one sets config parameters through

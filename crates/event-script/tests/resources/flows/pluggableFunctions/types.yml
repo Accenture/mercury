@@ -83,6 +83,13 @@ tasks:
       - 'f:json(text({"hello": [1, 2, {"nested": "demo"}]})) -> nested_json'
       - 'text([10, 20, 30]) -> model.json_text'
       - 'f:json(model.json_text) -> parsed_from_model'
+      - 'text(1) -> model.legacy.My_Example_key'
+      - 'text(2) -> model.legacy.customerID'
+      - 'f:json(text({"my-example.key": 3, "Nested_List": [{"Item_Name": "Some_Value"}]})) -> model.dotted'
+      - 'f:camelCase(model.legacy) -> camel_map'
+      - 'f:snakeCase(model.legacy) -> snake_map'
+      - 'f:camelCase(model.dotted) -> camel_dotted'
+      - 'f:snakeCase(model.dotted.Nested_List) -> snake_list'
     process: 'no.op'
     output:
       - 'text(application/json) -> output.header.content-type'
