@@ -2784,3 +2784,30 @@ twin (no `str2date`/OffsetDateTime surface here). The webapp mirror carries the
 community graph-view tuning (Java PR #339 by @skofgar): fit padding 0.1, max zoom 4,
 zoom/pinch behaviors pinned explicitly — 254 webapp tests green and the bundle rebuilt
 into `resources/public`.
+
+## Increment 110 — Playground webapp lock-step: Help profiles, run controls, minimap island (2026-09-09)
+
+Wholesale webapp mirror of the Java PR #341 arc (merged here as PR #247): profile-based
+Help (JSON-Path Overview), backend-acknowledged Instantiate/Run controls with the in-place
+"Mock Graph Input" panel (zero modals), the draggable minimap island with persisted
+position, JSON-Path as a payload-only playground, per-content left-panel width defaults on
+a versioned layout key, and the session live-graph restore (`GET /api/graph/session/{id}`
+when a pinned temp-model path expires). The sync convention was amended: `helpContent.ts`
+and the localHelpCommand test now carry feature content, so they are PORTED (Java file +
+re-applied Rust path lines) instead of preserved wholesale; the Rust `help.md` keeps its
+deliberately divergent prose and received only the Keyboard-shortcuts addition. 324 webapp
+tests green — matching the Java suite exactly — and the bundle rebuilt into
+`resources/public` (index hash legitimately differs: the help markdown is glob-inlined).
+
+## Increment 111 — Stepwise traversal logging for deployed graph execution (2026-09-09)
+
+Field request: the dry-run traveler's stepwise narration, now emitted by the production
+`graph.executor` as INFO log lines — "Walk to {node}", "Executed {node} with skill {skill}
+in {time} ms", "Graph traversal completed in {time} ms", "Graph traversal aborted:
+{reason}" — labeled with the graph id and the run's trace id (fallback: flow instance id)
+so OTel dashboards join app logs with exported spans; with `log.format=json|compact` the
+app-context-log adds the structured context alongside (it is disabled in `text` format,
+where the inline label carries the correlation). Gated by `graph.traversal.log` (default
+true; `-Dgraph.traversal.log=false` to quiet busy installs). Byte-matched wording with the
+Java engine (its `GraphTraversalLoggingTest` pins the trail); here the correlation-label
+fallback is pinned in `model.rs` unit tests.

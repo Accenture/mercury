@@ -546,6 +546,26 @@ The Playground draft-graph scratch folder. Must be on the local file system
 accepted and stripped. Invalid values fall back to the default. Read by
 `crates/knowledge-graph` (Playground commands).
 
+#### `graph.traversal.log`
+
+| Type | Default |
+|---|---|
+| boolean | `true` |
+
+Stepwise traversal logging for deployed graph execution (`graph.executor`) — the same
+trail the Playground dry-run narrates to its console (`Walk to {node}`, `Executed {node}
+with skill {skill} in {time} ms`, `Graph traversal completed in {time} ms`, and `Graph
+traversal aborted: {reason}` on error), emitted as INFO log lines suffixed with the graph
+id and the run's **trace id** (fallback: the flow instance id when tracing is off) — so an
+OpenTelemetry dashboard can join these app-log lines with the exported spans and metrics.
+The inline label complements the app-context-log feature: with `log.format=json` or
+`compact`, each record additionally carries the structured `context` key-values (span id,
+business correlation id); app-context-log is disabled in plain `text` format (to reduce
+log volume), where the inline trace id keeps the correlation visible regardless. On by
+default; set it to `false` (for example with the runtime override
+`-Dgraph.traversal.log=false`) to reduce log volume on busy installations. Read by
+`crates/knowledge-graph` (executor). Java parity: identical wording and gate.
+
 #### `graph.max.loop.interval`
 
 | Type | Default |

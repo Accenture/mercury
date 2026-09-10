@@ -39,6 +39,9 @@ struct Metadata {
     correlation_id: Option<String>,
     flow_instance_id: Option<String>,
     reply_to: Option<String>,
+    /// The distributed trace id of the event that started this run, when
+    /// tracing is on — the traversal log's preferred correlation label.
+    trace_id: Option<String>,
     /// The dry-run watcher slot: "owner-run-correlation-id|timer-id" —
     /// owner-tagged so a stale watcher can never act on a newer run.
     run_watcher: Option<String>,
@@ -161,6 +164,29 @@ impl GraphInstance {
             .flow_instance_id = Some(instance_id.to_string());
     }
 
+    /// The run's distributed trace id, when tracing is on (Java parity).
+    pub fn get_trace_id(&self) -> Option<String> {
+        self.metadata
+            .lock()
+            .expect("graph metadata")
+            .trace_id
+            .clone()
+    }
+
+    pub fn set_trace_id(&self, trace_id: &str) {
+        if !trace_id.trim().is_empty() {
+            self.metadata.lock().expect("graph metadata").trace_id = Some(trace_id.to_string());
+        }
+    }
+
+    /// The traversal log's correlation label: the run's trace id, so an OTel
+    /// dashboard can join these app-log lines with the exported spans and
+    /// metrics; falls back to the flow instance id when tracing is off.
+    pub fn correlation_label(&self) -> String {
+        self.get_trace_id()
+            .unwrap_or_else(|| self.get_flow_instance_id())
+    }
+
     pub fn get_reply_to(&self) -> String {
         self.metadata
             .lock()
@@ -207,4 +233,26 @@ pub fn remove_instance(id: &str) -> Option<Arc<GraphInstance>> {
         .write()
         .expect("graph instances poisoned")
         .remove(id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The traversal log labels lines with the trace id so OTel dashboards
+    /// can join app logs with spans; an untraced run falls back to the flow
+    /// instance id (Java `GraphExecutor.correlationLabel` parity).
+    #[test]
+    fn correlation_label_prefers_trace_id_and_falls_back_to_flow_instance() {
+        let instance = GraphInstance::new("unit-test");
+        instance.set_flow_instance_id("flow-1");
+        assert_eq!(instance.correlation_label(), "flow-1");
+
+        instance.set_trace_id("  "); // blank trace ids are ignored
+        assert_eq!(instance.get_trace_id(), None);
+        assert_eq!(instance.correlation_label(), "flow-1");
+
+        instance.set_trace_id("trace-abc");
+        assert_eq!(instance.correlation_label(), "trace-abc");
+    }
 }
