@@ -11,6 +11,48 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Version 4.12.6, 9/10/2026
+
+### Added
+
+- **`f:camelCase` and `f:snakeCase` key-normalization simple plugins** (lock-step with
+  the Java engine, Increment 115): legacy systems — often XML-to-JSON transformations —
+  deliver the same logical key as `MyExampleKey`, `My_Example_key`, or `my_example_Key`.
+  The plugins segmentize each key (underscore/hyphen/dot separators; case transitions
+  with the acronym rule — `myXMLKey` becomes `myXmlKey` / `my_xml_key`) and re-case
+  recursively through nested maps and lists; values are never touched, and normalization
+  is idempotent. Beyond legacy cleanup they do impedance matching between key
+  conventions. Identical algorithm, error messages, and shared flow fixture.
+- **Stepwise traversal logging for deployed graph execution** (field request,
+  Increments 111 and 114): the production `graph.executor` emits the dry-run traveler's
+  trail as INFO structured records (`{id, text, graph}`, where `id` is the run's trace
+  id, falling back to the flow instance id) so OTel dashboards can join app logs with
+  exported spans; json/compact formats embed the record as indexable key-values. Gated
+  by `graph.traversal.log` (default `true`). The executor runs zero-traced, so the
+  app-log-context block never accompanies these lines — the record's `id` key is the
+  correlation surface.
+
+### Fixed
+
+- The temp graph-model endpoint (`GET /api/graph/model/{graph_id}/{sequence}`) answered
+  400 for a nonexistent or housekeeping-expired draft — a missing resource now answers
+  **404** as if it is not there (the deployed-graph "compiled or 404" precedent,
+  Increment 112). The `{sequence}` is documented as an artificial cache-buster,
+  deliberately not resource identity.
+
+### Changed
+
+- **Playground webapp lock-step** (Increments 110 and 113, wholesale mirrors of the
+  Java repo's arcs): the UX modernization (Help panel, draggable minimap island, graph
+  run controls, in-place left-slot panels for node authoring and mock graph input,
+  JSON-Path as a payload-only tool, frontend-only undo — Java PR #341 with
+  maintainer-guided rounds), and the UI's switch to the **live session graph**
+  (`GET /api/graph/session/{id}`) as its single graph source — no `describe graph`
+  round-trip or temp-file link for the view; `describe graph` / `export graph` stay
+  human-operator console commands. Bundle rebuilt; the webapp also carries the Java
+  repo's vendor-router chunk fix and nanoid audit bump.
+
+---
 ## Version 4.12.5, 9/9/2026
 
 ### Added
