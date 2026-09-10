@@ -685,7 +685,7 @@ export default function GraphView({
             <div className={styles.empty}>
               <span className={styles.emptyIcon}>🕸️</span>
               <span>No graph data yet.</span>
-              <span>Run <strong>describe graph</strong> or <strong>export graph</strong> in the playground.</span>
+              <span>Run <strong>create node</strong> or <strong>import graph from</strong> in the playground — the view follows the live session graph.</span>
               {supportsAuthoring && onCreateNode && (
                 <>
                   <button

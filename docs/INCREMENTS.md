@@ -2822,3 +2822,16 @@ minted per describe/export reply, deliberately not part of the resource identity
 draft file alone decides. Pinned by `rest_model_endpoint.rs`. The describe/export temp
 snapshot stays a human-operator and companion-agent surface; the Playground UI's move to
 the live session endpoint is the next arc.
+
+## Increment 113 — Playground UI reads the live session graph (2026-09-10)
+
+Wholesale webapp lock-step with the Java engine's same-day change (Eric's design): the
+graph view's single source is now `GET /api/graph/session/{id}` — initial load,
+SPA-return restore, and mutation auto-refresh all fetch the live session graph directly,
+with no `describe graph` round-trip and no temp-file link. `describe graph` /
+`export graph` stay human-operator (and companion-agent) console commands with their
+snapshot + link untouched; clicking a console link row live-refetches and shows the
+Graph tab. Retired UI machinery: the pinned model path, the session-restore fallback
+hook, and the expired-model special-casing. Verified against this engine on the packaged
+bundle: mount fetch, mutation refetches, and away-and-back restore all served by
+`get.live.graph` with zero browser console errors.

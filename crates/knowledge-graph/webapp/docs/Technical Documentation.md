@@ -48,7 +48,7 @@
 7. [Key Engineering Decisions](#7-key-engineering-decisions)
 8. [Data & Message Flows](#8-data--message-flows)
    - 8.1 [User Sends a Command](#81-user-sends-a-command)
-   - 8.2 [User Pins a Graph](#82-user-pins-a-graph)
+   - 8.2 [User Clicks a Graph-Link Row](#82-user-clicks-a-graph-link-row)
    - 8.3 [Auto-Refresh After Mutation](#83-auto-refresh-after-mutation)
    - 8.4 [Large Payload Flow](#84-large-payload-flow)
    - 8.5 [REST Upload Handshake](#85-rest-upload-handshake)
@@ -139,7 +139,7 @@ Switching between the Minigraph and JSON-Path playgrounds does **not** close eit
 ### 3.3 Interactive Console (REPL-like)
 - Messages are printed in real time with type-based icons (ℹ️ ❌ 👋)
 - JSON messages are rendered as a collapsible tree (`react-json-view-lite`)
-- Graph-link messages (🕸️) are clickable to pin the graph
+- Graph-link messages (🕸️) are clickable to bring up the current graph (the view renders from the live session endpoint; the link URL itself remains a human-facing snapshot)
 - Plain-text messages (📌) are clickable to pin them to the Markdown Preview
 - Per-row copy button; command history navigation with ↑/↓ arrow keys
 - **History-based autocomplete dropup** — as the user types, matching history entries appear in a dropup above the textarea; Tab or Enter accepts the highlighted suggestion; Escape dismisses it
@@ -160,33 +160,29 @@ Switching between the Minigraph and JSON-Path playgrounds does **not** close eit
 ---
 
 ### 3.4 Graph Visualisation
-- Fetched via REST (`GET /api/graph/model/{graph_id}/{sequence}`) after the server emits a graph-link in the WebSocket stream
+- Fetched via REST from the **live session endpoint** (`GET /api/graph/session/{id}`) — the graph as the backend WebSocket session holds it right now; the session id arrives via the `session` round-trip on mount
 - Rendered with **ReactFlow**: nodes are colour-coded by type (`Root`, `End`, `Fetcher`, `mapper`, `Math`, `JavaScript`, `Provider`, `Dictionary`, `Join`, `Extension`, `Island`, `Decision`), edges show relation labels
 - Nodes are **resizable** (NodeResizer) and can be re-arranged interactively
-- A compact **minimap toggle** extends React Flow's bottom-left control stack. The overview is collapsed by default, opens beside the controls, supports viewport panning, and can be toggled with `Ctrl + M` without intercepting text input. A one-shot, pause-aware three-second hint introduces the shortcut only while the Graph tab is actually visible; mobile toasts honor the shared graph-overlay safe area
+- A compact **minimap toggle** extends React Flow's bottom-left control stack. The overview is collapsed by default, opens as a draggable floating island (position persisted, clamped on pane resize), supports viewport panning, and can be toggled with `Ctrl + M` without intercepting text input
 - A **refreshing overlay** (spinner) is displayed during background re-fetches without clearing the existing graph
 - The **graph toolbar** displays a resolved graph name (root node name → save-name fallback → "Untitled"), with node/connection counts revealed on hover. Minigraph also renders separate **Instantiate** and **Run** controls before Copy; backend acknowledgements, current graph identity, connection epoch, input upload completion, and host-session ownership gate their lifecycle
 - **Orphan node segregation** — nodes not participating in any connection are classified by type and placed in horizontal rows below the main flow: Dictionary → Provider → Module → Entity → unknown catch-all
 - **Cycle detection & back-edge routing** — cycles in the graph are detected via iterative DFS; back-edges (edges pointing from a deeper level to a shallower one) are excluded from BFS level assignment so the layout doesn't loop infinitely. Back-edges are still rendered: they exit from the **left** side of the source node and enter the **right** side of the target node (the reverse of forward edges), producing a natural backward-arcing bezier curve. Handles on each side are sorted by peer y-position and interleaved (forward + back-edge) to prevent crossing
 
-**Live-session REST shortcut**
+**The live session endpoint is the graph view's single source**
 
-The backend also exposes `GET /api/graph/session/{id}` for the active WebSocket session id. This returns the same exported graph structure directly from the in-memory session model, without issuing `describe graph`, without writing a temp file, and without depending on a graph-link message.
+`GET /api/graph/session/{id}` returns the exported graph structure directly from the in-memory session model — no `describe graph` round-trip, no temp file, no graph-link dependency. The UI addresses it with the session id captured by the `session` round-trip on mount, and re-fetches it after graph mutations. A fresh session exports a zero-node graph and an unknown/closed session answers HTTP 404; both are treated quietly as "no graph" (the canvas empty state), never as errors.
 
-This endpoint is additive. The current frontend graph-loading flow still depends on the file-backed graph-link contract:
-- the server emits `/api/graph/model/{graph_id}/{sequence}` from `describe graph`
-- the frontend extracts only `/api/graph/model/...` links and pins that path for graph loading
-
-So `/api/graph/session/{id}` is currently a backend shortcut for direct consumers, not a replacement for the existing WebSocket-driven graph refresh flow.
+The file-backed temp-model links (`/api/graph/model/{graph_id}/{sequence}`, minted per `describe graph` / `export graph` reply with an artificial cache-busting `{sequence}`) remain a **human-operator console surface**: the console renders them as clickable rows and the URL can be opened directly for a raw JSON snapshot, but the frontend no longer pins or fetches them to render the view.
 
 **Key code locations:**
 - `src/utils/graphTypes.ts` [L1–L47](../src/utils/graphTypes.ts#L1) — `MinigraphGraphData`, `MinigraphNode`, `MinigraphConnection` types + `isMinigraphGraphData()` type guard
 - `src/hooks/useGraphData.ts` [L7–L20](../src/hooks/useGraphData.ts#L7) — `normalizeRightTab()`: validates the persisted tab value against the current playground's `tabs` list and migrates stale entries (for example legacy `"preview"`) to a safe fallback before render
-- `src/hooks/useGraphData.ts` [L66–L144](../src/hooks/useGraphData.ts#L66) — normalized right-tab state + initial-load path: reads `storedRightTab` from localStorage, derives a safe `rightTab`, writes the normalized value back when migration is needed, then `fetch(pinnedGraphPath)` → `setGraphData(json)` → `setRightTab('graph')`; clears `graphData` to `null` on path change
-- `src/hooks/useGraphData.ts` [L149–L189](../src/hooks/useGraphData.ts#L149) — `refetchGraph()`: overlay-mode re-fetch; does NOT clear `graphData` (stale graph stays visible), sets `isRefreshing = true`
+- `src/hooks/useGraphData.ts` [L152–L183](../src/hooks/useGraphData.ts#L152) — normalized right-tab state + initial-load path: reads `storedRightTab` from localStorage, derives a safe `rightTab`, writes the normalized value back when migration is needed, then quietly `fetch(sessionGraphPath)` → `setGraphData(graph)` → `setRightTab('graph')` only when content arrives; clears `graphData` to `null` on path change
+- `src/hooks/useGraphData.ts` [L189–L228](../src/hooks/useGraphData.ts#L189) — `refetchGraph()`: overlay-mode re-fetch of the live endpoint; does NOT clear `graphData` (stale graph stays visible), sets `isRefreshing = true`, reveals the Graph tab when the first content arrives, clears the view when the live graph emptied
 - `../../src/main/java/com/accenture/minigraph/services/GraphCommandService.java` [L234–L238](../../src/main/java/com/accenture/minigraph/services/GraphCommandService.java#L234) — `downloadGraph(id)`: resolves the public session id to the in-memory `inRoute` and returns `graph.exportGraph()`
 - `../../src/main/java/com/accenture/minigraph/rest/GetLiveGraph.java` [L34–L47](../../src/main/java/com/accenture/minigraph/rest/GetLiveGraph.java#L34) — thin REST adapter for `GET /api/graph/session/{id}`
-- `../../src/main/resources/rest.yaml` [L31–L43](../../src/main/resources/rest.yaml#L31) — REST route definitions for both the existing file-backed graph model endpoint and the new live-session endpoint
+- `../../src/main/resources/rest.yaml` [L31–L43](../../src/main/resources/rest.yaml#L31) — REST route definitions for the live-session endpoint (the view's source) and the file-backed graph model endpoint (human-facing snapshots)
 - `src/utils/graphTransformer.ts` — `NODE_ACCENT` colour map + `nodeStyle()` applying `--node-accent` CSS custom property
 - `src/utils/graphTransformer.ts` — `classifyNode()`: classifies each node into a `LayoutCategory` — connected nodes always go to `'flow'`; orphaned nodes are segregated into `'Dictionary'`, `'Provider'`, `'Module'`, `'Entity'`, or `'__unknown__'`
 - `src/utils/graphTransformer.ts` — `computeLayout()`: BFS topological layout with DFS cycle detection and segregated rows for orphan nodes; returns `{ positions, levelOf }`
@@ -195,7 +191,7 @@ So `/api/graph/session/{id}` is currently a backend shortcut for direct consumer
 - `src/components/GraphView/NodeTypes.tsx` — `MinigraphNode`: renders as `<Fragment>` (no wrapper div); `NodeResizer` + forward target handles (left) + back-edge source handles (left) + content + forward source handles (right) + back-edge target handles (right) as siblings
 - `src/components/GraphView/NodeTypes.tsx` — `nodeTypes` export map used by `<ReactFlow nodeTypes={nodeTypes}>`
 - `src/components/GraphView/GraphView.tsx` — `<ReactFlow>` with `fitView`, a single delegated controls stack, the `GraphMinimap` toggle, measured node layout, and `isRefreshing` overlay; accepts `graphName` and optional graph-run controls and threads them to `GraphToolbar`
-- `src/components/GraphView/GraphMinimap.tsx` — owns the collapsed/pannable MiniMap, native toggle button, conflict-safe `Ctrl + M` shortcut, and Help-style onboarding hint; `useMinimapHint.ts` keeps the hint one-shot and pauses its countdown while the graph is hidden
+- `src/components/GraphView/GraphMinimap.tsx` — owns the collapsed/pannable MiniMap as a draggable floating island (grip drag via window pointer listeners, persisted position, ResizeObserver clamping), native toggle button, and conflict-safe `Ctrl + M` shortcut
 - `src/components/GraphToolbar/GraphToolbar.tsx` — displays `graphName` prominently with hover-reveal node/connection stats; accepts `graphName?` prop
 - `src/components/GraphToolbar/GraphRunControls.tsx` — accessible Instantiate/Run actions and lifecycle status tooltips; `useGraphRunWorkflow.ts` serialises existing text commands and mirrors only classified backend outcomes, quarantining stale responses after graph/session/connection changes
 - `src/components/Playground.tsx` — `graphDisplayName` memo: resolves root node's `name` property → `graphSaveName` fallback; threaded via `RightPanel` → `GraphView` / `GraphDataView` → `GraphToolbar`
@@ -203,27 +199,25 @@ So `/api/graph/session/{id}` is currently a backend shortcut for direct consumer
 ---
 
 ### 3.5 Auto-Graph Refresh
-After any graph-mutating command (`create node`, `delete node`, `connect`, etc.), the graph automatically re-fetches and re-renders without user interaction. If no graph was previously loaded, the app issues `describe graph` silently, receives the graph-link, and opens the Graph tab automatically. This is debounced at 300 ms to collapse rapid-fire commands.
+After any graph-mutating command (`create node`, `delete node`, `connect`, etc.), the graph automatically re-fetches from the live session endpoint and re-renders without user interaction — no `describe graph` round-trip, no temp file, no graph-link handshake. This is debounced at 300 ms to collapse rapid-fire commands. If no graph was rendered yet, the first content reveals the Graph tab automatically.
 
-The hook subscribes to `graph.mutation`, `graph.link`, and `session.reset` events on the `ProtocolBus` — it no longer scans the raw message array directly.
+The hook subscribes to `graph.mutation` and `session.reset` events on the `ProtocolBus` — it no longer scans the raw message array directly, and it no longer listens on `graph.link` at all.
 
 Each mutation also emits a toast notification visible in the playground's toast stack:
 - `import-graph` mutation → `'Graph imported — refreshing view…'` (immediate, no debounce)
 - `node-mutation` with an existing graph → `'Graph updated — refreshing…'` (after debounce)
 - `node-mutation` with no graph yet → `'Graph updated — opening Graph tab…'` (after debounce)
 
-**Collaborative session gate-arm timing.** In a collaborative session the backend forwards the primary's `describe graph` response (as a `graph.link`) to all subscribers immediately after the primary processes it. This forwarded response can arrive at a subscriber's client during the 300 ms debounce window — before the subscriber would normally arm `waitingForDescribeRef`. To accept this forwarded link, `waitingForDescribeRef` is set to `true` at **mutation-detection time** (synchronously, before the debounce timer starts), not only inside the debounce callback. The assignment inside the callback is kept as a re-arm for the case where an early forwarded `graph.link` was already accepted and reset the gate to `false` before the debounce fired.
+**Collaborative sessions need no special casing.** Session sync is symmetric — commands propagate to primary and subscribers alike and execute in every member's own backend session, so every member's console shows the same replies, every member's bus emits the same `graph.mutation` events, and every member re-fetches its **own** live session graph. The graph-link forwarding dance (and its `waitingForDescribeRef` gate-arm timing) that the temp-model design required is gone.
 
-**Session reset handling.** When the user runs `session reset`, the backend sends `"Session restarted"`. The classifier emits a `session.reset` event (Rule 7c). The hook's `session.reset` handler cancels any in-flight debounce, resets `waitingForDescribeRef`, and calls `setPinnedGraphPath(null)`. Because `useGraphData` clears `graphData` when `pinnedGraphPath` becomes null, the GraphView is immediately cleared.
+**Session reset handling.** When the user runs `session reset`, the backend sends `"Session restarted"`. The classifier emits a `session.reset` event (Rule 7c). The hook's `session.reset` handler cancels any in-flight debounce and calls `clearGraph()` (→ `setGraphData(null)`), so the GraphView is immediately cleared.
 
 **Key code locations:**
 - `src/utils/messageParser.ts` [L279–L306](../src/utils/messageParser.ts#L279) — `detectMutation()`: classifies a raw message as `'node-mutation'`, `'import-graph'`, or `null`; includes the critical `startsWith('node ')` prefix guard
 - `src/protocol/classifier.ts` — Rule 7: calls `detectMutation()` and emits `graph.mutation` event; Rule 7c: emits `session.reset` for `"Session restarted"` via `SESSION_RESTARTED_MSG` constant
-- `src/hooks/useAutoGraphRefresh.ts` [L32–L36](../src/hooks/useAutoGraphRefresh.ts#L32) — five key refs: `debounceTimerRef`, `waitingForDescribeRef`, `pinnedGraphPathRef`, `connectedRef`, `sendRawTextRef`
-- `src/hooks/useAutoGraphRefresh.ts` [L44–L53](../src/hooks/useAutoGraphRefresh.ts#L44) — disconnect guard: clears `waitingForDescribeRef` and cancels any pending debounce on socket close
-- `src/hooks/useAutoGraphRefresh.ts` [L55–L64](../src/hooks/useAutoGraphRefresh.ts#L55) — `bus.on('graph.link')`: consumes pending graph-link when `waitingForDescribeRef` is true → calls `setPinnedGraphPath(event.apiPath)`
-- `src/hooks/useAutoGraphRefresh.ts` [L65–L110](../src/hooks/useAutoGraphRefresh.ts#L65) — `bus.on('graph.mutation')`: arms `waitingForDescribeRef` immediately at mutation-detection time; fires immediate `describe graph` for `import-graph`; debounced (300 ms) for `node-mutation`, with re-arm inside the timeout; `bus.on('session.reset')`: clears debounce, resets gate, calls `setPinnedGraphPath(null)`
-- `src/hooks/useWebSocket.ts` [L286](../src/hooks/useWebSocket.ts#L286) — `sendRawText()`: sends without echoing to console or history (used exclusively by automation hooks)
+- `src/hooks/useAutoGraphRefresh.ts` [L38–L46](../src/hooks/useAutoGraphRefresh.ts#L38) — four key refs: `debounceTimerRef`, `hasGraphRef`, `connectedRef`, `refetchGraphRef`
+- `src/hooks/useAutoGraphRefresh.ts` [L48–L54](../src/hooks/useAutoGraphRefresh.ts#L48) — disconnect guard: cancels any pending debounce on socket close
+- `src/hooks/useAutoGraphRefresh.ts` [L56–L88](../src/hooks/useAutoGraphRefresh.ts#L56) — `bus.on('graph.mutation')`: fires an immediate live re-fetch for `import-graph`; debounced (300 ms) re-fetch for `node-mutation`; `bus.on('session.reset')`: clears debounce, calls `clearGraph()`
 
 ---
 
@@ -500,7 +494,6 @@ webapp/
 │   │   ├── useSavedGraphs.ts     # localStorage graph bookmark CRUD
 │   │   ├── useSavedGraphWorkflow.ts   # Save/load workflow — export-domain protocol events
 │   │   ├── useGraphSaveName.ts   # Save-form pre-fill name (bus-based; priority: saved > imported > untitled-n)
-│   │   ├── usePinnedGraphPath.ts # Session-bound graph API path (module-scope Map)
 │   │   ├── useSendToJsonPath.ts  # Cross-playground JSON transfer (last-write-wins mailbox)
 │   │   ├── useLocalStorage.ts    # Generic localStorage hook
 │   │   ├── useToast.ts           # Toast notification queue
@@ -760,11 +753,11 @@ Key responsibilities:
 | Cross-playground payload | Separate `useState(null)` (`payloadOverride`) initialised from `ctx.takePendingPayload` at mount; never written to localStorage; wins over stored value when set |
 | Payload validation | `useMemo(() => validatePayload(payload))` — synchronous, no extra render |
 | Toast notifications | `useToast()` — queue-based, auto-removes after timeout |
-| Graph path pinning | `usePinnedGraphPath(wsPath)` — module-scope `Map<string, string | null>` keyed by wsPath; cleared on disconnect via transition-based `useEffect` in Playground.tsx |
+| Live graph source | `sessionGraphPath` derived from `sessionCollaboration.state.sessionId` (`/api/graph/session/{id}`); null until the `session` round-trip answers; the graph view is cleared on disconnect via transition-based `useEffect` in Playground.tsx |
 | Preview message pinning | removed — `MarkdownPreview` and `pinnedMessageId` are deleted |
-| Panel split persistence | `useDefaultLayout` from `react-resizable-panels` — keyed per route path (`config.path + '-panel-split'`) |
+| Panel split persistence | `useDefaultLayout` from `react-resizable-panels` — keyed per route path (`config.path + '-panel-split-v2'`, user drags only); per-mode left-slot defaults applied imperatively (console 40%, node-edit/upload 30%) |
 | Responsive layout | `useMediaQuery('(max-width: 768px)')` → vertical panel stacking on mobile |
-| Clear messages | Clears `pinnedGraphPath`, `successfulUploadPaths`, and `graphData`; does **not** clear `modalUploadPath` (modal stays open if active during clear) |
+| Clear messages | Clears `successfulUploadPaths` and `graphData`; does **not** clear `modalUploadPath` (modal stays open if active during clear) |
 | Cross-playground routing | Three branches: immediate deposit + navigate when JSON-Path is `'connected'`; overwrite `pendingJsonTransferRef` + toast when `'connecting'` (last-write-wins); `pendingJsonTransferRef` + `ctx.connect()` when `'idle'` |
 | Mock-upload modal path | `useState<string \| null>(null)` — `null` = closed; non-null = open for that specific POST endpoint |
 | Modal trigger element | `useRef<HTMLElement \| null>(null)` — captures `document.activeElement` before open; `.focus()` restored on close via `setTimeout` |
@@ -778,9 +771,9 @@ Key responsibilities:
 | Command history for autocomplete | `ws.history` (string array, newest-first) passed as `commandHistory` to `LeftPanel` → `CommandInput` for the history dropup |
 | Classification map threading | `classificationMap` passed to `LeftPanel` → `Console` → `ConsoleMessage` |
 
-**Pinning logic** (`handleGraphLinkMessage`):
+**Graph-link row click** (`handleGraphLinkMessage`):
 - Reads `classificationMap.get(msg.id)` to find pre-classified events
-- If any event has `kind === 'graph.link'` → reads `event.apiPath` to set `pinnedGraphPath` (triggers `useGraphData`) and highlight the row
+- If any event has `kind === 'graph.link'` → `refetchGraph()` (live session endpoint) + `setRightTab('graph')`; the link URL itself stays a human-facing snapshot the user can open directly
 
 ---
 
@@ -832,24 +825,23 @@ The help panel is **not** a tab. It is a resizable overlay rendered inside `Righ
 
 ### 6.7 Graph Pipeline
 
-The journey from a WebSocket message to a rendered graph has four stages:
+The journey from a backend session to a rendered graph has four stages:
 
 ```
-1. Server emits graph-link message in WebSocket stream
-   e.g. "Graph described in /api/graph/model/ws-123-1"
+1. The `session` round-trip on mount answers with the session id
+   → Playground.tsx derives sessionGraphPath = /api/graph/session/{id}
 
-2. messageParser.extractGraphApiPath() → "/api/graph/model/ws-123-1"
-   (either by user clicking the 🕸️ row, or automatically via useAutoGraphRefresh)
-
-3. Playground.tsx sets pinnedGraphPath → useGraphData fires REST fetch
-   GET /api/graph/model/ws-123-1
+2. useGraphData fires the REST fetch (initial load, or a mutation-triggered
+   re-fetch via refetchGraph())
+   GET /api/graph/session/ws-123-4
    Response: { nodes: [...], connections: [...] }
+   (a zero-node graph or HTTP 404 renders the canvas empty state, quietly)
 
-4. graphTransformer.transformGraphData(data)
+3. graphTransformer.transformGraphData(data)
    → ReactFlow nodes[]  (with computed layout positions + per-type styles)
    → ReactFlow edges[]  (with relation labels)
 
-5. GraphView renders <ReactFlow> with the computed nodes/edges
+4. GraphView renders <ReactFlow> with the computed nodes/edges
 ```
 
 #### `src/utils/graphTypes.ts` — Type definitions & type guard
@@ -955,22 +947,21 @@ useEffect (runs once at mount):
   return () => unsub();
 ```
 
-Because `bus` is a stable `useRef` object, the subscription effect runs only once. Hooks read mutable state through refs (e.g. `connectedRef`, `sendRawTextRef`, `pinnedGraphPathRef`) to avoid stale closures without adding dependencies.
+Because `bus` is a stable `useRef` object, the subscription effect runs only once. Hooks read mutable state through refs (e.g. `connectedRef`, `hasGraphRef`, `refetchGraphRef`) to avoid stale closures without adding dependencies.
 
 #### `useAutoGraphRefresh`
 
 Subscribes to:
-- `bus.on('graph.link')` — when `waitingForDescribeRef` is true, consumes the graph path and calls `setPinnedGraphPath`
-- `bus.on('graph.mutation')` — arms `waitingForDescribeRef` **immediately at mutation-detection time** (before the debounce timer starts), then arms a 300 ms debounce timer; when the timer fires it re-arms `waitingForDescribeRef` (in case an early forwarded `graph.link` accepted and reset the gate before the debounce fired), sends `describe graph` silently, and emits an `addToast` notification
-- `bus.on('session.reset')` — cancels any in-flight debounce, resets `waitingForDescribeRef` to false, and calls `setPinnedGraphPath(null)` to clear the stale graph view
+- `bus.on('graph.mutation')` — fires an **immediate** live-endpoint re-fetch for `import-graph`; arms a 300 ms debounce for `node-mutation`, then re-fetches and emits an `addToast` notification (wording depends on whether a graph is currently rendered)
+- `bus.on('session.reset')` — cancels any in-flight debounce and calls `clearGraph()` to clear the stale graph view
 
-**Why gate-arm timing matters in collaborative sessions:** the backend forwards the primary's `describe graph` response to all subscriber sessions. This forwarded `graph.link` arrives during the 300 ms debounce window — before the subscriber's debounce fires and before the gate would previously have been armed. The immediate arm ensures the forwarded link is accepted. The re-arm inside the debounce callback handles the inverse: if the forwarded link arrived early and already consumed the gate, the debounce re-arms it so the session's own `describe graph` response is also accepted.
+**Collaborative sessions:** session sync is symmetric — propagated commands execute in every member's own backend session, every member's console shows the replies, so every member's bus emits the same `graph.mutation` events and re-fetches its **own** live session graph. No graph-link forwarding, no gate-arm timing.
 
-**Stale-closure fix**: `pinnedGraphPath` is read via `pinnedGraphPathRef` inside the debounce timer callback — if it were read directly from closure it would be stale after subsequent renders. Same pattern for `connectedRef` and `sendRawTextRef`.
+**Stale-closure fix**: `connected`, `hasGraph`, and `refetchGraph` are read via refs inside the debounce timer callback — if they were read directly from closure they would be stale after subsequent renders.
 
-**Auto-refresh always uses the initial-load path**: the hook sends `describe graph` via `sendRawText`, which triggers a new graph-link event and updates `pinnedGraphPath`. This triggers the **initial-load** path in `useGraphData` (graph clears to `null`, re-fetches). The overlay-spinner path (`refetchGraph`) is only triggered imperatively by direct user actions, not by auto-refresh.
+**Auto-refresh uses the overlay path**: the re-fetch goes through `useGraphData`'s `refetchGraph()` — the existing graph stays visible under the `isRefreshing` spinner overlay, and the Graph tab is revealed only when the *first* content arrives (no flicker on incremental edits).
 
-Disconnect cleanup: when `connected` flips to false, pending debounce timers are cleared and `waitingForDescribeRef` is reset.
+Disconnect cleanup: when `connected` flips to false, pending debounce timers are cleared.
 
 #### `useAutoHelpNavigate`
 
@@ -1220,7 +1211,7 @@ The mount adapter between hook state and modal props. It converts hook state int
 
 **Decision:** Each message has a stable `id: number` that increments globally per slot, never recycled.
 
-**Why:** Array indices shift when the ring buffer drops old messages. A pinned message identified by index would shift to a different message after the buffer rotates. The stable ID ensures `pinnedGraphPath` and console message lookups via `classificationMap` always refer to the correct row.
+**Why:** Array indices shift when the ring buffer drops old messages. A message identified by index would shift to a different message after the buffer rotates. The stable ID ensures console message lookups via `classificationMap` always refer to the correct row.
 
 ---
 
@@ -1228,7 +1219,7 @@ The mount adapter between hook state and modal props. It converts hook state int
 
 **Decision:** The `useProtocolKernel` hook centralises the watermark — a single `watermarkRef` ([L37](../src/protocol/useProtocolKernel.ts#L37)) that gates bus emission so that only messages newer than the watermark are emitted. Individual automation hooks no longer maintain their own watermarks.
 
-**Why:** Without the watermark, mounting `useProtocolKernel` into an existing message log would emit every historical message as a new event — triggering spurious mutations, auto-pins, or payload downloads. Previously each of the five automation hooks maintained its own watermark; centralising this into one watermark in `useProtocolKernel` eliminates redundancy and ensures all hooks agree on what has already been processed.
+**Why:** Without the watermark, mounting `useProtocolKernel` into an existing message log would emit every historical message as a new event — triggering spurious mutation re-fetches or payload downloads. Previously each of the five automation hooks maintained its own watermark; centralising this into one watermark in `useProtocolKernel` eliminates redundancy and ensures all hooks agree on what has already been processed.
 
 ---
 
@@ -1253,14 +1244,12 @@ The mount adapter between hook state and modal props. It converts hook state int
 
 ### 7.7 Two-Path `useGraphData` Design
 
-The hook has two distinct code paths:
+The hook has two distinct code paths, both reading the live session endpoint:
 
-- **Initial-load path** (triggered by `pinnedGraphPath` changing): if `pinnedGraphPath` is non-null, clears `graphData` to `null` (clean loading state for new graphs), fetches, and auto-switches the tab to `'graph'` on success. If `pinnedGraphPath` changes to `null` (e.g. on session reset), `graphData` is also set to `null` immediately — the invariant is "no pinned path means no graph data." Uses a `useEffect`-managed `AbortController`.
-- **Auto-refresh path** (triggered by `refetchGraph()` call): does *not* clear `graphData` (stale graph stays visible under a spinner overlay), does *not* switch the tab (user is not interrupted). Uses a `useCallback`-stable imperative function with its own abort ref.
+- **Initial-load path** (triggered by `sessionGraphPath` changing, including its async appearance after the mount-time `session` round-trip): clears `graphData` to `null` (a new path means a new session), fetches quietly, and reveals the Graph tab only when content actually arrives. A zero-node graph or an HTTP error leaves the canvas empty state with no toast — a fresh or closed session is a normal lifecycle, not an error. Uses a `useEffect`-managed `AbortController`.
+- **Auto-refresh path** (triggered by `refetchGraph()` after graph mutations, or a graph-link row click): does *not* clear `graphData` (stale graph stays visible under a spinner overlay); reveals the Graph tab only when the *first* content arrives; clears the view when the live graph emptied. Failures toast — a mutation just happened, so the session should be live. Uses a `useCallback`-stable imperative function with its own abort ref.
 
-**Why separate paths?** A first-time load of a new graph needs visual loading feedback and should switch context to the Graph tab. A background refresh should be invisible to the user — just a spinner on the existing graph.
-
-> **Note:** `useAutoGraphRefresh` currently triggers **only the initial-load path** — it always issues `describe graph` via `sendRawText`, which sends a new graph-link event and updates `pinnedGraphPath`, causing a clean re-fetch. The auto-refresh path (overlay spinner) is structurally available but not invoked by any automated hook; it exists for future imperative use.
+**Why separate paths?** A session change needs a clean loading state; an in-session refresh should be invisible — just a spinner on the existing graph, with no flicker on incremental edits.
 
 ---
 
@@ -1296,7 +1285,7 @@ The hook has two distinct code paths:
 
 **Classify-once, emit-to-many:** Because `classifyMessage` is a pure function and `useProtocolKernel` classifies each message exactly once, all downstream hooks receive the same event objects. This prevents subtle bugs where two hooks would classify the same message differently (e.g. due to regex flag differences or parser updates that landed in one hook but not another).
 
-**Ref-wrapping for stable subscriptions:** Automation hooks read mutable state through refs (`connectedRef`, `sendRawTextRef`, `pinnedGraphPathRef`, callback refs) so their bus subscription callbacks never close over stale values. This is critical because the `bus.on()` subscription runs only once (the bus reference never changes), so the callback must be able to read current state without being a React dependency.
+**Ref-wrapping for stable subscriptions:** Automation hooks read mutable state through refs (`connectedRef`, `sendRawTextRef`, `hasGraphRef`, `refetchGraphRef`, callback refs) so their bus subscription callbacks never close over stale values. This is critical because the `bus.on()` subscription runs only once (the bus reference never changes), so the callback must be able to read current state without being a React dependency.
 
 ---
 
@@ -1336,19 +1325,20 @@ Server sends response (JSON or plain text)
       plain text         → plain text row
 ```
 
-### 8.2 User Pins a Graph
+### 8.2 User Clicks a Graph-Link Row
 
 ```
-User clicks 🕸️ row in Console → handlePinMessage(msg)
+User clicks 🕸️ row in Console → handleGraphLinkMessage(msg)
   → classificationMap.get(msg.id) → events[]
-  → find event with kind === 'graph.link' → event.apiPath
-  → setPinnedGraphPath(event.apiPath)
-  → setPinnedMessageId(msg.id)   — highlights the row
-  → useGraphData effect fires:
-      fetch(event.apiPath)
+  → confirm an event with kind === 'graph.link' exists
+  → refetchGraph()               — live session endpoint
+      fetch("/api/graph/session/{id}")
       → transformGraphData(json)  — BFS layout + ReactFlow nodes/edges
       → setGraphData(result)
-      → setRightTab('graph')      — tab switches automatically
+  → setRightTab('graph')         — the Graph tab comes forward
+
+(The link URL in the row remains a human-facing snapshot —
+ opening it directly shows the described model's raw JSON.)
 ```
 
 ### 8.3 Auto-Refresh After Mutation
@@ -1358,24 +1348,15 @@ User sends "create node foo" → ws.sendCommand()
 Server echoes "> create node foo"   — ignored by classifier (command.echo kind)
 Server responds "Node foo created"  — classifier emits graph.mutation event
   → useAutoGraphRefresh.on('graph.mutation'):
-      waitingForDescribeRef = true  ← armed immediately at mutation-detection time
       arms 300 ms debounce timer
   → (300 ms passes, no further mutations)
-  → waitingForDescribeRef = true  ← re-armed inside debounce callback
+  → refetchGraphRef.current()   — live session endpoint, overlay mode
   → addToast('Graph updated — refreshing…')          [or '…opening Graph tab…' if no graph yet]
-  → sendRawTextRef.current('describe graph')   — silent, no history entry
 
-Server emits graph-link "Graph described in /api/graph/model/ws-123-2"
-  → classifier emits graph.link event
-  → useAutoGraphRefresh.on('graph.link'):
-      waitingForDescribeRef === true
-      → setPinnedGraphPath(event.apiPath)
-      → waitingForDescribeRef = false
-
-  → useGraphData initial-load path:
-      fetch("/api/graph/model/ws-123-2")
-      → setGraphData(result)
-      → setRightTab('graph')
+  → useGraphData refetch path:
+      fetch("/api/graph/session/ws-123-4")
+      → setGraphData(result)     — existing graph stayed visible under the spinner
+      → setRightTab('graph')     — only when this delivered the FIRST content
 ```
 
 ### 8.4 Large Payload Flow
@@ -1581,9 +1562,8 @@ Accepted result
   → clear timeout
   → close modal
   → useAutoGraphRefresh sees graph.mutation
-  → sends silent "describe graph"
-  → graph.link response updates pinnedGraphPath
-  → useGraphData fetches and renders the updated graph
+  → re-fetches the live session graph (refetchGraph)
+  → useGraphData renders the updated graph
 
 Rejected/error result
   → useGraphAuthoring clears pendingSubmit
@@ -1611,8 +1591,7 @@ Disconnect while modal is open
 | Command history | `useLocalStorage` in `useWebSocket` | `localStorage` | Keyed per playground |
 | Payload text | `useLocalStorage` in `Playground` | `localStorage` | Keyed per playground |
 | Payload override (large) | `useState` in `Playground` | Memory only | Never written to localStorage |
-| Pinned message id | `useState` in `Playground` | Memory only | |
-| Pinned graph path | `usePinnedGraphPath` hook (module-scope `Map` + `useState`) | Memory only (survives remount, resets on page reload) | Cleared on disconnect (Playground.tsx effect) and on `session.reset` (useAutoGraphRefresh handler) |
+| Live graph path | Derived per render from `sessionCollaboration.state.sessionId` | — (derived) | Null until the `session` round-trip answers; graph data cleared on disconnect (Playground.tsx effect) and on `session.reset` (useAutoGraphRefresh handler) |
 | Modal upload path | `useState` in `Playground` | Memory only | `null` = closed; non-null = modal open |
 | Modal trigger element | `useRef` in `Playground` | Memory only | Captures active element before open for focus restore |
 | Successful upload paths | `useState` in `Playground` | Memory only | `Set<string>`; cleared on `clearMessages` |
@@ -1753,7 +1732,7 @@ It must stay *above* the router. Inside the router it would unmount on every nav
 `WebSocket` instances are imperative handles that must be available synchronously. In state they would cause render cycles on every incoming message. They belong in `useRef`. See §7.2.
 
 ### P3 — Message IDs are not array indices
-The ring buffer drops old messages. Always identify pinned/processed messages by their stable `id`, never by their position in the array. See §7.3.
+The ring buffer drops old messages. Always identify processed messages by their stable `id`, never by their position in the array. See §7.3.
 
 ### P4 — `detectMutation` requires the `startsWith('node ')` prefix
 Without this guard, `"Graph instance created"` and `"Root node created because..."` trigger false-positive auto-refreshes. Do not remove the prefix check. See §3.5 and §6.10.
@@ -1768,7 +1747,7 @@ The watermark init effect ([L40](../src/protocol/useProtocolKernel.ts#L40)) must
 The `setPayload` callback does `setPayloadOverride(null)` before calling `setStoredPayload`. If you add a new code path that modifies the payload, ensure it also clears the override so the user's edit is not silently discarded. See §7.10.
 
 ### P8 — `refetchGraph` has an intentionally empty dependency array
-It reads `pinnedGraphPath` via `pinnedGraphPathRef` to avoid stale closures. Adding `pinnedGraphPath` to its dep array would break the "stable reference" contract that lets automation hooks include it in their own dep arrays safely. See §7.7.
+It reads `sessionGraphPath` via `sessionGraphPathRef` to avoid stale closures. Adding `sessionGraphPath` to its dep array would break the "stable reference" contract that lets automation hooks include it in their own dep arrays safely. See §7.7.
 
 ### P9 — Large payloads must never be written to localStorage
 The payload override pattern exists precisely for this reason. Never call `setStoredPayload` (the localStorage-backed setter) with a large blob. See §7.10.
@@ -1785,7 +1764,7 @@ The `docs.response` classification rule in `classifier.ts` excludes echoes, grap
 > **Note on coexistence:** the `session.reset` event (Rule 7c) and `docs.response` (Rule 11) intentionally fire together for the `"Session restarted"` message — the console still renders it as text, and the hook receives the `session.reset` event to act on it. This dual-event pattern is consistent with how `graph.mutation` and `minigraph.createNode.textResult` coexist for the same message.
 
 ### P13 — Bus subscription callbacks must read mutable state through refs
-Because `bus.on()` registers a callback only once (the bus `useRef` identity never changes), any React state read inside the callback would be stale after subsequent renders. All automation hooks use ref-wrapping (`connectedRef`, `sendRawTextRef`, `pinnedGraphPathRef`, callback refs) to access current values. Adding a new bus subscriber that reads state directly from closure will produce stale-closure bugs. See §7.11.
+Because `bus.on()` registers a callback only once (the bus `useRef` identity never changes), any React state read inside the callback would be stale after subsequent renders. All automation hooks use ref-wrapping (`connectedRef`, `sendRawTextRef`, `hasGraphRef`, `refetchGraphRef`, callback refs) to access current values. Adding a new bus subscriber that reads state directly from closure will produce stale-closure bugs. See §7.11.
 
 ### P14 — `classificationMap` identity changes on every new message
 The `classificationMap` is a `useMemo` that re-derives when `messages` changes. Components that receive it as a prop will see a new `Map` reference on every new WebSocket message. This is intentional — React Compiler handles memoisation — but avoid using `classificationMap` as a `useEffect` dependency without wrapping the effect in additional guards, as it will fire on every message.

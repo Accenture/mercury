@@ -8,7 +8,6 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useGraphData } from '../hooks/useGraphData';
-import { useSessionGraphRestore } from '../hooks/useSessionGraphRestore';
 import { useAutoGraphRefresh } from '../hooks/useAutoGraphRefresh';
 import { useAutoHelpNavigate } from '../hooks/useAutoHelpNavigate';
 import { useSendToJsonPath } from '../hooks/useSendToJsonPath';
@@ -18,7 +17,6 @@ import { useSavedGraphs } from '../hooks/useSavedGraphs';
 import { useGraphSaveName } from '../hooks/useGraphSaveName';
 import { useGraphRunWorkflow } from '../hooks/useGraphRunWorkflow';
 import { useSavedGraphWorkflow } from '../hooks/useSavedGraphWorkflow';
-import { usePinnedGraphPath } from '../hooks/usePinnedGraphPath';
 import { buildClipboardPastePlan } from '../clipboard/paste';
 import { buildBatchClipToast } from '../clipboard/batchClipSummary';
 import { createGraphAuthoringExecutor } from '../graphActions/graphAuthoringExecutor';
@@ -153,26 +151,38 @@ export default function Playground({ config }: PlaygroundProps) {
     messages: ws.messages, bus,
   });
 
+  // ── Session collaboration ────────────────────────────────────────────────
+  // The Session dropdown is rendered from Navigation, but this hook is created
+  // here because Playground owns the Minigraph ProtocolBus and classification
+  // map — and because the session id it captures (the `session` round-trip on
+  // mount) is what addresses the live graph endpoint below.
+  const sessionCollaboration = useSessionCollaboration({
+    enabled: supportsSessionCollaboration === true,
+    bus,
+    classificationMap,
+    connected: ws.connected,
+    sendRawText: ws.sendRawText,
+    addToast,
+  });
+
   // ── Graph state ────────────────────────────────────────────────────────────────────────
-  // The API path extracted from the currently-pinned graph-link message.
-  // Survives Playground remounts (SPA navigation between playground tabs)
-  // via a module-scoped Map, but resets on hard refresh / page load —
-  // matching the server session lifetime (WebSocket-bound).
-  const [pinnedGraphPath, setPinnedGraphPath] = usePinnedGraphPath(wsPath);
+  // The graph view reads the LIVE session graph (`GET /api/graph/session/{id}`)
+  // — the graph as the backend session holds it right now. The described
+  // temp-model links (`/api/graph/model/…`) stay a human-operator console
+  // surface (`describe graph` / `export graph`); the UI does not round-trip
+  // through the temp file system to render. The session id arrives via the
+  // `session` round-trip on mount, so this path starts null and appears async.
+  const sessionGraphPath = sessionCollaboration.state.sessionId !== null
+    ? `/api/graph/session/${sessionCollaboration.state.sessionId}`
+    : null;
 
-  // The session live-graph restore (below) owns expired-model failures for
-  // playgrounds that have a graph view and a session lifecycle (MiniGraph):
-  // an expired temp-model 400 is expected there, not toast-worthy.
-  const sessionGraphRestoreEnabled = supportsSessionCollaboration === true && tabs.includes('graph');
-
-  // Fetch + parse graph data, auto-switch to Graph tab — logic lives in the hook.
-  const { graphData, setGraphData, rightTab, setRightTab, isRefreshing, initialFetchFailed } = useGraphData(
-    pinnedGraphPath,
+  // Fetch + parse graph data, reveal the Graph tab on content — logic lives in the hook.
+  const { graphData, setGraphData, rightTab, setRightTab, isRefreshing, refetchGraph } = useGraphData(
+    sessionGraphPath,
     addToast,
     tabs[0],
     tabs,
     storageKeyTab,
-    sessionGraphRestoreEnabled,
   );
 
   // ── Mock-upload panel (left slot) ────────────────────────────────────────
@@ -183,12 +193,15 @@ export default function Playground({ config }: PlaygroundProps) {
   } = useMockUploadPanel({ bus, addToast });
 
   // ── Auto-refresh on mutation commands ────────────────────────────────────
+  // Graph mutations re-fetch the live session graph directly — no
+  // `describe graph` round-trip, no temp-model link involved.
+  const clearGraph = useCallback(() => setGraphData(null), [setGraphData]);
   useAutoGraphRefresh({
     bus,
-    pinnedGraphPath,
-    setPinnedGraphPath,
-    connected:   ws.connected,
-    sendRawText: ws.sendRawText,
+    hasGraph:  graphData !== null,
+    connected: ws.connected,
+    refetchGraph,
+    clearGraph,
     addToast,
   });
 
@@ -251,20 +264,18 @@ export default function Playground({ config }: PlaygroundProps) {
   }, [graphUndo.push, toastWithUndo]);
 
   // ── Session-bound graph state invalidation ───────────────────────────────
-  // Graph API paths are tied to the backend WebSocket session.  When the
-  // connection drops, any previously fetched graph data and its API path are
-  // invalid for the new session.  Clear both on a real connected→disconnected
-  // transition.  The guard ensures this does NOT fire on initial mount when
-  // the socket is still in 'idle' or 'connecting' phase.
+  // The rendered graph belongs to the backend WebSocket session.  When the
+  // connection drops, that session's graph is gone — clear the view on a real
+  // connected→disconnected transition.  The guard ensures this does NOT fire
+  // on initial mount when the socket is still in 'idle' or 'connecting' phase.
   const wasConnectedRef = useRef(false);
 
   useEffect(() => {
     if (wasConnectedRef.current && !ws.connected) {
-      setPinnedGraphPath(null);
       setGraphData(null);
     }
     wasConnectedRef.current = ws.connected;
-  }, [ws.connected, setPinnedGraphPath, setGraphData]);
+  }, [ws.connected, setGraphData]);
 
   // ── Help panel state ────────────────────────────────────────────────────
   // Persisted last-viewed help topic (empty string = root index).
@@ -582,35 +593,6 @@ export default function Playground({ config }: PlaygroundProps) {
     }
   }, [consoleVisible, consoleRef]);
 
-  // ── Session collaboration ────────────────────────────────────────────────
-  // The Session dropdown is rendered from Navigation, but this hook is created
-  // here because Playground owns the Minigraph ProtocolBus and classification map.
-  const sessionCollaboration = useSessionCollaboration({
-    enabled: supportsSessionCollaboration === true,
-    bus,
-    classificationMap,
-    connected: ws.connected,
-    sendRawText: ws.sendRawText,
-    addToast,
-  });
-
-  // ── Session live-graph restore ───────────────────────────────────────────
-  // Returning from another playground can find the pinned temp-model path
-  // expired (HTTP 400) while the session still holds the live graph; restore
-  // it quietly from GET /api/graph/session/{id}. The session id arrives via
-  // the `session` round-trip on mount, so the hook reacts to its late arrival.
-  useSessionGraphRestore({
-    enabled: sessionGraphRestoreEnabled,
-    sessionGraphPath: sessionCollaboration.state.sessionId !== null
-      ? `/api/graph/session/${sessionCollaboration.state.sessionId}`
-      : null,
-    pinnedGraphPath,
-    initialFetchFailed,
-    graphData,
-    setGraphData,
-    setRightTab,
-  });
-
   // ── Graph run workflow ───────────────────────────────────────────────────
   // The backend graph instance is authoritative. This hook only mirrors
   // acknowledged lifecycle state and serializes the existing text commands.
@@ -620,7 +602,10 @@ export default function Playground({ config }: PlaygroundProps) {
     connected: ws.connected,
     connectionEpoch: ws.connectionEpoch,
     graphData,
-    graphIdentity: pinnedGraphPath,
+    // Session swap = a different live graph. Mutations within a session
+    // already invalidate via the workflow's own graph.mutation subscription,
+    // and reconnects via connectionEpoch.
+    graphIdentity: sessionGraphPath,
     isPrimary:
       supportsGraphRun !== true ||
       (sessionCollaboration.state.sessionId !== null && sessionCollaboration.isPrimary),
@@ -630,8 +615,6 @@ export default function Playground({ config }: PlaygroundProps) {
   });
 
   // ── Saved graph workflow ──────────────────────────────────────────────────
-  // Note: must be called AFTER useAutoGraphRefresh — both listen on graph.link
-  // and ProtocolBus fires listeners in insertion order.
   const { handleSaveGraph, handleLoadGraph } = useSavedGraphWorkflow({
     bus,
     connected:    ws.connected,
@@ -640,14 +623,17 @@ export default function Playground({ config }: PlaygroundProps) {
     addToast,
   });
 
-  // When a console graph-link row is clicked, load the referenced graph.
+  // When a console graph-link row is clicked, show the current graph.
+  // The link itself stays a human-facing URL (open it for the raw snapshot);
+  // the view renders from the live session endpoint.
   const handleGraphLinkMessage = useCallback((msg: { id: number; raw: string }) => {
     const events = classificationMap.get(msg.id);
     const graphLink = events?.find(e => e.kind === 'graph.link') as GraphLinkEvent | undefined;
     if (graphLink) {
-      setPinnedGraphPath(graphLink.apiPath);
+      refetchGraph();
+      setRightTab('graph');
     }
-  }, [classificationMap]);
+  }, [classificationMap, refetchGraph, setRightTab]);
 
   // ── Cross-playground send to JSON-Path ──────────────────────────────────
   const { handleSendToJsonPath } = useSendToJsonPath({
@@ -707,7 +693,6 @@ export default function Playground({ config }: PlaygroundProps) {
 
   const handleClearMessages = useCallback(() => {
     ws.clearMessages();
-    setPinnedGraphPath(null);
     setGraphData(null);
     // Reset mock-upload session state so ✅ badges clear with the console.
     // The upload panel path is NOT reset here — if the panel is open while the
