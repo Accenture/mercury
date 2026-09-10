@@ -81,3 +81,7 @@
 - thread-http-streaming-twin — (feature) HTTP response streaming ported engine-identical (Java PR #299/ADR-0018 — faded — completed thread not referenced in over archive_window (20) sessions — 2026-Q3.md
 - ot-json-plugin-twin — `json` simple plugin twin — land the PR (lock-step with the Java engine). DONE — faded (completed threads past archive_window: sslu 21 and 24 > 20) — 2026-Q3.md
 - ot-route-pool-twin — (feature) Route pool platform API — register_route_pool/release_route_pool, — faded (completed threads past archive_window: sslu 21 and 24 > 20) — 2026-Q3.md
+- playground-session-broker — Playground session broker: an AI agent can HOST a Playground session (2026-09-03, Eric's — faded — not referenced in over archive_window (20) sessions (sslu 27) — 2026-Q3.md
+- thread-reverify-invariants-20260902 — Re-verify invariants — CONFIRMED by Eric 2026-09-02: all four never-decay — completed thread past archive_window (sslu 31); all 4 never-decay facts + Vision confirmed 2026-09-02 — 2026-Q3.md
+- why-ai-enabled-before-code — The memory layer and the Vision were installed BEFORE the first line of code (2026-07-15)… — faded — not referenced in over archive_window (20) sessions (sslu 21) — 2026-Q3.md
+- conv-llms-txt-curated-map — This repo's `docs/llms.txt` is a CURATED agent map, not a full site map (Eric, 2026-09-04)… — faded — not referenced in over archive_window (20) sessions (sslu 21) — 2026-Q3.md

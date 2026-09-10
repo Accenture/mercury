@@ -5,4 +5,4 @@
   Java ADR-0023 twin) accepted in the same PR. Durable lesson: a guard's first exercise
   tests the guard — six of the round's own claims over-stated their pins until the
   adversarial pass forced the narrow-or-upgrade discipline. origin: 2026-09-07-052947.md
-  <!-- id: ot-rust-docs-sibling-sweep | created: 2026-09-06 | last_used: 2026-09-07 | uses: 2 | tier: active | origin: 2026-09-07-014642 -->
+  <!-- id: ot-rust-docs-sibling-sweep | created: 2026-09-06 | last_used: 2026-09-07 | uses: 2 | tier: archive-candidate | origin: 2026-09-07-014642 -->

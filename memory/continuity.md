@@ -15,7 +15,7 @@
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.12.5** (2026-09-09, lock-step with Java v4.12.5 same-day — the field-fix patch release: route-pool lifecycle logging twin (count ≥ 2, one INFO each way), the concat null-operand parity pins, the Playground graph-view tuning mirror with rebuilt bundle; all seven mercury-* crates on crates.io at 4.12.5, API-verified. Prior: v4.12.4). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04: the smoke test flagged this line for carrying version history against its own rule.)
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-09-07 | through 2026-09-07-052947.md
+- **last_review:** 2026-09-10 | through 2026-09-10-030853.md
 - **last_invariant_check:** 2026-09-02 | 2026-09-02-184705.md (all 4 never-decay facts + the Vision (5 ids total) CONFIRMED by Eric — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, vision-mercury; the review's two core-tier drift restorations re-ratified; thread-reverify-invariants-20260902 closed. Prior walkthrough: 2026-07-26 | 2026-07-26-014908.md (all five never-decay facts confirmed against live code — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, and the Vision; two header drifts remedied; ui-fixture carve-out RATIFIED by Eric 2026-07-26))
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -88,17 +88,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   spec (map, don't mirror).
   <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-30 | uses: 104 | tier: core | origin: 2026-07-15-215538.md -->
 
-- **The memory layer and the Vision were installed BEFORE the first line of code (2026-07-15) —
-  deliberately, so every increment is derived from stated intent rather than reconstructed after
-  the fact.** That is what makes the VBDI loop real here: the Vision is the fixed north star, each
-  delivered increment becomes the next Current State, and the Blueprint is the measured gap between
-  them. It is also why this port is "map, don't mirror" rather than a transliteration — the intent
-  is the spec, the Java engine is the reference. Restored to the live layer 2026-09-04: the two
-  facts that carried this (`ai-enabled-greenfield`, `private-repo-then-accenture`) had faded to the
-  archive, and their INDEX one-liners record the *what*, not the *why* — the smoke test could no
-  longer answer it. Full rationale: the 2026-07-15 enable log.
-  <!-- id: why-ai-enabled-before-code | created: 2026-09-04 | last_used: 2026-09-04 | uses: 2 | tier: active | origin: 2026-09-04-043850 -->
-
 - **The claims-fixture gate drift-tests documentation BEHAVIOR claims (ADR-0018, accepted
   2026-09-06 — lock-step twin of the Java repo's ADR-0023).** `docs/guides/claims-registry.json`
   registers high-value prose claims —
@@ -109,17 +98,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   BOTH docs.yml and rust.yml — a test rename does not trigger docs.yml's path filter. The registry
   is a grammar asset (packaged contract + llms.txt; agents may treat registered claims as
   source-verified). New claims enter via the field feedback circuit.
-  <!-- id: claims-fixture-gate | created: 2026-09-06 | last_used: 2026-09-07 | uses: 1 | tier: working | origin: 2026-09-07-052947.md -->
-
-- **Playground session broker: an AI agent can HOST a Playground session (2026-09-03, Eric's
-  design, contributed from ai-enabled-repo-demo).**
-  `examples/minigraph-playground/scripts/playground-session-broker.mjs` (zero-dependency,
-  Node ≥ 22, byte-identical to the Java repo's copy) holds a `/ws/graph/playground` session with
-  the UI's welcome/ping handshake, auto-reconnects across app restarts, and exposes a localhost
-  control API (`GET /session`, `POST /start|/stop`). Humans join with `session subscribe <id>` as
-  equal co-authors; the agent drives via companion `/sync`. Smoke-tested against the Java engine;
-  `ws_ui.rs` implements the same handshake — a Rust-side smoke test is still owed. Dev-only.
-  <!-- id: playground-session-broker | created: 2026-09-03 | last_used: 2026-09-03 | uses: 4 | tier: archive-candidate | origin: 2026-09-03-172834.md -->
+  <!-- id: claims-fixture-gate | created: 2026-09-06 | last_used: 2026-09-07 | uses: 1 | tier: archive-candidate | origin: 2026-09-07-052947.md -->
 
 ## Conventions
 
@@ -149,19 +128,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-09-02 | uses: 113 | tier: core | origin: 2026-07-15-224707.md -->
-
-- **This repo's `docs/llms.txt` is a CURATED agent map, not a full site map (Eric, 2026-09-04) —
-  a deliberate divergence from the Java twin that must not be "corrected" toward parity.** It maps
-  the agent-facing set (the three DSL spec kits + the reference tier); walkthroughs and concept
-  pages stay out, and the human-facing section points at the documentation site. Two consequences:
-  the guard here is **link integrity** (`scripts/check-llms-links.py`, run first in `docs.yml`),
-  NOT the Java repo's coverage check — porting that check would fail on ~20 intentionally omitted
-  pages; and paths resolve from **`docs/`**, not the repo root (the header once claimed otherwise,
-  which silently broke all 22 links). Governing benchmark, Eric's words: **doc discovery and token
-  efficiency** — the map must route to the right page in one hop and stay cheap to read, since the
-  docs are what make Human-AI collaboration work. Measured at adoption: +900 tokens of map routing
-  to ~46k of source-verified reference, against ~515k of `crates/`.
-  <!-- id: conv-llms-txt-curated-map | created: 2026-09-04 | last_used: 2026-09-04 | uses: 2 | tier: active | origin: 2026-09-04-041456 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
@@ -195,7 +161,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `npm run release` (commits the rebuilt `resources/public` bundle), and a live smoke
   against the Rust engine. The index-chunk hash legitimately differs from Java's — the
   help markdown is inlined at build time by the glob and the prose differs.
-  <!-- id: webapp-lockstep-sync-preserved-paths | created: 2026-09-08 | last_used: 2026-09-09 | uses: 2 | tier: working | origin: 2026-09-08-203614.md -->
+  <!-- id: webapp-lockstep-sync-preserved-paths | created: 2026-09-08 | last_used: 2026-09-10 | uses: 6 | tier: active | origin: 2026-09-08-203614.md -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 
