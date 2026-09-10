@@ -59,16 +59,33 @@ fn is_dev_env() -> bool {
 }
 
 /// Stepwise traversal logging (field request 2026-09-09): the same trail the
-/// dry-run GraphTraveler narrates to the Playground console, as INFO log lines
-/// labeled with the graph id and the run's trace id (fallback: flow instance
-/// id) so OTel dashboards can join app logs with exported spans. On by
-/// default; DevOps can override the runtime parameter
+/// dry-run GraphTraveler narrates to the Playground console, as INFO
+/// structured records so OTel dashboards can join app logs with exported
+/// spans. On by default; DevOps can override the runtime parameter
 /// (`graph.traversal.log=false`) to reduce log noise. Java parity:
 /// `GraphExecutor.traversalLog`.
 fn traversal_log() -> bool {
     static TRAVERSAL_LOG: OnceLock<bool> = OnceLock::new();
     *TRAVERSAL_LOG.get_or_init(|| {
         AppConfigReader::get_instance().get_property_or("graph.traversal.log", "true") == "true"
+    })
+}
+
+/// A traversal log record, logged as a JSON object (the telemetry-stream
+/// precedent) so the json and compact formats embed it as a nested structure
+/// that log-analytics dashboards (Dynatrace, Splunk, ...) index as
+/// key-values; the text format prints the compact JSON string. Keys: `id` =
+/// the correlation label (the run's trace id, falling back to the flow
+/// instance id), `text` = the traveler-style message, `graph` = the graph id.
+/// The executor runs zero-traced (the trace is captured once from the
+/// initiating event, not re-spanned per node), so the app-log-context block
+/// never accompanies these lines — the record's `id` key is the correlation
+/// surface. Java parity: `GraphExecutor.traversalRecord`.
+fn traversal_record(text: String, graph_id: &str, correlation_label: String) -> serde_json::Value {
+    serde_json::json!({
+        "id": correlation_label,
+        "text": text,
+        "graph": graph_id,
     })
 }
 
@@ -252,12 +269,12 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
             .map(|v| display(&v))
             .unwrap_or_else(|| "null".to_string());
         log::info!(
-            "Executed {} with skill {} in {:?} ms - {} ({})",
-            node_name,
-            skill_name,
-            spent,
-            instance.graph_id,
-            instance.correlation_label()
+            "{}",
+            traversal_record(
+                format!("Executed {node_name} with skill {skill_name} in {spent:?} ms"),
+                &instance.graph_id,
+                instance.correlation_label()
+            )
         );
     }
     // a skill can set status and error in its node properties instead of
@@ -408,10 +425,12 @@ fn walk<'a>(
         if is_join || !seen {
             if traversal_log() {
                 log::info!(
-                    "Walk to {} - {} ({})",
-                    node.get_alias(),
-                    instance.graph_id,
-                    instance.correlation_label()
+                    "{}",
+                    traversal_record(
+                        format!("Walk to {}", node.get_alias()),
+                        &instance.graph_id,
+                        instance.correlation_label()
+                    )
                 );
             }
             walk_to(platform, po, skill, instance, node, from, parent_span).await?;
@@ -607,10 +626,12 @@ async fn execution_complete(
     if traversal_log() {
         let elapsed = crate::session::now_ms() - instance.start_time_ms();
         log::info!(
-            "Graph traversal completed in {} ms - {} ({})",
-            elapsed,
-            instance.graph_id,
-            instance.correlation_label()
+            "{}",
+            traversal_record(
+                format!("Graph traversal completed in {elapsed} ms"),
+                &instance.graph_id,
+                instance.correlation_label()
+            )
         );
     }
 }
@@ -824,10 +845,30 @@ async fn send_error(
 fn log_aborted(instance: &Arc<GraphInstance>, reason: &str) {
     if traversal_log() {
         log::info!(
-            "Graph traversal aborted: {} - {} ({})",
-            reason,
-            instance.graph_id,
-            instance.correlation_label()
+            "{}",
+            traversal_record(
+                format!("Graph traversal aborted: {reason}"),
+                &instance.graph_id,
+                instance.correlation_label()
+            )
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::traversal_record;
+
+    /// Pins the structured traversal record's contract: keys `id` (correlation
+    /// label), `text` (traveler-style message), and `graph` (graph id) — the
+    /// shape the Java engine logs via `log.info("{}", map)` and this engine
+    /// embeds as a nested structure in the json/compact formats.
+    #[test]
+    fn traversal_record_carries_id_text_graph() {
+        let record = traversal_record("Walk to root".to_string(), "hello", "trace-1".to_string());
+        assert_eq!(record["id"], "trace-1");
+        assert_eq!(record["text"], "Walk to root");
+        assert_eq!(record["graph"], "hello");
+        assert_eq!(record.as_object().map(|o| o.len()), Some(3));
     }
 }
