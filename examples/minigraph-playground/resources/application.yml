@@ -21,6 +21,13 @@ location.graph.temp: file:/tmp/graph
 # location.graph.deployed is obsolete).
 graph.model.automation: 'classpath:/graphs.yaml'
 
+# Stepwise traversal logging for deployed graph execution (graph.executor) —
+# the same trail the Playground dry-run narrates, as INFO log lines labeled
+# with the graph id and the trace id (fallback: flow instance id) so OTel
+# dashboards can join logs with spans. Set to false
+# (e.g. -Dgraph.traversal.log=false) to reduce log noise. Java parity.
+graph.traversal.log: true
+
 # Serializer null handling (Java parity). Default false: null MAP key-values are
 # omitted from JSON and MsgPack output (e.g. a successful /sync response drops the
 # null `error` field), mirroring Gson's default + MsgPack packMap null-skip.

@@ -58,6 +58,20 @@ fn is_dev_env() -> bool {
     *DEV.get_or_init(|| AppConfigReader::get_instance().get_property_or("app.env", "dev") == "dev")
 }
 
+/// Stepwise traversal logging (field request 2026-09-09): the same trail the
+/// dry-run GraphTraveler narrates to the Playground console, as INFO log lines
+/// labeled with the graph id and the run's trace id (fallback: flow instance
+/// id) so OTel dashboards can join app logs with exported spans. On by
+/// default; DevOps can override the runtime parameter
+/// (`graph.traversal.log=false`) to reduce log noise. Java parity:
+/// `GraphExecutor.traversalLog`.
+fn traversal_log() -> bool {
+    static TRAVERSAL_LOG: OnceLock<bool> = OnceLock::new();
+    *TRAVERSAL_LOG.get_or_init(|| {
+        AppConfigReader::get_instance().get_property_or("graph.traversal.log", "true") == "true"
+    })
+}
+
 /// The interceptor body (Java `handleEvent`).
 pub async fn handle(
     platform: &Platform,
@@ -84,9 +98,21 @@ async fn execute_graph(
     // the span that triggered this graph is the parent span for the graph's
     // first node, establishing telemetry lineage into the graph
     let parent_span = event.span_id().map(str::to_string);
+    // the traversal log labels each line with the run's trace id (fallback:
+    // flow instance id when tracing is off) - capture it once at the start
+    let trace_id = event.trace_id().map(str::to_string);
     let reply_to = event.reply_to().unwrap_or_default().to_string();
     let cid = event.correlation_id().unwrap_or_default().to_string();
-    let outcome = start_traversal(platform, po, headers, &reply_to, &cid, &parent_span).await;
+    let outcome = start_traversal(
+        platform,
+        po,
+        headers,
+        &reply_to,
+        &cid,
+        &trace_id,
+        &parent_span,
+    )
+    .await;
     if let Err(e) = outcome {
         let mut error = EventEnvelope::new()
             .set_to(&reply_to)
@@ -106,9 +132,13 @@ async fn start_traversal(
     headers: &HashMap<String, String>,
     reply_to: &str,
     cid: &str,
+    trace_id: &Option<String>,
     parent_span: &Option<String>,
 ) -> Result<(), AppError> {
     let instance = create_instance(headers, reply_to, cid)?;
+    if let Some(trace) = trace_id {
+        instance.set_trace_id(trace);
+    }
     begin_traversal(platform, po, &instance, parent_span).await
 }
 
@@ -213,6 +243,23 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
         }
     };
     check_frequency(po, &instance, node_name, &parent_span).await;
+    if traversal_log() {
+        // {:?} — Java Float.toString always keeps the decimal point
+        // ("3.0 ms"), the repo's float-parity rule
+        let spent = response.exec_time().unwrap_or(0.0);
+        let skill_name = node
+            .get_property(SKILL)
+            .map(|v| display(&v))
+            .unwrap_or_else(|| "null".to_string());
+        log::info!(
+            "Executed {} with skill {} in {:?} ms - {} ({})",
+            node_name,
+            skill_name,
+            spent,
+            instance.graph_id,
+            instance.correlation_label()
+        );
+    }
     // a skill can set status and error in its node properties instead of
     // failing (e.g. an HTTP status >= 400 from the API fetcher)
     let (process_status, result_error) = {
@@ -359,6 +406,14 @@ fn walk<'a>(
             seen
         };
         if is_join || !seen {
+            if traversal_log() {
+                log::info!(
+                    "Walk to {} - {} ({})",
+                    node.get_alias(),
+                    instance.graph_id,
+                    instance.correlation_label()
+                );
+            }
             walk_to(platform, po, skill, instance, node, from, parent_span).await?;
         }
         Ok(())
@@ -549,6 +604,15 @@ async fn execution_complete(
     }
     let _ = po.send(response.set_raw_body(body)).await;
     instance.set_complete();
+    if traversal_log() {
+        let elapsed = crate::session::now_ms() - instance.start_time_ms();
+        log::info!(
+            "Graph traversal completed in {} ms - {} ({})",
+            elapsed,
+            instance.graph_id,
+            instance.correlation_label()
+        );
+    }
 }
 
 async fn execute_skill(
@@ -734,6 +798,7 @@ async fn handle_error_response(
     }
     let _ = po.send(error).await;
     instance.set_complete();
+    log_aborted(instance, &display(response.body()));
 }
 
 async fn send_error(
@@ -752,4 +817,17 @@ async fn send_error(
     }
     let _ = po.send(error).await;
     instance.set_complete();
+    log_aborted(instance, message);
+}
+
+/// Java parity: `GraphExecutor.logAborted`.
+fn log_aborted(instance: &Arc<GraphInstance>, reason: &str) {
+    if traversal_log() {
+        log::info!(
+            "Graph traversal aborted: {} - {} ({})",
+            reason,
+            instance.graph_id,
+            instance.correlation_label()
+        );
+    }
 }
