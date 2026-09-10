@@ -22,9 +22,10 @@ location.graph.temp: file:/tmp/graph
 graph.model.automation: 'classpath:/graphs.yaml'
 
 # Stepwise traversal logging for deployed graph execution (graph.executor) —
-# the same trail the Playground dry-run narrates, as INFO log lines labeled
-# with the graph id and the trace id (fallback: flow instance id) so OTel
-# dashboards can join logs with spans. Set to false
+# the same trail the Playground dry-run narrates, as INFO structured records
+# {id, text, graph} where id is the trace id (fallback: flow instance id) so
+# OTel dashboards can join logs with spans; log.format=json/compact embed the
+# record as indexable key-values. Set to false
 # (e.g. -Dgraph.traversal.log=false) to reduce log noise. Java parity.
 graph.traversal.log: true
 

@@ -553,18 +553,21 @@ accepted and stripped. Invalid values fall back to the default. Read by
 | boolean | `true` |
 
 Stepwise traversal logging for deployed graph execution (`graph.executor`) — the same
-trail the Playground dry-run narrates to its console (`Walk to {node}`, `Executed {node}
-with skill {skill} in {time} ms`, `Graph traversal completed in {time} ms`, and `Graph
-traversal aborted: {reason}` on error), emitted as INFO log lines suffixed with the graph
-id and the run's **trace id** (fallback: the flow instance id when tracing is off) — so an
-OpenTelemetry dashboard can join these app-log lines with the exported spans and metrics.
-The inline label complements the app-context-log feature: with `log.format=json` or
-`compact`, each record additionally carries the structured `context` key-values (span id,
-business correlation id); app-context-log is disabled in plain `text` format (to reduce
-log volume), where the inline trace id keeps the correlation visible regardless. On by
-default; set it to `false` (for example with the runtime override
+trail the Playground dry-run narrates to its console, emitted as INFO **structured
+records** (a JSON object as the log message). Each record carries three keys: `text` —
+the traveler-style message (`Walk to {node}`, `Executed {node} with skill {skill} in
+{time} ms`, `Graph traversal completed in {time} ms`, or `Graph traversal aborted:
+{reason}`), `graph` — the graph id, and `id` — the run's **trace id** (fallback: the flow
+instance id when tracing is off), so an OpenTelemetry dashboard can join these app-log
+lines with the exported spans and metrics. With `log.format=json` or `compact` the
+record embeds as a nested structure that log-analytics platforms (Dynatrace, Splunk, ...)
+index as key-values; in plain `text` format the record prints as its compact JSON string.
+Note that the executor deliberately runs zero-traced (the trace is captured once from the
+initiating event, not re-spanned per node), so the app-log-context `context` block does
+**not** accompany these lines in any format — the record's `id` key is the correlation
+surface. On by default; set it to `false` (for example with the runtime override
 `-Dgraph.traversal.log=false`) to reduce log volume on busy installations. Read by
-`crates/knowledge-graph` (executor). Java parity: identical wording and gate.
+`crates/knowledge-graph` (executor). Java parity: identical record keys and gate.
 
 #### `graph.max.loop.interval`
 

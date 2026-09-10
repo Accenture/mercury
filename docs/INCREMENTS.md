@@ -2835,3 +2835,17 @@ Graph tab. Retired UI machinery: the pinned model path, the session-restore fall
 hook, and the expired-model special-casing. Verified against this engine on the packaged
 bundle: mount fetch, mutation refetches, and away-and-back restore all served by
 `get.live.graph` with zero browser console errors.
+
+## Increment 114 — Traversal log lines become structured records (2026-09-10)
+
+Maintainer refinement after field-testing the stepwise GraphExecutor logging: each
+traversal step now logs a JSON object — keys `id` (the run's trace id, falling back to
+the flow instance id), `text` (the traveler-style message, unchanged vocabulary), and
+`graph` (the graph id) — instead of a single line with inline suffixes. With
+`log.format=json` or `compact` the record embeds as a nested structure that log-analytics
+dashboards (Dynatrace, Splunk) index as key-values; text format prints the compact JSON
+string (this engine's map-log presentation, the telemetry-stream precedent). Confirmed
+during the same round: the executor runs zero-traced, so the app-log-context `context`
+block never accompanies its lines in any format — the record's `id` key is the
+correlation surface, and the configuration reference now says so. Java parity: identical
+record keys, `log.info("{}", Map.of(...))` on the Java side.
