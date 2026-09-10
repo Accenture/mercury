@@ -74,6 +74,7 @@ vi.mock('../../hooks/useGraphData', () => ({
     rightTab: 'payload',
     setRightTab: testDoubles.noop,
     isRefreshing: false,
+    refetchGraph: testDoubles.noop,
   }),
 }));
 vi.mock('../../hooks/useAutoGraphRefresh', () => ({ useAutoGraphRefresh: testDoubles.noop }));
@@ -109,9 +110,6 @@ vi.mock('../../hooks/useGraphSaveName', () => ({
 }));
 vi.mock('../../hooks/useSavedGraphWorkflow', () => ({
   useSavedGraphWorkflow: () => ({ handleSaveGraph: testDoubles.noop, handleLoadGraph: testDoubles.noop }),
-}));
-vi.mock('../../hooks/usePinnedGraphPath', () => ({
-  usePinnedGraphPath: () => [null, testDoubles.noop],
 }));
 vi.mock('../../contexts/WebSocketContext', () => ({
   useWebSocketContext: () => testDoubles.context,

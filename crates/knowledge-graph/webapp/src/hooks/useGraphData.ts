@@ -20,6 +20,15 @@ export function normalizeRightTab(
   return safeFallback;
 }
 
+/**
+ * A session with no graph content yet (a fresh session exports an empty
+ * graph) renders the canvas empty state, not an empty canvas — treat a
+ * zero-node payload the same as "no graph".
+ */
+function toRenderableGraph(json: unknown): MinigraphGraphData | null {
+  return isMinigraphGraphData(json) && json.nodes.length > 0 ? json : null;
+}
+
 export interface UseGraphDataReturn {
   graphData:    MinigraphGraphData | null;
   setGraphData: React.Dispatch<React.SetStateAction<MinigraphGraphData | null>>;
@@ -28,16 +37,9 @@ export interface UseGraphDataReturn {
   /** True while an auto-refresh re-fetch is in-flight (NOT set during initial load). */
   isRefreshing: boolean;
   /**
-   * True once the initial fetch of the CURRENT pinned path has failed
-   * (typically an expired temp model answering HTTP 400 after navigation).
-   * Resets whenever the pinned path changes. Consumed by the session
-   * live-graph restore as its "the model path is a dead end" signal.
-   */
-  initialFetchFailed: boolean;
-  /**
-   * Imperatively trigger a re-fetch of the currently pinned graph path.
-   * - Does NOT null graphData — stale graph remains visible under the overlay.
-   * - Does NOT switch the right tab.
+   * Imperatively re-fetch the live session graph.
+   * - Does NOT null graphData while in-flight — stale graph remains visible under the overlay.
+   * - Reveals the Graph tab only when the fetch delivers a graph and none was shown before.
    * - Sets isRefreshing = true while the fetch is in-flight.
    * - Stable reference (empty dep array) — safe to include in useEffect dep arrays.
    */
@@ -45,46 +47,53 @@ export interface UseGraphDataReturn {
 }
 
 /**
- * Manages all graph-data state for the Playground:
+ * Manages all graph-data state for the Playground.
  *
- *  Initial-load path (triggered by pinnedGraphPath changing):
- *   - Clears graphData to null while fetch is in-flight (intentional — new graph).
- *   - Auto-switches rightTab to 'graph' on success.
+ * The graph view's single source is the live session endpoint
+ * (`GET /api/graph/session/{id}`) — the graph as the backend session holds it
+ * right now. The described temp-model links (`/api/graph/model/…`) remain a
+ * human-operator surface (`describe graph` / `export graph` console output);
+ * the UI no longer round-trips through the temp file system to render.
+ *
+ *  Initial-load path (triggered by sessionGraphPath changing — the session id
+ *  arrives asynchronously via the `session` round-trip on mount, and again
+ *  after SPA navigation back to the playground):
+ *   - Clears graphData while the fetch is in-flight (a new path means a new
+ *     session — any previous graph belongs to another lifetime).
+ *   - QUIET on failure or empty content: a fresh session (empty graph) and an
+ *     unknown/closed session (HTTP 404) are normal lifecycles, not errors —
+ *     the canvas empty state is the honest outcome.
+ *   - Auto-switches to the Graph tab only when a graph is actually delivered
+ *     (the SPA-return restore moment).
  *   - Cancels in-flight requests on path change or unmount.
  *
- *  Auto-refresh path (triggered by calling refetchGraph()):
- *   - Does NOT clear graphData — stale graph stays visible under overlay.
- *   - Does NOT switch rightTab.
- *   - Sets isRefreshing = true while fetch is in-flight.
- *   - Cancels previous in-flight request if refetchGraph() is called again.
+ *  Auto-refresh path (refetchGraph(), called after graph mutations):
+ *   - Does NOT clear graphData — stale graph stays visible under the overlay.
+ *   - Reveals the Graph tab when the fetch delivers the first graph.
+ *   - A zero-node result clears the view (e.g. the last node was deleted).
+ *   - Failures toast: a mutation just happened, so the session should be live.
+ *   - Cancels the previous in-flight request if called again.
  *
- * @param pinnedGraphPath  Relative API path e.g. `/api/graph/model/my-graph/123-1`,
- *                         or null when no graph is pinned.
- * @param addToast         Toast callback from the parent's useToast hook.
- * @param initialTab       The tab to show when no persisted selection exists.
- *                         Should be the first entry in the playground's `tabs` config.
- * @param validTabs        The set of tabs currently rendered for this playground.
- *                         Used to normalize stale persisted values (e.g. a tab
- *                         removed in a later UI version) before render.
- * @param storageKeyTab    localStorage key for persisting the selected tab across
- *                         navigation. Each playground supplies its own key so
- *                         selections are independent and survive page refreshes.
- * @param quietInitialFetchFailure  When true, an initial-load failure sets
- *                         `initialFetchFailed` without a toast — for playgrounds
- *                         where the session live-graph restore handles the
- *                         expected expired-model case (a temp model path answers
- *                         HTTP 400 about a minute after it was described).
+ * @param sessionGraphPath  Relative API path e.g. `/api/graph/session/ws-123-4`,
+ *                          or null until the session id is known.
+ * @param addToast          Toast callback from the parent's useToast hook.
+ * @param initialTab        The tab to show when no persisted selection exists.
+ *                          Should be the first entry in the playground's `tabs` config.
+ * @param validTabs         The set of tabs currently rendered for this playground.
+ *                          Used to normalize stale persisted values (e.g. a tab
+ *                          removed in a later UI version) before render.
+ * @param storageKeyTab     localStorage key for persisting the selected tab across
+ *                          navigation. Each playground supplies its own key so
+ *                          selections are independent and survive page refreshes.
  */
 export function useGraphData(
-  pinnedGraphPath: string | null,
+  sessionGraphPath: string | null,
   addToast: (message: string, type?: ToastType) => void,
   initialTab: RightTab,
   validTabs: readonly RightTab[],
   storageKeyTab: string,
-  quietInitialFetchFailure = false,
 ): UseGraphDataReturn {
   const [graphData, setGraphData] = useState<MinigraphGraphData | null>(null);
-  const [initialFetchFailed, setInitialFetchFailed] = useState(false);
   // useLocalStorage re-reads from storage whenever `storageKeyTab` changes
   // (playground switch), so the correct persisted tab is restored immediately
   // without any additional synchronisation effect.
@@ -115,26 +124,31 @@ export function useGraphData(
 
   // Keep a ref in sync with the prop so that refetchGraph() (which has an
   // empty dep array) always reads the latest path rather than a stale closure.
-  const pinnedGraphPathRef = useRef<string | null>(pinnedGraphPath);
+  const sessionGraphPathRef = useRef<string | null>(sessionGraphPath);
   useEffect(() => {
-    pinnedGraphPathRef.current = pinnedGraphPath;
-  }, [pinnedGraphPath]);
+    sessionGraphPathRef.current = sessionGraphPath;
+  }, [sessionGraphPath]);
+
+  // refetchGraph()'s reveal decision needs the latest graphData without
+  // re-creating the callback per render.
+  const hasGraphRef = useRef(false);
+  useEffect(() => {
+    hasGraphRef.current = graphData !== null;
+  }, [graphData]);
 
   // Ref to the AbortController used by refetchGraph() so successive calls
   // cancel the previous in-flight request.
   const refetchAbortRef = useRef<AbortController | null>(null);
 
-  // ── Initial-load / path-change effect ──────────────────────────────────
-  // Runs whenever pinnedGraphPath changes (including to null).
-  // Nulls graphData while fetching so the UI shows a clean loading state
-  // (desired for first load / switching to a different graph).
-  // Auto-switches to the Graph tab on success.
+  // ── Initial-load / session-change effect ────────────────────────────────
+  // Runs whenever sessionGraphPath changes (including to null) and on mount —
+  // the mount run is what restores the live graph after SPA navigation.
+  // Quiet by design: no toast for a session that simply has no graph yet.
   // Uses an AbortController so the in-flight request is actually cancelled at
   // the network level (not just guarded by a flag) when the path changes or
   // the component unmounts.
   useEffect(() => {
-    setInitialFetchFailed(false); // each pinned path gets a fresh verdict
-    if (!pinnedGraphPath) {
+    if (!sessionGraphPath) {
       setGraphData(null);
       return;
     }
@@ -142,37 +156,34 @@ export function useGraphData(
     const controller = new AbortController();
     setGraphData(null); // clear stale data while the new fetch is in-flight
 
-    fetch(pinnedGraphPath, { signal: controller.signal })
+    fetch(sessionGraphPath, { signal: controller.signal })
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then((json: unknown) => {
-        if (isMinigraphGraphData(json)) {
-          setGraphData(json);
-          setRightTab('graph'); // auto-switch to Graph tab on success
-        } else {
-          // HTTP 200 with a non-graph body (e.g. an error envelope) is a
-          // dead end too — let the session restore take over quietly.
-          setInitialFetchFailed(true);
+        const graph = toRenderableGraph(json);
+        if (graph) {
+          setGraphData(graph);
+          setRightTab('graph'); // reveal the restored graph
         }
       })
-      .catch((err: Error) => {
-        if (err.name === 'AbortError') return; // intentional cancellation — no toast
-        setInitialFetchFailed(true);
-        if (!quietInitialFetchFailure) {
-          addToast(`Graph fetch failed: ${err.message}`, 'error');
-        }
+      .catch(() => {
+        // Silent: no live graph in this session (fresh session, closed
+        // session, or a network hiccup) — the canvas empty state already
+        // says how to get a graph.
       });
 
     return () => { controller.abort(); };
-  }, [pinnedGraphPath, addToast, quietInitialFetchFailure]);
+  }, [sessionGraphPath]); // eslint-disable-line react-hooks/exhaustive-deps
+  // setRightTab is intentionally excluded: its identity follows validTabs and
+  // would re-trigger the fetch without the path having changed.
 
   // ── Imperative re-fetch (auto-refresh path) ─────────────────────────────
   // Empty dep array — this function is intentionally stable across renders.
-  // It reads pinnedGraphPath via pinnedGraphPathRef, never via closure.
+  // It reads sessionGraphPath via sessionGraphPathRef, never via closure.
   const refetchGraph = useCallback(() => {
-    const path = pinnedGraphPathRef.current;
+    const path = sessionGraphPathRef.current;
     if (!path) return;
 
     // Cancel any previous in-flight refetch.
@@ -188,8 +199,11 @@ export function useGraphData(
         return res.json();
       })
       .then((json: unknown) => {
-        if (isMinigraphGraphData(json)) {
-          setGraphData(json);
+        const graph = toRenderableGraph(json);
+        const revealing = graph !== null && !hasGraphRef.current;
+        setGraphData(graph);
+        if (revealing) {
+          setRightTab('graph'); // first content — bring the Graph tab forward
         }
         setIsRefreshing(false);
       })
@@ -201,7 +215,7 @@ export function useGraphData(
         setIsRefreshing(false);
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // The empty dep array is intentional — see pinnedGraphPathRef for path access.
+  // The empty dep array is intentional — see sessionGraphPathRef for path access.
   // addToast is intentionally excluded: it is stable (from useToast) and including
   // it would require listing it which would force the hook consumer to stabilise it.
 
@@ -213,5 +227,5 @@ export function useGraphData(
     return () => { refetchAbortRef.current?.abort(); };
   }, []);
 
-  return { graphData, setGraphData, rightTab, setRightTab, isRefreshing, initialFetchFailed, refetchGraph };
+  return { graphData, setGraphData, rightTab, setRightTab, isRefreshing, refetchGraph };
 }

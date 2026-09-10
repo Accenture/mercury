@@ -3,58 +3,54 @@ import { type ProtocolBus } from '../protocol/bus';
 import { type ToastType } from './useToast';
 
 export interface UseAutoGraphRefreshOptions {
-  bus:                ProtocolBus;
-  pinnedGraphPath:    string | null;
-  setPinnedGraphPath: (path: string | null) => void;
-  connected:          boolean;
-  sendRawText:        (text: string) => void;
-  addToast:           (message: string, type?: ToastType) => void;
+  bus:          ProtocolBus;
+  /** True while a graph is currently rendered — drives the toast wording. */
+  hasGraph:     boolean;
+  connected:    boolean;
+  /** useGraphData's imperative live-endpoint re-fetch (stable reference). */
+  refetchGraph: () => void;
+  /** Clears the rendered graph (session restarted — the old graph is gone). */
+  clearGraph:   () => void;
+  addToast:     (message: string, type?: ToastType) => void;
 }
 
 /**
- * Watches the ProtocolBus for graph mutation and graph-link events and
- * automatically re-renders the graph without requiring user interaction.
+ * Watches the ProtocolBus for graph mutation events and automatically
+ * re-fetches the live session graph (`GET /api/graph/session/{id}`) without
+ * requiring user interaction.
+ *
+ * Node mutations are debounced (a burst of authoring commands lands as one
+ * re-fetch); a graph import re-fetches immediately. In a collaboration
+ * session every member sees the propagated commands' replies in its own
+ * console, so each member's bus emits the same mutation events and each
+ * re-fetches its own session replica — no graph-link forwarding involved.
  */
 export function useAutoGraphRefresh({
   bus,
-  pinnedGraphPath,
-  setPinnedGraphPath,
+  hasGraph,
   connected,
-  sendRawText,
+  refetchGraph,
+  clearGraph,
   addToast,
 }: UseAutoGraphRefreshOptions): void {
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const waitingForDescribeRef = useRef(false);
-  const pinnedGraphPathRef = useRef<string | null>(pinnedGraphPath);
+  const hasGraphRef = useRef(hasGraph);
   const connectedRef = useRef(connected);
-  const sendRawTextRef = useRef(sendRawText);
+  const refetchGraphRef = useRef(refetchGraph);
 
   // Stale-closure fixes
-  useEffect(() => { pinnedGraphPathRef.current = pinnedGraphPath; }, [pinnedGraphPath]);
+  useEffect(() => { hasGraphRef.current = hasGraph; }, [hasGraph]);
   useEffect(() => { connectedRef.current = connected; }, [connected]);
-  useEffect(() => { sendRawTextRef.current = sendRawText; }, [sendRawText]);
+  useEffect(() => { refetchGraphRef.current = refetchGraph; }, [refetchGraph]);
 
-  // Reset waitingForDescribeRef on disconnect
+  // Cancel a pending refresh on disconnect
   useEffect(() => {
-    if (!connected) {
-      waitingForDescribeRef.current = false;
-      if (debounceTimerRef.current !== null) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
-      }
+    if (!connected && debounceTimerRef.current !== null) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
     }
   }, [connected]);
-
-  // Subscribe to graph.link (consume pending describe response)
-  useEffect(() => {
-    return bus.on('graph.link', (event) => {
-      if (waitingForDescribeRef.current) {
-        waitingForDescribeRef.current = false;
-        setPinnedGraphPath(event.apiPath);
-      }
-    });
-  }, [bus, setPinnedGraphPath]);
 
   // Subscribe to graph.mutation
   useEffect(() => {
@@ -66,16 +62,10 @@ export function useAutoGraphRefresh({
           clearTimeout(debounceTimerRef.current);
           debounceTimerRef.current = null;
         }
-        waitingForDescribeRef.current = true;
-        sendRawTextRef.current('describe graph');
+        refetchGraphRef.current();
         addToast('Graph imported — refreshing view…', 'info');
         return;
       }
-
-      // Arm gate immediately: a graph.link forwarded by the primary during
-      // the debounce window must be accepted before this session sends its
-      // own describe graph.
-      waitingForDescribeRef.current = true;
 
       // node-mutation → debounce
       if (debounceTimerRef.current !== null) {
@@ -84,10 +74,9 @@ export function useAutoGraphRefresh({
       debounceTimerRef.current = setTimeout(() => {
         debounceTimerRef.current = null;
         if (!connectedRef.current) return;
-        waitingForDescribeRef.current = true; // re-arm: may have been reset by an early forwarded graph.link
-        sendRawTextRef.current('describe graph');
+        refetchGraphRef.current();
         addToast(
-          pinnedGraphPathRef.current !== null
+          hasGraphRef.current
             ? 'Graph updated — refreshing…'
             : 'Graph updated — opening Graph tab…',
           'info',
@@ -103,10 +92,9 @@ export function useAutoGraphRefresh({
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      waitingForDescribeRef.current = false;
-      setPinnedGraphPath(null);
+      clearGraph();
     });
-  }, [bus, setPinnedGraphPath]);
+  }, [bus, clearGraph]);
 
   // Cleanup debounce on unmount
   useEffect(() => {
