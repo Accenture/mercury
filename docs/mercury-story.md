@@ -789,6 +789,9 @@ And the working posture follows from it:
     <https://arxiv.org/abs/2211.09110>
 19. C. E. Jimenez et al., *SWE-bench: Can Language Models Resolve Real-World GitHub Issues?*,
     ICLR 2024. <https://arxiv.org/abs/2310.06770>
+20. E. Law, *agent-memory: A Lightweight, Vendor-Neutral Memory + Cognitive-Loop System for
+    Predictable AI–Human Delivery*, whitepaper v1.7, September 2026.
+    <https://accenture.github.io/mercury-go/agent-memory-whitepaper/>
 
 ---
 
@@ -803,5 +806,6 @@ documentation map. All figures are reproducible from the cited artifacts.*
 
 *Mercury Composable is an official Accenture open-source project; this repository is its official
 Rust implementation (github.com/Accenture/mercury). agent-memory is a lightweight, vendor-neutral
-shared-memory and cognitive-loop tool for human-AI collaboration; it installs and maintains this
-repository's shared `memory/` layer.*
+shared-memory and cognitive-loop tool for human-AI collaboration and part of the Mercury family
+(github.com/Accenture/mercury-go); it installs and maintains this repository's shared `memory/`
+layer.*
