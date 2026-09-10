@@ -106,7 +106,7 @@ nav:
   - Home: index.md
   - Orientation:
       - Getting Started: guides/getting-started.md
-      - Intent-Driven Development (white paper): mercury-story.md
+      - White Paper: mercury-story.md
       - The Mercury Family: mercury-family.md
   - Foundations:
       - Architecture: guides/architecture.md

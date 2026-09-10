@@ -1,96 +1,65 @@
-# Composability Methodology
+# Methodology
 
-Software development is a long fight against complexity — and most of that complexity is
-*coupling*: code that cannot change without breaking something else. Composable methodology
-attacks coupling at its source. You build an application from **self-contained functions**
-that know nothing about one another, then wire them together with **configuration instead
-of code**. Functions become plug-and-play: you mix and match them into new applications,
-run multiple versions side by side, and retire one without side effects on the rest. The
-[Architecture Overview](architecture.md) is the technical companion to this page.
+*Intent-Driven Development is the main theme — humans own intent, AI partners co-author
+governed artifacts — realized down the layers: knowledge graph, composable design,
+event-driven core. The [Architecture Overview](architecture.md) is the technical companion.*
 
-## From product design to running code
+## Intent-Driven Development
 
-A composable project starts from **product design, not technology**. The output of product
-design is a business transaction's **event flow diagram** — typically from an Event Storming
-workshop or a whiteboard session among product owners, domain experts, and architects. The
-diagram has a start and an end; each processing step is a **task** (a function in its role
-as a flow step); some tasks calculate, some decide the next step.
+**Intent-Driven Development (IDD)** is the collaboration model this framework is built for.
+Humans own the *intent* — purpose, constraints, priorities, and judgment. AI partners help
+refine that intent and translate it into designs, models, flows, tests, and implementation
+artifacts. Three mechanisms keep the collaboration faithful: **shared memory** preserves
+continuity across sessions, **AI grammar** makes each DSL legible to a machine so an agent
+authors from rules rather than inferring from examples, and **validation gates** keep every
+generated artifact aligned with the intent behind it. The full argument is the white paper,
+[Intent-Driven Development and the Architecture of Human-AI Collaboration](https://accenture.github.io/mercury/mercury-story/).
 
-That diagram is not a picture that gets translated into something else — in Event Script it
-*is* the application's orchestration, expressed as a YAML flow. Data attributes in the
-events flowing between tasks give product designers and engineers a shared, precise
-vocabulary, closing the traditional gap between business intent and technical design.
+### How a developer builds with an AI partner
 
-## The four principles
+**Step 1 — AI-enable the project.** Greenfield or existing, the first move is the same:
+install the [shared memory layer](https://accenture.github.io/mercury-go/), write the
+**Vision** with the AI partner — human-confirmed, never fabricated — derive the **Blueprint**
+of gaps, and plan increments. Every session thereafter starts oriented: the AI reads where the
+project is, where it is going, and why, before it touches anything.
 
-**First — input-process-output.** Each function is self-contained, and its input and output
-are immutable. Given input, it performs its business logic and returns output; it cannot
-reach outside its functional scope or mutate a business object it does not own, which
-eliminates unintended side effects by construction.
+**Step 2 — Add the engine and choose the path.** The engine arrives carrying its own AI
+grammar, so an AI partner can author correct artifacts from the first session.
+**Recommended for applications: Layer 3** — model the service as a knowledge graph, dry-run it
+in the Playground, deploy it behind the CompileGraph gate. The path is a dial, not a wall:
+drop down to Event Script, or to a composable function, exactly where the problem demands
+it — and no further.
 
-**Second — zero to one dependency.** A function has zero dependencies on other *user*
-functions. To reach the world outside its scope it may depend on at most one platform or
-infrastructure component — and it consumes that component by **sending an event**, never by
-a direct method call. In composable design, a library can be packaged as a reusable
-composable function.
+**Step 3 — Build the app, or a building block.** An application travels
+**intent → model → certify → deploy**. A building block combines layer-2 and layer-3
+patterns — and then **compiles an AI grammar into its own repository**, so the block becomes
+as legible to the next AI partner as Mercury itself.
 
-**Third — platform abstraction.** Platform and infrastructure are encapsulated as adapters,
-gateways, and wrappers. The HTTP flow adapter serves inbound requests and outbound
-responses; a custom adapter can front any event source. Because functions are self-contained
-and independent, they can be repackaged into different applications — plug-and-play by
-definition.
+> Proof point for step 1: this repository was AI-enabled *before its first line of code* —
+> about a hundred increments later, it ships in lock-step with the Java engine.
 
-**Fourth — event choreography.** Without direct coupling, the framework must route events
-between functions according to the event flow diagram for each use case. That is Event
-Script's job: choreography is an **Event Flow Configuration**, executed by the flow engine
-with a per-transaction state machine and declarative input/output data mapping.
+### Grammar composes the way dependencies compose
 
-## What decoupling buys you
+```mermaid
+flowchart LR
+    M["mercury<br/>ships its AI grammar"]
+    B["building block<br/>compiles its own grammar"]
+    U["user application<br/>its own Vision + memory"]
+    M -- built on --> B
+    B -- depends on --> U
+    M -. grammars load into the app's AI session .-> U
+    B -.-> U
+```
 
-- **Maintainability** — isolated functions are easy to understand, test, and change.
-- **Reusability** — the same function serves as an HTTP service, a flow task, or a graph
-  skill, unchanged.
-- **Performance** — loose coupling enables asynchronous, parallel execution without
-  bottlenecks (the ported bus benchmarks at ~155K RPC ops/s at 6 µs round trip).
-- **Testability** — explicit input/output contracts make unit tests straightforward, and
-  integration mocks are just mock functions assigned to tasks in a flow.
-- **Debuggability** — independent functions and end-to-end traces make faults easy to
-  localize (see the [Observability Model](observability.md)).
-- **Technology freedom** — inside a function you may use any style or library; nothing
-  leaks across the boundary.
+The session that builds the application loads Mercury's grammar **plus** each building
+block's grammar — a near-constant token cost per block, instead of an ever-growing pile of
+source to re-read. The recursion is already live inside the family: the Java engine's
+twin-kafka is a building block on a building block — and while its discovery-map entry was
+missing, AI partners fell back to reading source.
 
-## Zero code by default, escape hatches by design
+> To an AI partner, undocumented capability is absent capability.
 
-The three layers form a ladder of defaults. At the top, an **active knowledge graph is the
-application**: a graph model executes behavior through skills embedded on nodes, so the
-common case — data sourcing, mapping, decisions, iteration, composition — needs **zero
-imperative code** (the [skills reference](knowledge-graph/skills-reference.md) catalogs
-what nodes can do). One rung down, **Event Script** makes orchestration configuration: the
-flow YAML sequences functions, maps data, and handles exceptions declaratively (the
-[flow grammar](event-script/flow-grammar.md) is the contract). At the bottom, when genuine
-custom logic is needed, you write a **composable function** in Rust and address it from a
-flow (`process:`) or from a graph node — the deliberate seam between the model and code.
-
-This is explicitly **not a "no code ever" dogma**. Zero-code is the default; Event Script
-and custom functions remain first-class escape hatches. The discipline is that the escape
-hatch is always a *function with an explicit contract*, never a side channel.
-
-## Evolving systems by editing models, not rewriting code
-
-Because orchestration lives in configuration, a system evolves by **editing the model that
-describes it**. Reordering tasks, adding a validation step, changing a decision branch, or
-rerouting an error handler is a YAML edit and a redeploy — the functions themselves do not
-change. A graph model evolves the same way, one node or connection at a time, and the graph
-doubles as **living documentation** of the domain: its entities, data dictionaries, and
-providers are linked into the same executable model that runs the behavior.
-
-The same property derisks growth. New use cases are new flows over the existing function
-inventory; two versions of a function can run side by side under different route names;
-teams scale because a developer building one function needs no knowledge of its neighbors —
-which is also why the methodology is naturally test-driven: each function is a
-self-contained unit with no external dependencies to fake.
-
-## Co-authoring with AI agents
+### Co-authoring in practice
 
 Composable design turns out to be the shape AI collaboration needs. A function's
 input-process-output contract is exactly what an agent can generate against; a flow or a
@@ -114,7 +83,108 @@ byte-identical responses — and it has been validated end to end: a fresh agent
 every Playground tutorial from the agent documentation alone. Details in the
 [knowledge-graph agent guide](knowledge-graph/ai-agent-guide.md).
 
-## Packaging and deployment
+## Knowledge graph — model as the application
+
+The recommended altitude for applications is the top of the ladder: capture business intent,
+enterprise knowledge, and system behavior as one executable **Active Knowledge Graph**, so
+the model *is* the application. The working loop is the IDD loop made concrete —
+**intent → model → certify → deploy**: draft the graph with an AI companion, dry-run it in
+the Playground, let the product owner read and certify it, then deploy it behind the
+CompileGraph quality gate. Changing what the system does becomes **refining the model** —
+recertify, redeploy — not rewriting code.
+
+### Zero code by default, escape hatches by design
+
+The three layers form a ladder of defaults. At the top, an **active knowledge graph is the
+application**: a graph model executes behavior through skills embedded on nodes, so the
+common case — data sourcing, mapping, decisions, iteration, composition — needs **zero
+imperative code** (the [skills reference](knowledge-graph/skills-reference.md) catalogs
+what nodes can do). One rung down, **Event Script** makes orchestration configuration: the
+flow YAML sequences functions, maps data, and handles exceptions declaratively (the
+[flow grammar](event-script/flow-grammar.md) is the contract). At the bottom, when genuine
+custom logic is needed, you write a **composable function** in Rust and address it from a
+flow (`process:`) or from a graph node — the deliberate seam between the model and code.
+
+This is explicitly **not a "no code ever" dogma**. Zero-code is the default; Event Script
+and custom functions remain first-class escape hatches. The discipline is that the escape
+hatch is always a *function with an explicit contract*, never a side channel.
+
+### Evolving systems by editing models, not rewriting code
+
+Because orchestration lives in configuration, a system evolves by **editing the model that
+describes it**. Reordering tasks, adding a validation step, changing a decision branch, or
+rerouting an error handler is a YAML edit and a redeploy — the functions themselves do not
+change. A graph model evolves the same way, one node or connection at a time, and the graph
+doubles as **living documentation** of the domain: its entities, data dictionaries, and
+providers are linked into the same executable model that runs the behavior.
+
+The same property derisks growth. New use cases are new flows over the existing function
+inventory; two versions of a function can run side by side under different route names;
+teams scale because a developer building one function needs no knowledge of its neighbors —
+which is also why the methodology is naturally test-driven: each function is a
+self-contained unit with no external dependencies to fake.
+
+## Composable design
+
+Software development is a long fight against complexity — and most of that complexity is
+*coupling*: code that cannot change without breaking something else. Composable methodology
+attacks coupling at its source. You build an application from **self-contained functions**
+that know nothing about one another, then wire them together with **configuration instead
+of code**. Functions become plug-and-play: you mix and match them into new applications,
+run multiple versions side by side, and retire one without side effects on the rest.
+
+### From product design to running code
+
+A composable project starts from **product design, not technology**. The output of product
+design is a business transaction's **event flow diagram** — typically from an Event Storming
+workshop or a whiteboard session among product owners, domain experts, and architects. The
+diagram has a start and an end; each processing step is a **task** (a function in its role
+as a flow step); some tasks calculate, some decide the next step.
+
+That diagram is not a picture that gets translated into something else — in Event Script it
+*is* the application's orchestration, expressed as a YAML flow. Data attributes in the
+events flowing between tasks give product designers and engineers a shared, precise
+vocabulary, closing the traditional gap between business intent and technical design.
+
+### The four principles
+
+**First — input-process-output.** Each function is self-contained, and its input and output
+are immutable. Given input, it performs its business logic and returns output; it cannot
+reach outside its functional scope or mutate a business object it does not own, which
+eliminates unintended side effects by construction.
+
+**Second — zero to one dependency.** A function has zero dependencies on other *user*
+functions. To reach the world outside its scope it may depend on at most one platform or
+infrastructure component — and it consumes that component by **sending an event**, never by
+a direct method call. In composable design, a library can be packaged as a reusable
+composable function.
+
+**Third — platform abstraction.** Platform and infrastructure are encapsulated as adapters,
+gateways, and wrappers. The HTTP flow adapter serves inbound requests and outbound
+responses; a custom adapter can front any event source. Because functions are self-contained
+and independent, they can be repackaged into different applications — plug-and-play by
+definition.
+
+**Fourth — event choreography.** Without direct coupling, the framework must route events
+between functions according to the event flow diagram for each use case. That is Event
+Script's job: choreography is an **Event Flow Configuration**, executed by the flow engine
+with a per-transaction state machine and declarative input/output data mapping.
+
+### What decoupling buys you
+
+- **Maintainability** — isolated functions are easy to understand, test, and change.
+- **Reusability** — the same function serves as an HTTP service, a flow task, or a graph
+  skill, unchanged.
+- **Performance** — loose coupling enables asynchronous, parallel execution without
+  bottlenecks (the ported bus benchmarks at ~155K RPC ops/s at 6 µs round trip).
+- **Testability** — explicit input/output contracts make unit tests straightforward, and
+  integration mocks are just mock functions assigned to tasks in a flow.
+- **Debuggability** — independent functions and end-to-end traces make faults easy to
+  localize (see the [Observability Model](observability.md)).
+- **Technology freedom** — inside a function you may use any style or library; nothing
+  leaks across the boundary.
+
+### Packaging and deployment
 
 Composable functions are granular and independent, so packaging is a deliberate
 architectural choice rather than a constraint: related functions for a set of flows are
@@ -123,6 +193,15 @@ application is a standalone crate under `examples/` with its configuration in a
 `resources/` folder — see [Getting Started](getting-started.md). Functions are invoked by
 events on demand and hold no state between events, keeping the memory footprint small and
 predictable.
+
+## Event-driven core
+
+Beneath the layers sits a **low-latency in-memory event system**, realized in this port on
+**tokio** async/await. Every function is invoked by events and runs in parallel with its
+neighbors; a per-transaction **state machine** carries flow state; and a standard **event
+envelope** (body, headers, metadata) transports every event. The flow YAML and the envelope
+serialization scheme (binary JSON — MsgPack) are deliberately **language-neutral**, which is
+what lets flows written for one engine run unchanged on the other.
 
 !!! note "Rust port"
     The methodology is unchanged from the Java original — it is the platform's reason for
