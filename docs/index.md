@@ -1,3 +1,8 @@
+---
+hide:
+  - navigation
+---
+
 # Mercury Composable for Rust
 
 Mercury Composable lets you build backend applications as **composable, event-driven systems** —
@@ -9,9 +14,12 @@ realized here on **tokio** async/await, with the canonical
 [Java engine](https://accenture.github.io/mercury-composable/) as the behavior specification —
 same three layers, same flow YAML, behavior-synced release by release.
 
+<div class="hero-buttons" markdown>
 [Get started](guides/getting-started.md){ .md-button .md-button--primary }
 [Read the white paper](https://accenture.github.io/mercury/mercury-story/){ .md-button }
 [View the deck](https://accenture.github.io/mercury/presentations/mercury-story.html){ .md-button }
+[The Mercury Family](https://accenture.github.io/mercury/mercury-family/){ .md-button }
+</div>
 
 *The white paper — **Intent-Driven Development and the Architecture of Human-AI Collaboration** —
 presents the collaboration model the AI era needs and the Mercury story that proved it: shared
