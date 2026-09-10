@@ -18,3 +18,12 @@
   overflow-wrap: break-word;
   white-space: normal;
 }
+
+/* Home hero buttons — compact size so all four ("Get started" through
+ * "The Mercury Family") fit the content column on one row. Horizontal
+ * padding is em-based, so it scales down with the font size. */
+.md-typeset .hero-buttons .md-button {
+  font-size: 0.64rem;
+  padding: 0.5em 1.4em;
+  white-space: nowrap;
+}
