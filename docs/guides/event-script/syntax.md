@@ -1474,6 +1474,8 @@ For example:
 | **Type Conversion** | listOfMap       | Convert "a map of lists" to "a list of maps" — **order-preserving**: list order follows array index order (guaranteed) |
 | **Type Conversion** | updateListOfMap | Update "a list of maps" with "maps of lists"                                                                          |
 | **Type Conversion** | removeKey       | Remove one or more keys from a map or "list of maps". Syntax: `f:removeKey(source, text(key1), text(key2), …)` — see the worked example below. |
+| **Key Normalization** | camelCase     | Normalize every key of a map (recursively, incl. maps inside lists) to camelCase. See the worked example below. |
+| **Key Normalization** | snakeCase     | Normalize every key of a map (recursively, incl. maps inside lists) to snake_case. See the worked example below. |
 | **Type Conversion** | defaultValue    | If the first argument is null, return the 2nd argument                                                                |
 | **Type Conversion** | parseDate       | Parse a date string to ISO, Local or Milliseconds.                                                                    |
 | **Type Conversion** | parseDateTime   | Parse a date-time string to ISO, Local or Milliseconds.                                                               |
@@ -1736,6 +1738,29 @@ for external consumption:
 For details, please refer to the configuration example in `header-and-json-path-test.yml` under
 `crates/event-script/tests/resources/flows/` and its test in `crates/event-script/tests/`
 (the canonical Java fixtures are reused verbatim by this port).
+
+*camelCase and snakeCase*
+
+Legacy systems — often XML-to-JSON transformations — deliver key formats that vary per source:
+`MyExampleKey`, `My_Example_key` and `my_example_Key` are the same logical key. The
+`camelCase(mapOrList)` and `snakeCase(mapOrList)` plugins segmentize each key and re-case the
+segments: underscore, hyphen and dot are separators; a lower-case-or-digit to upper-case
+transition starts a new segment; and an upper-case run followed by a lower-case letter splits
+before its last upper-case letter (the acronym rule — `myXMLKey` becomes `myXmlKey` /
+`my_xml_key`). Digits ride with their segment (`address1Line`). Values are never touched —
+only keys, at every nesting depth (including maps inside lists). Two distinct source keys can
+normalize to the same target (`MyKey` and `my_key` both become `myKey`); the later entry in
+map order wins. Normalization is idempotent, and a key with no letter or digit segments at
+all (e.g. `"___"`) is kept as-is. Both engines ship the identical algorithm and error
+messages (portable-flow contract).
+
+```yaml
+# converge a legacy payload's mixed key formats before mapping it onward
+- 'f:camelCase(input.body) -> model.normalized'
+
+# a list of maps normalizes element by element
+- 'f:snakeCase(input.body.list) -> output.body.records'
+```
 
 ### Writing your own custom Simple Plugins
 

@@ -2849,3 +2849,15 @@ during the same round: the executor runs zero-traced, so the app-log-context `co
 block never accompanies its lines in any format — the record's `id` key is the
 correlation surface, and the configuration reference now says so. Java parity: identical
 record keys, `log.info("{}", Map.of(...))` on the Java side.
+
+## Increment 115 — Key-normalization simple plugins: f:camelCase / f:snakeCase (2026-09-10)
+
+Field proposal (Eric): legacy systems — often XML-to-JSON transformations — deliver maps
+whose key formats vary per source (MyExampleKey, My_Example_key, my_example_Key). The two
+new built-in plugins segmentize each key (underscore/hyphen/dot separators, a
+lower-or-digit to upper transition, and the acronym rule: an upper-case run followed by a
+lower-case letter splits before its last upper — myXMLKey becomes myXmlKey / my_xml_key)
+and re-case recursively through nested maps and lists; values are never touched;
+collisions resolve last-wins at the first key's position; normalization is idempotent.
+Lock-step with the Java engine: identical algorithm, error messages, and the shared
+pluggableFunctions/types.yml fixture (BUILTIN_PLUGIN_COUNT floor 48 → 50).
