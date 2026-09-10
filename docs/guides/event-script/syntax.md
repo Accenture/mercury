@@ -1754,12 +1754,20 @@ map order wins. Normalization is idempotent, and a key with no letter or digit s
 all (e.g. `"___"`) is kept as-is. Both engines ship the identical algorithm and error
 messages (portable-flow contract).
 
+Beyond legacy cleanup, the plugins also do **impedance matching** between systems with
+different key conventions: an incoming camelCase request payload can be transformed to
+snake_case for processing and forwarding to a downstream system that expects it — one
+mapping statement at either boundary, no per-field mapping.
+
 ```yaml
 # converge a legacy payload's mixed key formats before mapping it onward
 - 'f:camelCase(input.body) -> model.normalized'
 
 # a list of maps normalizes element by element
 - 'f:snakeCase(input.body.list) -> output.body.records'
+
+# impedance matching: a camelCase request payload forwarded to a snake_case system
+- 'f:snakeCase(input.body) -> model.downstream_request'
 ```
 
 ### Writing your own custom Simple Plugins
