@@ -19,7 +19,13 @@
   `cargo run -p ai-contract-provider -- --export <dir>` for the offline `mercury-platform`
   Agent Skill. Consumer starting point: `system/AGENTS.md` at the repo root.
 
-## Operating the Active Knowledge Graph (MiniGraph) Playground — start here if you are an AI agent
+## Cross-layer orientation — read this first if you are an AI agent
+- [AI developer guide](guides/ai-developer-guide.md) — the mental model, the two entry points
+  for starting a collaboration (a greenfield project; AI-enabling an existing repository),
+  brownfield orientation, the layer-choice decision tree, adding a feature per layer, testing,
+  and the invariants that must not break.
+
+## Operating the Active Knowledge Graph (MiniGraph) Playground
 These are self-contained; you should not need the engine source or the tutorial walkthroughs:
 
 - [AI agent guide](guides/knowledge-graph/ai-agent-guide.md) — the companion-endpoint contract. Use

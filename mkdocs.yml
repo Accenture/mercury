@@ -111,6 +111,7 @@ nav:
   - Foundations:
       - Architecture: guides/architecture.md
       - Methodology: guides/methodology.md
+      - AI Developer Guide: guides/ai-developer-guide.md
   - "Layer 1 — Event-Driven":
       - Overview: guides/event-driven/index.md
       - Write Your First Function: guides/event-driven/write-your-first-function.md
