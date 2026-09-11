@@ -1,0 +1,13 @@
+# starter-graph - Layer 3 starter configuration
+application.name: starter-graph
+info.app.description: 'Layer 3 starter - Active Knowledge Graph as the application'
+
+# REST automation serves rest.yaml over HTTP
+rest.automation: true
+# a distinct port so a running application never collides with unit tests
+rest.server.port: 8303
+
+# CompileGraph quality gate (required for deployed graph execution) - validates
+# and compiles the manifest-listed graph models at startup; only graphs that
+# pass the gate are executable ("compiled or 404")
+graph.model.automation: 'classpath:/graphs.yaml'

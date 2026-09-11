@@ -1,0 +1,9 @@
+# starter-flow - Layer 2 starter configuration
+application.name: starter-flow
+info.app.description: 'Layer 2 starter - Event Script flows'
+
+# REST automation serves rest.yaml; the flow engine loads flows.yaml — both
+# by their default locations in this resources/ folder.
+rest.automation: true
+# a distinct port so a running application never collides with unit tests
+rest.server.port: 8302

@@ -107,7 +107,14 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 - **`cargo fmt` + `cargo clippy --all-targets` clean** is part of "done" for every change
   (default settings, no custom rustfmt.toml yet).
 - **Apache-2.0 header** comment on every source file (ported from the Java originals'
-  header style).
+  header style). EXCEPTION ruled by Eric 2026-09-11: `templates/*` starter sources carry a
+  ONE-LINE scaffold attribution instead — templates seed field applications that are not
+  open source, so the full Accenture copyright header must not ride into user code.
+- **Release version bumps must include the starter templates (2026-09-11).** Each
+  `templates/*/Cargo.toml` carries an EXPLICIT `version = "<version>"` and mercury-* dep
+  pins (deliberately NOT workspace-inherited, so a copied-out template builds as-is after
+  deleting the in-repo `path` keys) — the release edit list grows from 5 manifests to 8.
+  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-11 | uses: 1 | tier: working | origin: 2026-09-11-005808 -->
 - Each ported module's `//!` doc names the **Java class it ports** (e.g.
   `org.platformlambda.core.util.ConfigReader`) so reviewers can diff behavior side-by-side.
 - **Tests:** unit tests in-module (`#[cfg(test)]`), integration tests in `tests/` with

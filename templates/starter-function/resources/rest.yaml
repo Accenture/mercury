@@ -1,0 +1,10 @@
+#
+# REST automation - declare HTTP endpoints without writing controllers.
+# Each entry maps a URL to a function's route name.
+#
+rest:
+  - service: "v1.greeting"
+    methods: ['GET', 'POST']
+    url: "/api/greeting"
+    timeout: 10s
+    tracing: true

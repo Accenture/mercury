@@ -1,0 +1,31 @@
+#
+# Orchestration is configuration, not code: this flow sequences two decoupled
+# functions and maps data between them. Business logic stays in the functions.
+# Flow YAML is engine-portable - this same file runs on the Java engine.
+#
+flow:
+  id: 'greeting-flow'
+  description: 'Validate the request, then compose a greeting'
+  ttl: 10s
+
+first.task: 'v1.validate.request'
+
+tasks:
+  - input:
+      - 'input.body.name -> name'
+    process: 'v1.validate.request'
+    output:
+      - 'result.name -> model.name'
+    description: 'Reject requests without a name'
+    execution: sequential
+    next:
+      - 'v1.make.greeting'
+
+  - input:
+      - 'model.name -> name'
+    process: 'v1.make.greeting'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Compose the greeting from the state machine value'
+    execution: end

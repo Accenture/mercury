@@ -1,0 +1,8 @@
+# starter-function - Layer 1 starter configuration
+application.name: starter-function
+info.app.description: 'Layer 1 starter - composable functions with REST automation'
+
+# REST automation serves rest.yaml endpoints over HTTP
+rest.automation: true
+# a distinct port so a running application never collides with unit tests
+rest.server.port: 8301

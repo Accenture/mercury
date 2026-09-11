@@ -77,17 +77,20 @@ conversation with questions, never assumptions.
    dial explicitly: Event Script when the shape is a known transaction flow; a composable
    function when the need is genuinely custom logic
    ([Choosing the right layer](#layer-choice)).
-4. **Scaffold on a yes — never on silence.** Start from the chosen layer's reference
-   application in `examples/` —
-   [`hello-world`](https://github.com/Accenture/mercury/tree/main/examples/hello-world)
+4. **Scaffold on a yes — never on silence.** Copy the chosen layer's starter template out
+   of the repository's `templates/` directory —
+   [`starter-function`](https://github.com/Accenture/mercury/tree/main/templates/starter-function)
    (Layer 1 functions),
-   [`hello-flow`](https://github.com/Accenture/mercury/tree/main/examples/hello-flow)
+   [`starter-flow`](https://github.com/Accenture/mercury/tree/main/templates/starter-flow)
    (Layer 2 flows), or
-   [`minigraph-playground`](https://github.com/Accenture/mercury/tree/main/examples/minigraph-playground)
-   (Layer 3 graphs with the Playground) — the Layer 1 guide carries a
-   [trim manifest](event-driven/ai-agent-guide.md#scaffolding) for deriving a project from
-   the example. Pin the Mercury version the environment reports
-   (`GET :8999/api/discovery` → `mercury_version`) rather than assuming one.
+   [`starter-graph`](https://github.com/Accenture/mercury/tree/main/templates/starter-graph)
+   (Layer 3, a zero-code knowledge-graph application). Each builds standalone after
+   deleting the in-repo `path` keys in its `Cargo.toml` — the pinned versions then
+   resolve from crates.io. Pin the Mercury version the environment reports
+   (`GET :8999/api/discovery` → `mercury_version`) rather than assuming one; the
+   reference applications in `examples/` remain the richer worked demos, and the Layer 1
+   guide's [trim manifest](event-driven/ai-agent-guide.md#scaffolding) still covers
+   deriving from those.
 5. **Hand off to the layer's guide.** The [DSL-specific AI guides](#dsl-guides) carry the
    authoring contracts from here.
 
