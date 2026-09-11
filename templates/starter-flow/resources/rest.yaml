@@ -1,0 +1,11 @@
+#
+# REST automation - a flow binding needs BOTH keys: 'service' selects the
+# flow adapter and 'flow' selects the flow to launch.
+#
+rest:
+  - service: "http.flow.adapter"
+    methods: ['POST']
+    url: "/api/greeting"
+    flow: 'greeting-flow'
+    timeout: 10s
+    tracing: true

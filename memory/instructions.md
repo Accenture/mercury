@@ -40,6 +40,8 @@ crates/
   knowledge-graph-macros ← #[fetch_feature]
   minigraph-state-redis  ← pluggable suspend/resume state store
 examples/<name>/         ← standalone workspace crates, never cargo examples in a library crate
+templates/<name>/        ← copy-out starter projects for the three layers (starter-function,
+                           starter-flow, starter-graph — workspace-built; a copy drops the path keys)
 system/ai-contract-provider ← serves the version-matched AI documentation contract
 docs/ (guides, llms.txt, INCREMENTS.md)   draft-design-specs/   scripts/
 ```

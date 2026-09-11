@@ -1,0 +1,117 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "starter-quote",
+        "purpose": "Zero-code quote service: validate the request, then answer from the graph's own knowledge - the model IS the application"
+      }
+    },
+    {
+      "alias": "check-input",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(={input.body.item}) -> model.item_probe",
+          "IF: {model.item_probe} == '=null'\nTHEN: reject\nELSE: quote"
+        ],
+        "purpose": "A request must name the item to quote"
+      }
+    },
+    {
+      "alias": "reject",
+      "types": [
+        "mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "int(400) -> output.status",
+          "text(Missing item. Provide the item name in the 'item' field) -> output.body.message"
+        ],
+        "purpose": "Reject a request without an item - an output.status of 400+ becomes the standard error response"
+      }
+    },
+    {
+      "alias": "quote",
+      "types": [
+        "mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "input.body.item -> output.body.item",
+          "int(100) -> output.body.unit_price",
+          "text(USD) -> output.body.currency",
+          "text(quoted) -> output.body.status"
+        ],
+        "purpose": "Compose the quote from the graph's knowledge"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "run",
+          "properties": {}
+        }
+      ],
+      "target": "check-input"
+    },
+    {
+      "source": "check-input",
+      "relations": [
+        {
+          "type": "valid",
+          "properties": {}
+        }
+      ],
+      "target": "quote"
+    },
+    {
+      "source": "check-input",
+      "relations": [
+        {
+          "type": "invalid",
+          "properties": {}
+        }
+      ],
+      "target": "reject"
+    },
+    {
+      "source": "quote",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "reject",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

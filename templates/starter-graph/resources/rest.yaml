@@ -1,0 +1,12 @@
+#
+# REST automation - deployed graphs are executed through the engine's
+# graph-executor flow; only manifest-listed graphs that pass the CompileGraph
+# gate respond (anything else is HTTP-404, as if nonexistent).
+#
+rest:
+  - service: "http.flow.adapter"
+    methods: ['POST', 'GET']
+    url: "/api/graph/{graph_id}"
+    flow: 'graph-executor'
+    timeout: 30s
+    tracing: true

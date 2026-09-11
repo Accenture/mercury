@@ -1,0 +1,8 @@
+#
+# The deployment manifest: only graphs listed here (and passing the CompileGraph
+# gate at startup) are executable at POST /api/graph/{graph_id}.
+#
+graphs:
+  - 'starter-quote'
+
+location: 'classpath:/graph'
