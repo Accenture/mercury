@@ -2,6 +2,7 @@ SKILL.md
 references/arch-decisions/ADR.md
 references/background/port-scope.md
 references/guides/actuators-and-http-client.md
+references/guides/ai-developer-guide.md
 references/guides/api-overview.md
 references/guides/architecture.md
 references/guides/claims-registry.json

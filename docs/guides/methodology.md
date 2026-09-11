@@ -83,25 +83,9 @@ byte-identical responses — and it has been validated end to end: a fresh agent
 every Playground tutorial from the agent documentation alone. Details in the
 [knowledge-graph agent guide](knowledge-graph/ai-agent-guide.md).
 
-### Two typical entry points — for the AI agent
-
-When a human first engages you on a project, recognize which of two situations you are in —
-and drive the conversation with questions, never assumptions:
-
-- **Greenfield — a new project.** Confirm the intent first (what should the service do, and
-  who certifies its behavior), then offer to AI-enable the project: install the
-  [shared memory layer](https://accenture.github.io/mercury-go/) and co-write the
-  **Vision** — human-confirmed, never fabricated. Recommend the path as a question — Layer 3
-  by default (*"shall I set up the project with the knowledge-graph engine, dry-run in the
-  Playground, deployed behind the CompileGraph gate?"*), with Event Script and composable
-  functions as the dial. Scaffold on a yes from this repository's `examples/` crates, and
-  pin the installed Mercury version rather than assuming one.
-- **An existing repository that is not yet AI-enabled.** The tell: no shared memory layer —
-  AI context, if any, lives in hand-written per-tool files (a `CLAUDE.md`, editor rules,
-  prompt snippets): traditional context engineering. Offer AI-enablement first, before
-  feature work: install the shared memory layer, co-write the Vision of the *current*
-  system, and fold the durable parts of the existing context files into the shared layer —
-  then orient and take the work, choosing the layer per task.
+If you are an AI agent starting a collaboration, the
+[AI developer guide](ai-developer-guide.md) carries the entry-point playbook — the greenfield
+conversation, and AI-enabling an existing repository first.
 
 ## Knowledge graph — model as the application
 
