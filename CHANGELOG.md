@@ -11,6 +11,40 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Version 4.12.7, 9/11/2026
+
+A documentation-and-templates release, lock-step with the Java engine's v4.12.7 (whose
+headline fix — the simple-plugin allowlist gate scanning method bodies — is Java-only:
+this port has no runtime plugin loading). No engine behavior change.
+
+### Added
+
+- **Three-layer starter templates** under `templates/` (Increment 116) —
+  `starter-function`, `starter-flow` and `starter-graph` (a zero-code knowledge-graph
+  service behind the CompileGraph gate, "compiled or 404" tested): copy-out crates with
+  explicit metadata and path+version dual dependencies — a copy deletes the `path` keys
+  and the pinned versions resolve from crates.io. The Layer 2 flow YAML and the Layer 3
+  graph model are byte-identical to the Java engine's templates.
+- **AI developer guide** (`guides/ai-developer-guide.md`, Increment 117) — the
+  cross-layer "read this first if you are an AI agent" orientation: the mental model,
+  the fresh-agent entry-point playbook (a greenfield project; AI-enabling an existing
+  repository), brownfield orientation, the layer-choice tree, per-layer authoring
+  snippets and port-honest invariants. Wired into the Foundations nav, `llms.txt` and
+  the packaged AI contract.
+- **The Mercury Family page** (`docs/mercury-family.md`) with a home-page hero button
+  and an Orientation nav entry, following agent-memory's promotion into the family at
+  github.com/Accenture/mercury-go.
+
+### Changed
+
+- The Methodology guide is synthesized around Intent-Driven Development — IDD leads,
+  then the knowledge-graph path, the composable design principles and the event-driven
+  core.
+- Documentation site polish: two-column home page with default-size hero buttons and a
+  relaxed layered-ascent table; story-deck slide 7 states its essence in plain language;
+  the Orientation nav label simplified to "White Paper".
+
+---
 ## Version 4.12.6, 9/10/2026
 
 ### Added

@@ -4,7 +4,7 @@
 [package]
 name = "starter-function"
 description = "Layer 1 starter - composable functions with REST automation"
-version = "4.12.6"
+version = "4.12.7"
 edition = "2021"
 license = "Apache-2.0"
 publish = false
@@ -12,7 +12,7 @@ publish = false
 [dependencies]
 # inside the Mercury repo the path is used; after copying the template out,
 # delete the `path` keys - the version then resolves from crates.io
-mercury-platform-core = { path = "../../crates/platform-core", version = "4.12.6" }
+mercury-platform-core = { path = "../../crates/platform-core", version = "4.12.7" }
 async-trait = "0.1"
 serde_json = "1"
 log = "0.4"
