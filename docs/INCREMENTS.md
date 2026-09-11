@@ -2861,3 +2861,34 @@ and re-case recursively through nested maps and lists; values are never touched;
 collisions resolve last-wins at the first key's position; normalization is idempotent.
 Lock-step with the Java engine: identical algorithm, error messages, and the shared
 pluggableFunctions/types.yml fixture (BUILTIN_PLUGIN_COUNT floor 48 → 50).
+
+## Increment 116 — Three-layer starter templates (2026-09-11)
+
+Copy-out starter crates under `templates/` for the three layers: `starter-function` (a
+typed AsyncHttpRequest greeting behind REST automation), `starter-flow` (a
+validate→greet flow with state-machine data mapping) and `starter-graph` (a ZERO-CODE
+knowledge-graph service behind the CompileGraph gate — the "compiled or 404" behavior is
+a test case). Workspace members with explicit metadata and `{path, version}` dual
+dependencies: in-repo builds use the path; a copied-out project deletes the `path` keys
+and resolves the pins from crates.io. Engine-truthful patterns proven in the tests: a
+`#[main_application]` EntryPoint is required (the auto_start_main! macro alone is only
+the launcher), and registration-inventory linkage is anchored via
+`flows::get_all_flows()` / `graphs::get_all_graphs()`. The Layer 2 flow YAML and the
+Layer 3 graph model are byte-identical to the Java engine's templates. Sources carry a
+one-line scaffold attribution instead of the license header (field applications are not
+open source). Release version bumps now cover 8 manifests. Lock-step with the Java
+engine's templates, which also ship a Gradle build option (templates only — never a
+reactor concern).
+
+## Increment 117 — AI developer guide: the cross-layer agent orientation (2026-09-11)
+
+`guides/ai-developer-guide.md` — the "read this first if you are an AI agent" umbrella
+page (the Java repo had one; this repo's agent surface was the per-layer guides only):
+the mental model, the fresh-agent entry-point playbook (a greenfield project; an
+existing repository that is not yet AI-enabled — offer AI-enablement first, fold
+per-tool context into the shared memory layer), brownfield orientation for the
+resources/ layout, the layer-choice tree, adding-a-feature snippets, cargo test idioms,
+and port-honest invariants (serde rules; no service mesh; no graph.js). Wired into the
+Foundations nav, a new llms.txt cross-layer orientation section, and the packaged AI
+contract (files.list). The methodology's interim entry-points section slimmed to the
+same pointer the Java twin carries.
