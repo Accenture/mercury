@@ -54,3 +54,10 @@ crates/knowledge-graph/resources/public/**/*.map
 .vscode/
 site/
 .idea/
+
+# Local helper servers (Java executable jars copied from the mercury-composable
+# repo: kafka-standalone, redis-standalone, schema-registry-standalone).
+# Deliberately NOT tracked - they are ~158 MB of version-stamped build output,
+# rebuilt per release, and this repo is otherwise binary-free. Copy or build
+# them locally when a dry-run needs a real server.
+helpers/*.jar
