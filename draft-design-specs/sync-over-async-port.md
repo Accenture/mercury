@@ -1,7 +1,8 @@
 # Design — sync-over-async streaming return route → Rust (cross-pod progressive rendering)
 
-> **Status:** DRAFT (for Eric's review) ·
-> **Realizes:** `ot-sync-over-async-port` (created with this spec) · **Serves:** `vision-mercury` ·
+> **Status:** APPROVED 2026-09-13 (Eric: Q1–Q5 ruled — §9; "proceed with the Q1–Q5 rulings").
+> Next gate: experiment R1 ·
+> **Realizes:** `ot-sync-over-async-port` · **Serves:** `vision-mercury` ·
 > **Author:** Claude Code · **Date:** 2026-09-13
 >
 > **Canonical source:** `extensions/sync-over-async` (mercury-composable, Java) and its ratified
@@ -38,15 +39,17 @@ channels, with the same recovery, orphan, and capacity contracts.
 - The RESP test-double extension (Lists, `EXPIRE`, Pub/Sub) and the full ported unit/e2e suites
   (§7).
 - A Redis health check registered with the actuator, mirroring Java's `soa.redis.health`
-  (pending ruling Q3).
+  (ruled in — Q3).
+- A progressive-rendering demo under `examples/` driving the R3/R4 dry-runs (ruled in — Q5).
 
 **Out of scope**
 
 - The Java demo's **Kafka request leg** and the Event Script facade tasks (`sync.prepare`,
   `sync.await`, `soa.reply`). The tasks are transport-neutral by design (the module's own `cid`
   contract — Java PR #364), but they presuppose a transport wiring the one-shot request leg;
-  without a Kafka module they have nothing to demonstrate. They can follow when
-  `thread-bp-kafka-connectors-backlog` lands, or earlier over Event-over-HTTP (ruling Q1).
+  without a Kafka module they have nothing to demonstrate. They follow when
+  `thread-bp-kafka-connectors-backlog` lands, or earlier over Event-over-HTTP
+  (ruled: deferred — Q1).
 - Redis Cluster/Sentinel (the Java module is standalone-Redis; unchanged here).
 - List caps / `MAXLEN` trimming (Java D6: destructive pops keep the queue near-empty; the TTL
   bounds the stall window) and sequence numbers (Java D7: ordering is posting discipline).
@@ -166,7 +169,7 @@ not listed here ports faithfully (`port-bottom-up-faithful`: map, don't mirror).
 ## 6. Crate layout & component map
 
 `extensions/sync-over-async`, package `mercury-sync-over-async`, lib `sync_over_async` —
-workspace member and the eighth crates.io crate (naming/publish ruling Q4).
+workspace member and the eighth crates.io crate (ruled — Q4).
 
 | Java (`org.platformlambda.sync/support`) | Rust module | Notes |
 |---|---|---|
@@ -177,7 +180,7 @@ workspace member and the eighth crates.io crate (naming/publish ruling Q4).
 | `StreamBridge` + `EventStreamSink` | `bridge.rs` | coordinator sink → `EventStreamWriter`; idle watchdog per §3 item 6 |
 | `SyncOverAsyncConfig` | `config.rs` | same six keys + defaults (§4) |
 | `SyncRuntime` | `runtime.rs` | process-wide holder; exposes operations, never the closeable coordinator (Java PR #376 lesson) |
-| `soa.redis.health` | `health.rs` (Q3) | actuator registration; auth rejections classify as "waiting", never restart-worthy. The `soa.` prefix is normative (Eric, 2026-09-13): the plain `redis.health` route name is reserved for the planned generic Redis distributed-cache module's check, so both features coexist on one server |
+| `soa.redis.health` | `health.rs` | actuator registration; auth rejections classify as "waiting", never restart-worthy. The `soa.` prefix is normative (Eric, 2026-09-13): the plain `redis.health` route name is reserved for the planned generic Redis distributed-cache module's check, so both features coexist on one server |
 
 ## 7. Test strategy — in-process only (R-NoDocker)
 
@@ -201,9 +204,9 @@ The Pub/Sub client only ever sends `SUBSCRIBE`/`UNSUBSCRIBE`/`PING` on its dedic
 so no subscriber-mode enforcement is needed. The journal keeps recording — suites can pin that
 the atomic `MULTI` block, not bare commands, performed every append.
 
-**Home of the double (ruling Q2):** it currently lives inside `minigraph-state-redis/tests`.
-Proposal: lift it unchanged into a small internal dev-only crate (`publish = false`) both crates
-dev-depend on, so two copies never drift. Alternative: copy the module and accept the drift risk.
+**Home of the double (ruled — Q2):** lift it unchanged out of `minigraph-state-redis/tests` into
+a small internal dev-only crate (`publish = false`) both crates dev-depend on, so two copies never
+drift.
 
 ### 7.3 Why an emulated Pub/Sub is honest here
 
@@ -242,23 +245,22 @@ the Rust dry-run unchanged (R3/R4, §8). Unit and CI suites never require it.
 | R3 | Cross-pod dry-run: two Rust processes against `redis-standalone` (chaos: kill producer, kill UI pod, suppressed wake-ups, short-TTL orphan stop) | Java E3 scenario outcomes reproduced; report kept as permanent record |
 | R4 | **Polyglot dry-run**: Rust producer → Java UI pod and Java producer → Rust UI pod on one `redis-standalone` | tokens render in order across engines both ways — the wire-parity acceptance gate; optional LLM leg via the shipped SSE consumer (Java E4 analog) |
 
-## 9. Open questions (for the maintainer's ruling)
+## 9. Maintainer rulings (Eric, 2026-09-13)
 
-- **Q1 — one-shot facade tasks.** The coordinator ships both patterns (D8 makes that free). Ship
-  the Event Script facade tasks (`sync.prepare`/`sync.await`/`soa.reply`) now over
-  Event-over-HTTP for demonstration, or defer them to the Kafka-connectors backlog? (Proposal:
-  defer — streaming is the user-facing capability; the tasks arrive with a transport worth
-  demonstrating.)
-- **Q2 — the RESP double's home.** Internal dev-only crate shared by both consumers (proposal),
-  or a per-crate copy?
-- **Q3 — health check.** Include the `soa.redis.health` actuator analog in this increment (Java
-  keeps it inside sync-over-async; "every critical infrastructure component needs a health
-  check")? (Proposal: yes.)
-- **Q4 — naming/publication.** `mercury-sync-over-async` as the eighth published crate, or keep
-  it unpublished until the facade-task story lands?
-- **Q5 — demo app.** A standalone `examples/` crate pair mirroring the Java demo's stream-ui /
-  stream-producer roles for R3/R4 (per the examples convention), or drive the dry-runs with
-  test binaries only?
+- **Q1 — one-shot facade tasks: DEFERRED.** The coordinator still ships both rendezvous patterns
+  (D8 makes that free), but the Event Script facade tasks (`sync.prepare`/`sync.await`/
+  `soa.reply`) wait for a transport worth demonstrating — they follow with
+  `thread-bp-kafka-connectors-backlog`, or earlier over Event-over-HTTP on demand.
+- **Q2 — the RESP double's home: shared dev-only crate ACCEPTED.** Lift the double unchanged into
+  a small internal `publish = false` crate that `minigraph-state-redis` and this crate both
+  dev-depend on; two copies never drift.
+- **Q3 — health check: YES.** The `soa.redis.health` actuator analog ships in this increment
+  (every critical infrastructure component needs a health check).
+- **Q4 — naming/publication: ADD `mercury-sync-over-async`** as the eighth published crate.
+- **Q5 — demo: ADD a sync-over-async (progressive rendering) demo under `examples/`** to drive
+  the R3/R4 dry-runs. Shape (one crate with run-profile role selection, as the Java demo does
+  with its stream-ui / stream-producer property files, or a crate pair) is decided when it is
+  built, per the standalone-examples convention.
 
 ## 10. Relation to the blueprint
 
