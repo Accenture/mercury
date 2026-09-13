@@ -28,7 +28,7 @@
 //! suite (`redis_state_store_legacy.rs`, a separate process so the
 //! once-per-process strategy detection runs fresh).
 
-mod common;
+use redis_test_double as common;
 
 use std::time::{Duration, Instant};
 

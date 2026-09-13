@@ -13,5 +13,10 @@
   VDI constraint): extend the RESP double with Lists + EXPIRE + Pub/Sub (~225 lines).
   The prize beyond parity: **polyglot rendezvous** — Rust and Java pods sharing one
   streaming return route (experiment R4).
-  Next: R1 — the crate + the ported E1 suite against the extended double.
+  **R1 DONE 2026-09-13** (origin 2026-09-13-183453): `mercury-sync-over-async` ships the
+  rendezvous engine, the double moved to `crates/redis-test-double` with Lists + EXPIRE +
+  Pub/Sub, 13 E1 scenarios + 21 unit pins green, workspace fmt/clippy/test clean, no Docker.
+  Finding (both engines): a terminal post's return value is racy by construction — never
+  assert liveness on a closing post (spec §3 item 8).
+  Next: R2 — the facade half (StreamBridge + soa.redis.health) and the single-process SSE e2e.
   <!-- id: ot-sync-over-async-port | created: 2026-09-13 | last_used: 2026-09-13 | uses: 1 | tier: working | origin: 2026-09-13-161430 -->

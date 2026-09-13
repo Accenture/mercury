@@ -819,6 +819,7 @@ dependencies = [
  "async-trait",
  "log",
  "mercury-platform-core",
+ "mercury-redis-test-double",
  "redis",
  "rmpv",
  "tokio",
@@ -863,6 +864,29 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "mercury-redis-test-double"
+version = "4.12.7"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
+name = "mercury-sync-over-async"
+version = "4.12.7"
+dependencies = [
+ "async-trait",
+ "futures-util",
+ "log",
+ "mercury-platform-core",
+ "mercury-redis-test-double",
+ "redis",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
