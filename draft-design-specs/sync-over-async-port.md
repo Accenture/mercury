@@ -37,7 +37,7 @@ channels, with the same recovery, orphan, and capacity contracts.
   surface.
 - The RESP test-double extension (Lists, `EXPIRE`, Pub/Sub) and the full ported unit/e2e suites
   (§7).
-- A Redis health check registered with the actuator, mirroring Java's `redis.health`
+- A Redis health check registered with the actuator, mirroring Java's `soa.redis.health`
   (pending ruling Q3).
 
 **Out of scope**
@@ -177,7 +177,7 @@ workspace member and the eighth crates.io crate (naming/publish ruling Q4).
 | `StreamBridge` + `EventStreamSink` | `bridge.rs` | coordinator sink → `EventStreamWriter`; idle watchdog per §3 item 6 |
 | `SyncOverAsyncConfig` | `config.rs` | same six keys + defaults (§4) |
 | `SyncRuntime` | `runtime.rs` | process-wide holder; exposes operations, never the closeable coordinator (Java PR #376 lesson) |
-| `redis.health` | `health.rs` (Q3) | actuator registration; auth rejections classify as "waiting", never restart-worthy |
+| `soa.redis.health` | `health.rs` (Q3) | actuator registration; auth rejections classify as "waiting", never restart-worthy. The `soa.` prefix is normative (Eric, 2026-09-13): the plain `redis.health` route name is reserved for the planned generic Redis distributed-cache module's check, so both features coexist on one server |
 
 ## 7. Test strategy — in-process only (R-NoDocker)
 
@@ -251,7 +251,7 @@ the Rust dry-run unchanged (R3/R4, §8). Unit and CI suites never require it.
   demonstrating.)
 - **Q2 — the RESP double's home.** Internal dev-only crate shared by both consumers (proposal),
   or a per-crate copy?
-- **Q3 — health check.** Include the `redis.health` actuator analog in this increment (Java
+- **Q3 — health check.** Include the `soa.redis.health` actuator analog in this increment (Java
   keeps it inside sync-over-async; "every critical infrastructure component needs a health
   check")? (Proposal: yes.)
 - **Q4 — naming/publication.** `mercury-sync-over-async` as the eighth published crate, or keep
