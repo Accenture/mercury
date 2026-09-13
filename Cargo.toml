@@ -7,7 +7,12 @@ members = [
     "crates/event-script-macros",
     "crates/knowledge-graph",
     "crates/knowledge-graph-macros",
+    # dev-only: the in-process RESP2 server double shared by the Redis-backed
+    # suites (publish = false, never shipped - listed so every build proves it
+    # stays current for both consumers)
+    "crates/redis-test-double",
     "extensions/minigraph-state-redis",
+    "extensions/sync-over-async",
     "benchmark/benchmark-reporter",
     "system/ai-contract-provider",
     "examples/hello-world",

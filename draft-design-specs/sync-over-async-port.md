@@ -1,7 +1,8 @@
 # Design — sync-over-async streaming return route → Rust (cross-pod progressive rendering)
 
 > **Status:** APPROVED 2026-09-13 (Eric: Q1–Q5 ruled — §9; "proceed with the Q1–Q5 rulings").
-> Next gate: experiment R1 ·
+> **R1 IMPLEMENTED 2026-09-13** (§8). Next gate: experiment R2 (the facade half:
+> `StreamBridge` + `soa.redis.health`, and the single-process SSE e2e) ·
 > **Realizes:** `ot-sync-over-async-port` · **Serves:** `vision-mercury` ·
 > **Author:** Claude Code · **Date:** 2026-09-13
 >
@@ -112,7 +113,12 @@ the ported test suite (§7.4).
    closes the rendezvous; producers stop on their next post.
 8. **Orphan contract**: posts are **store-first**; `post` returns `false` when no route exists
    (rendezvous over or never opened) — the producer's signal to stop; the orphan remnant ages out
-   under its own TTL.
+   under its own TTL. **A terminal post's answer is racy by construction** (R1 finding): the
+   segment is appended first, so an in-flight drain may deliver it and close the rendezvous —
+   deleting the route — before the producer's own route check runs, and `post` then answers
+   `false` although the segment *was* delivered. The contract still holds (`false` = stop
+   producing, and a producer has nothing to send after a terminal segment), but **liveness must
+   not be asserted on a closing post** — in either engine.
 9. **UI-pod death**: the route key survives until its TTL, so in-window posts are accepted into
    the void (`live: true`), then orphan-stop after — TTL-bounded, by design (Java spec §6).
 10. **Wake-ups are best-effort by contract**: a lost notification costs latency only (healed by
@@ -240,7 +246,7 @@ the Rust dry-run unchanged (R3/R4, §8). Unit and CI suites never require it.
 
 | # | Experiment | Gate |
 |---|---|---|
-| R1 | Crate + ported E1 suite against the extended double | full parity suite green in CI, in-process only |
+| R1 ✅ | Crate + ported E1 suite against the extended double | **DONE 2026-09-13** — `extensions/sync-over-async` ships the rendezvous engine (segment, store, both registries, coordinator, responder, config, connection); the double moved to `crates/redis-test-double` and gained Lists, `EXPIRE` and Pub/Sub; all 13 E1 scenarios plus 21 unit pins green, workspace `fmt`/`clippy -D warnings`/`test` clean, no Docker. Finding: §3 item 8 (a terminal post's answer is racy in both engines) |
 | R2 | Single-process e2e: `stream: true` endpoint + facade + responder + SSE-consumer collector | Java E2 scenarios green through the real Rust HTTP edge |
 | R3 | Cross-pod dry-run: two Rust processes against `redis-standalone` (chaos: kill producer, kill UI pod, suppressed wake-ups, short-TTL orphan stop) | Java E3 scenario outcomes reproduced; report kept as permanent record |
 | R4 | **Polyglot dry-run**: Rust producer → Java UI pod and Java producer → Rust UI pod on one `redis-standalone` | tokens render in order across engines both ways — the wire-parity acceptance gate; optional LLM leg via the shipped SSE consumer (Java E4 analog) |

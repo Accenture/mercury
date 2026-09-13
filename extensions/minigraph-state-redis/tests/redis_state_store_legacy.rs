@@ -25,7 +25,7 @@
 //! the FALLBACK path runs for real, not by forcing a flag. The command
 //! journal proves which strategy went over the wire.
 
-mod common;
+use redis_test_double as common;
 
 use std::time::Duration;
 
