@@ -9,7 +9,8 @@
   resubscribe, edge-grace headroom) is what makes two engines drop-in peers — and porting
   the suites is a test review of the canon (two latent Java flakes found, #378/#379).
   Deferred on their own gates: crates.io publication at the next release (path-only
-  dev-dep check), one-shot facade tasks (ruling Q1, waits for a transport), bounce-path
-  retry hardening (polyglot report note 3 — maintainer ruling requested).
+  dev-dep check), one-shot facade tasks (ruling Q1, waits for a transport). Bounce-path
+  retry: RULED 2026-09-14 and implemented — idempotent-only retry-once keyed on the
+  manager's own reconnect trigger (spec §5 item 6); append/pop/publish stay fail-fast.
   origin: 2026-09-13-161430 (spec) → R4 close: 2026-09-14-010743.
   <!-- id: ot-sync-over-async-port | created: 2026-09-13 | last_used: 2026-09-13 | uses: 1 | tier: working | origin: 2026-09-13-161430 -->
