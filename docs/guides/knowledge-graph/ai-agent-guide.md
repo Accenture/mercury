@@ -98,8 +98,8 @@ graph syncs back to them — nothing lives in anyone's browser.
 carries a keep-alive obligation, and a hand-rolled client that misses it appears to work, then
 dies silently at the server's idle timeout — typically mid-collaboration. The zero-dependency
 reference broker, `scripts/playground-session-broker.mjs` (Node ≥ 22), ships in the
-`minigraph-playground` example, and the [scaffolding manifest](#scaffolding) carries it into
-derived projects. It holds the session, keeps it alive with the web UI's own ping cadence,
+`minigraph-playground` example and in the `starter-graph` template, and the
+[scaffolding manifest](#scaffolding) carries it into projects derived from the example. It holds the session, keeps it alive with the web UI's own ping cadence,
 auto-reconnects across app restarts, and exposes a localhost control API (`GET /session`,
 `GET /console`, `POST /start`, `POST /stop`) so the agent reads the session id over HTTP, hands
 it to the humans (`session subscribe {id}` in their browsers), and keeps driving commands

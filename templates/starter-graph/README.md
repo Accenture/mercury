@@ -41,6 +41,7 @@ curl -s -X POST http://127.0.0.1:8303/api/graph/starter-quote \
 | `resources/graphs.yaml` | The deployment manifest: only listed graphs that pass the CompileGraph gate are executable ("compiled or 404") |
 | `resources/rest.yaml` | Exposes deployed graphs through the engine's graph-executor flow |
 | `tests/quote_graph_test.rs` | End-to-end graph tests, including the 404 gate behavior |
+| `scripts/playground-session-broker.mjs` | Lets an AI agent **host** a Playground session for you (keep-alive, auto-reconnect, localhost control API) — see `scripts/README.md` |
 
 ## Next steps
 
@@ -49,6 +50,10 @@ curl -s -X POST http://127.0.0.1:8303/api/graph/starter-quote \
   catalogs what nodes can do without code.
 - Draft and dry-run models interactively in the Playground — see
   [Playground & AI companion](https://accenture.github.io/mercury/guides/knowledge-graph/playground-and-companion/).
+  This starter serves no Playground UI — run the `minigraph-playground` app alongside, and
+  an AI agent can host the session with
+  `node scripts/playground-session-broker.mjs --target http://127.0.0.1:8085`
+  (use the broker rather than a hand-rolled WebSocket client — the keep-alive is easy to miss).
 - Custom logic when the model needs it: attach a skill function (`#[preload]`) to a node —
   the deliberate seam between the model and code. See the
   [AI developer guide](https://accenture.github.io/mercury/guides/ai-developer-guide/).
