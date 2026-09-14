@@ -236,7 +236,7 @@ return route's R4.
 | `RoutingRuleSet` | `routing.rs` | second-level rules, first-match-wins, startup validation |
 | `RetryPolicy` | `retry.rs` | bounded retry + backoff + DLQ publish with origin headers |
 | `SimpleKafkaNotification` | `notification.rs` | §3 item 6 contract |
-| `SimpleRandomPartitioner` | `partitioner.rs` | the default outbound partitioner |
+| `SimpleRandomPartitioner` | — (config, not code) | librdkafka's built-in `murmur2_random` partitioner is defaulted by `client_config` — §7 item 4 |
 | `KafkaHealthCheck` | `health.rs` | §3 item 9; the `soa.redis.health` pattern |
 | `KafkaHeaders` / `KafkaRuntime` | `headers.rs` / `runtime.rs` | constants; process-wide holder (operations, never the closeable client) |
 | Schema classes (`SchemaCodec`, serdes, registry client, CSFLE) | — | deferred with the schema phase (§1) |
@@ -252,14 +252,21 @@ return route's R4.
    line naming them.
 3. **KIP-848**: inherited from librdkafka's `group.protocol` support rather than the Java
    client's — behavior documented against the guide's rebalance section at K2.
-4. Anything else discovered at implementation joins this list; wire-visible behavior
+4. **The default partitioner is config, not code** (K1). Java ships a custom
+   `SimpleRandomPartitioner` class (keyless → uniform random; keyed → Java murmur2).
+   librdkafka's built-in `murmur2_random` partitioner has exactly those semantics — including
+   the Java-producer-compatible key hash, so a key maps to the SAME partition from either
+   engine (interop-relevant) — and `client_config` defaults it (a template that sets
+   `partitioner` wins, the `putIfAbsent` parity). Nothing needs pinning either: this client
+   is byte-native, so the Java module's serializer pinning has no analog.
+5. Anything else discovered at implementation joins this list; wire-visible behavior
    (headers, DLQ headers, dataset shape) is normative parity, never a delta.
 
 ## 8. Experiment plan (K-series)
 
 | # | Experiment | Gate |
 |---|---|---|
-| K1 | Crate + client templates + **outbound** (`simple.kafka.notification`, partitioner) + `kafka.health` + the unit suite against the §5 double | outbound contract (§3 items 6–9) green in-process; health waiting/outage semantics pinned |
+| K1 ✅ | Crate + client templates + **outbound** (`simple.kafka.notification`, partitioner) + `kafka.health` + the unit suite against the §5 double | **DONE 2026-09-14** — `crates/minimalist-kafka` ships the outbound contract (body shapes incl. tombstones and Java-parity rejects, header propagation with the reserved-header exclusions, cid auto-stamp fallback, fresh traceparent from the hop's own span, explicit-partition routing), `kafka.health` (placeholder/warm-up, waiting-vs-outage, `{text, code}` 503, topics count, produce-only-leg probe rule), the template pipeline (embedded defaults + app-classpath shadowing + override chains + the JVM-only-key filter), the opt-out flags, and library auto-activation via inventory (`#[preload]` + `#[main_application]` — Java classpath-scan parity). 16 tests green against `MockCluster`, incl. a traced RPC through a registered worker. Platform-core gained `PostOffice::my_span_id()` and the public `w3c_trace` export (Java `W3cTrace` parity) |
 | K2 | **Inbound core**: literal-topic bindings, groups, manual commit-after-process, dataset (§3 item 2), retry + DLQ, opt-out flags + startup guards | the Java adapter suite's core scenarios ported and green |
 | K3 | Inbound completions: second-level routing, `topic-pattern`, partition pinning, auto-commit + `max-poll-records`, per-binding header overrides | remaining §3 items pinned |
 | K4 | **Live dry-run + interop** against `kafka-standalone`: Rust↔Java flow adapters both ways, DLQ and rebalance chaos; report kept as permanent record | Java-guide behavior reproduced; cross-engine records interoperate (headers, traceparent, cid) |
@@ -267,9 +274,14 @@ return route's R4.
 
 ## 9. Maintainer rulings (Eric, 2026-09-14)
 
-- **Q1 — crate home and name: AGREED.** `system/minimalist-kafka`, package
-  `mercury-minimalist-kafka`, joining the publication set (the K5 release publishes it
-  together with `mercury-sync-over-async`).
+- **Q1 — crate home and name: AGREED, with a layout clarification (Eric, 2026-09-14).**
+  Package `mercury-minimalist-kafka`, joining the publication set (the K5 release publishes
+  it together with `mercury-sync-over-async`). Home: `crates/minimalist-kafka` — in this
+  repository **`crates/` is the Java repo's `system/` analog** (all system modules live
+  there), while the Rust `system/` folder carries the scope-specific `AGENTS.md` consumer
+  surface. The same convention moves the dev-only RESP double to
+  `extensions/redis-test-double` (it is an optional add-on's test double, not an engine
+  crate).
 - **Q2 — Schema Registry scope: DEFERRED.** The whole schema surface (Confluent framing,
   serdes, registry auth, CSFLE) gets its own follow-up spec after K5; the K-series ships the
   raw-`byte[]` core with the bolt-on points intact (`schema.enabled` per binding, `subject`

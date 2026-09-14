@@ -1,0 +1,33 @@
+[package]
+name = "mercury-minimalist-kafka"
+description = "Opt-in Kafka building blocks for Mercury: publish events to topics (simple.kafka.notification) and route topics into Event Script flows, with externalized client templates and a kafka.health probe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "../../README.md"
+keywords = ["kafka", "event-driven", "flow-adapter", "composable", "mercury"]
+categories = ["asynchronous"]
+
+[lib]
+name = "minimalist_kafka"
+
+[features]
+default = []
+# SASL_SSL / SCRAM / OAUTHBEARER connectivity: builds librdkafka with vendored
+# OpenSSL (Kerberos/GSSAPI is deliberately not wired here - add it when a
+# deployment actually needs it)
+ssl = ["rdkafka/ssl-vendored"]
+
+[dependencies]
+mercury-platform-core = { version = "4.12.7", path = "../platform-core" }
+async-trait = "0.1"
+log = "0.4"
+rmpv = "1"
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "time", "sync"] }
+rdkafka = { version = "0.38", features = ["tokio"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+uuid = { version = "1", features = ["v4"] }

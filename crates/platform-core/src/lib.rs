@@ -89,4 +89,4 @@ pub use util::app_config_reader::AppConfigReader;
 pub use util::config_reader::{ConfigError, ConfigReader};
 pub use util::managed_cache::{CacheValue, ManagedCache};
 pub use util::multi_level_map::{ConfigValue, MultiLevelMap};
-pub use util::{overrides, resources};
+pub use util::{overrides, resources, w3c_trace};
