@@ -47,6 +47,9 @@
 //! | [`ReturnRouteCoordinator`] | one pod's engine — both rendezvous patterns, one subscription |
 //! | [`StreamResponder`] | the producer API: post a segment, learn whether the rendezvous is live |
 //! | [`SegmentSink`] | the consumer end a facade implements to render segments |
+//! | [`StreamBridge`] / [`EventStreamSink`] | the UI-pod facade half: rendezvous → HTTP edge reply lane, with the idle-expiry watchdog |
+//! | [`RedisHealthCheck`] | the `soa.redis.health` function for the `/health` endpoint |
+//! | [`runtime`] | process-wide holder for the one coordinator a real application runs |
 //! | [`SyncOverAsyncConfig`] / [`RedisSettings`] | the `sync.*` and `redis.*` startup parameters |
 //!
 //! # Contracts worth knowing
@@ -64,21 +67,26 @@
 //! - **A one-shot response is the degenerate stream** — a queue whose first
 //!   entry is terminal — so both patterns share one mechanism and one contract.
 
+mod bridge;
 mod config;
 mod connection;
 mod coordinator;
+mod health;
 mod pending;
 mod responder;
 mod store;
 
+pub mod runtime;
 pub mod segment;
 
+pub use bridge::{EventStreamSink, SharedStreamWriter, StreamBridge, EDGE_GRACE_SECONDS};
 pub use config::{
     SyncOverAsyncConfig, MAX_PENDING_REQUESTS, MAX_PENDING_STREAMS, RESPONSE_TTL_SECONDS,
     RETURN_CHANNEL_PREFIX, ROUTE_TTL_SECONDS, STREAM_TTL_SECONDS,
 };
 pub use connection::RedisSettings;
 pub use coordinator::ReturnRouteCoordinator;
+pub use health::{RedisHealthCheck, REDIS_HEALTH_ROUTE};
 pub use pending::{PendingEntry, PendingRequests, PendingStreams, SegmentSink, StreamEntry};
 pub use responder::{StreamResponder, DEFAULT_TTL_SECONDS};
 pub use segment::StreamSegment;
