@@ -30,6 +30,31 @@
 //! — on timeout for the one-shot path, at edge idle expiry for a stream. A
 //! fully drained list ceases to exist on its own; the TTLs are the crash
 //! safety net.
+//!
+//! # Bounce recovery — the idempotent-only retry (port spec §5 item 6)
+//!
+//! After a Redis restart, the `redis` crate's `ConnectionManager` arms an
+//! asynchronous reconnect but returns the failed command's error to the caller
+//! (its retry configuration governs *connection attempts*, not command
+//! replay), where the Java engine's Lettuce transparently requeues commands it
+//! had not yet written. To keep the engines' healing behavior equivalent, the
+//! store retries its **idempotent** operations exactly once —
+//! `save_route`/`get_route`/`cleanup`/`queue_length` (`SETEX`/`GET`/`DEL`/
+//! `LLEN`) — keyed on the manager's own reconnect trigger
+//! (`RedisError::is_unrecoverable_error`, plus `is_io_error` for a failure
+//! surfaced by the connect path itself), so the retry fires precisely when the
+//! manager has swapped in its reconnection future and never on a server-side
+//! error. The second attempt *awaits* that swapped-in future — the manager
+//! stores its connection as a shared future, so retrying is synchronized with
+//! the reconnection lifecycle rather than racing it — under its own timeout.
+//!
+//! Deliberately **fail-fast** (no retry): `append_segment` (replaying an
+//! ambiguous `RPUSH` risks a duplicate segment the no-sequence-number design
+//! cannot detect — design D7), `pop_segment` (replaying an ambiguous `LPOP`
+//! could silently discard the popped segment), and `publish` (wake-ups are
+//! best-effort by contract — a lost one is healed by the next drain). A
+//! timed-out attempt is never retried either: a timeout is not a
+//! connection-death signal, and the caller's deadline is the contract.
 
 use std::time::Duration;
 
@@ -70,14 +95,20 @@ impl ReturnRouteStore {
         return_channel: &str,
         ttl_seconds: u64,
     ) -> Result<(), AppError> {
-        let mut connection = self.connection.clone();
-        self.run(
-            redis::cmd("SETEX")
-                .arg(Self::route_key(business_correlation_id))
-                .arg(ttl_seconds)
-                .arg(return_channel)
-                .query_async::<()>(&mut connection),
-        )
+        let key = Self::route_key(business_correlation_id);
+        self.run_idempotent("SETEX route", || {
+            let mut connection = self.connection.clone();
+            let key = key.clone();
+            let return_channel = return_channel.to_string();
+            async move {
+                redis::cmd("SETEX")
+                    .arg(&key)
+                    .arg(ttl_seconds)
+                    .arg(&return_channel)
+                    .query_async::<()>(&mut connection)
+                    .await
+            }
+        })
         .await
     }
 
@@ -87,12 +118,17 @@ impl ReturnRouteStore {
         &self,
         business_correlation_id: &str,
     ) -> Result<Option<String>, AppError> {
-        let mut connection = self.connection.clone();
-        self.run(
-            redis::cmd("GET")
-                .arg(Self::route_key(business_correlation_id))
-                .query_async::<Option<String>>(&mut connection),
-        )
+        let key = Self::route_key(business_correlation_id);
+        self.run_idempotent("GET route", || {
+            let mut connection = self.connection.clone();
+            let key = key.clone();
+            async move {
+                redis::cmd("GET")
+                    .arg(&key)
+                    .query_async::<Option<String>>(&mut connection)
+                    .await
+            }
+        })
         .await
     }
 
@@ -149,12 +185,17 @@ impl ReturnRouteStore {
     /// The number of queued segments (0 for an absent queue) — used by the
     /// drain's lost-wakeup re-check.
     pub async fn queue_length(&self, business_correlation_id: &str) -> Result<u64, AppError> {
-        let mut connection = self.connection.clone();
-        self.run(
-            redis::cmd("LLEN")
-                .arg(Self::queue_key(business_correlation_id))
-                .query_async::<u64>(&mut connection),
-        )
+        let key = Self::queue_key(business_correlation_id);
+        self.run_idempotent("LLEN queue", || {
+            let mut connection = self.connection.clone();
+            let key = key.clone();
+            async move {
+                redis::cmd("LLEN")
+                    .arg(&key)
+                    .query_async::<u64>(&mut connection)
+                    .await
+            }
+        })
         .await
     }
 
@@ -163,13 +204,20 @@ impl ReturnRouteStore {
     /// immediately instead of waiting them out. The route's disappearance is
     /// also what tells every remaining producer to stop.
     pub async fn cleanup(&self, business_correlation_id: &str) -> Result<(), AppError> {
-        let mut connection = self.connection.clone();
-        self.run(
-            redis::cmd("DEL")
-                .arg(Self::route_key(business_correlation_id))
-                .arg(Self::queue_key(business_correlation_id))
-                .query_async::<()>(&mut connection),
-        )
+        let route_key = Self::route_key(business_correlation_id);
+        let queue_key = Self::queue_key(business_correlation_id);
+        self.run_idempotent("DEL rendezvous keys", || {
+            let mut connection = self.connection.clone();
+            let route_key = route_key.clone();
+            let queue_key = queue_key.clone();
+            async move {
+                redis::cmd("DEL")
+                    .arg(&route_key)
+                    .arg(&queue_key)
+                    .query_async::<()>(&mut connection)
+                    .await
+            }
+        })
         .await
     }
 
@@ -190,6 +238,9 @@ impl ReturnRouteStore {
         .map(|_| ())
     }
 
+    /// One attempt under the store timeout — the fail-fast path
+    /// (`append_segment`, `pop_segment`, `publish`; see the module docs for
+    /// why those never retry).
     async fn run<T>(
         &self,
         operation: impl std::future::Future<Output = redis::RedisResult<T>>,
@@ -198,5 +249,37 @@ impl ReturnRouteStore {
             .await
             .map_err(|_| AppError::new(500, "Redis command timed out"))?
             .map_err(|e| AppError::new(500, format!("Redis error - {e}")))
+    }
+
+    /// Run one **idempotent** operation with a single lifecycle-aware retry
+    /// (module docs: *Bounce recovery*). The retry condition is the
+    /// `ConnectionManager`'s own reconnect trigger, so a second attempt runs
+    /// exactly when the manager has swapped in its reconnection future — and
+    /// awaiting the second attempt awaits that fresh connection, under its own
+    /// timeout. A timed-out first attempt is not retried.
+    async fn run_idempotent<T, F, Fut>(
+        &self,
+        description: &str,
+        operation: F,
+    ) -> Result<T, AppError>
+    where
+        F: Fn() -> Fut,
+        Fut: std::future::Future<Output = redis::RedisResult<T>>,
+    {
+        match tokio::time::timeout(self.timeout, operation()).await {
+            Err(_) => Err(AppError::new(500, "Redis command timed out")),
+            Ok(Ok(value)) => Ok(value),
+            Ok(Err(error)) if error.is_unrecoverable_error() || error.is_io_error() => {
+                // the manager replaces its connection exactly when a command
+                // fails this classification - the retry below awaits the
+                // swapped-in reconnection future rather than racing it
+                log::debug!("Retrying {description} once after a lost connection - {error}");
+                tokio::time::timeout(self.timeout, operation())
+                    .await
+                    .map_err(|_| AppError::new(500, "Redis command timed out"))?
+                    .map_err(|e| AppError::new(500, format!("Redis error - {e}")))
+            }
+            Ok(Err(error)) => Err(AppError::new(500, format!("Redis error - {error}"))),
+        }
     }
 }

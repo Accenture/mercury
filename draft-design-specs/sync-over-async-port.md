@@ -189,6 +189,24 @@ not listed here ports faithfully (`port-bottom-up-faithful`: map, don't mirror).
    allowance — the housekeeper-interval analog. Observable contract unchanged: the watchdog
    owns idle expiry at exactly `idle_seconds`; the edge backstop reclaims a dead-facade stream
    within the same envelope as Java's sweep.
+6. **Idempotent-only retry-once on the store's command lane** (R4 finding, note 3 of the
+   polyglot report; maintainer ruling 2026-09-14). After a server bounce, redis-rs's
+   `ConnectionManager` arms an asynchronous reconnect but returns the failed command's
+   error (its retry configuration governs connection attempts, not command replay), where
+   Lettuce requeues commands it had not yet written — so the first Rust call after a
+   bounce failed where the Java call healed invisibly. The store now retries its
+   idempotent operations exactly once (`save_route`/`get_route`/`cleanup`/`queue_length`);
+   `append_segment`, `pop_segment` and `publish` stay fail-fast (duplicate/loss risk under
+   D7's no-sequence-number design; wake-ups are best-effort by contract). **The retry is
+   lifecycle-aware without extra machinery** (the maintainer's precision question): its
+   condition is the manager's own reconnect trigger (`RedisError::is_unrecoverable_error`,
+   plus `is_io_error` from the connect path), so it fires exactly when the manager has
+   swapped in its reconnection future — and because the manager stores the connection as a
+   shared future, the second attempt *awaits* that reconnection rather than racing or
+   polling it, under its own timeout. (An explicit event feed exists —
+   `ConnectionManagerConfig::set_push_sender` receives disconnection pushes — but adds a
+   channel and task without more precision than the failed call's own classification.) A
+   timed-out attempt is never retried: a timeout is not a connection-death signal.
 
 ## 6. Crate layout & component map
 
