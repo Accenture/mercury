@@ -1,0 +1,19 @@
+# sync-over-async-demo base configuration. Pick a role with an active profile
+# (the Java demo's spring.profiles.active analog):
+#   sync-over-async-demo -Dapp.profiles.active=stream-ui
+#   sync-over-async-demo -Dapp.profiles.active=stream-producer
+application.name: sync-over-async-demo
+log.format: text
+
+info.app.description: 'streaming return route demo - cross-pod progressive rendering'
+
+# Redis connection (discrete startup parameters) - the rendezvous. Both roles
+# read the same redis.* family; helpers/redis-standalone-x.y.z.jar serves it
+# locally with no Docker. The password placeholder resolves from the
+# environment so no credential is ever hard-coded (blank = no AUTH).
+redis.host: 127.0.0.1
+redis.port: 6379
+redis.password: '${REDIS_PASSWORD:}'
+redis.ssl: false
+redis.database: 0
+redis.timeout.ms: 5000

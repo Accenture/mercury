@@ -149,6 +149,7 @@ nav:
       - "Interop Test Report (Java ⇄ Rust)": test-reports/event-over-http-interop.md
       - "Interop Test Report — Progressive Rendering": test-reports/progressive-rendering-interop.md
       - "Interop Test Report — Suspend/Resume": test-reports/suspend-resume-interop.md
+      - "Test Report — Streaming Return Route (cross-pod)": test-reports/streaming-return-route-cross-pod.md
       - "AI Companion Test Report": test-reports/AI-companion-test.md
       - Port Scope & Fidelity: background/port-scope.md
       - Architecture Decisions: arch-decisions/ADR.md

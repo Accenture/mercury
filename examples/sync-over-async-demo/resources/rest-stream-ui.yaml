@@ -1,0 +1,14 @@
+#
+# REST automation for the stream-ui role. The notification channel is an
+# interceptor addressed directly by a stream:true endpoint (streaming-return-
+# route design D2 - no Event Script composition on this path). The endpoint
+# timeout bounds the FIRST event; the facade sets the between-segment idle
+# allowance per request (x-stream-idle-seconds) through StreamBridge.
+#
+rest:
+  - service: "demo.stream.facade"
+    methods: ['GET']
+    url: "/api/notifications"
+    timeout: 60s
+    stream: true
+    tracing: true
