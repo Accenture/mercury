@@ -4,8 +4,11 @@
 > **R1 IMPLEMENTED 2026-09-13** (§8) · **R2 IMPLEMENTED 2026-09-13** (§8 — the facade half:
 > `StreamBridge` + `soa.redis.health`, and the single-process SSE e2e) ·
 > **R3 CONDUCTED 2026-09-13** (§8 — the cross-pod dry-run; permanent record:
-> `docs/test-reports/streaming-return-route-cross-pod.md`). Next gate: experiment R4
-> (the polyglot dry-run — the wire-parity acceptance gate) ·
+> `docs/test-reports/streaming-return-route-cross-pod.md`) ·
+> **R4 CONDUCTED 2026-09-13 — THE WIRE-PARITY ACCEPTANCE GATE IS MET** (§8; permanent
+> record: `docs/test-reports/streaming-return-route-polyglot.md`). The R-series is
+> complete: the port is functionally in lock-step. Crates.io publication rides the next
+> release; one maintainer question open (the report's note 3: bounce-path retry) ·
 > **Realizes:** `ot-sync-over-async-port` · **Serves:** `vision-mercury` ·
 > **Author:** Claude Code · **Date:** 2026-09-13
 >
@@ -264,7 +267,7 @@ the Rust dry-run unchanged (R3/R4, §8). Unit and CI suites never require it.
 | R1 ✅ | Crate + ported E1 suite against the extended double | **DONE 2026-09-13** — `extensions/sync-over-async` ships the rendezvous engine (segment, store, both registries, coordinator, responder, config, connection); the double moved to `crates/redis-test-double` and gained Lists, `EXPIRE` and Pub/Sub; all 13 E1 scenarios plus 21 unit pins green, workspace `fmt`/`clippy -D warnings`/`test` clean, no Docker. Finding: §3 item 8 (a terminal post's answer is racy in both engines) |
 | R2 ✅ | Single-process e2e: `stream: true` endpoint + facade + responder + SSE-consumer collector | **DONE 2026-09-13** — `bridge.rs` (`StreamBridge` + `EventStreamSink` + the shared writer), `runtime.rs`, `health.rs` (`soa.redis.health`, waiting-vs-outage boundary incl. the vault pattern e2e against the double's new `requirepass` mode); all four Java E2 scenarios green through the real Rust HTTP edge, consumed by the shipped SSE client. Finding: §5 item 5 (the edge backstop needs explicit headroom over the watchdog) |
 | R3 ✅ | Cross-pod dry-run: two Rust processes against `redis-standalone` (chaos: kill producer, kill UI pod, suppressed wake-ups, short-TTL orphan stop) | **DONE 2026-09-13** — all five Java E3 scenario outcomes reproduced on the first complete run (exact cross-pod ordering; lost notification healed by the next drain; lost close recovered by the final drain at idle + 2 ms; in-band 408 after `kill -9` of the producer — the §5 item 5 headroom proving itself live; TTL-bounded orphan stop after `kill -9` of the UI pod). Driven by the new `examples/sync-over-async-demo` (Q5 — `stream-ui` / `stream-producer` profiles); permanent record: `docs/test-reports/streaming-return-route-cross-pod.md` |
-| R4 | **Polyglot dry-run**: Rust producer → Java UI pod and Java producer → Rust UI pod on one `redis-standalone` | tokens render in order across engines both ways — the wire-parity acceptance gate; optional LLM leg via the shipped SSE consumer (Java E4 analog) |
+| R4 ✅ | **Polyglot dry-run**: Rust producer → Java UI pod and Java producer → Rust UI pod on one `redis-standalone` | **DONE 2026-09-13 — GATE MET.** Tokens rendered in exact order across engines both ways; both engines shared single rendezvous channels (mixed producers, any-engine close, both UI pods); the Java watchdog's final drain recovered Rust-stored lost segments; the real-LLM leg ran cross-engine (Java pod pulls Gemini SSE, Rust edge renders, usage metadata on `done`). Bonus live evidence: a mid-round Redis restart exercised both engines' resubscribe paths (§5 item 2 equivalent in practice). One delta recorded for a maintainer ruling: redis-rs's `ConnectionManager` fails the first command after a bounce where Lettuce requeues — report note 3. Permanent record: `docs/test-reports/streaming-return-route-polyglot.md` |
 
 ## 9. Maintainer rulings (Eric, 2026-09-13)
 
