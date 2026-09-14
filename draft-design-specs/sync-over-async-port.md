@@ -7,8 +7,10 @@
 > `docs/test-reports/streaming-return-route-cross-pod.md`) ·
 > **R4 CONDUCTED 2026-09-13 — THE WIRE-PARITY ACCEPTANCE GATE IS MET** (§8; permanent
 > record: `docs/test-reports/streaming-return-route-polyglot.md`). The R-series is
-> complete: the port is functionally in lock-step. Crates.io publication rides the next
-> release; one maintainer question open (the report's note 3: bounce-path retry) ·
+> complete: the port is functionally in lock-step. Bounce-path retry: ruled and implemented
+> (§5 item 6). **Crates.io publication and the Q1 facade tasks are HELD until
+> minimalist-kafka lands** (Eric, 2026-09-14 — see
+> `draft-design-specs/minimalist-kafka-port.md`, whose K5 closes both) ·
 > **Realizes:** `ot-sync-over-async-port` · **Serves:** `vision-mercury` ·
 > **Author:** Claude Code · **Date:** 2026-09-13
 >
