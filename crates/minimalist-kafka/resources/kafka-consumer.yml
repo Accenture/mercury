@@ -1,0 +1,29 @@
+#
+# Kafka CONSUMER configuration template for the minimalist-kafka Kafka Flow Adapter
+# (and the kafka.health probe).
+#
+# Enterprise Kafka installations vary widely - see the producer template's preamble; the same
+# override mechanism applies here through kafka.consumer.properties. Values support
+# ${ENV_VAR:default_value} substitution, and keys are librdkafka parameter names (JVM-specific
+# keys are ignored with a startup log line naming each one).
+#
+# The library PINS per binding (and will override anything set here, from K2): the delivery-mode
+# overlay (enable.auto.commit / max poll batching) that enforces the at-least-once,
+# commit-after-process contract. The consumer group.id is NOT set here; it is configured per topic
+# binding via 'group' in kafka-flow-adapter.yaml. Everything below is yours.
+#
+
+# --- Connection ---
+bootstrap.servers: '${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}'
+
+# --- Where a brand-new consumer group starts reading ---
+auto.offset.reset: '${KAFKA_AUTO_OFFSET_RESET:earliest}'
+
+# --- Enterprise security: uncomment and complete for your installation (librdkafka names) ---
+# security.protocol: '${KAFKA_SECURITY_PROTOCOL:SASL_SSL}'
+# sasl.mechanism: '${KAFKA_SASL_MECHANISM:OAUTHBEARER}'
+# sasl.oauthbearer.method: oidc
+# sasl.oauthbearer.client.id: '${KAFKA_OAUTH_CLIENT_ID:}'
+# sasl.oauthbearer.client.secret: '${KAFKA_OAUTH_CLIENT_SECRET:}'
+# sasl.oauthbearer.token.endpoint.url: '${KAFKA_OAUTH_TOKEN_URL:}'
+# ssl.ca.location: '${KAFKA_SSL_CA_LOCATION:}'

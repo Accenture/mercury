@@ -3,9 +3,16 @@
   second-level routing, retry+DLQ, delivery modes), outbound `simple.kafka.notification`,
   `kafka.health`, externalized client templates. Design spec:
   `draft-design-specs/minimalist-kafka-port.md` — APPROVED 2026-09-14, Q1–Q5 ruled (§9):
-  `system/minimalist-kafka` / `mercury-minimalist-kafka` (Q1); Schema Registry deferred to
+  `crates/minimalist-kafka` / `mercury-minimalist-kafka` (Q1 — clarified: `crates/` is the Java `system/` analog; the dev double moved to `extensions/redis-test-double` under the same convention); Schema Registry deferred to
   its own post-K5 spec (Q2); twin-kafka deferred (Q3); port `kafka-demo` at K4 (Q4);
-  MockCluster ratified (Q5). Next gate: K1.
+  MockCluster ratified (Q5).
+  **K1 DONE 2026-09-14** (origin: this session's log): `crates/minimalist-kafka` — outbound
+  contract + `kafka.health` + template pipeline + auto-activation via inventory; 16 tests
+  green against MockCluster; platform-core gained `PostOffice::my_span_id()` + public
+  `w3c_trace`. Partitioner delta: librdkafka `murmur2_random` config replaces the Java
+  partitioner class (same semantics, Java-compatible key hash — spec §7 item 4).
+  Next gate: K2 — the inbound adapter core (literal topics, groups, manual
+  commit-after-process, dataset, retry + DLQ, startup guards).
   Client decision: `rdkafka` (only maintained Rust client with the full group protocol;
   vendored librdkafka builds with cc+make, no CMake — verified). Unit tests:
   `rdkafka::mocking::MockCluster` (mockforge-kafka 0.3.221 investigated head-to-head and

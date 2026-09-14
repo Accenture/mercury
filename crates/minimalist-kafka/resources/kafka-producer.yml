@@ -1,0 +1,37 @@
+#
+# Kafka PRODUCER configuration template for the minimalist-kafka building blocks
+# (used by simple.kafka.notification and, from K2, the dead-letter writer).
+#
+# Enterprise Kafka installations vary widely - on-prem, cloud, SaaS, Confluent - and authenticate
+# in different ways (SASL/PLAIN, SASL/SCRAM, OAuth2, mTLS). Rather than encode every variation in
+# code, put your environment's settings here, or point kafka.producer.properties (in the
+# application configuration) at another location. Normally that is one location; a comma-separated
+# list is an optional fallback chain. External files are useful when CI/CD renders config into a
+# deployment volume without rebuilding the application.
+#
+# Values support ${ENV_VAR:default_value} environment-variable substitution. Keys are librdkafka
+# parameter names (this engine's Kafka client): they match the Java client's names for connection
+# and security basics (bootstrap.servers, security.protocol, sasl.mechanism, acks), while
+# JVM-specific keys (serializers, partitioner.class, sasl.jaas.config, *.callback.handler.class)
+# do not exist here - the library ignores them with a startup log line naming each one.
+#
+# The library DEFAULTS the partitioner to murmur2_random: Java-producer-compatible murmur2 for
+# keyed records, uniform random for keyless ones - the same semantics as the Java module's
+# SimpleRandomPartitioner (Kafka's sticky default skews low-volume traffic onto one partition).
+# Set 'partitioner' here to override. Everything below is yours to configure.
+#
+
+# --- Connection ---
+bootstrap.servers: '${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}'
+
+# --- Durability (acks=all is safest; lower to 1/0 to trade durability for throughput) ---
+acks: all
+
+# --- Enterprise security: uncomment and complete for your installation (librdkafka names) ---
+# security.protocol: '${KAFKA_SECURITY_PROTOCOL:SASL_SSL}'
+# sasl.mechanism: '${KAFKA_SASL_MECHANISM:OAUTHBEARER}'
+# sasl.oauthbearer.method: oidc
+# sasl.oauthbearer.client.id: '${KAFKA_OAUTH_CLIENT_ID:}'
+# sasl.oauthbearer.client.secret: '${KAFKA_OAUTH_CLIENT_SECRET:}'
+# sasl.oauthbearer.token.endpoint.url: '${KAFKA_OAUTH_TOKEN_URL:}'
+# ssl.ca.location: '${KAFKA_SSL_CA_LOCATION:}'

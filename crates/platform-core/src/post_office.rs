@@ -219,6 +219,20 @@ impl PostOffice {
         trace::with_current(|state| state.trace_path.clone())
     }
 
+    /// The current hop's own span id (Java `getTrace().spanId`) — what a
+    /// function stamps as the parent of the NEXT hop when it carries the
+    /// trace context across a non-event boundary (e.g. a Kafka record's
+    /// W3C `traceparent` header). `None` outside a trace or in a
+    /// zero-traced hop, which owns no span.
+    pub fn my_span_id(&self) -> Option<String> {
+        trace::with_current(|state| {
+            // a zero-traced hop mints no span into the chain (same guard as
+            // the send path's unconditional span stamp)
+            (!state.zero_traced).then(|| state.span_id.clone())
+        })
+        .flatten()
+    }
+
     /// Attach business context to the **distributed-trace dataset** that flows
     /// to the telemetry sink (Java `annotateTrace`). Silent no-op outside a
     /// trace.
