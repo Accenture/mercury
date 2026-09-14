@@ -7,6 +7,11 @@ browser session. The broker opens one WebSocket session against a running
 playground app, keeps it alive with the same ping cadence the web UI uses, and
 exposes a tiny localhost control API. Zero dependencies; Node.js >= 22.
 
+Use it instead of hand-rolling a WebSocket client: the session contract includes
+a keep-alive (ping every ~20 s), and a hand-rolled client that misses it appears
+to work, then dies silently at the server's idle timeout — typically in the
+middle of the collaboration it was hosting.
+
 ```bash
 node scripts/playground-session-broker.mjs --target http://127.0.0.1:8085 --port 8765
 ```
