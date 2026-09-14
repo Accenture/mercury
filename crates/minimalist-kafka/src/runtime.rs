@@ -20,9 +20,11 @@
 
 use std::sync::{Arc, RwLock};
 
+use crate::consumer::KafkaFlowConsumer;
 use crate::publisher::KafkaRequestPublisher;
 
 static PUBLISHER: RwLock<Option<Arc<KafkaRequestPublisher>>> = RwLock::new(None);
+static FLOW_CONSUMERS: RwLock<Vec<KafkaFlowConsumer>> = RwLock::new(Vec::new());
 
 /// Install the shared publisher (the auto-start entry point; tests install
 /// their own against a mock cluster).
@@ -38,4 +40,20 @@ pub fn publisher() -> Option<Arc<KafkaRequestPublisher>> {
 /// Release the shared publisher (test lifecycle).
 pub fn clear_publisher() {
     PUBLISHER.write().expect("kafka runtime poisoned").take();
+}
+
+/// Install the running flow-adapter consumers (the auto-start entry point).
+pub fn set_flow_consumers(consumers: Vec<KafkaFlowConsumer>) {
+    *FLOW_CONSUMERS.write().expect("kafka runtime poisoned") = consumers;
+}
+
+/// Stop every running binding consumer after its in-flight record completes.
+pub fn stop_flow_consumers() {
+    for consumer in FLOW_CONSUMERS
+        .read()
+        .expect("kafka runtime poisoned")
+        .iter()
+    {
+        consumer.close();
+    }
 }

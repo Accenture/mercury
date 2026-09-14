@@ -21,12 +21,14 @@ ssl = ["rdkafka/ssl-vendored"]
 
 [dependencies]
 mercury-platform-core = { version = "4.12.7", path = "../platform-core" }
+mercury-event-script = { version = "4.12.7", path = "../event-script" }
 async-trait = "0.1"
 log = "0.4"
 rmpv = "1"
 serde_json = "1"
-tokio = { version = "1", features = ["rt", "time", "sync"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 rdkafka = { version = "0.38", features = ["tokio"] }
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }

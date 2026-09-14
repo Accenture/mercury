@@ -259,7 +259,19 @@ return route's R4.
    engine (interop-relevant) — and `client_config` defaults it (a template that sets
    `partitioner` wins, the `putIfAbsent` parity). Nothing needs pinning either: this client
    is byte-native, so the Java module's serializer pinning has no analog.
-5. Anything else discovered at implementation joins this list; wire-visible behavior
+5. **`max.poll.records` has no librdkafka analog and needs none** (K2): the Java module
+   pins `max.poll.records=1` to enforce one-at-a-time commit-after-process; this client's
+   per-record async `recv()` IS a poll batch of one by construction. The per-binding
+   `max-poll-records` knob returns with auto-commit at K3 as a fetch-tuning mapping.
+6. **Library activation needs one `use` line** (K2 finding): inventory entries register at
+   link time, and the Rust linker drops an rlib no symbol references — so an application
+   that activates the module purely by configuration must carry a single
+   `use mercury_minimalist_kafka as _;` where the Java jar needs only the dependency.
+   Documented in the crate docs; the K4 demo shows it.
+7. **`group.protocol=auto` is not resolved by K2** (the Java module probes the cluster's
+   `group.version` feature): the K2 bootstrap logs and strips `auto` (classic — every
+   broker's safe answer); the resolver arrives with the rebalance work at K3.
+8. Anything else discovered at implementation joins this list; wire-visible behavior
    (headers, DLQ headers, dataset shape) is normative parity, never a delta.
 
 ## 8. Experiment plan (K-series)
@@ -267,7 +279,7 @@ return route's R4.
 | # | Experiment | Gate |
 |---|---|---|
 | K1 ✅ | Crate + client templates + **outbound** (`simple.kafka.notification`, partitioner) + `kafka.health` + the unit suite against the §5 double | **DONE 2026-09-14** — `crates/minimalist-kafka` ships the outbound contract (body shapes incl. tombstones and Java-parity rejects, header propagation with the reserved-header exclusions, cid auto-stamp fallback, fresh traceparent from the hop's own span, explicit-partition routing), `kafka.health` (placeholder/warm-up, waiting-vs-outage, `{text, code}` 503, topics count, produce-only-leg probe rule), the template pipeline (embedded defaults + app-classpath shadowing + override chains + the JVM-only-key filter), the opt-out flags, and library auto-activation via inventory (`#[preload]` + `#[main_application]` — Java classpath-scan parity). 16 tests green against `MockCluster`, incl. a traced RPC through a registered worker. Platform-core gained `PostOffice::my_span_id()` and the public `w3c_trace` export (Java `W3cTrace` parity) |
-| K2 | **Inbound core**: literal-topic bindings, groups, manual commit-after-process, dataset (§3 item 2), retry + DLQ, opt-out flags + startup guards | the Java adapter suite's core scenarios ported and green |
+| K2 ✅ | **Inbound core**: literal-topic bindings, groups, manual commit-after-process, dataset (§3 item 2), retry + DLQ, opt-out flags + startup guards | **DONE 2026-09-14** — `adapter` (YAML parse + the fail-fast validation table, incl. rejecting later-increment fields BY NAME, the dlq-equals-source check, the group default, and the dead-letter-needs-producer deployment guard) and `consumer` (one tokio task per binding: async recv → dataset → real flow launch via `event.script.manager` → sync commit under `block_in_place` after the flow finishes; bounded retry + backoff; the confirmed DLQ write with `dlq.origin.topic`/`dlq.error` and original headers/body preserved; DATA-LOSS drop for partition liveness; escalating error backoff keeps a binding alive). E2e through the REAL Event Script engine against `MockCluster` — configuration only: dataset shape (actual topic/partition/offset/timestamp/key, raw byte body), W3C traceparent chaining + `KAFKA /<topic>` trace path + business-cid resolution, exactly-one-retry success, retry-exhaustion parking with origin facts, and no-DLQ drop with the binding still live after |
 | K3 | Inbound completions: second-level routing, `topic-pattern`, partition pinning, auto-commit + `max-poll-records`, per-binding header overrides | remaining §3 items pinned |
 | K4 | **Live dry-run + interop** against `kafka-standalone`: Rust↔Java flow adapters both ways, DLQ and rebalance chaos; report kept as permanent record | Java-guide behavior reproduced; cross-engine records interoperate (headers, traceparent, cid) |
 | K5 | **The held items close**: sync-over-async facade tasks (`sync.prepare`/`sync.await`/`soa.reply`) over this transport + the demo's Kafka request leg; then the release gate publishes `mercury-sync-over-async` + this crate together | the Java sync-over-async MVP flow (`RestFlowMvpTest` analog) green in Rust; publication un-holds |

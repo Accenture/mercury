@@ -11,8 +11,16 @@
   green against MockCluster; platform-core gained `PostOffice::my_span_id()` + public
   `w3c_trace`. Partitioner delta: librdkafka `murmur2_random` config replaces the Java
   partitioner class (same semantics, Java-compatible key hash — spec §7 item 4).
-  Next gate: K2 — the inbound adapter core (literal topics, groups, manual
-  commit-after-process, dataset, retry + DLQ, startup guards).
+  **K2 DONE 2026-09-14** (origin: this session's log): the inbound adapter core — YAML
+  validation (later-increment fields rejected BY NAME), one consumer task per binding,
+  commit-after-process via block_in_place, retry + confirmed DLQ with origin facts,
+  DATA-LOSS liveness drop; e2e through the REAL flow engine against MockCluster,
+  configuration only. New deltas: max.poll.records needs no analog (per-record recv);
+  the one-use-line linker caveat for pure-config activation; group.protocol=auto
+  deferred to K3 (spec §7 items 5-7).
+  Next gate: K3 — inbound completions (second-level routing, topic-pattern, partition
+  pinning, auto-commit + max-poll-records mapping, per-binding header overrides,
+  group.protocol=auto resolution).
   Client decision: `rdkafka` (only maintained Rust client with the full group protocol;
   vendored librdkafka builds with cc+make, no CMake — verified). Unit tests:
   `rdkafka::mocking::MockCluster` (mockforge-kafka 0.3.221 investigated head-to-head and

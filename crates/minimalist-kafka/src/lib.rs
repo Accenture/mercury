@@ -27,7 +27,10 @@
 //! for SASL_SSL connectivity). The library autoloads at startup: depending on
 //! this crate registers `simple.kafka.notification` and `kafka.health` and
 //! runs [`bootstrap::KafkaAutoStart`], exactly as the Java jar does through
-//! classpath scanning. Either client can be switched off
+//! classpath scanning — with one Rust-linker caveat: an application that
+//! references no symbol from this crate must still link it with a single
+//! `use mercury_minimalist_kafka as _;` line, or the inventory entries are
+//! dropped as an unused dependency. Either client can be switched off
 //! (`kafka.producer.enabled` / `kafka.consumer.enabled`) — the flags are
 //! vetoes, not triggers.
 //!
@@ -36,14 +39,18 @@
 //! `draft-design-specs/minimalist-kafka-port.md` (the Java module and its
 //! guide are the canon).
 
+pub mod adapter;
 pub mod bootstrap;
 pub mod client_config;
+pub mod consumer;
 pub mod headers;
 pub mod health;
 pub mod notification;
 pub mod publisher;
 pub mod runtime;
 
+pub use adapter::KafkaConsumerBinding;
+pub use consumer::{KafkaFlowConsumer, RetryPolicy};
 pub use health::{KafkaHealthProbe, KAFKA_HEALTH_ROUTE};
 pub use notification::{SimpleKafkaNotification, ROUTE as NOTIFICATION_ROUTE};
 pub use publisher::KafkaRequestPublisher;
