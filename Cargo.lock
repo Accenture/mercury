@@ -1638,6 +1638,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sync-over-async-demo"
+version = "4.12.7"
+dependencies = [
+ "async-trait",
+ "log",
+ "mercury-platform-core",
+ "mercury-sync-over-async",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "synstructure"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

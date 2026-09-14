@@ -1,0 +1,14 @@
+# Stream-producer role: a backend service that posts progressive events into a
+# streaming rendezvous opened by a stream-ui pod - purely through Redis
+# (StreamResponder). The producer side needs NO return-route coordinator (no
+# subscriber, no return channel of its own): only the redis.* connection
+# parameters from application.yml.
+rest.automation: true
+rest.server.port: 8601
+yaml.rest.automation: classpath:/rest-stream-producer.yaml
+
+# no coordinator on the producer side
+sync.over.async.enabled: false
+
+# /health still probes the one shared dependency this pod writes to
+mandatory.health.dependencies: 'soa.redis.health'

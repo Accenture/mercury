@@ -26,6 +26,12 @@
   housekeeper — the bridge grants the edge `EDGE_GRACE_SECONDS = 10` headroom so the watchdog
   owns idle expiry (spec §5 item 5). Java follow-up reported: StreamingRestE2eTest still
   asserts liveness on a closing post (PR #378 fixed E1 only).
-  Next: R3 — cross-pod dry-run, two Rust processes against `redis-standalone` (chaos:
-  kill producer, kill UI pod, suppressed wake-ups, short-TTL orphan stop).
+  **R3 DONE 2026-09-13** (origin 2026-09-14-003459): all five Java E3 outcomes reproduced
+  live — two Rust processes + the `redis-standalone` helper jar; drain recovery at idle + 2 ms;
+  the watchdog's in-band 408 after a producer `kill -9` (§5 item 5 headroom proven live);
+  TTL-bounded orphan stop after a UI-pod `kill -9`. New `examples/sync-over-async-demo`
+  (Q5: one crate, `stream-ui` / `stream-producer` profiles) + permanent report
+  `docs/test-reports/streaming-return-route-cross-pod.md`.
+  Next: R4 — the polyglot dry-run (Rust producer → Java UI pod and vice versa on one
+  `redis-standalone`) — the wire-parity acceptance gate; optional real-LLM leg (Java E4 analog).
   <!-- id: ot-sync-over-async-port | created: 2026-09-13 | last_used: 2026-09-13 | uses: 1 | tier: working | origin: 2026-09-13-161430 -->

@@ -18,6 +18,7 @@ members = [
     "examples/hello-world",
     "examples/hello-flow",
     "examples/minigraph-playground",
+    "examples/sync-over-async-demo",
     # starter templates for the three layers (copy one out to begin a new
     # project; explicit metadata - no workspace inheritance - so a copy
     # builds as-is, listed here so every build proves they stay current)

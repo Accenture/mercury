@@ -1,0 +1,12 @@
+#
+# REST automation for the stream-producer role: a plain request/response
+# endpoint that triggers segment posts into a rendezvous (the "UI app then
+# makes POST requests to various backend services" leg of the notification
+# use case).
+#
+rest:
+  - service: "demo.stream.producer"
+    methods: ['POST']
+    url: "/api/produce"
+    timeout: 15s
+    tracing: true

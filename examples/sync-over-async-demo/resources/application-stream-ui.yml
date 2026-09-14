@@ -1,0 +1,17 @@
+# Stream-UI role: the pod holding the user's SSE connection (streaming return
+# route). Run more than one on a dev machine by overriding the port
+# (-Drest.server.port=8602).
+#
+# Broker-free by design (spec D3): the streaming return path needs Redis only.
+rest.automation: true
+rest.server.port: 8600
+yaml.rest.automation: classpath:/rest-stream-ui.yaml
+
+# the streaming rendezvous rides the return-route coordinator
+sync.over.async.enabled: true
+sync.stream.ttl.seconds: 1800
+sync.max.pending.streams: 1000
+
+# /health includes the Redis probe (the soa. prefix is deliberate - the plain
+# redis.health route name is reserved for the future distributed-cache module)
+mandatory.health.dependencies: 'soa.redis.health'
