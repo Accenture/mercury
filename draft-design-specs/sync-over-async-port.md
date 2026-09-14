@@ -1,8 +1,9 @@
 # Design — sync-over-async streaming return route → Rust (cross-pod progressive rendering)
 
 > **Status:** APPROVED 2026-09-13 (Eric: Q1–Q5 ruled — §9; "proceed with the Q1–Q5 rulings").
-> **R1 IMPLEMENTED 2026-09-13** (§8). Next gate: experiment R2 (the facade half:
-> `StreamBridge` + `soa.redis.health`, and the single-process SSE e2e) ·
+> **R1 IMPLEMENTED 2026-09-13** (§8) · **R2 IMPLEMENTED 2026-09-13** (§8 — the facade half:
+> `StreamBridge` + `soa.redis.health`, and the single-process SSE e2e). Next gate: experiment
+> R3 (cross-pod dry-run against `redis-standalone`) ·
 > **Realizes:** `ot-sync-over-async-port` · **Serves:** `vision-mercury` ·
 > **Author:** Claude Code · **Date:** 2026-09-13
 >
@@ -171,6 +172,18 @@ not listed here ports faithfully (`port-bottom-up-faithful`: map, don't mirror).
 4. **Lazy client construction** stays (Java's preload-before-bootstrap lesson): connections are
    built on first use from live configuration — the `OnceCell` idiom `minigraph-state-redis`
    already uses — never at static-init time.
+5. **The edge backstop gets explicit headroom** (R2 finding). Java's between-segment edge
+   timeout is enforced by the AppStarter housekeeper — a 10-second sweep with a +100 ms buffer
+   ("HTTP timeout does not need to be very accurate") — so the facade's exact idle watchdog
+   always acts first by at least the sweep slack; that ordering is what lets the idle-expiry
+   final drain (or the in-band 408) reach the client instead of the edge's own timeout. The
+   Rust edge enforces its idle allowance **precisely per await**, which turns the same two
+   timers into a photo finish the watchdog loses (observed: both idle-expiry E2 scenarios
+   rendered the edge's `Timeout for 2 seconds` instead of the watchdog's outcome). The bridge
+   therefore commits the SSE head with `EDGE_GRACE_SECONDS = 10` of headroom over the watchdog
+   allowance — the housekeeper-interval analog. Observable contract unchanged: the watchdog
+   owns idle expiry at exactly `idle_seconds`; the edge backstop reclaims a dead-facade stream
+   within the same envelope as Java's sweep.
 
 ## 6. Crate layout & component map
 
@@ -247,7 +260,7 @@ the Rust dry-run unchanged (R3/R4, §8). Unit and CI suites never require it.
 | # | Experiment | Gate |
 |---|---|---|
 | R1 ✅ | Crate + ported E1 suite against the extended double | **DONE 2026-09-13** — `extensions/sync-over-async` ships the rendezvous engine (segment, store, both registries, coordinator, responder, config, connection); the double moved to `crates/redis-test-double` and gained Lists, `EXPIRE` and Pub/Sub; all 13 E1 scenarios plus 21 unit pins green, workspace `fmt`/`clippy -D warnings`/`test` clean, no Docker. Finding: §3 item 8 (a terminal post's answer is racy in both engines) |
-| R2 | Single-process e2e: `stream: true` endpoint + facade + responder + SSE-consumer collector | Java E2 scenarios green through the real Rust HTTP edge |
+| R2 ✅ | Single-process e2e: `stream: true` endpoint + facade + responder + SSE-consumer collector | **DONE 2026-09-13** — `bridge.rs` (`StreamBridge` + `EventStreamSink` + the shared writer), `runtime.rs`, `health.rs` (`soa.redis.health`, waiting-vs-outage boundary incl. the vault pattern e2e against the double's new `requirepass` mode); all four Java E2 scenarios green through the real Rust HTTP edge, consumed by the shipped SSE client. Finding: §5 item 5 (the edge backstop needs explicit headroom over the watchdog) |
 | R3 | Cross-pod dry-run: two Rust processes against `redis-standalone` (chaos: kill producer, kill UI pod, suppressed wake-ups, short-TTL orphan stop) | Java E3 scenario outcomes reproduced; report kept as permanent record |
 | R4 | **Polyglot dry-run**: Rust producer → Java UI pod and Java producer → Rust UI pod on one `redis-standalone` | tokens render in order across engines both ways — the wire-parity acceptance gate; optional LLM leg via the shipped SSE consumer (Java E4 analog) |
 

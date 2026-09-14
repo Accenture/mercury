@@ -34,6 +34,7 @@
 //! | pub/sub | `SUBSCRIBE`, `UNSUBSCRIBE`, `PUBLISH` (out-of-band `message` push frames) |
 //! | transactions | `MULTI`, `EXEC`, `DISCARD` with per-connection queueing |
 //! | housekeeping | `PING`, `INFO server`, `FLUSHALL`, and tolerant handshake chatter |
+//! | auth | `AUTH` — see [`start_resp_double_with_password`] for the `requirepass` mode |
 //!
 //! Parameterized by the `redis_version` its `INFO server` reply reports, so
 //! one suite can exercise a native-GETDEL strategy (6.2+) and another the
@@ -92,6 +93,27 @@ static CONNECTION_IDS: AtomicU64 = AtomicU64::new(0);
 /// Returns the port, the shared store (so a suite can inspect wire-visible
 /// state), and the command journal.
 pub async fn start_resp_double(version: &str) -> (u16, SharedStore, CommandJournal) {
+    start_with(version, None).await
+}
+
+/// [`start_resp_double`] in `requirepass` mode, like a real server whose
+/// configuration demands `AUTH`: every command other than `AUTH` answers
+/// `NOAUTH` until the connection authenticates, and a wrong credential
+/// answers `WRONGPASS` — the exact server-side signatures a late-credential
+/// deployment sees while a vault-published password has not landed yet.
+/// (Conversely, `AUTH` against a no-password double answers the real
+/// server's `ERR Client sent AUTH ...` — the third waiting signature.)
+pub async fn start_resp_double_with_password(
+    version: &str,
+    password: &str,
+) -> (u16, SharedStore, CommandJournal) {
+    start_with(version, Some(password.to_string())).await
+}
+
+async fn start_with(
+    version: &str,
+    required_password: Option<String>,
+) -> (u16, SharedStore, CommandJournal) {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let port = listener.local_addr().expect("addr").port();
     let store: SharedStore = Arc::new(Mutex::new(HashMap::new()));
@@ -109,8 +131,17 @@ pub async fn start_resp_double(version: &str) -> (u16, SharedStore, CommandJourn
             let journal = shared_journal.clone();
             let subscribers = subscribers.clone();
             let version = version.clone();
+            let required_password = required_password.clone();
             tokio::spawn(async move {
-                serve_connection(socket, store, journal, subscribers, version).await
+                serve_connection(
+                    socket,
+                    store,
+                    journal,
+                    subscribers,
+                    version,
+                    required_password,
+                )
+                .await
             });
         }
     });
@@ -127,6 +158,11 @@ struct Connection {
     id: u64,
     outbound: Outbound,
     subscribed: HashSet<String>,
+    /// `requirepass` mode: the password `AUTH` must present, if any.
+    required_password: Option<String>,
+    /// Whether this connection has authenticated (always true without
+    /// `requirepass`).
+    authenticated: bool,
 }
 
 async fn serve_connection(
@@ -135,6 +171,7 @@ async fn serve_connection(
     journal: CommandJournal,
     subscribers: Subscribers,
     version: String,
+    required_password: Option<String>,
 ) {
     let (mut reader, mut writer) = socket.into_split();
     // every frame leaves through this lane, so a PUBLISH from another
@@ -155,6 +192,8 @@ async fn serve_connection(
         id: CONNECTION_IDS.fetch_add(1, Ordering::Relaxed),
         outbound,
         subscribed: HashSet::new(),
+        authenticated: required_password.is_none(),
+        required_password,
     };
     let mut buffer: Vec<u8> = Vec::new();
     let mut chunk = [0u8; 4096];
@@ -171,6 +210,21 @@ async fn serve_connection(
                 .lock()
                 .expect("journal")
                 .push(command.clone());
+            // requirepass gate: a real server refuses everything except the
+            // authentication commands until AUTH succeeds
+            if !connection.authenticated
+                && !matches!(command.as_str(), "AUTH" | "HELLO" | "QUIT" | "RESET")
+            {
+                if connection
+                    .outbound
+                    .send(b"-NOAUTH Authentication required.\r\n".to_vec())
+                    .is_err()
+                {
+                    release_subscriptions(&connection);
+                    return;
+                }
+                continue;
+            }
             let reply = match command.as_str() {
                 "MULTI" => {
                     queued = Some(Vec::new());
@@ -279,7 +333,21 @@ fn dispatch(args: &[Vec<u8>], connection: &mut Connection) -> Vec<u8> {
     match command.as_str() {
         "PING" => b"+PONG\r\n".to_vec(),
         // handshake chatter the client may send (CLIENT SETINFO, SELECT 0...)
-        "CLIENT" | "SELECT" | "AUTH" => b"+OK\r\n".to_vec(),
+        "CLIENT" | "SELECT" => b"+OK\r\n".to_vec(),
+        // real-server AUTH semantics: `AUTH pass` or `AUTH user pass`
+        "AUTH" => match (&connection.required_password, args.last()) {
+            (None, _) => {
+                b"-ERR Client sent AUTH, but no password is set. Did you mean AUTH <username> <password>?\r\n"
+                    .to_vec()
+            }
+            (Some(required), Some(supplied)) if supplied.as_slice() == required.as_bytes() => {
+                connection.authenticated = true;
+                b"+OK\r\n".to_vec()
+            }
+            (Some(_), _) => {
+                b"-WRONGPASS invalid username-password pair or user is disabled.\r\n".to_vec()
+            }
+        },
         "INFO" => {
             let body = format!("# Server\r\nredis_version:{}\r\n", connection.version);
             bulk(body.as_bytes())

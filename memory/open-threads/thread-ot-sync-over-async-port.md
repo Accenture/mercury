@@ -18,5 +18,14 @@
   Pub/Sub, 13 E1 scenarios + 21 unit pins green, workspace fmt/clippy/test clean, no Docker.
   Finding (both engines): a terminal post's return value is racy by construction — never
   assert liveness on a closing post (spec §3 item 8).
-  Next: R2 — the facade half (StreamBridge + soa.redis.health) and the single-process SSE e2e.
+  **R2 DONE 2026-09-14** (origin 2026-09-14-000411): the facade half — `StreamBridge` +
+  `EventStreamSink` + shared writer, `runtime` holder, `soa.redis.health` with the
+  waiting-vs-outage boundary (vault pattern e2e'd against the double's new `requirepass`
+  mode); all four Java E2 scenarios green through the real `stream: true` SSE edge.
+  Finding: the Rust edge times idle precisely per await where Java's backstop is a 10s-sweep
+  housekeeper — the bridge grants the edge `EDGE_GRACE_SECONDS = 10` headroom so the watchdog
+  owns idle expiry (spec §5 item 5). Java follow-up reported: StreamingRestE2eTest still
+  asserts liveness on a closing post (PR #378 fixed E1 only).
+  Next: R3 — cross-pod dry-run, two Rust processes against `redis-standalone` (chaos:
+  kill producer, kill UI pod, suppressed wake-ups, short-TTL orphan stop).
   <!-- id: ot-sync-over-async-port | created: 2026-09-13 | last_used: 2026-09-13 | uses: 1 | tier: working | origin: 2026-09-13-161430 -->
