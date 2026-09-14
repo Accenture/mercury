@@ -12,13 +12,19 @@ a keep-alive (ping every ~20 s), and a hand-rolled client that misses it appears
 to work, then dies silently at the server's idle timeout — typically in the
 middle of the collaboration it was hosting.
 
+This starter runs the production shape of a knowledge-graph application and does
+not serve the Playground UI itself. To author or dry-run models interactively,
+run the `minigraph-playground` app alongside and point the broker at it; export
+the finished model and drop it into this project's `resources/graph/` +
+`graphs.yaml`.
+
 ```bash
 node scripts/playground-session-broker.mjs --target http://127.0.0.1:8085 --port 8765
 ```
 
 Both flags are runtime overrides: `--target` points the broker at whatever host and port the
-playground app serves (default `http://127.0.0.1:8085` — pass your app's actual port, e.g.
-`--target http://127.0.0.1:8087`); `--port` moves the broker's own control API (default `8765`).
+playground app serves (default `http://127.0.0.1:8085`, the `minigraph-playground` example's
+port); `--port` moves the broker's own control API (default `8765`).
 
 | Call | Effect |
 |---|---|

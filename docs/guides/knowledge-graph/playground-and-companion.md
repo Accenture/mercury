@@ -68,6 +68,12 @@ Note that `session reset` resets *subscriptions*, not your work: it does **not**
 draft graph — the UI restores the draft on reconnect. To start clean, delete the nodes
 explicitly. The full rules are in the [command grammar](command-reference.md#session).
 
+**An AI agent asked to host a session** should run the shipped session broker
+(`scripts/playground-session-broker.mjs` in the `minigraph-playground` example) rather than
+hand-roll a WebSocket client — the session contract includes a keep-alive (ping every ~20 s)
+that hand-rolled clients typically miss, and a client without it dies silently at the idle
+timeout. See [Hosting the session yourself](ai-agent-guide.md#hosting).
+
 ## The companion endpoints
 
 The companion endpoints let an HTTP client — a script, a test harness, or an AI agent —
