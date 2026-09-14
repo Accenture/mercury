@@ -1,7 +1,8 @@
 # Design — minimalist-kafka → Rust (Kafka flow adapter + notification)
 
-> **Status:** DRAFT for maintainer review · **Realizes:** `ot-minimalist-kafka-port` ·
-> **Serves:** `vision-mercury` · **Author:** Claude Code · **Date:** 2026-09-14
+> **Status:** APPROVED 2026-09-14 (Eric: Q1–Q5 ruled — §9). Next gate: experiment K1 ·
+> **Realizes:** `ot-minimalist-kafka-port` · **Serves:** `vision-mercury` ·
+> **Author:** Claude Code · **Date:** 2026-09-14
 >
 > **Canonical source:** `system/minimalist-kafka` (mercury-composable, Java) and its guide
 > `docs/guides/minimalist-kafka.md` — the opt-in library with two composable building blocks:
@@ -264,18 +265,21 @@ return route's R4.
 | K4 | **Live dry-run + interop** against `kafka-standalone`: Rust↔Java flow adapters both ways, DLQ and rebalance chaos; report kept as permanent record | Java-guide behavior reproduced; cross-engine records interoperate (headers, traceparent, cid) |
 | K5 | **The held items close**: sync-over-async facade tasks (`sync.prepare`/`sync.await`/`soa.reply`) over this transport + the demo's Kafka request leg; then the release gate publishes `mercury-sync-over-async` + this crate together | the Java sync-over-async MVP flow (`RestFlowMvpTest` analog) green in Rust; publication un-holds |
 
-## 9. Open questions for the maintainer
+## 9. Maintainer rulings (Eric, 2026-09-14)
 
-- **Q1 — crate home and name.** Java houses it under `system/` (a first-class opt-in
-  library). Propose the same prominence here: `system/minimalist-kafka`, package
-  `mercury-minimalist-kafka`, joining the publication set. Alternative: `extensions/`.
-- **Q2 — Schema Registry scope.** Defer the whole schema surface (framing, serdes, registry
-  auth, CSFLE) to its own follow-up spec after K5, or pull a minimal decode-only subset
-  (`schema.enabled` consume path) into the K-series?
-- **Q3 — twin-kafka.** Defer until a bridge need exists (proposed), or schedule as K6?
-- **Q4 — demo.** Port the Java `kafka-demo` example (or fold a produce/consume leg into an
-  existing example) at K4, for the dry-run runbook?
-- **Q5 — mockforge-kafka verdict sign-off** (§5.5) once the spike numbers are in this draft.
+- **Q1 — crate home and name: AGREED.** `system/minimalist-kafka`, package
+  `mercury-minimalist-kafka`, joining the publication set (the K5 release publishes it
+  together with `mercury-sync-over-async`).
+- **Q2 — Schema Registry scope: DEFERRED.** The whole schema surface (Confluent framing,
+  serdes, registry auth, CSFLE) gets its own follow-up spec after K5; the K-series ships the
+  raw-`byte[]` core with the bolt-on points intact (`schema.enabled` per binding, `subject`
+  header on publish).
+- **Q3 — twin-kafka: DEFERRED** until a bridge need exists.
+- **Q4 — demo: PORT `kafka-demo`** (the Java example) at K4, as the dry-run runbook's
+  vehicle.
+- **Q5 — unit-test double: `rdkafka::mocking::MockCluster` RATIFIED** ("the simplicity /
+  minimalist principle"); `mockforge-kafka` not adopted, with §5's dated evidence kept for a
+  future revisit.
 
 ## 10. Relation to the blueprint
 
