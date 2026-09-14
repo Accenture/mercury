@@ -25,14 +25,23 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use platform_core::{main_application, AppConfigReader, AppError, EntryPoint};
+use platform_core::{main_application, AppConfigReader, AppError, EntryPoint, Platform};
 use rdkafka::producer::FutureProducer;
 
+use std::time::Duration;
+
+use platform_core::ConfigReader;
+
+use crate::adapter;
 use crate::client_config::{self, CONSUMER_ENABLED, PRODUCER_ENABLED};
+use crate::consumer::{KafkaFlowConsumer, RetryPolicy};
 use crate::publisher::KafkaRequestPublisher;
 use crate::{notification, runtime};
 
 const ADAPTER_CONFIG: &str = "yaml.kafka.flow.adapter";
+const DLQ_TIMEOUT: &str = "kafka.dlq.timeout.ms";
+const MAX_RETRIES: &str = "kafka.flow.max.retries";
+const RETRY_BACKOFF: &str = "kafka.flow.retry.backoff.ms";
 
 /// The library's startup hook: sequence 20 keeps it after a typical
 /// application's own entry point (default 10) — order is not load-bearing,
@@ -68,13 +77,88 @@ impl EntryPoint for KafkaAutoStart {
         }
         if !consumer_enabled {
             log::info!("{CONSUMER_ENABLED}=false; Kafka flow adapter not started");
-        } else if config.get_property(ADAPTER_CONFIG).is_some() {
-            log::info!(
-                "{ADAPTER_CONFIG} is set; the inbound flow adapter arrives in a later increment of this port"
-            );
+        } else if let Some(adapter_location) = config.get_property(ADAPTER_CONFIG) {
+            start_flow_adapter(&adapter_location).await?;
         } else {
             log::info!("{ADAPTER_CONFIG} not set; Kafka flow adapter not started");
         }
         Ok(())
     }
+}
+
+/// Start one consumer per validated binding (the Java `KafkaFlowAdapter`
+/// start): parse + validate the YAML (fail-fast), enforce the
+/// dead-letter-needs-producer guard, build each binding's consumer from the
+/// template with the pinned delivery-mode overlay, and launch the poll loops.
+async fn start_flow_adapter(adapter_location: &str) -> Result<(), AppError> {
+    let config = AppConfigReader::get_instance();
+    let reader = ConfigReader::load(adapter_location).map_err(|e| {
+        AppError::new(
+            500,
+            format!("Unable to read {ADAPTER_CONFIG} at {adapter_location} - {e}"),
+        )
+    })?;
+    let bindings = adapter::parse_bindings(&reader)?;
+    let publisher = runtime::publisher();
+    if publisher.is_none() {
+        // no producer to dead-letter through: a binding's dlq-topic would
+        // silently drop messages - the contradiction fails the deployment
+        adapter::reject_dead_letter_without_producer(&bindings, PRODUCER_ENABLED)?;
+    }
+    let dlq_timeout = Duration::from_millis(
+        config
+            .get_property_or(DLQ_TIMEOUT, "10000")
+            .trim()
+            .parse()
+            .unwrap_or(10_000),
+    );
+    let retry_policy = RetryPolicy {
+        max_retries: config
+            .get_property_or(MAX_RETRIES, "3")
+            .trim()
+            .parse()
+            .unwrap_or(3),
+        backoff_ms: config
+            .get_property_or(RETRY_BACKOFF, "500")
+            .trim()
+            .parse()
+            .unwrap_or(500),
+        dead_letter_publisher: publisher,
+    };
+    let platform = Platform::get_instance();
+    let mut consumers = Vec::with_capacity(bindings.len());
+    for binding in bindings {
+        // the pinned delivery-mode overlay: the binding's group id and manual
+        // commit-after-process (per-record recv IS the poll-batch-of-one -
+        // librdkafka has no max.poll.records and needs none here)
+        let mut consumer_config = client_config::consumer_client_config()?;
+        consumer_config.set("group.id", &binding.group_id);
+        consumer_config.set("enable.auto.commit", "false");
+        if consumer_config.get("group.protocol").map(str::trim) == Some("auto") {
+            // the Java module's 'auto' probes the cluster; this port resolves
+            // it at a later increment - classic is every broker's safe answer
+            log::info!("group.protocol=auto is not resolved by this increment; using classic");
+            consumer_config.remove("group.protocol");
+        }
+        let stream_consumer = consumer_config.create().map_err(|e| {
+            AppError::new(
+                500,
+                format!(
+                    "Unable to build Kafka consumer for '{}' - {e}",
+                    binding.topic
+                ),
+            )
+        })?;
+        consumers.push(KafkaFlowConsumer::start(
+            platform.clone(),
+            stream_consumer,
+            binding,
+            retry_policy.clone(),
+            dlq_timeout,
+        )?);
+    }
+    let started = consumers.len();
+    runtime::set_flow_consumers(consumers);
+    log::info!("Kafka flow adapter started from {adapter_location} ({started} binding(s))");
+    Ok(())
 }

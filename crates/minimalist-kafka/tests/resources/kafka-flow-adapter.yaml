@@ -1,0 +1,14 @@
+#
+# Inbound adapter fixtures for the K2 e2e: literal topic -> flow bindings.
+#
+consumer:
+  - topic: 'k2-happy'
+    flow: 'kafka-ingest'
+    group: '${K2_HAPPY_GROUP:k2-happy-group}'
+  - topic: 'k2-retry'
+    flow: 'kafka-flaky'
+  - topic: 'k2-poison'
+    flow: 'kafka-poison'
+    dlq-topic: 'k2-poison-dlq'
+  - topic: 'k2-drop'
+    flow: 'kafka-poison'

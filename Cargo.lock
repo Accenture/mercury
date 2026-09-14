@@ -844,6 +844,7 @@ version = "4.12.7"
 dependencies = [
  "async-trait",
  "log",
+ "mercury-event-script",
  "mercury-platform-core",
  "rdkafka",
  "rmpv",

@@ -1,0 +1,12 @@
+# minimalist-kafka inbound-adapter e2e configuration: flows compiled from the
+# fixture manifest; the adapter binds test topics to them; the Kafka clients
+# reach the in-process mock cluster through KAFKA_BOOTSTRAP_SERVERS (set by
+# the test before this snapshot is pinned) via the bundled templates.
+application.name: minimalist-kafka-e2e
+yaml.flow.automation: 'classpath:/flows.yaml'
+yaml.kafka.flow.adapter: 'classpath:/kafka-flow-adapter.yaml'
+
+# fast retry pacing for the suite
+kafka.flow.max.retries: 2
+kafka.flow.retry.backoff.ms: 50
+kafka.dlq.timeout.ms: 5000

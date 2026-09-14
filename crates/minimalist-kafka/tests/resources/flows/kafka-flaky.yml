@@ -1,0 +1,15 @@
+flow:
+  id: 'kafka-flaky'
+  description: 'fails on the first delivery, succeeds on a retry'
+  ttl: 10s
+
+first.task: 'kafka.flaky.task'
+
+tasks:
+  - name: 'kafka.flaky.task'
+    input:
+      - 'input.body -> body'
+    process: 'kafka.flaky.task'
+    output: []
+    description: 'flaky by design'
+    execution: end
