@@ -31,7 +31,14 @@ use platform_core::{ComposableFunction, EventEnvelope};
 use redis_test_double::{start_resp_double, start_resp_double_with_password};
 use sync_over_async::{RedisHealthCheck, RedisSettings};
 
-const PASSWORD: &str = "local-test-secret";
+/// The fixture credential is GENERATED per test run - the requirepass double
+/// is started with this value, so it is authoritative by construction and no
+/// credential literal exists in the repository (CWE-798 hygiene, matching the
+/// Java twin).
+fn fixture_password() -> &'static str {
+    static PASSWORD: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    PASSWORD.get_or_init(|| uuid::Uuid::new_v4().simple().to_string())
+}
 
 fn settings(port: u16, password: &str) -> RedisSettings {
     RedisSettings::new("127.0.0.1", port, password, false, 0, 2000)
@@ -150,7 +157,8 @@ async fn startup_grace_reports_placeholder_then_warms_up() {
 /// was constructed at startup registration time.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn late_credential_waits_then_goes_live_without_restart() {
-    let (port, _store, _journal) = start_resp_double_with_password("7.4.0", PASSWORD).await;
+    let (port, _store, _journal) =
+        start_resp_double_with_password("7.4.0", fixture_password()).await;
     let vault: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
     let supplier_vault = vault.clone();
     let check = RedisHealthCheck::new(
@@ -166,14 +174,15 @@ async fn late_credential_waits_then_goes_live_without_restart() {
     assert_eq!("Waiting for Redis connection", status_of(&waiting));
 
     // a wrong credential (stale vault value) is the same waiting signature
-    *vault.lock().expect("vault") = "stale-secret".to_string();
+    // derived by suffix: guaranteed unequal, still not a literal
+    *vault.lock().expect("vault") = format!("{}-stale", fixture_password());
     let wrong = call(&check, "health").await;
     assert!(!wrong.has_error());
     assert_eq!("Waiting for Redis connection", status_of(&wrong));
 
     // the credential lands: the next probe re-resolves the configuration and
     // the check heals itself - no restart in between
-    *vault.lock().expect("vault") = PASSWORD.to_string();
+    *vault.lock().expect("vault") = fixture_password().to_string();
     let live = call(&check, "health").await;
     assert!(!live.has_error());
     assert_eq!("Redis is reachable", status_of(&live));
@@ -185,7 +194,7 @@ async fn late_credential_waits_then_goes_live_without_restart() {
 async fn password_against_open_server_is_waiting_not_outage() {
     let (port, _store, _journal) = start_resp_double("7.4.0").await;
     let check = RedisHealthCheck::new(
-        move || settings(port, "unnecessary-secret"),
+        move || settings(port, fixture_password()), // any password against an open server
         Duration::from_secs(2),
         Duration::ZERO,
     );
