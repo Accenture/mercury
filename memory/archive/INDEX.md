@@ -81,7 +81,14 @@
 - thread-http-streaming-twin — (feature) HTTP response streaming ported engine-identical (Java PR #299/ADR-0018 — faded — completed thread not referenced in over archive_window (20) sessions — 2026-Q3.md
 - ot-json-plugin-twin — `json` simple plugin twin — land the PR (lock-step with the Java engine). DONE — faded (completed threads past archive_window: sslu 21 and 24 > 20) — 2026-Q3.md
 - ot-route-pool-twin — (feature) Route pool platform API — register_route_pool/release_route_pool, — faded (completed threads past archive_window: sslu 21 and 24 > 20) — 2026-Q3.md
-- playground-session-broker — Playground session broker: an AI agent can HOST a Playground session (2026-09-03, Eric's — faded — not referenced in over archive_window (20) sessions (sslu 27) — 2026-Q3.md
+- playground-session-broker — Playground session broker: an AI agent can HOST a Playground session (2026-09-03, Eric's — faded — not referenced in over archive_window (20) sessions (sslu 27) — 2026-Q3.md — REACTIVATED 2026-09-17 (back in continuity.md)
 - thread-reverify-invariants-20260902 — Re-verify invariants — CONFIRMED by Eric 2026-09-02: all four never-decay — completed thread past archive_window (sslu 31); all 4 never-decay facts + Vision confirmed 2026-09-02 — 2026-Q3.md
 - why-ai-enabled-before-code — The memory layer and the Vision were installed BEFORE the first line of code (2026-07-15)… — faded — not referenced in over archive_window (20) sessions (sslu 21) — 2026-Q3.md
 - conv-llms-txt-curated-map — This repo's `docs/llms.txt` is a CURATED agent map, not a full site map (Eric, 2026-09-04)… — faded — not referenced in over archive_window (20) sessions (sslu 21) — 2026-Q3.md
+- claims-fixture-gate — The claims-fixture gate drift-tests documentation BEHAVIOR claims (ADR-0018, accepted — faded — not referenced in over archive_window (20) sessions (review 2026-09-17; ADR-0018 keeps the claims-gate decision in the ledger) — 2026-Q3.md
+- webapp-lockstep-sync-preserved-paths — Playground webapp lock-step sync: replace `crates/knowledge-graph/webapp/` wholesale — faded — not referenced in over archive_window (20) sessions (review 2026-09-17; ADR-0018 keeps the claims-gate decision in the ledger) — 2026-Q3.md
+- ot-rust-docs-sibling-sweep — (docs) Rust sibling sweep — SHIPPED with the claims-fixture gate (PR #238, merge — swept: completed thread past archive_window (review 2026-09-17) — 2026-Q3.md
+- thread-polyglot-docs-rust — (P4 docs — SHIPPED AND LIVE 2026-08-24, two same-day PRs; Java twin PR #294 — swept: completed thread past archive_window (review 2026-09-17) — 2026-Q3.md
+- thread-release-4-11-5-rust — (release — SHIPPED 2026-08-09, lock-step with the Java engine at v4.11.5) — swept: completed thread past archive_window (review 2026-09-17) — 2026-Q3.md
+- thread-tutorial-14-decision-rust — (lock-step) tutorial-14's manager approval became a real three-outcome decision — swept: completed thread past archive_window (review 2026-09-17) — 2026-Q3.md
+- thread-v4-11-1-lockstep — (lock-step) The v4.11.1 arc shipped — version-aware Redis consume, per-task — swept: completed thread past archive_window (review 2026-09-17) — 2026-Q3.md

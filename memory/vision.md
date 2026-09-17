@@ -17,6 +17,18 @@ re-delivered in Rust **step by step from the foundation up to the user interface
 
 ## Current-state context
 
+> Refreshed 2026-09-17 at the invariant re-verify ceremony (maintainer-confirmed; the north
+> star below is unchanged). Previously refreshed 2026-07-21; the enable-time context is kept
+> for the record.
+
+All three core layers are ported, milestone-closed and **GRADUATED** (`github.com/Accenture/mercury`,
+2026-07-20; releases in lock-step with the Java engine — v4.12.7 at this refresh). The
+"foundation → user interface" runway **closed 2026-09-17**: the UI is the Playground webapp kept in
+lock-step from Java, and future UI work arrives as concrete threads. **Forward runway now:** the
+lightweight `minimalist-kafka` connector port (`ot-minimalist-kafka-port`, K3 next — in scope per the
+maintainer, 2026-09-17); `sync-over-async` shipped 2026-09-13; `twin-kafka` deferred; the Kafka
+service mesh stays out of scope (Non-goals).
+
 > Refreshed 2026-07-21 at the invariant re-verify ceremony (maintainer-confirmed; the
 > north star below is unchanged). Original enable-time context kept for the record.
 
@@ -80,7 +92,7 @@ treat the Java project as canonical rather than copying its docs here.
   single-runtime on the in-memory event bus. **Refined by the maintainer 2026-07-20:**
   `minimalist-kafka` and `twin-kafka` are *lightweight, cloud-native connectors* — NOT part of
   the mesh exclusion — and will be ported in future iterations, along with `sync-over-async`
-  (tracked as backlog in `continuity.md`).
+  (the backlog thread closed 2026-09-17; the live port is `ot-minimalist-kafka-port`).
 - Inherited from mercury-composable (confirm against the Java project as the port matures):
   - **Never couples functions directly** — coupling stays route-name + `EventEnvelope` only.
     (This is an Architectural Invariant, tracked in `continuity.md`.)
