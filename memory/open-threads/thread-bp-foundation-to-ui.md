@@ -1,5 +1,7 @@
-- [ ] **(blueprint)** Continue **foundation → user interface** now that the three core
-  layers stand — reframe into concrete UI-layer increments as they are picked up.
+- [x] **(blueprint — CLOSED at the closure gate 2026-09-17, stalled 69 sessions)** Continue foundation → UI.
+  Eric's decision: delivered/absorbed — all three layers + the Playground are milestone-closed and graduated,
+  and the UI is the Playground webapp maintained by lock-step sync from Java; no UI increment was reframed in
+  69 sessions. Future UI work arrives as concrete threads serving the Vision directly. Lesson: a Blueprint
+  gap phrased as "reframe as picked up" has no owner and no trigger — it stalls by construction.
   → serves: vision-mercury
-  (Group note folded at the v4.39.0 thread migration: Blueprint — gaps from Current State (three layers shipped + graduated) to the Vision  (serves: vision-mercury) Derived 2026-07-15 from the maintainer-set Vision. Each `(blueprint)` thread is a Vision↔reality gap that closes when delivered. Bottom-up order (foundation → UI). The three in-scope layers are delivered; forward runway is the UI continuation + the connectors/sync-over-async backlog below. The authoritative behavior spec remains the Java mercury-composable project (map, don't mirror).)
-  <!-- id: bp-foundation-to-ui | created: 2026-07-15 | last_used: 2026-09-01 | uses: 3 | tier: working | origin: 2026-07-15-215538.md -->
+  <!-- id: bp-foundation-to-ui | created: 2026-07-15 | last_used: 2026-09-17 | uses: 4 | tier: active | origin: 2026-07-15-215538.md -->

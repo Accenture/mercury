@@ -29,4 +29,6 @@
   `kafka-standalone` + `schema-registry-standalone` helpers (staged in `helpers/`, Eric).
   **This arc gates two held items** (Eric, 2026-09-14): the `mercury-sync-over-async`
   crates.io publication and the sync-over-async Q1 facade tasks both wait for K5.
-  <!-- id: ot-minimalist-kafka-port | created: 2026-09-14 | last_used: 2026-09-14 | uses: 1 | tier: working | origin: 2026-09-14-015014 -->
+  → serves: vision-mercury (the connectors Blueprint gap closed at the 2026-09-17 gate; this port is
+  the live Vision-serving work — Eric: minimal-kafka is in scope, the Kafka service mesh is not)
+  <!-- id: ot-minimalist-kafka-port | created: 2026-09-14 | last_used: 2026-09-17 | uses: 4 | tier: working | origin: 2026-09-14-015014 -->
