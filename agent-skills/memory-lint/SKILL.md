@@ -37,8 +37,9 @@ script, so the riskiest operation is verified against observable evidence.
    arbitrary config files: token shapes, credential-key assignments, Authorization headers, private
    keys — no PII classes, since config files legitimately carry contact emails and paths; exit 1 on
    findings, values never echoed. This mode powers the `.githooks/pre-commit` secret guard and the
-   CI floor's changed-config scan; the committed `.agent/secret-scan-ignore` handles JSON/properties
-   exemptions at the caller level).
+   CI floor's changed-config scan. A fixture that trips it is restructured — placeholder or env var —
+   because even dummy test values are false positives in field security scanners; the callers honor a
+   committed `.agent/secret-scan-ignore` only as a last-resort escape hatch, not seeded since v4.40.1).
    *Run the test suite (the cross-runtime contract — both implementations pass the same fixtures):*
    ```bash
    python3 -m unittest agent-skills/memory-lint/scripts/test_memory_lint.py

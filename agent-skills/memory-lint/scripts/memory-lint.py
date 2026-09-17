@@ -650,8 +650,9 @@ HOME_PATH_RE = re.compile(r"(?:/Users/|/home/|[A-Za-z]:\\Users\\)([A-Za-z0-9._-]
 _HOME_OK = {"runner", "user", "username", "vsts_azpcontainer"}  # well-known CI users, not PII
 
 
-def _is_placeholder_value(key, v):
-    """Values that are templates, redactions, or number/date/version shapes — not secrets."""
+def _placeholder_core(key, v):
+    """Values that are templates, redactions, or number/date/version shapes — not secrets
+    (the as-is pass; `_is_placeholder_value` adds the trailing-punctuation retry)."""
     # The tool's own opt-down knob is knob vocabulary, not a credential: the pre-commit guard's
     # blocking message itself prints "AGENT_MEMORY_SECRET_GUARD=advisory", so a memory file
     # documenting that guidance would otherwise self-flag (field report, 2026-08-19).
@@ -676,6 +677,23 @@ def _is_placeholder_value(key, v):
     if ENUM_KEY_RE.search(key) and re.fullmatch(r"[A-Z][A-Z0-9_]{2,}", v):
         return True
     return bool(PLACEHOLDER_VALUE_RE.fullmatch(v))
+
+
+_TRAILING_PUNCT_RE = re.compile(r"[).,]+$")
+
+
+def _is_placeholder_value(key, v):
+    # Prose rides trailing sentence punctuation into the captured value — the assignment capture
+    # stops only at whitespace, quotes, backticks and `;`, so `…=OAUTHBEARER,` / `…=changeme.` /
+    # `…=${VAR}).` reached the exemptions with the punctuation attached, and every class except
+    # the knob's fell through to a finding (field note, mercury-composable 2026-09-17; v4.40.1).
+    # Retry once with the punctuation stripped — AFTER the as-is pass, so exemptions that
+    # legitimately end in `)` (`$(vault_read …)`, `(REDACTED)`) keep matching unchanged. A real
+    # secret with trailing punctuation still matches nothing on either pass.
+    if _placeholder_core(key, v):
+        return True
+    stripped = _TRAILING_PUNCT_RE.sub("", v)
+    return stripped != v and _placeholder_core(key, stripped)
 
 
 def _is_public_email(local, domain):

@@ -673,8 +673,9 @@ const CARD_RE = /\b(?:\d{4}[ -]){3}\d{4}\b|\b\d{13,19}\b/g;
 const HOME_PATH_RE = /(?:\/Users\/|\/home\/|[A-Za-z]:\\Users\\)([A-Za-z0-9._-]{2,})/g;
 const HOME_OK = new Set(["runner", "user", "username", "vsts_azpcontainer"]); // well-known CI users, not PII
 
-function is_placeholder_value(key, v) {
-  // Values that are templates, redactions, or number/date/version shapes — not secrets.
+function placeholder_core(key, v) {
+  // Values that are templates, redactions, or number/date/version shapes — not secrets
+  // (the as-is pass; is_placeholder_value adds the trailing-punctuation retry).
   // The tool's own opt-down knob is knob vocabulary, not a credential: the pre-commit guard's
   // blocking message itself prints "AGENT_MEMORY_SECRET_GUARD=advisory", so a memory file
   // documenting that guidance would otherwise self-flag (field report, 2026-08-19).
@@ -697,6 +698,21 @@ function is_placeholder_value(key, v) {
   // assignment detector. (The motivating field line is credentials.source=OAUTHBEARER.)
   if (ENUM_KEY_RE.test(key) && /^[A-Z][A-Z0-9_]{2,}$/.test(v)) return true;
   return PLACEHOLDER_VALUE_RE.test(v);
+}
+
+const TRAILING_PUNCT_RE = /[).,]+$/;
+
+function is_placeholder_value(key, v) {
+  // Prose rides trailing sentence punctuation into the captured value — the assignment capture
+  // stops only at whitespace, quotes, backticks and `;`, so `…=OAUTHBEARER,` / `…=changeme.` /
+  // `…=${VAR}).` reached the exemptions with the punctuation attached, and every class except
+  // the knob's fell through to a finding (field note, mercury-composable 2026-09-17; v4.40.1).
+  // Retry once with the punctuation stripped — AFTER the as-is pass, so exemptions that
+  // legitimately end in `)` (`$(vault_read …)`, `(REDACTED)`) keep matching unchanged. A real
+  // secret with trailing punctuation still matches nothing on either pass.
+  if (placeholder_core(key, v)) return true;
+  const stripped = v.replace(TRAILING_PUNCT_RE, "");
+  return stripped !== v && placeholder_core(key, stripped);
 }
 
 function is_public_email(local, domain) {

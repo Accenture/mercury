@@ -70,9 +70,14 @@ The dispatcher contract itself is covered by `tests/test_githook_dispatchers.sh`
   `AGENT_MEMORY_SECRET_GUARD=advisory` (env, or `git config agent-memory.secretguard advisory`);
   one-off bypass: `git commit --no-verify`.
   Waivers: tag the line `lint:allow-secret-material` where the format has comments (markdown,
-  YAML, TOML, INI); JSON has no comments and a `.properties` same-line comment corrupts the value —
-  list those files in the committed, human-audited **`.agent/secret-scan-ignore`** (shell-glob per
-  line; exempts config files only, never `memory/`). Runs on python3 or node, whichever exists —
+  YAML, TOML, INI). Prefer restructuring over any waiver: zero secret leakage is the goal, and
+  even dummy test values are false positives in field security scanners (Snyk/Sonar key on the
+  `key=<literal>` shape regardless of value) — `${ENV_VAR:placeholder}` is the documented-safe form.
+  **Last resort**, only when a JSON or `.properties` fixture genuinely cannot be restructured and
+  you understand those implications: a committed, human-audited **`.agent/secret-scan-ignore`**
+  (shell-glob per line, `#` comments; exempts config files only, never `memory/`). The tool has
+  not seeded that file since v4.40.1 — a team that needs the hatch creates it deliberately, and
+  the guard says so each time it exempts a file. Runs on python3 or node, whichever exists —
   with neither, it skips with a note. Why it exists: the ritual rule covers agents at write time
   and the CI floor covers pushes, but by push time the remote already has the secret and redaction
   is not un-leaking (rotation is) — this is the **one placement that prevents instead of detects**

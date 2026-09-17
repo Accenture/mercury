@@ -167,9 +167,10 @@ usage.
   differently named fragments; agent-memory owns its managed `50-` fragments. The managed
   post-commit fragment detects tracked work without a log; the managed pre-commit fragment
   enforces the `[secret-material]` guard on staged memory and credential-class config
-  files (`.json`, `.yml`, `.yaml`, `.properties`, `.toml`, `.ini`, `.env*`); config waivers
-  live in `.agent/secret-scan-ignore` and never waive memory. `AGENT_MEMORY_SECRET_GUARD=advisory` opts the hook
-  down; `--no-verify` bypasses once.
+  files (`.json`, `.yml`, `.yaml`, `.properties`, `.toml`, `.ini`, `.env*`); a fixture that trips it
+  is restructured with a placeholder or env var — a committed `.agent/secret-scan-ignore` is a
+  last-resort escape hatch (not seeded since v4.40.1) and never waives memory.
+  `AGENT_MEMORY_SECRET_GUARD=advisory` opts the hook down; `--no-verify` bypasses once.
 - Forge CI supplies the advisory floor: GitHub Actions; GitLab root wiring plus
   `.gitlab/agent-memory-ci.yml`; or `.azuredevops/agent-memory-ci.yml`. Strict mode may gate.
   GitHub/GitLab.com need no per-user setup; self-managed GitLab needs a registered runner,
