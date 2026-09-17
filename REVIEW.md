@@ -28,8 +28,14 @@ Three triggers:
 
 Within a review, one more cadence is checked — **invariant verification**: when
 `sessions_since_last_invariant_check ≥ verify_invariants_every`, the review prompts a
-human to re-confirm the never-decay facts (routine step 6). It rides on the review, so
+human to re-confirm the never-decay facts (routine step 7). It rides on the review, so
 it never fires more often than reviews do.
+
+Also within a review — **stalled-thread gating** (v4.40.0): every unchecked Open Thread not
+referenced for more than `thread_stale_window` sessions is listed in **one human closure gate**
+(routine step 8) — a stalled thread is a signal for closure, and the decision is the owner's.
+Like invariant verification it rides on the review; between reviews `memory-lint` surfaces each
+stalled thread as `[thread-stale]`, so the condition cannot hide.
 
 `last_review` and `last_invariant_check` are tracked in `continuity.md` Project State
 (each a `YYYY-MM-DD` plus the session file it last ran through).
@@ -133,8 +139,25 @@ it never fires more often than reviews do.
    confirms (checks the thread off) or supersedes the false ones (§9). Then set
    `last_invariant_check` to today + the latest session file. (Never-decay ≠
    never-checked.) If not due, skip this step.
-8. **Stamp.** Set `last_review` to today + the latest session file name.
-9. **Summarise.** Write a `## Memory Review` block into *this* session's log — list the archived /
+8. **Gate stalled threads (v4.40.0).** For each **unchecked** Open Thread whose
+   `sessions_since_last_used` exceeds `thread_stale_window` (a never-referenced thread counts
+   from `created`; `memory-lint` lists them as `[thread-stale]`), raise **one** Open Thread —
+   the human closure gate — naming every stalled thread with its count:
+   `- [ ] **Close stalled threads (due):** <id> (N sessions), <id> (N sessions) — for each, close it, or re-affirm it (DECAY.md §6)`
+   (id `ot-close-stalled-threads-<YYYYMMDD>`, in its own `thread-<id>.md`; if an unchecked
+   gate already exists, add the new ids to it rather than raising a second). Re-read each
+   listed thread's body with the human — strike items that shipped elsewhere — then the
+   **human** decides per thread: **close** it (`- [x]` + a 3–6-line close record; anything
+   undelivered is recorded as *deliberately dropped*, never silently lost — a `(blueprint)`
+   gap closing this way is an altitude decision, `DECAY.md` §12), or **re-affirm** it (name it
+   under *this* session's `## Memory References` with the reason it stays open — the only thing
+   that resets its count; re-affirmation is the exception, not the default). The review
+   **never closes a thread itself** — a stalled thread is a signal for closure, and the
+   decision is the owner's (`never-pick-a-winner`). Check the gate off once every listed
+   thread is dispositioned; the sweep archives it later like any completed thread. If nothing
+   is stalled, skip this step.
+9. **Stamp.** Set `last_review` to today + the latest session file name.
+10. **Summarise.** Write a `## Memory Review` block into *this* session's log — list the archived /
    swept / reactivated ids **there**, in that block.
    **⚠️ Do not list archived ids under `## Memory References`.** Archiving a fact is **not** a "use."
    `memory-lint` (and the by-hand check) count any id under `## Memory References` as referenced
@@ -145,6 +168,9 @@ it never fires more often than reviews do.
    invariant-reverify thread you created). The `## Memory Review` block is *not* parsed as references,
    so archived ids belong there. *(Learned the hard way: a review summary that listed its archived ids
    under `## Memory References` threw 13 spurious `over-archived` ERRORs.)*
+   **Inspecting a stalled thread as gate evidence is not a use either** — list a stalled thread
+   here only when the human **re-affirmed** it (that entry *is* the reset, `DECAY.md` §6); the
+   gate thread you raised is listed as Created.
 
 **Contradiction backstop.** The review reads every fact anyway, so give them a quick
 contradiction scan — the write-time check (`DECAY.md` §10) may have missed one, or two
@@ -153,6 +179,10 @@ facts may have drifted into conflict over time. Surface any conflict as a
 Open Thread; never silently reconcile or pick a winner. Extend the same scan **up the
 altitudes** (VBDI, `DECAY.md` §12): flag any Implementation / Design / Blueprint item that
 no longer serves the one above it — `- [ ] Drift: <item> doesn't serve <id>`.
+Extend it to **each unchecked thread's body** as well (v4.40.0): strike items that shipped
+elsewhere; a thread whose every item has verifiably shipped closes as a normal completion, and
+one with anything left undelivered goes to the human closure gate (step 8) — never silently
+dropped. A thread's *content* carries no metadata, so only a read catches this.
 
 **Smoke test.** A review is also a natural time to run `memory/smoke-test.md` — a quick
 manual check that memory still answers the orientation questions a newcomer would ask.
@@ -192,6 +222,7 @@ This two-way movement is what keeps the system smart rather than merely lossy.
 - Archive-verify: pass (no archived id appears in the last archive_window sessions; no id in both places)
 - Tier changes:  6  (2 working→active, 1 active→archive-candidate, 3 →archived)
 - Invariants:    not due (next re-verify in 6 sessions)   # or: "prompted — 2 invariants up for re-confirmation"
+- Stalled threads: 2  (gate ot-close-stalled-threads-20260620 — legacy-soap-adapter 57, csv-bulk-import 44)   # or: "none"
 - Promoted core: 0  (auto-core off; core is human-set)
 ```
 

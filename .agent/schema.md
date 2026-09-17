@@ -50,10 +50,10 @@ Live project state. Update every session.
 
 ## Project State
 - project:        string
-- status:         string
+- status:         string — a short current-state line: never a version history, never a commitment (a scalar is overwritten wholesale; a commitment needs its own thread — DECAY.md §6)
 - last_enabled:   YYYY-MM-DD
 - last_review:    YYYY-MM-DD | through <session-file>  (or "none yet")
-- last_invariant_check: YYYY-MM-DD | through <session-file>  (or "none yet") — see REVIEW.md step 6
+- last_invariant_check: YYYY-MM-DD | through <session-file>  (or "none yet") — see REVIEW.md step 7
 - last_harvest:   YYYY-MM-DD | through <session-file>  (optional; omit until first run) — when the `harvest-knowledge` skill last folded docs into memory; it reads this to scope the next harvest and stamps it on completion
 - repo:           ~-relative path (e.g. ~/projects/foo) — NEVER absolute /Users/<name>/…; memory is committed & shared
 
@@ -136,6 +136,11 @@ ordinary fact, `core` for an Architectural Invariant — and seeds `last_used: <
 recomputed by the review from session-log `## Memory References` (see `DECAY.md` §1).
 
 `## Architectural Invariants` facts and unchecked Open Threads (`- [ ]`) never decay.
+Never decaying is not never checked: an unchecked thread not referenced for more than
+`thread_stale_window` sessions is **stalled** and the review lists it in a human closure gate
+(`REVIEW.md` step 8; `DECAY.md` §6) — closed or re-affirmed by a human, never by the tool. A
+commitment that can complete independently gets its **own** thread: a sub-list inside a thread
+or a Project-State scalar has no lifecycle of its own (v4.40.0).
 Completed threads (`- [x]`) stay in their thread file until the review sweeps them (see
 `memory/open-threads/` below / `REVIEW.md`) — don't archive them by hand. A completed
 thread's record is a **3–6-line close stub** — outcome, PR/commit/release refs, one durable
@@ -176,7 +181,8 @@ previously sat under continuity's `## Open Threads`:
   (`grep -l '^- \[ \]' memory/open-threads/` lists the open ones). An index would
   recreate the add/add merge conflict one line at a time.
 - **Lifecycle is unchanged, only the location moved.** An unchecked thread is pinned
-  (never decays); a completed one flips to `- [x]`, condenses to a 3–6-line stub, and
+  (never decays — but stalls after `thread_stale_window` unreferenced sessions, into the
+  review's human closure gate, `REVIEW.md` step 8); a completed one flips to `- [x]`, condenses to a 3–6-line stub, and
   waits out `archive_window`; the review sweep moves the block to the quarter archive +
   `INDEX.md` and deletes the file (`archive-fact` handles thread files). Contradiction /
   Drift / new threads are created as new files.
@@ -260,8 +266,8 @@ story — lexical + indexed, by design (see `DECAY.md` §11).
 ## memory/decay-policy.md
 
 Tunable integer windows + triggers for the evolving-memory layer (`working_window`,
-`active_window`, `archive_window`, `review_every`, `continuity_max_facts`, `continuity_max_lines`,
-`verify_invariants_every`, and auto-core). All windows are in **sessions**. The rules these feed live in `DECAY.md`
+`active_window`, `archive_window`, `thread_stale_window`, `review_every`, `continuity_max_facts`,
+`continuity_max_lines`, `closed_narrative_max_lines`, `verify_invariants_every`, and auto-core). All windows are in **sessions**. The rules these feed live in `DECAY.md`
 and `REVIEW.md` at the repo root.
 
 ---

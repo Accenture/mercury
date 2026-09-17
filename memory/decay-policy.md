@@ -10,6 +10,11 @@
 - working_window:   3     # new facts stay "working" until re-referenced within this many sessions
 - active_window:    8     # referenced within this many sessions → active
 - archive_window:   20    # not referenced for more than this → archived
+- thread_stale_window: 40  # an unchecked Open Thread (pinned — it never decays) not referenced for more
+                             #    than this many sessions is STALLED: a signal for closure, decided by a
+                             #    human — the review lists every stalled thread in one closure gate
+                             #    (REVIEW.md step 8); the owner closes it or re-affirms it. Never auto-closed.
+                             #    Default = the invariant re-check cadence (v4.40.0, added 2026-09-17).
 
 ## Review triggers
 - review_every:         10   # run a review this many sessions after the last one

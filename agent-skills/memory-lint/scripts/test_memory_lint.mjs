@@ -25,6 +25,7 @@ import {
   check_thread_files,
   check_duplicate_ids,
   check_duplicate_state_keys,
+  check_thread_stale,
 } from "./memory-lint.mjs";
 
 // (8) advisory cadence/size triggers (v4.24.0). cont is a Map; cont.size is the fact count.
@@ -1068,4 +1069,87 @@ test("thread layer: closed bloat counts thread files", () => {
   assert.equal(out.length, 1);
   assert.ok(out[0].includes("8 line(s)"));
   assert.deepEqual(check_closed_thread_bloat(cont_text, 8, threads), []);
+});
+
+// (15) [thread-stale] (v4.40.0): an unchecked thread unreferenced past thread_stale_window is
+// STALLED — a closure signal for a human gate (REVIEW.md step 8). Advisory only; the pin is
+// untouched and the tool never closes a thread. Field origin: mercury-composable — a pinned
+// thread's "still open" items had all shipped, unnoticed for 184 sessions.
+const STALL_STEMS = ["2026-06-01-000000", "2026-06-02-000000", "2026-06-03-000000", "2026-06-04-000000"];
+
+test("thread_stale_window: default and policy parse", () => {
+  const root = mkdtempSync(join(tmpdir(), "lint-stall-"));
+  try {
+    assert.equal(load_windows(root).thread_stale_window, 40);
+    mkdirSync(join(root, "memory"), { recursive: true });
+    writeFileSync(join(root, "memory", "decay-policy.md"), "- thread_stale_window: 7\n");
+    assert.equal(load_windows(root).thread_stale_window, 7);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("thread-stale: pinned thread past the window flagged", () => {
+  const cont = new Map([["gap", { tier: "working", created: "2026-01-01" }]]);
+  const refs = [new Set(["gap"]), new Set(), new Set(), new Set()]; // last referenced 3 sessions ago
+  const w = check_thread_stale(cont, new Set(["gap"]), refs, STALL_STEMS, 2);
+  assert.equal(w.length, 1);
+  assert.ok(w[0].includes("[thread-stale] gap sslu 3 > thread_stale_window 2"));
+  assert.ok(w[0].includes("closure gate"));
+  assert.ok(w[0].includes("REVIEW.md step 8"));
+  assert.ok(w[0].includes("re-affirms it under Memory References"));
+});
+
+test("thread-stale: within the window ok (strict >)", () => {
+  const cont = new Map([["gap", { tier: "working", created: "2026-01-01" }]]);
+  const refs = [new Set(["gap"]), new Set(), new Set(), new Set()];
+  assert.deepEqual(check_thread_stale(cont, new Set(["gap"]), refs, STALL_STEMS, 3), []);
+});
+
+test("thread-stale: unpinned facts ignored", () => {
+  // a checked thread / ordinary fact past the window is [overdue]'s business, not this check's
+  const cont = new Map([["done", { tier: "working", created: "2026-01-01" }]]);
+  const refs = [new Set(["done"]), new Set(), new Set(), new Set()];
+  assert.deepEqual(check_thread_stale(cont, new Set(), refs, STALL_STEMS, 2), []);
+});
+
+test("thread-stale: never referenced counts from created", () => {
+  // a thread no session ever named still stalls — measured from `created` (its seeded first
+  // use); without a created date it cannot be measured and is left alone
+  let cont = new Map([["legacy-gap", { tier: "working", created: "2026-01-01" }]]);
+  const refs = [new Set(), new Set(), new Set(), new Set()];
+  const w = check_thread_stale(cont, new Set(["legacy-gap"]), refs, STALL_STEMS, 2);
+  assert.equal(w.length, 1);
+  assert.ok(w[0].includes("sslu 4 (never referenced; counted from created) > thread_stale_window 2"));
+  cont = new Map([["undated-gap", { tier: "working" }]]);
+  assert.deepEqual(check_thread_stale(cont, new Set(["undated-gap"]), refs, STALL_STEMS, 2), []);
+});
+
+test("thread-stale: thread layer end to end", () => {
+  // through the real surfaces: a thread file + session logs + a tuned policy knob
+  const root = mkdtempSync(join(tmpdir(), "lint-stall-e2e-"));
+  try {
+    mkdirSync(join(root, "memory", "sessions"), { recursive: true });
+    mkdirSync(join(root, "memory", "open-threads"), { recursive: true });
+    writeFileSync(join(root, "memory", "continuity.md"), "# Continuity\n\n## Project State\n\n- **project:** t\n");
+    writeFileSync(join(root, "memory", "decay-policy.md"), "- thread_stale_window: 2\n");
+    writeFileSync(join(root, "memory", "open-threads", "thread-stalled-gap.md"),
+      "- [ ] **Gap.** filed and left behind\n  <!-- id: stalled-gap | created: 2026-06-01 | last_used: 2026-06-01 | uses: 1 | tier: working -->\n");
+    writeFileSync(join(root, "memory", "open-threads", "thread-live-gap.md"),
+      "- [ ] **Live.** worked on\n  <!-- id: live-gap | created: 2026-06-01 | last_used: 2026-06-04 | uses: 2 | tier: working -->\n");
+    const logs = {
+      "2026-06-01-000000.md": "# S\n\n## Memory References\n\n- stalled-gap (created)\n- live-gap (created)\n",
+      "2026-06-02-000000.md": "# S\n\n## Memory References\n\n(none)\n",
+      "2026-06-03-000000.md": "# S\n\n## Memory References\n\n(none)\n",
+      "2026-06-04-000000.md": "# S\n\n## Memory References\n\n- live-gap\n",
+    };
+    for (const [name, text] of Object.entries(logs)) writeFileSync(join(root, "memory", "sessions", name), text);
+    const { cont, pinned, sessions, refs } = load_repo(root);
+    const stems = sessions.map((s) => s.replace(/\.md$/, ""));
+    const w = check_thread_stale(cont, pinned, refs, stems, load_windows(root).thread_stale_window);
+    assert.equal(w.length, 1);
+    assert.ok(w[0].includes("[thread-stale] stalled-gap sslu 3 > thread_stale_window 2"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

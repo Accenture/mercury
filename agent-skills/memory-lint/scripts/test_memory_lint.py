@@ -925,5 +925,82 @@ class TestThreadLayerIntegration(unittest.TestCase):
         self.assertEqual(memory_lint.check_closed_thread_bloat(cont_text, 8, threads), [])
 
 
+class TestThreadStale(unittest.TestCase):
+    # (15) [thread-stale] (v4.40.0): an unchecked thread unreferenced past thread_stale_window is
+    # STALLED — a closure signal for a human gate (REVIEW.md step 8). Advisory only; the pin is
+    # untouched and the tool never closes a thread. Field origin: mercury-composable — a pinned
+    # thread's "still open" items had all shipped, unnoticed for 184 sessions.
+    STEMS = ["2026-06-01-000000", "2026-06-02-000000", "2026-06-03-000000", "2026-06-04-000000"]
+
+    def test_thread_stale_knob_default_and_parse(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.assertEqual(memory_lint.load_windows(root)["thread_stale_window"], 40)
+            os.makedirs(os.path.join(root, "memory"), exist_ok=True)
+            with open(os.path.join(root, "memory", "decay-policy.md"), "w", encoding="utf-8") as f:
+                f.write("- thread_stale_window: 7\n")
+            self.assertEqual(memory_lint.load_windows(root)["thread_stale_window"], 7)
+
+    def test_pinned_thread_past_window_flagged(self):
+        cont = {"gap": {"tier": "working", "created": "2026-01-01"}}
+        refs = [{"gap"}, set(), set(), set()]  # last referenced 3 sessions ago
+        w = memory_lint.check_thread_stale(cont, {"gap"}, refs, self.STEMS, 2)
+        self.assertEqual(len(w), 1)
+        self.assertIn("[thread-stale] gap sslu 3 > thread_stale_window 2", w[0])
+        self.assertIn("closure gate", w[0])
+        self.assertIn("REVIEW.md step 8", w[0])
+        self.assertIn("re-affirms it under Memory References", w[0])
+
+    def test_pinned_thread_within_window_ok(self):
+        # strict '>' like [overdue]: sslu == window is not stalled
+        cont = {"gap": {"tier": "working", "created": "2026-01-01"}}
+        refs = [{"gap"}, set(), set(), set()]
+        self.assertEqual(memory_lint.check_thread_stale(cont, {"gap"}, refs, self.STEMS, 3), [])
+
+    def test_unpinned_facts_ignored(self):
+        # a checked thread / ordinary fact past the window is [overdue]'s business, not this check's
+        cont = {"done": {"tier": "working", "created": "2026-01-01"}}
+        refs = [{"done"}, set(), set(), set()]
+        self.assertEqual(memory_lint.check_thread_stale(cont, set(), refs, self.STEMS, 2), [])
+
+    def test_never_referenced_counts_from_created(self):
+        # a thread no session ever named still stalls — measured from `created` (its seeded first
+        # use); without a created date it cannot be measured and is left alone
+        cont = {"legacy-gap": {"tier": "working", "created": "2026-01-01"}}
+        refs = [set(), set(), set(), set()]
+        w = memory_lint.check_thread_stale(cont, {"legacy-gap"}, refs, self.STEMS, 2)
+        self.assertEqual(len(w), 1)
+        self.assertIn("sslu 4 (never referenced; counted from created) > thread_stale_window 2", w[0])
+        cont = {"undated-gap": {"tier": "working"}}
+        self.assertEqual(memory_lint.check_thread_stale(cont, {"undated-gap"}, refs, self.STEMS, 2), [])
+
+    def test_thread_layer_end_to_end(self):
+        # through the real surfaces: a thread file + session logs + a tuned policy knob
+        root = tempfile.mkdtemp()
+        os.makedirs(os.path.join(root, "memory", "sessions"), exist_ok=True)
+        os.makedirs(os.path.join(root, "memory", "open-threads"), exist_ok=True)
+        with open(os.path.join(root, "memory", "continuity.md"), "w", encoding="utf-8") as f:
+            f.write("# Continuity\n\n## Project State\n\n- **project:** t\n")
+        with open(os.path.join(root, "memory", "decay-policy.md"), "w", encoding="utf-8") as f:
+            f.write("- thread_stale_window: 2\n")
+        with open(os.path.join(root, "memory", "open-threads", "thread-stalled-gap.md"), "w", encoding="utf-8") as f:
+            f.write("- [ ] **Gap.** filed and left behind\n  <!-- id: stalled-gap | created: 2026-06-01 | last_used: 2026-06-01 | uses: 1 | tier: working -->\n")
+        with open(os.path.join(root, "memory", "open-threads", "thread-live-gap.md"), "w", encoding="utf-8") as f:
+            f.write("- [ ] **Live.** worked on\n  <!-- id: live-gap | created: 2026-06-01 | last_used: 2026-06-04 | uses: 2 | tier: working -->\n")
+        logs = {
+            "2026-06-01-000000.md": "# S\n\n## Memory References\n\n- stalled-gap (created)\n- live-gap (created)\n",
+            "2026-06-02-000000.md": "# S\n\n## Memory References\n\n(none)\n",
+            "2026-06-03-000000.md": "# S\n\n## Memory References\n\n(none)\n",
+            "2026-06-04-000000.md": "# S\n\n## Memory References\n\n- live-gap\n",
+        }
+        for name, text in logs.items():
+            with open(os.path.join(root, "memory", "sessions", name), "w", encoding="utf-8") as f:
+                f.write(text)
+        cont, pinned, arch, extra, sessions, refs, threads = memory_lint.load_repo(root)
+        stems = [os.path.basename(s)[:-3] for s in sessions]
+        w = memory_lint.check_thread_stale(cont, pinned, refs, stems, memory_lint.load_windows(root)["thread_stale_window"])
+        self.assertEqual(len(w), 1)
+        self.assertIn("[thread-stale] stalled-gap sslu 3 > thread_stale_window 2", w[0])
+
+
 if __name__ == "__main__":
     unittest.main()
