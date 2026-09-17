@@ -130,6 +130,9 @@ Windows come from `memory/decay-policy.md` (integers, in sessions).
 4. Unchecked Open Thread (`- [ ]`) → **pinned**, never decays (incomplete work). Its **pinned-ness**
    (being unchecked) is what protects it — **not** the tier label, which the tooling therefore leaves
    as-is (`memory-lint` won't flag a pinned thread's tier, `refresh-metadata` won't rewrite it; v4.26.1).
+   Pinned is not *unwatched*: once `sessions_since_last_used` exceeds `thread_stale_window` the
+   thread is **stalled** — it still never decays, but the review lists it in a human closure gate
+   (§6; `REVIEW.md` step 8; v4.40.0).
 5. `created` ≤ `working_window` sessions ago AND `uses ≤ 1` → **working**.
 6. `sessions_since_last_used ≤ active_window` → **active**.
 7. `active_window < sessions_since_last_used ≤ archive_window` → **archive-candidate**.
@@ -152,7 +155,22 @@ its completion is older than `archive_window` sessions (see `REVIEW.md`).
 > **Never-decay ≠ never-checked.** `core` facts and Architectural Invariants can quietly
 > become *wrong* when circumstances change. The review periodically prompts a human to
 > re-confirm them (or supersede the false ones, §9) — see `verify_invariants_every` in
-> `decay-policy.md` and `REVIEW.md` routine step 6.
+> `decay-policy.md` and `REVIEW.md` routine step 7. **Unchecked Open Threads can quietly
+> become *loose ends*** the same way: under competing priorities a thread is filed and left
+> behind, its "still open" items ship elsewhere, and nothing revisits the record — pinned comes
+> to mean *unexamined*. So a thread not referenced for more than `thread_stale_window` sessions
+> (a never-referenced one counts from `created`) is **stalled** (v4.40.0). Stalled is a **signal
+> for closure, decided by a human**: the review lists every stalled thread in one closure gate
+> (`REVIEW.md` step 8); the owner closes each (a 3–6-line close record; anything undelivered is
+> recorded as *deliberately dropped*, never silently lost) or re-affirms it by naming it under
+> that session's `## Memory References` — the only thing that resets the count. The pin is
+> untouched throughout, and the tool never closes a thread on its own. (Field report:
+> mercury-composable, 2026-09-16.)
+>
+> **One lifecycle per record.** A commitment tracked *inside* another record inherits that
+> record's lifecycle, not its own: a "still open" sub-list inside a thread has no signal of
+> its own, and a Project-State scalar (e.g. `status`) is overwritten wholesale at its next
+> update. If an item can be completed independently, give it its own thread.
 
 ---
 

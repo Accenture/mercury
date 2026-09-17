@@ -124,6 +124,7 @@ export function load_windows(root) {
     continuity_max_facts: 30,
     continuity_max_lines: 600,
     closed_narrative_max_lines: 150,
+    thread_stale_window: 40,
   };
   const p = join(root, "memory", "decay-policy.md");
   if (existsSync(p)) {
@@ -568,6 +569,38 @@ export function check_closed_thread_bloat(cont_text, cap, threads = []) {
   ];
 }
 
+export function check_thread_stale(cont, pinned, refs, stems, tsw) {
+  // (15) advisory: an unchecked `- [ ]` Open Thread not referenced for more than
+  //      thread_stale_window sessions is STALLED (v4.40.0). Its pin still protects it from
+  //      decay and archival — this check never touches that. It only says "a human should
+  //      decide": a stalled thread is a *closure signal*, and the review lists every stalled
+  //      thread in ONE human closure gate (REVIEW.md step 8) where the owner closes it or
+  //      re-affirms it (a `## Memory References` entry — the only reset). The tool never
+  //      closes a thread on its own. Field origin (mercury-composable, 2026-09-16): a pinned
+  //      thread's "still open" items had all shipped, unnoticed for 184 sessions — pinned had
+  //      come to mean unexamined. The count is refs-based like [overdue]; a never-referenced
+  //      thread counts from `created` (its seeded first use), so no pinned thread is invisible.
+  const out = [];
+  const sslu = make_sslu(refs);
+  for (const fid of [...pinned].sort(byCodePoint)) {
+    const fields = cont.get(fid) ?? {};
+    let s = sslu(fid);
+    let note = "";
+    if (s === null) {
+      s = created_sessions_ago(fields.created, stems);
+      note = " (never referenced; counted from created)";
+    }
+    if (s !== null && s > tsw) {
+      out.push(
+        `[thread-stale] ${fid} sslu ${s}${note} > thread_stale_window ${tsw} — stalled open ` +
+          `thread: a closure signal. The review lists it in the human closure gate ` +
+          `(REVIEW.md step 8) — the owner closes it, or re-affirms it under Memory References`
+      );
+    }
+  }
+  return out;
+}
+
 // (10) [secret-material] — committed memory surfaces must not carry credentials or PII.
 // Field incident (reported 2026-08-13, a client repo's DLP scanner): smoke-test output pasted into a
 // session log leaked a live OAuth client secret — session logs are committed & shared, so
@@ -861,6 +894,7 @@ export function main(argv) {
     ),
     ...check_closed_thread_bloat(cont_text, w.closed_narrative_max_lines, threads),
     ...check_stale_metadata(cont, pinned, refs, stems, w.working_window, acw, aw),
+    ...check_thread_stale(cont, pinned, refs, stems, w.thread_stale_window),
     ...check_secret_material(root),
   ];
 
