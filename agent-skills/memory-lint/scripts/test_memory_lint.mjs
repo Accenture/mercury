@@ -781,6 +781,37 @@ test("check_secret_material: all-caps enum constants are key-scoped", () => {
   }
 });
 
+test("check_secret_material: placeholder exemptions tolerate trailing sentence punctuation", () => {
+  // Field note (mercury-composable, 2026-09-17): a comment SENTENCE mentioning a setting —
+  // `credentials.source=OAUTHBEARER,` — flagged while the bare setting was exempt. The
+  // assignment capture stops only at whitespace/quotes/backticks/`;`, so trailing sentence
+  // punctuation rode into the value and defeated every fullmatch exemption except the knob's
+  // (placeholder words, templates, angle placeholders alike). v4.40.1: retry once with `).,`
+  // stripped — AFTER the as-is pass, so `$(…)` keeps matching; a real value still flags.
+  const real = fixtureSecret("AGENT_MEMORY_TEST_TRAILING_PUNCT_REAL");
+  const root = secretSetup({
+    "sessions/2026-09-17-120000.md": [
+      "# Session",
+      "# with credentials.source=OAUTHBEARER, the provider validates the token",
+      "set credentials.source=OAUTHBEARER.",
+      "(credentials.source=OAUTHBEARER)",
+      "e.g. password=changeme.",
+      "e.g. client.secret=${CLIENT_SECRET}.",
+      "e.g. api.key=<your-key-here>,",
+      "still exempt as-is: client.secret=$(vault_read_secret_app)",
+      `still real, punctuation or not: client_secret=${real}.`,
+    ].join("\n") + "\n",
+  });
+  try {
+    const w = check_secret_material(root);
+    assert.equal(w.length, 1);
+    assert.ok(w[0].includes("key 'client_secret'"));
+    assert.ok(w[0].includes("(1 hit(s)"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("check_secret_material: the tool's own opt-down knob settings are not credentials", () => {
   // Field FP (mercury-composable, 2026-08-19): the pre-commit guard's own blocking message
   // prints "AGENT_MEMORY_SECRET_GUARD=advisory", so a session log documenting that guidance

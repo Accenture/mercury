@@ -649,6 +649,33 @@ class TestSecretMaterial(unittest.TestCase):
             self.assertIn("key 'client_secret'", w[0])
             self.assertIn("(3 hit(s)", w[0])
 
+    def test_placeholder_exemptions_tolerate_trailing_sentence_punctuation(self):
+        # Field note (mercury-composable, 2026-09-17): a comment SENTENCE mentioning a setting —
+        # `credentials.source=OAUTHBEARER,` — flagged while the bare setting was exempt. The
+        # assignment capture stops only at whitespace/quotes/backticks/`;`, so trailing sentence
+        # punctuation rode into the value and defeated every fullmatch exemption except the knob's
+        # (placeholder words, templates, angle placeholders alike). v4.40.1: retry once with `).,`
+        # stripped — AFTER the as-is pass, so `$(…)` keeps matching; a real value still flags.
+        real = self._secret("AGENT_MEMORY_TEST_TRAILING_PUNCT_REAL")
+        with tempfile.TemporaryDirectory() as root:
+            self._setup(root, {
+                "sessions/2026-09-17-120000.md": "\n".join([
+                    "# Session",
+                    "# with credentials.source=OAUTHBEARER, the provider validates the token",
+                    "set credentials.source=OAUTHBEARER.",
+                    "(credentials.source=OAUTHBEARER)",
+                    "e.g. password=changeme.",
+                    "e.g. client.secret=${CLIENT_SECRET}.",
+                    "e.g. api.key=<your-key-here>,",
+                    "still exempt as-is: client.secret=$(vault_read_secret_app)",
+                    f"still real, punctuation or not: client_secret={real}.",
+                ]) + "\n",
+            })
+            w = memory_lint.check_secret_material(root)
+            self.assertEqual(len(w), 1)
+            self.assertIn("key 'client_secret'", w[0])
+            self.assertIn("(1 hit(s)", w[0])
+
     def test_self_knob_settings_are_not_credentials(self):
         # Field FP (mercury-composable, 2026-08-19): the pre-commit guard's own blocking message
         # prints "AGENT_MEMORY_SECRET_GUARD=advisory", so a session log documenting that guidance
