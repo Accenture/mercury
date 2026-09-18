@@ -32,7 +32,9 @@ script, so the riskiest operation is verified against observable evidence.
    python3 agent-skills/memory-lint/scripts/memory-lint.py    # Python 3 (>= 3.8)
    node    agent-skills/memory-lint/scripts/memory-lint.mjs    # Node (>= 18)
    ```
-   Flags: `--strict` (also fail on warnings), `--root PATH` (point at a specific repo), and
+   Flags: `--strict` (also fail on warnings), `--root PATH` (point at a specific repo),
+   `--staged` / `--range BASE [HEAD]` (v4.41.0 — the `[undeclared-reference]` check over the staged
+   index or a commit range; advisory exit 0, used by the pre-commit fragment and the CI floors), and
    `--scan-files FILE...` (v4.34.0 — a standalone **credential-class** `[secret-material]` scan of
    arbitrary config files: token shapes, credential-key assignments, Authorization headers, private
    keys — no PII classes, since config files legitimately carry contact emails and paths; exit 1 on
@@ -94,6 +96,15 @@ script, so the riskiest operation is verified against observable evidence.
      never closes a thread itself, and inspecting a stalled thread is not a use. (Field report,
      mercury-composable 2026-09-16: a pinned thread's "still open" items had all shipped, unnoticed
      for 184 sessions — pinned had come to mean unexamined.)
+   - *advisory* — **`[undeclared-reference]`** (v4.41.0, `--staged` / `--range` only): a memory fact whose
+     body changes in a commit must be declared in a session log staged with it — otherwise
+     `refresh-metadata` reads the edit as non-use and the fact decays while in active use (field
+     report: two Blueprint gaps a human had just closed were proposed for sweeping hours later; the
+     footers and the reference log agreed, so only the diff could see it). Counted: edits, closures
+     (`- [ ]` → `- [x]`) and new blocks in `continuity.md`, `open-threads/*.md` and `vision.md`. Not
+     counted: footer-only lines (a metadata refresh), condensing an already-closed record (declaring it
+     would defer its sweep), a verbatim move, a deleted block (archival). Silent when the change stages
+     no session log. Remedy: add the id to `## Memory References`.
    - *advisory* — **`[secret-material]`**: credential or PII shapes in any committed memory surface —
      `memory/*.md`, `memory/sessions/`, **and** `memory/archive/` (where pasted output lives): known
      token formats (AWS / GitHub / GitLab / Slack / Google keys, private-key blocks, JWTs),

@@ -75,8 +75,10 @@ on upgrade; fork it under a new name or upstream a genuine fix instead of editin
 - Treat `memory/continuity.md` as working memory and check existing decisions before
   proposing a conflicting change.
 - Note facts, decisions, preferences, and thread changes for session close.
-- Track every fact id referenced, created, or reactivated for the session log's
-  `## Memory References`; do not edit `uses`, `last_used`, or `tier` mid-session.
+- Track every fact id referenced, created, reactivated, or closed for the session log's
+  `## Memory References` — an edit or a closure is a use, inspecting alone is not (the pre-commit
+  hook's `[undeclared-reference]` advisory catches a fact edited without a declaration); do not
+  edit `uses`, `last_used`, or `tier` mid-session.
 - At a natural seam—milestone, phase shift, or unrelated pivot—persist the session log and
   continuity update before compaction. Context-window utilization is the real pressure
   signal; wall time and perceived vagueness are only proxies. At high utilization, suggest
@@ -127,8 +129,9 @@ usage.
 2. Update changed fact substance, not usage metadata. Mark completed Open Threads `[x]`
    in their `memory/open-threads/thread-<id>.md` files and condense each to a 3–6-line
    close record — outcome, PR/commit/release refs, one durable lesson, `origin:` pointer;
-   the full narrative belongs in this session's log — then leave the files for review to
-   sweep. Create newly surfaced Open Threads as new `thread-<id>.md` files (filename =
+   the full narrative belongs in this session's log — declare each closed thread under
+   `## Memory References` (its close record is the completion event) — then leave the files for
+   review to sweep. Create newly surfaced Open Threads as new `thread-<id>.md` files (filename =
    the fact id; content = the single bullet block with its footer).
 3. Before adding a fact, check existing and archived facts (`DECAY.md` §10). A new fact gets
    a kebab id and footer: `created`, `tier: working` (or `core` for an invariant),

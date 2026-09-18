@@ -11,10 +11,13 @@
 // Usage:  node memory-lint.mjs [--root PATH] [--strict]
 //         node memory-lint.mjs --scan-files FILE...   (credential-class [secret-material]
 //         scan of arbitrary config files; exit 1 on findings)
+//         node memory-lint.mjs --staged               ([undeclared-reference] over the staged index)
+//         node memory-lint.mjs --range BASE [HEAD]    (the same over a commit range — CI floors)
 // Exit:   0 = clean (no errors), 1 = integrity error(s) (or warnings under
 //         --strict), 2 = could not locate the memory/ layer.
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { resolve, dirname, join, basename, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -601,6 +604,169 @@ export function check_thread_stale(cont, pinned, refs, stems, tsw) {
   return out;
 }
 
+// (16) [undeclared-reference] — a fact edited in a change must be declared in a session log staged in
+// the same change (v4.41.0). Field report (mercury-composable, 2026-09-17): a human closed two Blueprint
+// gaps at the closure gate; the closing session rewrote both records but declared neither, so
+// refresh-metadata read them as unused and [overdue] proposed sweeping facts a human had just decided
+// on. Footers and the reference log AGREED — both consistently wrong — so no repo-state check could see
+// it; the missing input is the diff. This check intersects a change's own diff with its own logs: it
+// never asks WHEN a fact was touched (git dates are not a usage signal — v4.39.0 rewrote every thread
+// file), only whether the change is internally consistent. Advisory: a missed declaration is fixable in
+// the next commit. Not counted: a footer-only line (a metadata refresh), condensing an already-closed
+// record (declaring it would defer its sweep), a verbatim move (the v4.39.0 layout migration), and a
+// deleted block (archival — REVIEW.md forbids declaring archived ids). Silent when no log is staged.
+const UNDECLARED_SURFACES = new Set(["memory/continuity.md", "memory/vision.md"]);
+const ID_LINE_RE = /<!--\s*id:\s*([a-z0-9-]+)/;
+
+export function is_reference_surface(path) {
+  return UNDECLARED_SURFACES.has(path) || (path.startsWith("memory/open-threads/") && path.endsWith(".md"));
+}
+
+function bullet_state(line) {
+  const s = line.trimStart();
+  if (s.startsWith("- [ ]")) return "open";
+  if (s.startsWith("- [x]") || s.startsWith("- [X]")) return "closed";
+  return "fact";
+}
+
+export function fact_blocks(path, text) {
+  // New-side line number (1-based) -> [id, is_footer_line, state] for a memory surface.
+  // continuity.md: a block runs from the nearest preceding column-0 bullet to its footer. A thread
+  // file or vision.md is one block — its footer's id; state comes from the first non-empty line.
+  const lines = text.split("\n");
+  const out = new Map();
+  if (path !== "memory/continuity.md") {
+    let foot = null;
+    for (let i = 0; i < lines.length; i++) {
+      const m = ID_LINE_RE.exec(lines[i]);
+      if (m) { foot = [i, m[1]]; break; }
+    }
+    if (foot === null) return out;
+    const first = lines.find((l) => l.trim()) ?? "";
+    const state = bullet_state(first);
+    for (let k = 0; k < lines.length; k++) out.set(k + 1, [foot[1], k === foot[0], state]);
+    return out;
+  }
+  let prevEnd = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const m = ID_LINE_RE.exec(lines[i]);
+    if (!m) continue;
+    let start = i;
+    for (let j = i; j > prevEnd; j--) {
+      if (lines[j].startsWith("- ")) { start = j; break; }
+    }
+    const state = bullet_state(lines[start]);
+    for (let k = start; k <= i; k++) out.set(k + 1, [m[1], k === i, state]);
+    prevEnd = i;
+  }
+  return out;
+}
+
+export function block_texts(path, text) {
+  // id -> [state, body]: a footered block's non-blank lines minus its footer, trailing whitespace
+  // stripped — the unit compared across a change to tell an edit from a verbatim move (blank lines are
+  // layout, not substance: a block moved into its own file gains a trailing one).
+  const lines = text.split("\n");
+  const bodies = new Map();
+  for (const [ln, [fid, isFoot, state]] of [...fact_blocks(path, text)].sort((a, b) => a[0] - b[0])) {
+    if (isFoot || !lines[ln - 1].trim()) continue;
+    if (!bodies.has(fid)) bodies.set(fid, [state, []]);
+    bodies.get(fid)[1].push(lines[ln - 1].replace(/\s+$/, ""));
+  }
+  const out = new Map();
+  for (const [fid, [state, body]] of bodies) out.set(fid, [state, body.join("\n")]);
+  return out;
+}
+
+export function check_undeclared_references(surfaces_new, surfaces_old, changed_lines, log_texts) {
+  // surfaces_new / surfaces_old: {path: text}; changed_lines: {path: new-side line numbers};
+  // log_texts: the session logs added or modified in the same change. Returns advisory lines.
+  if (!log_texts.length) return []; // no log staged: silent by design (a tooling-only commit is legitimate)
+  const declared = new Set();
+  for (const t of log_texts) for (const id of memref_ids(t)) declared.add(id);
+  const oldBlocks = new Map();
+  for (const [p, t] of Object.entries(surfaces_old)) for (const [fid, v] of block_texts(p, t)) oldBlocks.set(fid, v);
+  const rank = { edited: 1, closed: 2, created: 3 };
+  const kinds = new Map();
+  for (const [path, text] of Object.entries(surfaces_new)) {
+    const lineMap = fact_blocks(path, text);
+    const newBlocks = block_texts(path, text);
+    for (const ln of changed_lines[path] ?? []) {
+      const hit = lineMap.get(ln);
+      if (!hit || hit[1]) continue; // outside any footered block, or the footer line itself (metadata refresh)
+      const fid = hit[0];
+      const [nstate, nbody] = newBlocks.get(fid);
+      let kind;
+      if (!oldBlocks.has(fid)) {
+        kind = "created";
+      } else {
+        const [ostate, obody] = oldBlocks.get(fid);
+        if (obody === nbody) continue; // verbatim move — not an edit
+        if (ostate === "open" && nstate === "closed") kind = "closed";
+        else if (ostate === "closed" && nstate === "closed") continue; // condensing an already-closed record must NOT be declared
+        else kind = "edited";
+      }
+      if (rank[kind] > (rank[kinds.get(fid)] ?? 0)) kinds.set(fid, kind);
+    }
+  }
+  const verbs = { created: "creates", closed: "closes", edited: "edits" };
+  const out = [];
+  for (const fid of [...kinds.keys()].sort(byCodePoint)) {
+    if (declared.has(fid)) continue;
+    out.push(
+      `[undeclared-reference] ${fid} — this change ${verbs[kinds.get(fid)]} the fact but no staged session log ` +
+        `declares it; refresh-metadata will read it as unused. Add the id to '## Memory References'.`
+    );
+  }
+  return out;
+}
+
+function git(root, ...args) {
+  try {
+    return execFileSync("git", args, { cwd: root, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
+  } catch {
+    return "";
+  }
+}
+
+export function changed_line_numbers(unifiedDiffU0) {
+  // New-side line numbers touched by a `-U0` unified diff (from its hunk headers).
+  const nums = [];
+  for (const m of unifiedDiffU0.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)) {
+    const start = Number.parseInt(m[1], 10);
+    const count = m[2] === undefined ? 1 : Number.parseInt(m[2], 10);
+    for (let i = 0; i < count; i++) nums.push(start + i);
+  }
+  return nums;
+}
+
+export function undeclared_references_from_git(root, base = null, head = "HEAD") {
+  // Run check 16 over the staged index (base null — the pre-commit fragment) or over a commit range
+  // (the forge CI floors: base..head). Gathers the change with git, then calls the pure check.
+  const [rng, newRef, oldRef] = base === null ? [["--cached"], "", "HEAD"] : [[base, head], head, base];
+  const status = git(root, "diff", "--name-status", "--no-renames", ...rng, "--", "memory/");
+  const surfacesNew = {}, surfacesOld = {}, changed = {}, logs = [];
+  for (const line of status.split("\n")) {
+    const parts = line.split("\t");
+    if (parts.length < 2) continue;
+    const st = parts[0].slice(0, 1), path = parts[parts.length - 1];
+    if (path.startsWith("memory/sessions/") && path.endsWith(".md")) {
+      if (st === "A" || st === "M") logs.push(git(root, "show", `${newRef}:${path}`));
+      continue;
+    }
+    if (!is_reference_surface(path)) continue;
+    if (st !== "A") surfacesOld[path] = git(root, "show", `${oldRef}:${path}`);
+    if (st !== "D") {
+      const text = git(root, "show", `${newRef}:${path}`);
+      surfacesNew[path] = text;
+      changed[path] = st === "A"
+        ? Array.from({ length: text.split("\n").length }, (_, i) => i + 1)
+        : changed_line_numbers(git(root, "diff", "-U0", ...rng, "--", path));
+    }
+  }
+  return check_undeclared_references(surfacesNew, surfacesOld, changed, logs);
+}
+
 // (10) [secret-material] — committed memory surfaces must not carry credentials or PII.
 // Field incident (reported 2026-08-13, a client repo's DLP scanner): smoke-test output pasted into a
 // session log leaked a live OAuth client secret — session logs are committed & shared, so
@@ -873,6 +1039,26 @@ export function main(argv) {
   if (!root) {
     console.error("memory-lint: could not find memory/continuity.md");
     return 2;
+  }
+
+  if (args.includes("--staged") || args.includes("--range")) {
+    // check 16 over the staged index (pre-commit) or a commit range (CI floor); advisory exit
+    let findings;
+    if (args.includes("--staged")) {
+      findings = undeclared_references_from_git(root);
+    } else {
+      const i = args.indexOf("--range");
+      const base = i + 1 < args.length && !args[i + 1].startsWith("--") ? args[i + 1] : null;
+      const head = i + 2 < args.length && !args[i + 2].startsWith("--") ? args[i + 2] : "HEAD";
+      if (!base) {
+        console.error("memory-lint: --range needs BASE [HEAD]");
+        return 2;
+      }
+      findings = undeclared_references_from_git(root, base, head);
+    }
+    for (const line of findings) console.log("WARN  " + line);
+    if (!findings.length) console.log("undeclared-reference check: ok");
+    return findings.length && strict ? 1 : 0;
   }
 
   const { cont, pinned, arch, extra, sessions, refs, threads } = load_repo(root);

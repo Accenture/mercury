@@ -232,6 +232,7 @@ What the next agent needs to know.
 - Referenced:  <continuity fact ids this session relied on / reinforced>
 - Created:     <new fact ids added this session (born tier: working)>
 - Reactivated: <fact ids pulled back from the archive>
+- Closed:      <thread ids completed this session — the close record is the completion event (or list them under Referenced with a (closed) note)>
 - Superseded:  <old-id → new-id, or old-id (invalidated) — facts made false this session; see DECAY.md §9>
 ```
 

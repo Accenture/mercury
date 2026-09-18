@@ -9,6 +9,8 @@ Usage:
     python3 memory-lint.py [--root PATH] [--strict]
     python3 memory-lint.py --scan-files FILE...   # credential-class [secret-material] scan
                                                   # of arbitrary (config) files; exit 1 on findings
+    python3 memory-lint.py --staged               # [undeclared-reference] over the staged index (pre-commit)
+    python3 memory-lint.py --range BASE [HEAD]    # the same over a commit range (forge CI floors)
 
 Exit: 0 = clean (no errors), 1 = integrity error(s) (or warnings under --strict),
 2 = could not locate the memory/ layer.
@@ -568,6 +570,187 @@ def check_thread_stale(cont, pinned, refs, stems, tsw):
     return out
 
 
+# (16) [undeclared-reference] — a fact edited in a change must be declared in a session log staged in
+# the same change (v4.41.0). Field report (mercury-composable, 2026-09-17): a human closed two Blueprint
+# gaps at the closure gate; the closing session rewrote both records but declared neither, so
+# refresh-metadata read them as unused and [overdue] proposed sweeping facts a human had just decided
+# on. Footers and the reference log AGREED — both consistently wrong — so no repo-state check could see
+# it; the missing input is the diff. This check intersects a change's own diff with its own logs: it
+# never asks WHEN a fact was touched (git dates are not a usage signal — v4.39.0 rewrote every thread
+# file), only whether the change is internally consistent. Advisory: a missed declaration is fixable in
+# the next commit. Not counted: a footer-only line (a metadata refresh), condensing an already-closed
+# record (declaring it would defer its sweep), a verbatim move (the v4.39.0 layout migration), and a
+# deleted block (archival — REVIEW.md forbids declaring archived ids). Silent when no log is staged.
+UNDECLARED_SURFACES = ("memory/continuity.md", "memory/vision.md")
+_ID_LINE_RE = re.compile(r"<!--\s*id:\s*([a-z0-9-]+)")
+
+
+def is_reference_surface(path):
+    return path in UNDECLARED_SURFACES or (path.startswith("memory/open-threads/") and path.endswith(".md"))
+
+
+def _bullet_state(line):
+    s = line.lstrip()
+    if s.startswith("- [ ]"):
+        return "open"
+    if s.startswith(("- [x]", "- [X]")):
+        return "closed"
+    return "fact"
+
+
+def fact_blocks(path, text):
+    """New-side line number (1-based) -> (id, is_footer_line, state) for a memory surface.
+    continuity.md: a block runs from the nearest preceding column-0 bullet to its footer. A thread
+    file or vision.md is one block — its footer's id; state comes from the first non-empty line."""
+    lines = text.split("\n")
+    out = {}
+    if path != "memory/continuity.md":
+        foot = None
+        for i, l in enumerate(lines):
+            m = _ID_LINE_RE.search(l)
+            if m:
+                foot = (i, m.group(1))
+                break
+        if foot is None:
+            return out
+        first = next((l for l in lines if l.strip()), "")
+        state = _bullet_state(first)
+        for k in range(len(lines)):
+            out[k + 1] = (foot[1], k == foot[0], state)
+        return out
+    prev_end = -1
+    for i, l in enumerate(lines):
+        m = _ID_LINE_RE.search(l)
+        if not m:
+            continue
+        start = i
+        for j in range(i, prev_end, -1):
+            if lines[j].startswith("- "):
+                start = j
+                break
+        state = _bullet_state(lines[start])
+        for k in range(start, i + 1):
+            out[k + 1] = (m.group(1), k == i, state)
+        prev_end = i
+    return out
+
+
+def block_texts(path, text):
+    """id -> (state, body): a footered block's non-blank lines minus its footer, trailing whitespace
+    stripped — the unit compared across a change to tell an edit from a verbatim move (blank lines are
+    layout, not substance: a block moved into its own file gains a trailing one)."""
+    lines = text.split("\n")
+    bodies = {}
+    for ln, (fid, is_foot, state) in sorted(fact_blocks(path, text).items()):
+        if is_foot or not lines[ln - 1].strip():
+            continue
+        s, body = bodies.get(fid, (state, []))
+        body.append(lines[ln - 1].rstrip())
+        bodies[fid] = (s, body)
+    return {fid: (s, "\n".join(body)) for fid, (s, body) in bodies.items()}
+
+
+def check_undeclared_references(surfaces_new, surfaces_old, changed_lines, log_texts):
+    """surfaces_new: {path: text} — memory surfaces present after the change; surfaces_old: {path: text}
+    — the same surfaces before it (omit a path that did not exist; include one that only lost lines, so
+    a moved block is recognised); changed_lines: {path: new-side line numbers}; log_texts: the session
+    logs added or modified in the same change. Returns advisory lines."""
+    if not log_texts:
+        return []  # no log staged: silent by design (a tooling-only commit is legitimate)
+    declared = set()
+    for t in log_texts:
+        declared |= memref_ids(t)
+    old_blocks = {}
+    for p, t in surfaces_old.items():
+        old_blocks.update(block_texts(p, t))
+    rank = {"edited": 1, "closed": 2, "created": 3}
+    kinds = {}
+    for path, text in surfaces_new.items():
+        line_map = fact_blocks(path, text)
+        new_blocks = block_texts(path, text)
+        for ln in changed_lines.get(path, ()):
+            hit = line_map.get(ln)
+            if not hit or hit[1]:
+                continue  # outside any footered block, or the footer line itself (metadata refresh)
+            fid, _, _state = hit
+            nstate, nbody = new_blocks[fid]
+            if fid not in old_blocks:
+                kind = "created"
+            else:
+                ostate, obody = old_blocks[fid]
+                if obody == nbody:
+                    continue  # verbatim move — not an edit
+                if ostate == "open" and nstate == "closed":
+                    kind = "closed"
+                elif ostate == "closed" and nstate == "closed":
+                    continue  # condensing an already-closed record must NOT be declared
+                else:
+                    kind = "edited"
+            if rank[kind] > rank.get(kinds.get(fid), 0):
+                kinds[fid] = kind
+    out = []
+    for fid in sorted(kinds):
+        if fid in declared:
+            continue
+        verb = {"created": "creates", "closed": "closes", "edited": "edits"}[kinds[fid]]
+        out.append(
+            f"[undeclared-reference] {fid} — this change {verb} the fact but no staged session log "
+            f"declares it; refresh-metadata will read it as unused. Add the id to '## Memory References'."
+        )
+    return out
+
+
+def _git(root, *args):
+    import subprocess
+    try:
+        r = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+    except OSError:
+        return ""
+    return r.stdout if r.returncode == 0 else ""
+
+
+def changed_line_numbers(unified_diff_u0):
+    """New-side line numbers touched by a `-U0` unified diff (from its hunk headers)."""
+    nums = []
+    for m in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", unified_diff_u0, re.M):
+        start = int(m.group(1))
+        count = int(m.group(2)) if m.group(2) is not None else 1
+        nums.extend(range(start, start + count))
+    return nums
+
+
+def undeclared_references_from_git(root, base=None, head="HEAD"):
+    """Run check 16 over the staged index (base None — the pre-commit fragment) or over a commit range
+    (the forge CI floors: base..head). Gathers the change with git, then calls the pure check."""
+    if base is None:
+        rng, new_ref, old_ref = ["--cached"], "", "HEAD"
+    else:
+        rng, new_ref, old_ref = [base, head], head, base
+    status = _git(root, "diff", "--name-status", "--no-renames", *rng, "--", "memory/")
+    surfaces_new, surfaces_old, changed, logs = {}, {}, {}, []
+    for line in status.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        st, path = parts[0][:1], parts[-1]
+        if path.startswith("memory/sessions/") and path.endswith(".md"):
+            if st in ("A", "M"):
+                logs.append(_git(root, "show", f"{new_ref}:{path}"))
+            continue
+        if not is_reference_surface(path):
+            continue
+        if st != "A":
+            surfaces_old[path] = _git(root, "show", f"{old_ref}:{path}")
+        if st != "D":
+            text = _git(root, "show", f"{new_ref}:{path}")
+            surfaces_new[path] = text
+            if st == "A":
+                changed[path] = list(range(1, len(text.split("\n")) + 1))
+            else:
+                changed[path] = changed_line_numbers(_git(root, "diff", "-U0", *rng, "--", path))
+    return check_undeclared_references(surfaces_new, surfaces_old, changed, logs)
+
+
 # (10) [secret-material] — committed memory surfaces must not carry credentials or PII.
 # Field incident (reported 2026-08-13, a client repo's DLP scanner): smoke-test output pasted into a
 # session log leaked a live OAuth client secret — session logs are committed & shared, so
@@ -849,6 +1032,25 @@ def main():
     if not root:
         print("memory-lint: could not find memory/continuity.md", file=sys.stderr)
         return 2
+
+    argv = sys.argv[1:]
+    if "--staged" in argv or "--range" in argv:
+        # check 16 over the staged index (pre-commit) or a commit range (CI floor); advisory exit
+        if "--staged" in argv:
+            findings = undeclared_references_from_git(root)
+        else:
+            i = argv.index("--range")
+            base = argv[i + 1] if i + 1 < len(argv) and not argv[i + 1].startswith("--") else None
+            head = argv[i + 2] if i + 2 < len(argv) and not argv[i + 2].startswith("--") else "HEAD"
+            if not base:
+                print("memory-lint: --range needs BASE [HEAD]", file=sys.stderr)
+                return 2
+            findings = undeclared_references_from_git(root, base, head)
+        for line in findings:
+            print("WARN  " + line)
+        if not findings:
+            print("undeclared-reference check: ok")
+        return 1 if (findings and strict) else 0
 
     cont, pinned, arch, extra, sessions, refs, threads = load_repo(root)
     w = load_windows(root)
