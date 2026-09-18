@@ -3,6 +3,8 @@ import importlib.util
 import hashlib
 import os
 import re
+import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 import sys
@@ -1027,6 +1029,135 @@ class TestThreadStale(unittest.TestCase):
         w = memory_lint.check_thread_stale(cont, pinned, refs, stems, memory_lint.load_windows(root)["thread_stale_window"])
         self.assertEqual(len(w), 1)
         self.assertIn("[thread-stale] stalled-gap sslu 3 > thread_stale_window 2", w[0])
+
+
+class TestUndeclaredReference(unittest.TestCase):
+    # (16) [undeclared-reference] (v4.41.0): a fact edited in a change must be declared in a session log
+    # staged with it. Field origin: mercury-composable — a human closed two Blueprint gaps at the closure
+    # gate, the closing session rewrote both records and declared neither, and refresh-metadata read the
+    # human's decision as non-use. Footers and the reference log agreed, so only the diff could see it.
+    CONT_OLD = "\n".join([
+        "# Continuity", "", "## Key Decisions", "",
+        "- **Alpha decision.** the old body line",
+        "  <!-- id: alpha-fact | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: active -->",
+        "", "## Open Threads", "",
+        "- [ ] **Gap.** open work",
+        "  <!-- id: gap-thread | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->",
+        "- [x] **Done.** a long close narrative line one",
+        "  narrative line two",
+        "  <!-- id: done-thread | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->",
+    ]) + "\n"
+    SILENT_LOG = "# Session\n\n## Memory References\n\n(none)\n"
+    C = "memory/continuity.md"
+
+    def _lines(self):
+        return self.CONT_OLD.split("\n")
+
+    def _check(self, new, changed, logs, old=None, extra_new=None):
+        surfaces_new = {self.C: new}
+        if extra_new:
+            surfaces_new.update(extra_new)
+        return memory_lint.check_undeclared_references(
+            surfaces_new, {self.C: self.CONT_OLD if old is None else old}, changed, logs)
+
+    def test_edit_undeclared_is_flagged_and_declared_is_not(self):
+        ls = self._lines(); ls[4] = "- **Alpha decision.** the NEW body line"
+        new = "\n".join(ls)
+        w = self._check(new, {self.C: [5]}, [self.SILENT_LOG])
+        self.assertEqual(len(w), 1)
+        self.assertIn("[undeclared-reference] alpha-fact", w[0])
+        self.assertIn("edits the fact", w[0])
+        self.assertIn("Add the id to '## Memory References'", w[0])
+        declared = "# Session\n\n## Memory References\n\n- alpha-fact (referenced — reworded)\n"
+        self.assertEqual(self._check(new, {self.C: [5]}, [declared]), [])
+
+    def test_footer_only_change_is_a_metadata_refresh_not_an_edit(self):
+        ls = self._lines()
+        ls[5] = "  <!-- id: alpha-fact | created: 2026-01-01 | last_used: 2026-06-01 | uses: 2 | tier: archive-candidate -->"
+        self.assertEqual(self._check("\n".join(ls), {self.C: [6]}, [self.SILENT_LOG]), [])
+
+    def test_closure_must_be_declared(self):
+        # the field case: `- [ ]` -> `- [x]` at the closure gate — the close record is the completion event
+        ls = self._lines(); ls[9] = "- [x] **Gap.** closed at the gate — outcome recorded"
+        new = "\n".join(ls)
+        w = self._check(new, {self.C: [10]}, [self.SILENT_LOG])
+        self.assertEqual(len(w), 1)
+        self.assertIn("gap-thread", w[0]); self.assertIn("closes the fact", w[0])
+        declared = "# Session\n\n## Memory References\n\n- gap-thread (closed at the closure gate)\n"
+        self.assertEqual(self._check(new, {self.C: [10]}, [declared]), [])
+
+    def test_condensing_an_already_closed_record_is_not_flagged(self):
+        # REVIEW.md step 5 trims closed records to stubs; declaring them would defer their sweep
+        ls = self._lines(); del ls[12]; ls[11] = "- [x] **Done.** stub"
+        self.assertEqual(self._check("\n".join(ls), {self.C: [12, 13]}, [self.SILENT_LOG]), [])
+
+    def test_created_fact_must_be_declared(self):
+        ls = self._lines(); ls.insert(14, "  <!-- id: beta-fact | created: 2026-02-01 | last_used: 2026-02-01 | uses: 1 | tier: working -->")
+        ls.insert(14, "- **Beta decision.** new fact")
+        w = self._check("\n".join(ls), {self.C: [15, 16]}, [self.SILENT_LOG])
+        self.assertEqual(len(w), 1)
+        self.assertIn("beta-fact", w[0]); self.assertIn("creates the fact", w[0])
+
+    def test_verbatim_move_to_a_thread_file_is_not_an_edit(self):
+        # the v4.39.0 layout migration: block cut from continuity, pasted into its own file unchanged
+        ls = self._lines(); del ls[9:11]
+        thread = "- [ ] **Gap.** open work\n  <!-- id: gap-thread | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->\n"
+        w = self._check("\n".join(ls), {self.C: [], "memory/open-threads/thread-gap-thread.md": [1, 2, 3]},
+                        [self.SILENT_LOG], extra_new={"memory/open-threads/thread-gap-thread.md": thread})
+        self.assertEqual(w, [])
+
+    def test_deleted_block_is_archival_not_an_edit(self):
+        ls = self._lines(); del ls[11:14]
+        self.assertEqual(self._check("\n".join(ls), {self.C: []}, [self.SILENT_LOG]), [])
+
+    def test_silent_when_no_session_log_is_staged(self):
+        ls = self._lines(); ls[4] = "- **Alpha decision.** the NEW body line"
+        self.assertEqual(self._check("\n".join(ls), {self.C: [5]}, []), [])
+
+    def test_thread_file_and_vision_edits_are_covered(self):
+        tp = "memory/open-threads/thread-gap-thread.md"
+        old_t = "- [ ] **Gap.** open work\n  <!-- id: gap-thread | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->\n"
+        new_t = "- [ ] **Gap.** open work\n  Progress: K1 done\n  <!-- id: gap-thread | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->\n"
+        w = memory_lint.check_undeclared_references({tp: new_t}, {tp: old_t}, {tp: [2]}, [self.SILENT_LOG])
+        self.assertEqual(len(w), 1); self.assertIn("gap-thread", w[0]); self.assertIn("edits the fact", w[0])
+        vp = "memory/vision.md"
+        old_v = "# Vision\n\n> north star\n>\n> <!-- id: vision-x | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: core -->\n\n## Elevator\nold text\n"
+        new_v = old_v.replace("old text", "new text")
+        w = memory_lint.check_undeclared_references({vp: new_v}, {vp: old_v}, {vp: [8]}, [self.SILENT_LOG])
+        self.assertEqual(len(w), 1); self.assertIn("vision-x", w[0])
+
+    def test_changed_line_numbers_from_u0_hunks(self):
+        diff = "--- a\n+++ b\n@@ -5 +5 @@\n-x\n+y\n@@ -10,0 +12,2 @@\n+a\n+b\n@@ -20,3 +23,0 @@\n-p\n-q\n-r\n"
+        self.assertEqual(memory_lint.changed_line_numbers(diff), [5, 12, 13])
+
+    @unittest.skipUnless(shutil.which("git"), "git not available")
+    def test_git_staged_and_range_end_to_end(self):
+        with tempfile.TemporaryDirectory() as root:
+            def git(*a):
+                return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.com", *a],
+                                      cwd=root, capture_output=True, text=True, check=True).stdout
+            git("init", "-q")
+            os.makedirs(os.path.join(root, "memory", "sessions"))
+            with open(os.path.join(root, self.C), "w", encoding="utf-8") as f:
+                f.write(self.CONT_OLD)
+            with open(os.path.join(root, "memory", "sessions", "2026-01-01-000000.md"), "w", encoding="utf-8") as f:
+                f.write("# Session\n\n## Memory References\n\n- alpha-fact\n- gap-thread\n- done-thread\n")
+            git("add", "-A"); git("commit", "-q", "-m", "init")
+            ls = self._lines(); ls[4] = "- **Alpha decision.** the NEW body line"
+            with open(os.path.join(root, self.C), "w", encoding="utf-8") as f:
+                f.write("\n".join(ls))
+            log2 = os.path.join(root, "memory", "sessions", "2026-01-02-000000.md")
+            with open(log2, "w", encoding="utf-8") as f:
+                f.write(self.SILENT_LOG)
+            git("add", "-A")
+            w = memory_lint.undeclared_references_from_git(root)
+            self.assertEqual(len(w), 1); self.assertIn("alpha-fact", w[0])
+            with open(log2, "w", encoding="utf-8") as f:
+                f.write("# Session\n\n## Memory References\n\n- alpha-fact (referenced — reworded)\n")
+            git("add", "-A")
+            self.assertEqual(memory_lint.undeclared_references_from_git(root), [])
+            git("commit", "-q", "-m", "edit")
+            self.assertEqual(memory_lint.undeclared_references_from_git(root, "HEAD~1", "HEAD"), [])
 
 
 if __name__ == "__main__":

@@ -106,6 +106,13 @@ stalled thread as `[thread-stale]`, so the condition cannot hide.
    is lost — the full narrative lives in the thread's origin session log (immutable),
    and `[closed-thread-bloat]` is the advisory that measures this. A condensed thread
    later archives as its stub; retrieval follows `origin:` to the full record.
+   **Completion age is the closing reference** (v4.41.0). A thread's close record is the completion
+   event: the session that closes it declares the id under `## Memory References`, and
+   `sessions_since_last_used` then measures completion age for this sweep. An `[overdue]` on a
+   thread closed *within* the window is therefore a missed declaration, not decay — check the
+   closing commit, declare the id retroactively in this session's log, and let the counter reset
+   rather than sweeping a record a human just wrote (the pre-commit `[undeclared-reference]`
+   advisory catches the omission at commit time).
 6. **Verify archival (required — guards against a miscounted `sessions_since_last_used`).**
    Archival is the costliest error, and "sessions since last used" is the easiest count to get wrong.
    A *"use"* is an id under a session's `## Memory References` (§2 / `DECAY.md` §2) — **not** a passing
@@ -151,7 +158,10 @@ stalled thread as `[thread-stale]`, so the condition cannot hide.
    undelivered is recorded as *deliberately dropped*, never silently lost — a `(blueprint)`
    gap closing this way is an altitude decision, `DECAY.md` §12), or **re-affirm** it (name it
    under *this* session's `## Memory References` with the reason it stays open — the only thing
-   that resets its count; re-affirmation is the exception, not the default). The review
+   that resets its count; re-affirmation is the exception, not the default). **Declare every
+   disposition:** a closed thread is named under this session's `## Memory References` too — its
+   close record is the completion event that starts the sweep clock (list it as closed); only
+   *inspecting* a stalled thread without a decision is not a use. The review
    **never closes a thread itself** — a stalled thread is a signal for closure, and the
    decision is the owner's (`never-pick-a-winner`). Check the gate off once every listed
    thread is dispositioned; the sweep archives it later like any completed thread. If nothing
@@ -169,8 +179,11 @@ stalled thread as `[thread-stale]`, so the condition cannot hide.
    so archived ids belong there. *(Learned the hard way: a review summary that listed its archived ids
    under `## Memory References` threw 13 spurious `over-archived` ERRORs.)*
    **Inspecting a stalled thread as gate evidence is not a use either** — list a stalled thread
-   here only when the human **re-affirmed** it (that entry *is* the reset, `DECAY.md` §6); the
-   gate thread you raised is listed as Created.
+   here when the human **acted** on it: re-affirmed (that entry *is* the reset, `DECAY.md` §6) or
+   **closed** (the close record is the completion event — list it as closed); a thread merely read
+   and left as it was is not listed. The gate thread you raised is listed as Created. (v4.41.0
+   corrected the v4.40.0 wording, which named only re-affirmation and led a field session to leave
+   two closures undeclared — `[undeclared-reference]` now catches that at commit time.)
 
 **Contradiction backstop.** The review reads every fact anyway, so give them a quick
 contradiction scan — the write-time check (`DECAY.md` §10) may have missed one, or two

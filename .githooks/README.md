@@ -77,7 +77,10 @@ The dispatcher contract itself is covered by `tests/test_githook_dispatchers.sh`
   you understand those implications: a committed, human-audited **`.agent/secret-scan-ignore`**
   (shell-glob per line, `#` comments; exempts config files only, never `memory/`). The tool has
   not seeded that file since v4.40.1 — a team that needs the hatch creates it deliberately, and
-  the guard says so each time it exempts a file. Runs on python3 or node, whichever exists —
+  the guard says so each time it exempts a file. (v4.41.0) The fragment also runs the advisory
+  `[undeclared-reference]` check: a memory fact edited in the commit must be declared in a session log
+  staged with it — otherwise `refresh-metadata` reads the edit as non-use; never blocks, silent when no
+  log is staged. Runs on python3 or node, whichever exists —
   with neither, it skips with a note. Why it exists: the ritual rule covers agents at write time
   and the CI floor covers pushes, but by push time the remote already has the secret and redaction
   is not un-leaking (rotation is) — this is the **one placement that prevents instead of detects**

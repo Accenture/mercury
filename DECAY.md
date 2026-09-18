@@ -75,6 +75,14 @@ Every session log carries a `## Memory References` section:
 - **Referenced** — ids the session relied on or reinforced.
 - **Created** — new facts added this session (born `tier: working`).
 - **Reactivated** — ids pulled back from the archive.
+- **Closed** — threads completed this session (v4.41.0): list them under `Referenced` with a
+  `(closed)` note or on a `Closed:` line. The close record is the completion event that starts
+  the sweep clock; an edit or a closure is a use, inspecting alone is not.
+
+The pre-commit `memory-lint` advisory `[undeclared-reference]` (v4.41.0) warns when a change
+edits a fact's body without declaring the id in a session log staged with it — the diff is the
+only place that omission is visible, because the footers and this log then agree with each other
+while both are wrong.
 
 So, for any id:
 - `uses` = number of session logs whose `## Memory References` name it.
@@ -163,9 +171,10 @@ its completion is older than `archive_window` sessions (see `REVIEW.md`).
 > for closure, decided by a human**: the review lists every stalled thread in one closure gate
 > (`REVIEW.md` step 8); the owner closes each (a 3–6-line close record; anything undelivered is
 > recorded as *deliberately dropped*, never silently lost) or re-affirms it by naming it under
-> that session's `## Memory References` — the only thing that resets the count. The pin is
-> untouched throughout, and the tool never closes a thread on its own. (Field report:
-> mercury-composable, 2026-09-16.)
+> that session's `## Memory References` — the only thing that resets the count. A closure is
+> declared the same way: the close record is the completion event (an edit or a closure is a
+> use; inspecting alone is not). The pin is untouched throughout, and the tool never closes a
+> thread on its own. (Field reports: mercury-composable, 2026-09-16 and 2026-09-17.)
 >
 > **One lifecycle per record.** A commitment tracked *inside* another record inherits that
 > record's lifecycle, not its own: a "still open" sub-list inside a thread has no signal of

@@ -26,7 +26,11 @@ import {
   check_duplicate_ids,
   check_duplicate_state_keys,
   check_thread_stale,
+  check_undeclared_references,
+  changed_line_numbers,
+  undeclared_references_from_git,
 } from "./memory-lint.mjs";
+import { execFileSync } from "node:child_process";
 
 // (8) advisory cadence/size triggers (v4.24.0). cont is a Map; cont.size is the fact count.
 const facts = (n) => new Map(Array.from({ length: n }, (_, i) => [`fact-${i}`, {}]));
@@ -1180,6 +1184,136 @@ test("thread-stale: thread layer end to end", () => {
     const w = check_thread_stale(cont, pinned, refs, stems, load_windows(root).thread_stale_window);
     assert.equal(w.length, 1);
     assert.ok(w[0].includes("[thread-stale] stalled-gap sslu 3 > thread_stale_window 2"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// (16) [undeclared-reference] (v4.41.0): a fact edited in a change must be declared in a session log
+// staged with it. Field origin: mercury-composable — a human closed two Blueprint gaps at the closure
+// gate, the closing session rewrote both records and declared neither, and refresh-metadata read the
+// human's decision as non-use. Footers and the reference log agreed, so only the diff could see it.
+const UR_CONT_OLD = [
+  "# Continuity", "", "## Key Decisions", "",
+  "- **Alpha decision.** the old body line",
+  "  <!-- id: alpha-fact | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: active -->",
+  "", "## Open Threads", "",
+  "- [ ] **Gap.** open work",
+  "  <!-- id: gap-thread | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->",
+  "- [x] **Done.** a long close narrative line one",
+  "  narrative line two",
+  "  <!-- id: done-thread | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->",
+].join("\n") + "\n";
+const UR_SILENT_LOG = "# Session\n\n## Memory References\n\n(none)\n";
+const UR_C = "memory/continuity.md";
+const urLines = () => UR_CONT_OLD.split("\n");
+const urCheck = (neu, changed, logs, extraNew = {}) =>
+  check_undeclared_references({ [UR_C]: neu, ...extraNew }, { [UR_C]: UR_CONT_OLD }, changed, logs);
+
+test("undeclared-reference: edit undeclared is flagged, declared is not", () => {
+  const ls = urLines(); ls[4] = "- **Alpha decision.** the NEW body line";
+  const neu = ls.join("\n");
+  const w = urCheck(neu, { [UR_C]: [5] }, [UR_SILENT_LOG]);
+  assert.equal(w.length, 1);
+  assert.ok(w[0].includes("[undeclared-reference] alpha-fact"));
+  assert.ok(w[0].includes("edits the fact"));
+  assert.ok(w[0].includes("Add the id to '## Memory References'"));
+  const declared = "# Session\n\n## Memory References\n\n- alpha-fact (referenced — reworded)\n";
+  assert.deepEqual(urCheck(neu, { [UR_C]: [5] }, [declared]), []);
+});
+
+test("undeclared-reference: footer-only change is a metadata refresh, not an edit", () => {
+  const ls = urLines();
+  ls[5] = "  <!-- id: alpha-fact | created: 2026-01-01 | last_used: 2026-06-01 | uses: 2 | tier: archive-candidate -->";
+  assert.deepEqual(urCheck(ls.join("\n"), { [UR_C]: [6] }, [UR_SILENT_LOG]), []);
+});
+
+test("undeclared-reference: a closure must be declared", () => {
+  // the field case: `- [ ]` -> `- [x]` at the closure gate — the close record is the completion event
+  const ls = urLines(); ls[9] = "- [x] **Gap.** closed at the gate — outcome recorded";
+  const neu = ls.join("\n");
+  const w = urCheck(neu, { [UR_C]: [10] }, [UR_SILENT_LOG]);
+  assert.equal(w.length, 1);
+  assert.ok(w[0].includes("gap-thread") && w[0].includes("closes the fact"));
+  const declared = "# Session\n\n## Memory References\n\n- gap-thread (closed at the closure gate)\n";
+  assert.deepEqual(urCheck(neu, { [UR_C]: [10] }, [declared]), []);
+});
+
+test("undeclared-reference: condensing an already-closed record is not flagged", () => {
+  // REVIEW.md step 5 trims closed records to stubs; declaring them would defer their sweep
+  const ls = urLines(); ls.splice(12, 1); ls[11] = "- [x] **Done.** stub";
+  assert.deepEqual(urCheck(ls.join("\n"), { [UR_C]: [12, 13] }, [UR_SILENT_LOG]), []);
+});
+
+test("undeclared-reference: a created fact must be declared", () => {
+  const ls = urLines();
+  ls.splice(14, 0, "- **Beta decision.** new fact", "  <!-- id: beta-fact | created: 2026-02-01 | last_used: 2026-02-01 | uses: 1 | tier: working -->");
+  const w = urCheck(ls.join("\n"), { [UR_C]: [15, 16] }, [UR_SILENT_LOG]);
+  assert.equal(w.length, 1);
+  assert.ok(w[0].includes("beta-fact") && w[0].includes("creates the fact"));
+});
+
+test("undeclared-reference: a verbatim move to a thread file is not an edit", () => {
+  // the v4.39.0 layout migration: block cut from continuity, pasted into its own file unchanged
+  const ls = urLines(); ls.splice(9, 2);
+  const tp = "memory/open-threads/thread-gap-thread.md";
+  const thread = "- [ ] **Gap.** open work\n  <!-- id: gap-thread | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->\n";
+  assert.deepEqual(urCheck(ls.join("\n"), { [UR_C]: [], [tp]: [1, 2, 3] }, [UR_SILENT_LOG], { [tp]: thread }), []);
+});
+
+test("undeclared-reference: a deleted block is archival, not an edit", () => {
+  const ls = urLines(); ls.splice(11, 3);
+  assert.deepEqual(urCheck(ls.join("\n"), { [UR_C]: [] }, [UR_SILENT_LOG]), []);
+});
+
+test("undeclared-reference: silent when no session log is staged", () => {
+  const ls = urLines(); ls[4] = "- **Alpha decision.** the NEW body line";
+  assert.deepEqual(urCheck(ls.join("\n"), { [UR_C]: [5] }, []), []);
+});
+
+test("undeclared-reference: thread-file and vision edits are covered", () => {
+  const tp = "memory/open-threads/thread-gap-thread.md";
+  const oldT = "- [ ] **Gap.** open work\n  <!-- id: gap-thread | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->\n";
+  const newT = "- [ ] **Gap.** open work\n  Progress: K1 done\n  <!-- id: gap-thread | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: working -->\n";
+  let w = check_undeclared_references({ [tp]: newT }, { [tp]: oldT }, { [tp]: [2] }, [UR_SILENT_LOG]);
+  assert.equal(w.length, 1);
+  assert.ok(w[0].includes("gap-thread") && w[0].includes("edits the fact"));
+  const vp = "memory/vision.md";
+  const oldV = "# Vision\n\n> north star\n>\n> <!-- id: vision-x | created: 2026-01-01 | last_used: 2026-01-01 | uses: 1 | tier: core -->\n\n## Elevator\nold text\n";
+  const newV = oldV.replace("old text", "new text");
+  w = check_undeclared_references({ [vp]: newV }, { [vp]: oldV }, { [vp]: [8] }, [UR_SILENT_LOG]);
+  assert.equal(w.length, 1);
+  assert.ok(w[0].includes("vision-x"));
+});
+
+test("undeclared-reference: changed line numbers from -U0 hunks", () => {
+  const diff = "--- a\n+++ b\n@@ -5 +5 @@\n-x\n+y\n@@ -10,0 +12,2 @@\n+a\n+b\n@@ -20,3 +23,0 @@\n-p\n-q\n-r\n";
+  assert.deepEqual(changed_line_numbers(diff), [5, 12, 13]);
+});
+
+const hasGit = (() => { try { execFileSync("git", ["--version"], { stdio: "ignore" }); return true; } catch { return false; } })();
+test("undeclared-reference: git staged and range end to end", { skip: !hasGit }, () => {
+  const root = mkdtempSync(join(tmpdir(), "lint-ur-"));
+  const git = (...a) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...a], { cwd: root, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
+  try {
+    git("init", "-q");
+    mkdirSync(join(root, "memory", "sessions"), { recursive: true });
+    writeFileSync(join(root, UR_C), UR_CONT_OLD);
+    writeFileSync(join(root, "memory", "sessions", "2026-01-01-000000.md"), "# Session\n\n## Memory References\n\n- alpha-fact\n- gap-thread\n- done-thread\n");
+    git("add", "-A"); git("commit", "-q", "-m", "init");
+    const ls = urLines(); ls[4] = "- **Alpha decision.** the NEW body line";
+    writeFileSync(join(root, UR_C), ls.join("\n"));
+    const log2 = join(root, "memory", "sessions", "2026-01-02-000000.md");
+    writeFileSync(log2, UR_SILENT_LOG);
+    git("add", "-A");
+    const w = undeclared_references_from_git(root);
+    assert.equal(w.length, 1);
+    assert.ok(w[0].includes("alpha-fact"));
+    writeFileSync(log2, "# Session\n\n## Memory References\n\n- alpha-fact (referenced — reworded)\n");
+    git("add", "-A");
+    assert.deepEqual(undeclared_references_from_git(root), []);
+    git("commit", "-q", "-m", "edit");
+    assert.deepEqual(undeclared_references_from_git(root, "HEAD~1", "HEAD"), []);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
