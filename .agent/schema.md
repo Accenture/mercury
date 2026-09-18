@@ -310,7 +310,11 @@ An **optional** Architecture Decision Record log: a human-facing ledger of signi
 durable architecture decisions, one per entry, at the VBDI **Design** altitude. It lives
 under `docs/` so a human (IT governance, a newcomer, an auditor) can find it, and is read
 **on demand** — it is **never added to the per-session read path** (zero default token cost,
-like `docs/DESIGN-*.md`). Not auto-installed; adopt it only if the team wants one.
+like `docs/DESIGN-*.md`). **Not installed by default — an `optional` seed** (v4.42.0): the enable
+offers the governance pair (this ledger + the `RFC.md` register below) **once**, in `ENABLE.md`
+Step 10, and copies the two skeletons only on yes; an upgrade lists an unadopted pair for reference
+and never asks again. Adopt later at any time — `reconcile --apply --adopt docs/arch-decisions/`,
+or copy `templates/docs/arch-decisions/` by hand. Governance is offered, never imposed.
 
 **Map, don't duplicate.** Live constraints stay in `continuity.md`
 (`## Architectural Invariants` / `## Key Decisions`) — the *what* that holds *now*, with an
@@ -348,6 +352,33 @@ sync**: when a new durable architecture decision is made, or a continuity fact c
 ↔ `(ADR-NNNN)` consistent. Like every Design-altitude change it is a **human gate** — the agent
 proposes (in the register, or in the conversation), the human approves, and only then is the ADR
 written; it is the one time the on-demand ledger is opened during a session.
+
+---
+
+## docs/arch-decisions/RFC.md  (optional — the proposal register, sibling of ADR.md)
+
+Work under consideration at the Design altitude: proposals that may become an ADR, be reshaped,
+merge, or be withdrawn. It exists so that **the ledger records decisions only** — an ADR is
+written when a proposal is accepted, never before. Read **on demand**, never in the per-session
+path. Installed together with `ADR.md` as the optional governance pair (skeleton:
+`templates/docs/arch-decisions/RFC.md`).
+
+- **Separate sequences:** `RFC-NNNN` never shares numbers with `ADR-NNNN` — a proposal does not
+  reserve an ADR number (proposals merge, split, or die).
+- **Two exits, both recorded:** `Promoted → ADR-NNNN` (the ADR is written; the entry keeps the
+  pointer) or `Withdrawn` (with the reason). Never deleted. Status vocabulary:
+  `Open` · `Parked` · `Promoted → ADR-NNNN` · `Withdrawn`.
+- **Map, don't duplicate:** the live work item is an Open Thread in `memory/open-threads/`
+  carrying `→ proposal: RFC-NNNN`; the register holds the reasoning (options, trade-offs), the
+  thread holds the state. Promotion is the Design-altitude human gate (`DECAY.md` §12).
+
+```
+## RFC-NNNN — <Title>
+**Status:** Open · **Raised:** YYYY-MM-DD · **Serves:** <vision-id> · **Thread:** `<thread-id>`
+<!-- id: rfc-NNNN | status: open | thread: <thread-id> -->
+
+**Proposal.** …   **Options.** …   **Resolution.** — | Promoted → ADR-NNNN (date) | Withdrawn (date): <reason>
+```
 
 ---
 
