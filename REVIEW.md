@@ -151,8 +151,9 @@ stalled thread as `[thread-stale]`, so the condition cannot hide.
    from `created`; `memory-lint` lists them as `[thread-stale]`), raise **one** Open Thread —
    the human closure gate — naming every stalled thread with its count:
    `- [ ] **Close stalled threads (due):** <id> (N sessions), <id> (N sessions) — for each, close it, or re-affirm it (DECAY.md §6)`
-   (id `ot-close-stalled-threads-<YYYYMMDD>`, in its own `thread-<id>.md`; if an unchecked
-   gate already exists, add the new ids to it rather than raising a second). Re-read each
+   (id `close-stalled-threads-<YYYYMMDD>` — an id names the thing, never its kind, `DECAY.md`
+   §1; a gate raised before v4.41.1 keeps its `ot-` id — in its own `thread-<id>.md`; if an
+   unchecked gate already exists, add the new ids to it rather than raising a second). Re-read each
    listed thread's body with the human — strike items that shipped elsewhere — then the
    **human** decides per thread: **close** it (`- [x]` + a 3–6-line close record; anything
    undelivered is recorded as *deliberately dropped*, never silently lost — a `(blueprint)`
@@ -235,7 +236,7 @@ This two-way movement is what keeps the system smart rather than merely lossy.
 - Archive-verify: pass (no archived id appears in the last archive_window sessions; no id in both places)
 - Tier changes:  6  (2 working→active, 1 active→archive-candidate, 3 →archived)
 - Invariants:    not due (next re-verify in 6 sessions)   # or: "prompted — 2 invariants up for re-confirmation"
-- Stalled threads: 2  (gate ot-close-stalled-threads-20260620 — legacy-soap-adapter 57, csv-bulk-import 44)   # or: "none"
+- Stalled threads: 2  (gate close-stalled-threads-20260620 — legacy-soap-adapter 57, csv-bulk-import 44)   # or: "none"
 - Promoted core: 0  (auto-core off; core is human-set)
 ```
 

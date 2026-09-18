@@ -121,7 +121,7 @@ Each fact carries a metadata footer (HTML comment), maintained by the review rit
 
 ```
 <!-- id: kebab-id | created: YYYY-MM-DD | last_used: YYYY-MM-DD | uses: N | tier: core|active|working|archive-candidate|superseded -->
-  id         stable, unique within the file, assigned once at creation
+  id         stable, unique within the file, assigned once at creation; names the thing, never its kind (no `ot-`/`thread-`/`bp-` prefix — DECAY.md §1)
   created    date the fact entered memory
   last_used  date of the most recent session referencing the id  (recomputed at review)
   uses       count of sessions referencing the id                (recomputed at review)
@@ -158,7 +158,11 @@ and let the review archive it flagged "superseded." See `DECAY.md` §9.
 
 **One Open Thread per file** (v4.39.0). `<id>` is the thread's kebab fact id — the
 filename is the identity and **never changes** for the thread's lifetime; updates edit the
-file in place. This is what makes concurrent thread work merge-free: parallel branches
+file in place. The id **names the thing, never its kind** (v4.41.1): the directory and the
+`thread-` file prefix already say it is a thread, so an id beginning `ot-` or `thread-`
+stutters (`thread-thread-….md` reads as a typo and is not) — write `distributed-cache`, not
+`ot-distributed-cache`. Existing ids are never renamed (`DECAY.md` §1 — the immutable logs
+declare them). This is what makes concurrent thread work merge-free: parallel branches
 touching *different* threads touch different files (no conflict possible). Within the
 *same* thread file, ordinary git merge semantics apply (v4.39.1 precision): edits to
 adjacent/overlapping lines conflict — a genuine Tier 2 semantic clash correctly reaching

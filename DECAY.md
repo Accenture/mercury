@@ -53,10 +53,19 @@ rows above). `id` and `created` are immutable. Ordinary facts are born `working`
 
 ### Assigning an id
 Lowercase, hyphenated, derived from the fact's gist (`webhook-fire-forget`,
-`drizzle-over-prisma`). Unique across the live layer — `continuity.md` and every
-`memory/open-threads/thread-<id>.md` (`memory-lint` flags a `[duplicate-id]`). Once
-assigned it is permanent — it is the handle that session logs use to reference the
-fact, and for a thread it is also the filename.
+`drizzle-over-prisma`). **An id names the thing, never its kind** (v4.41.1): no `ot-`,
+`thread-`, `bp-` or similar prefix — the section a fact sits in, the `(blueprint)` tag and
+the `serves:` trace already say what kind it is, and for a thread the directory and the
+`thread-<id>.md` filename say it twice more, so a kind prefix only stutters
+(`thread-ot-distributed-cache.md`, `thread-thread-doc-feedback-loop.md` — both seen in the
+field). Write `distributed-cache`, not `ot-distributed-cache`. Unique across the live
+layer — `continuity.md` and every `memory/open-threads/thread-<id>.md` (`memory-lint`
+flags a `[duplicate-id]`). Once assigned it is permanent — it is the handle that session
+logs use to reference the fact, and for a thread it is also the filename. **Never rename an
+existing id to fit the rule:** session logs are immutable and their `## Memory References`
+are the only input to `refresh-metadata`, so a renamed id orphans every historical
+declaration and the fact decays while in active use (a thread declared in 12 logs would
+collapse to one use). The rule applies to ids created from now on; existing ids stay.
 
 ---
 
