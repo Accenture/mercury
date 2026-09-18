@@ -330,17 +330,24 @@ text is never restated as competing truth.
 **Rationale.** Why, alternatives, and the consequences/trade-offs accepted.
 ```
 
-Status: `Proposed → Accepted → Superseded / Deprecated`. **Never deleted** — a decision that
-no longer holds is superseded (replaced by a newer ADR) or deprecated (no longer relevant),
-its entry left in place with `Status` updated (mirrors `DECAY.md` §9). Numbering is monotonic;
-entries are listed **newest first**.
+Status: `Accepted → Superseded / Deprecated`. **An entry is written only when a decision is
+accepted** (v4.41.2): the ledger records decisions, so work still under consideration lives in
+the repo's proposal register — for example a sibling `docs/arch-decisions/RFC.md` with its own
+`RFC-NNNN` sequence (a proposal does not reserve an ADR number; proposals merge, split or die,
+and a promoted one is recorded in the register as a pointer to its ADR, a withdrawn one with the
+reason). A `Proposed` ADR has no honest terminal state — `Superseded` implies a successor,
+`Deprecated` implies it was once in force — so it never enters the ledger. **Never deleted** —
+a decision that no longer holds is superseded (replaced by a newer ADR) or deprecated (no longer
+relevant), its entry left in place with `Status` updated (mirrors `DECAY.md` §9). Numbering is
+monotonic; entries are listed **newest first**.
 
 **When to maintain it.** Adopting the log is on-demand, but once it exists it is **kept in
 sync**: when a new durable architecture decision is made, or a continuity fact carrying an
 `(ADR-NNNN)` tag is superseded/invalidated, the agent **proposes** the matching ledger edit
 (a new ADR, and/or the old one's `Status` → `Superseded`/`Deprecated`), keeping `formalizes:`
 ↔ `(ADR-NNNN)` consistent. Like every Design-altitude change it is a **human gate** — the agent
-proposes, the human approves; it is the one time the on-demand ledger is opened during a session.
+proposes (in the register, or in the conversation), the human approves, and only then is the ADR
+written; it is the one time the on-demand ledger is opened during a session.
 
 ---
 

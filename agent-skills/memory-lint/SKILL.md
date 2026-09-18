@@ -74,7 +74,7 @@ script, so the riskiest operation is verified against observable evidence.
    - *advisory* — **`[review-overdue]`**: `sessions_since_last_review ≥ review_every` (read from the
      `last_review` Project-State stamp), so a lapsed review ritual surfaces on every lint run + CI,
      not just when someone remembers to check;
-   - *advisory* — **`[continuity-bloat]`**: more than `continuity_max_facts` decaying facts/threads
+   - *advisory* — **`[continuity-bloat]`**: more than `continuity_max_facts` decaying facts/threads (a footer shown as an example inside an inline code span — the seeded header line — is documentation and is not counted, v4.41.2)
      (the primary lean signal — a count, immune to verbosity & session velocity), or more than
      `continuity_max_lines` lines (a coarse backstop). Both say "a review is due to lean it down."
    - *advisory* — **`[closed-thread-bloat]`** (v4.38.0): more than `closed_narrative_max_lines`

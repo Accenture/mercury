@@ -29,6 +29,8 @@ import {
   check_undeclared_references,
   changed_line_numbers,
   undeclared_references_from_git,
+  parse_footers,
+  fact_blocks,
 } from "./memory-lint.mjs";
 import { execFileSync } from "node:child_process";
 
@@ -1317,4 +1319,31 @@ test("undeclared-reference: git staged and range end to end", { skip: !hasGit },
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// v4.41.2 (mercury-composable field report): the seeded continuity.md header shows the footer format
+// as an EXAMPLE inside an inline code span; it must not parse as a live fact.
+const EXAMPLE_HEADER = "# Continuity — demo\n\n> Each fact carries a metadata footer:\n> `<!-- id: kebab-id | created: YYYY-MM-DD | last_used: YYYY-MM-DD | uses: N | tier: active -->`\n> See `.agent/schema.md`.\n\n---\n\n## Key Decisions\n\n- Real fact\n  <!-- id: real-fact | created: 2026-06-01 | last_used: 2026-06-20 | uses: 3 | tier: active -->\n";
+const BLOCKQUOTED_VISION = "# Vision\n\n> The north star.\n>\n> <!-- id: vision-demo | created: 2026-06-01 | last_used: 2026-06-20 | uses: 4 | tier: core -->\n";
+
+test("footer examples: an inline-code example footer is not a fact", () => {
+  const cont = parse_footers(EXAMPLE_HEADER);
+  assert.equal(cont.has("kebab-id"), false);
+  assert.deepEqual([...cont.keys()], ["real-fact"]);
+});
+
+test("footer examples: a blockquoted REAL footer still parses (vision.md)", () => {
+  assert.deepEqual([...parse_footers(BLOCKQUOTED_VISION).keys()], ["vision-demo"]);
+});
+
+test("footer examples: the example line is not a block for the undeclared-reference mapper", () => {
+  const blocks = fact_blocks("memory/continuity.md", EXAMPLE_HEADER);
+  assert.deepEqual([...new Set([...blocks.values()].map((v) => v[0]))], ["real-fact"]);
+  assert.equal(blocks.has(4), false);
+});
+
+test("footer examples: the bloat counter excludes the example", () => {
+  const cont = parse_footers(EXAMPLE_HEADER);
+  const w = check_continuity_health(cont, ["2026-06-20-120000.md"], EXAMPLE_HEADER, 10, 10, 1, 600);
+  assert.deepEqual(w.filter((x) => x.includes("[continuity-bloat]")), []);
 });

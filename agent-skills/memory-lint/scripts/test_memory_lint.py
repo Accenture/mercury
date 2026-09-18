@@ -1031,6 +1031,35 @@ class TestThreadStale(unittest.TestCase):
         self.assertIn("[thread-stale] stalled-gap sslu 3 > thread_stale_window 2", w[0])
 
 
+class TestFooterExamples(unittest.TestCase):
+    # v4.41.2 (mercury-composable field report): the seeded continuity.md header shows the footer
+    # format as an EXAMPLE inside an inline code span; it must not parse as a live fact (it inflated
+    # the live count and the [continuity-bloat] counter by one in every enabled repo — silently,
+    # since a never-referenced id raises nothing itself).
+    HEADER = "# Continuity — demo\n\n> Each fact carries a metadata footer:\n> `<!-- id: kebab-id | created: YYYY-MM-DD | last_used: YYYY-MM-DD | uses: N | tier: active -->`\n> See `.agent/schema.md`.\n\n---\n\n## Key Decisions\n\n- Real fact\n  <!-- id: real-fact | created: 2026-06-01 | last_used: 2026-06-20 | uses: 3 | tier: active -->\n"
+    VISION = "# Vision\n\n> The north star.\n>\n> <!-- id: vision-demo | created: 2026-06-01 | last_used: 2026-06-20 | uses: 4 | tier: core -->\n"
+
+    def test_inline_code_example_is_not_a_fact(self):
+        cont = memory_lint.parse_footers(self.HEADER)
+        self.assertNotIn("kebab-id", cont)
+        self.assertEqual(set(cont), {"real-fact"})
+
+    def test_blockquoted_real_footer_still_parses(self):
+        # blockquote position must NOT be the discriminator — vision.md's real footer is blockquoted
+        self.assertEqual(set(memory_lint.parse_footers(self.VISION)), {"vision-demo"})
+
+    def test_example_line_is_not_a_block_for_undeclared_reference(self):
+        blocks = memory_lint.fact_blocks("memory/continuity.md", self.HEADER)
+        ids = {fid for fid, _, _ in blocks.values()}
+        self.assertEqual(ids, {"real-fact"})
+        self.assertNotIn(4, blocks)  # the header example line maps to no fact
+
+    def test_bloat_counter_excludes_the_example(self):
+        cont = memory_lint.parse_footers(self.HEADER)
+        w = memory_lint.check_continuity_health(cont, ["2026-06-20-120000.md"], self.HEADER, 10, 10, 1, 600)
+        self.assertEqual([x for x in w if "[continuity-bloat]" in x], [])  # 1 real fact, ceiling 1
+
+
 class TestUndeclaredReference(unittest.TestCase):
     # (16) [undeclared-reference] (v4.41.0): a fact edited in a change must be declared in a session log
     # staged with it. Field origin: mercury-composable — a human closed two Blueprint gaps at the closure

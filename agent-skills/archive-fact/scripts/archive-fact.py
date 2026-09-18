@@ -53,8 +53,15 @@ def footer_line_index(lines, fid):
     """Index of the single-line footer for fid, or None."""
     pat = re.compile(r"<!--\s*id:\s*" + re.escape(fid) + r"\s*\|")
     for i, ln in enumerate(lines):
-        if pat.search(ln):
-            return i
+        m = pat.search(ln)
+        if not m:
+            continue
+        # a footer shown as an EXAMPLE inside an inline code span (the seeded continuity.md header
+        # line) is documentation, not a fact — never the block to move (v4.41.2, mirrors memory-lint)
+        end = ln.find("-->", m.end())
+        if m.start() > 0 and ln[m.start() - 1] == "`" and end != -1 and ln[end + 3:end + 4] == "`":
+            continue
+        return i
     return None
 
 

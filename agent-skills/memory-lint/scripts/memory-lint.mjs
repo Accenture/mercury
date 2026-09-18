@@ -59,9 +59,18 @@ function read_text(path) {
   return readFileSync(path, "utf-8");
 }
 
+function in_inline_code(text, start, end) {
+  // True when text[start:end] is wrapped in backticks — a footer shown as an EXAMPLE inside an inline
+  // code span is documentation, not a fact. The seeded continuity.md header documents the footer format
+  // that way, so every enabled repo otherwise counts a phantom `kebab-id` fact (v4.41.2, mercury-composable
+  // field report). Blockquote position cannot be the test: vision.md's REAL footer sits in a blockquote.
+  return start > 0 && text[start - 1] === "`" && end < text.length && text[end] === "`";
+}
+
 export function parse_footers(text) {
   const out = new Map();
   for (const m of text.matchAll(FOOTER_RE)) {
+    if (in_inline_code(text, m.index, m.index + m[0].length)) continue;
     const fields = {};
     for (const part of m[2].split("|")) {
       const i = part.indexOf(":");
@@ -618,6 +627,16 @@ export function check_thread_stale(cont, pinned, refs, stems, tsw) {
 const UNDECLARED_SURFACES = new Set(["memory/continuity.md", "memory/vision.md"]);
 const ID_LINE_RE = /<!--\s*id:\s*([a-z0-9-]+)/;
 
+function id_line(line) {
+  // The footer-id match on one line, or null — null too for an example wrapped in an inline code span
+  // (the seeded header line), so the block mapper agrees with parse_footers on what a fact is.
+  const m = ID_LINE_RE.exec(line);
+  if (!m) return null;
+  const fm = new RegExp(FOOTER_RE.source).exec(line);
+  if (fm && in_inline_code(line, fm.index, fm.index + fm[0].length)) return null;
+  return m;
+}
+
 export function is_reference_surface(path) {
   return UNDECLARED_SURFACES.has(path) || (path.startsWith("memory/open-threads/") && path.endsWith(".md"));
 }
@@ -638,7 +657,7 @@ export function fact_blocks(path, text) {
   if (path !== "memory/continuity.md") {
     let foot = null;
     for (let i = 0; i < lines.length; i++) {
-      const m = ID_LINE_RE.exec(lines[i]);
+      const m = id_line(lines[i]);
       if (m) { foot = [i, m[1]]; break; }
     }
     if (foot === null) return out;
@@ -649,7 +668,7 @@ export function fact_blocks(path, text) {
   }
   let prevEnd = -1;
   for (let i = 0; i < lines.length; i++) {
-    const m = ID_LINE_RE.exec(lines[i]);
+    const m = id_line(lines[i]);
     if (!m) continue;
     let start = i;
     for (let j = i; j > prevEnd; j--) {

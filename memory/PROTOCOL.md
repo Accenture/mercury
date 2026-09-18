@@ -52,10 +52,15 @@ the human decision needed (none, or name it). Skip it for trivial Q&A — it is 
 aid, never ceremony.
 
 An optional `docs/arch-decisions/ADR.md` is a human-facing Design ledger, not a session-start
-read. `(ADR-NNNN)` tags on continuity invariants are pointers only. If the ledger exists,
-propose a newer ADR for a durable architecture decision or when superseding/invalidating a
-tagged fact; mark the old ADR `Superseded`/`Deprecated`, never delete it, keep
-`formalizes:` ↔ `(ADR-NNNN)` aligned, and wait for human approval (`DECAY.md` §9, §12).
+read. `(ADR-NNNN)` tags on continuity invariants are pointers only. The ledger records
+decisions, so an entry is written only when one is accepted: keep work still under
+consideration outside it, in the repo's proposal register (for example
+`docs/arch-decisions/RFC.md` with its own `RFC-NNNN` sequence — a proposal does not reserve an
+ADR number, since proposals merge, split or die), never as a `Proposed` ADR — a proposal that is
+reshaped or withdrawn would otherwise sit in the decision record forever. If the ledger exists,
+propose a durable architecture decision, or a supersession when invalidating a tagged fact, and
+on human approval write the ADR; mark any superseded ADR `Superseded`/`Deprecated`, never delete
+it, and keep `formalizes:` ↔ `(ADR-NNNN)` aligned (`DECAY.md` §9, §12).
 
 ## Use skills correctly
 

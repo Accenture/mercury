@@ -41,7 +41,15 @@ function read_text(path) {
 function footer_line_index(lines, fid) {
   const esc = fid.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pat = new RegExp(`<!--\\s*id:\\s*${esc}\\s*\\|`);
-  for (let i = 0; i < lines.length; i++) if (pat.test(lines[i])) return i;
+  for (let i = 0; i < lines.length; i++) {
+    const m = pat.exec(lines[i]);
+    if (!m) continue;
+    // a footer shown as an EXAMPLE inside an inline code span (the seeded continuity.md header line)
+    // is documentation, not a fact — never the block to move (v4.41.2, mirrors memory-lint)
+    const end = lines[i].indexOf("-->", m.index + m[0].length);
+    if (m.index > 0 && lines[i][m.index - 1] === "`" && end !== -1 && lines[i][end + 3] === "`") continue;
+    return i;
+  }
   return null;
 }
 
