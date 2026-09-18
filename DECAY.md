@@ -307,7 +307,10 @@ memory layer enforces:
   — Architecture Decision Records, read on demand, never in the per-session path; its
   supersede/deprecate-never-delete lifecycle mirrors §9, and — once the log exists — is **kept in
   sync** with fact supersession: superseding an `(ADR-NNNN)`-tagged fact, or making a new durable
-  decision, prompts a human-gated ledger update). *Implementation* = code/commits,
+  decision, prompts a human-gated *proposal*, and the ledger is written on acceptance — the ledger
+  records decisions only; work under consideration lives in the repo's proposal register, e.g.
+  `docs/arch-decisions/RFC.md` with its own `RFC-NNNN` ids, never as a `Proposed` ADR, v4.41.2).
+  *Implementation* = code/commits,
   traced in sessions. *Feedback* = the review ritual. **Only Vision + Blueprint are new; the
   rest is the existing layer, named.**
 - **The trace is the determinism.** Implementation → Design → Blueprint (`serves: <gap>`)

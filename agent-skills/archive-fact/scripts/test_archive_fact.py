@@ -75,6 +75,18 @@ class TestArchiveFact(unittest.TestCase):
         self.assertNotIn("beta-fact", cont)
         self.assertIn("keep-fact", cont)
 
+    def test_header_example_footer_is_not_a_movable_block(self):
+        # v4.41.2: the seeded continuity.md header shows the footer format as an EXAMPLE inside an inline
+        # code span; it is documentation, never the block to move (mirrors memory-lint's parse guard)
+        header = ("# Continuity\n\n> Each fact carries a metadata footer:\n"
+                  "> `<!-- id: kebab-id | created: YYYY-MM-DD | last_used: YYYY-MM-DD | uses: N | tier: active -->`\n\n")
+        root = self._setup(header + CONT)
+        before = self._read(root, "continuity.md")
+        code, msg = archive_fact.archive_facts(root, ["kebab-id"], "faded", "2026-Q1", None, False)
+        self.assertEqual(code, 1)
+        self.assertIn("no footer", msg)
+        self.assertEqual(self._read(root, "continuity.md"), before)
+
     def test_missing_id_refused_atomic(self):
         root = self._setup()
         before = self._read(root, "continuity.md")

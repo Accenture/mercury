@@ -79,6 +79,23 @@ test("multi-id move", () => {
   }
 });
 
+test("header example footer is not a movable block (v4.41.2)", () => {
+  // the seeded continuity.md header shows the footer format as an EXAMPLE inside an inline code span;
+  // it is documentation, never the block to move (mirrors memory-lint's parse guard)
+  const header = "# Continuity\n\n> Each fact carries a metadata footer:\n" +
+    "> `<!-- id: kebab-id | created: YYYY-MM-DD | last_used: YYYY-MM-DD | uses: N | tier: active -->`\n\n";
+  const root = setup(header + CONT);
+  try {
+    const before = rd(root, "continuity.md");
+    const { code, msg } = archive_facts(root, ["kebab-id"], "faded", "2026-Q1", null, false);
+    assert.equal(code, 1);
+    assert.ok(msg.includes("no footer"));
+    assert.equal(rd(root, "continuity.md"), before);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("missing id refused — atomic, nothing changes", () => {
   const root = setup();
   try {

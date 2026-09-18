@@ -48,9 +48,20 @@ def read_text(path):
     return open(path, encoding="utf-8").read()
 
 
+def _in_inline_code(text, start, end):
+    """True when text[start:end] is wrapped in backticks — a footer shown as an EXAMPLE inside an
+    inline code span is documentation, not a fact. The seeded continuity.md header documents the
+    footer format that way, so every enabled repo otherwise counts a phantom `kebab-id` fact
+    (v4.41.2, mercury-composable field report). Blockquote position cannot be the test: vision.md's
+    REAL footer sits in a blockquote."""
+    return start > 0 and text[start - 1] == "`" and end < len(text) and text[end] == "`"
+
+
 def parse_footers(text):
     out = {}
     for m in FOOTER_RE.finditer(text):
+        if _in_inline_code(text, *m.span()):
+            continue
         fields = {}
         for part in m.group(2).split("|"):
             if ":" in part:
@@ -585,6 +596,18 @@ UNDECLARED_SURFACES = ("memory/continuity.md", "memory/vision.md")
 _ID_LINE_RE = re.compile(r"<!--\s*id:\s*([a-z0-9-]+)")
 
 
+def _id_line(line):
+    """The footer-id match on one line, or None — None too for an example wrapped in an inline code
+    span (the seeded header line), so the block mapper agrees with parse_footers on what a fact is."""
+    m = _ID_LINE_RE.search(line)
+    if not m:
+        return None
+    fm = FOOTER_RE.search(line)
+    if fm and _in_inline_code(line, *fm.span()):
+        return None
+    return m
+
+
 def is_reference_surface(path):
     return path in UNDECLARED_SURFACES or (path.startswith("memory/open-threads/") and path.endswith(".md"))
 
@@ -607,7 +630,7 @@ def fact_blocks(path, text):
     if path != "memory/continuity.md":
         foot = None
         for i, l in enumerate(lines):
-            m = _ID_LINE_RE.search(l)
+            m = _id_line(l)
             if m:
                 foot = (i, m.group(1))
                 break
@@ -620,7 +643,7 @@ def fact_blocks(path, text):
         return out
     prev_end = -1
     for i, l in enumerate(lines):
-        m = _ID_LINE_RE.search(l)
+        m = _id_line(l)
         if not m:
             continue
         start = i
