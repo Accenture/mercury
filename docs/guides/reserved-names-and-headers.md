@@ -97,7 +97,11 @@ is likewise reserved: it is the **generic exception context namespace** (`error.
 [failure routing](knowledge-graph/command-reference.md#failure-routing). The
 `minigraph-state-redis` extension crate reserves `v1.redis.persist.model` /
 `v1.redis.retrieve.model` when an application links it — see
-[Workflow Suspension](knowledge-graph/workflow-suspension.md).
+[Workflow Suspension](knowledge-graph/workflow-suspension.md). The `distributed-cache`
+extension crate reserves **`v1.cache.redis`** and the health route **`redis.health`** when an
+application links it and sets `redis.cache.enabled=true`; the `sync-over-async` extension
+crate's health route is **`soa.redis.health`** — the two coexist, each reporting on its own
+`redis.*` / `soa.redis.*` server. See [Distributed Cache](distributed-cache.md).
 
 Routes marked * — and the whole Playground developer surface below — are gated by
 `#[optional_service("app.env=dev")]` and exist only when `app.env` is `dev`:

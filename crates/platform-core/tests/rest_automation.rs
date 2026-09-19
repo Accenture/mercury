@@ -426,6 +426,18 @@ rest:
     url: "/api/flow/demo"
     flow: 'demo-flow'
     timeout: 5s
+  - service: "failing.service"
+    methods: ['GET']
+    url: "/api/fail"
+    timeout: 5s
+  - service: "typed.envelope.probe"
+    methods: ['GET']
+    url: "/api/typed-envelope/{user}"
+    timeout: 5s
+  - service: "json.error.service"
+    methods: ['GET']
+    url: "/api/fail/json"
+    timeout: 5s
 cors:
   - id: cors_1
     options:
@@ -438,6 +450,65 @@ headers:
     response:
       add: ["x-served-by: mercury"]
 "#;
+
+/// A TYPED function that returns an `EventEnvelope` — the Java
+/// `TypedLambdaFunction<I, EventEnvelope>` contract: the envelope IS the reply
+/// (status, headers, body), never a body that nests the envelope.
+struct TypedEnvelopeProbe;
+
+#[async_trait]
+impl platform_core::TypedFunction<automation::AsyncHttpRequest, EventEnvelope>
+    for TypedEnvelopeProbe
+{
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        request: automation::AsyncHttpRequest,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        EventEnvelope::new()
+            .set_status(202)
+            .set_header("x-typed-reply", "envelope")
+            .set_body(serde_json::json!({
+                "user": request.path_parameter("user"),
+                "accepted": true,
+            }))
+    }
+}
+
+/// Fails with an `AppError` — the shape a bubbled-up function error takes
+/// (status + plain-text message, no headers).
+struct FailingService;
+
+#[async_trait]
+impl ComposableFunction for FailingService {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        Err(AppError::new(404, "nothing here"))
+    }
+}
+
+/// Answers an error status with a text body that already looks like JSON —
+/// the guard case: left exactly as the function wrote it.
+struct JsonErrorService;
+
+#[async_trait]
+impl ComposableFunction for JsonErrorService {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        Ok(EventEnvelope::new()
+            .set_status(409)
+            .set_raw_body(rmpv::Value::String(r#"{"custom":true}"#.into())))
+    }
+}
 
 struct TestServer {
     port: u16,
@@ -517,6 +588,19 @@ async fn server() -> TestServer {
             }),
             1,
         )
+        .unwrap();
+    platform
+        .register("failing.service", Arc::new(FailingService), 1)
+        .unwrap();
+    platform
+        .register(
+            "typed.envelope.probe",
+            platform_core::TypedAdapter::arc(TypedEnvelopeProbe),
+            1,
+        )
+        .unwrap();
+    platform
+        .register("json.error.service", Arc::new(JsonErrorService), 1)
         .unwrap();
     // the async HTTP client, for the echo-chain caller's outgoing hop
     platform
@@ -792,6 +876,59 @@ async fn unknown_path_is_java_shaped_404() {
     assert_eq!(json["status"], 404);
     assert_eq!(json["type"], "error");
     assert_eq!(json["message"], "Resource not found");
+}
+
+/// Java `TypedLambdaFunction<I, EventEnvelope>` parity (`WorkerHandler.updateResponse`:
+/// `result instanceof EventEnvelope`): a typed function that returns an
+/// `EventEnvelope` sets the reply's status, headers and body — the adapter
+/// honours it as the reply instead of serializing the envelope into a body.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn typed_function_may_return_an_envelope_to_set_status_and_headers() {
+    let server = server().await;
+    let (status, headers, body) =
+        http(server.port, "GET", "/api/typed-envelope/carol", &[], "").await;
+    assert_eq!(status, 202, "the envelope's status is the reply's: {body}");
+    assert_eq!(
+        headers.get("x-typed-reply").map(String::as_str),
+        Some("envelope"),
+        "the envelope's header reaches the wire: {headers:?}"
+    );
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(
+        json["user"], "carol",
+        "the envelope's body is the reply body, not a nested envelope: {body}"
+    );
+    assert_eq!(json["accepted"], true);
+    assert!(
+        json.get("headers").is_none() && json.get("status").is_none(),
+        "no serialized envelope: {body}"
+    );
+}
+
+/// Java `AsyncHttpResponse.handleException` parity: a function's failure — an
+/// `AppError` the worker turns into an error status with a plain-text body and
+/// no headers — reaches the REST client as the SAME standard error body the
+/// router uses for its own errors, so a client sees one error shape whether
+/// the failure came from routing or from the service.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn function_failure_is_java_shaped_error_body() {
+    let server = server().await;
+    let (status, headers, body) = http(server.port, "GET", "/api/fail", &[], "").await;
+    assert_eq!(status, 404, "headers {headers:?} body {body}");
+    assert_eq!(
+        headers.get("content-type").map(String::as_str),
+        Some("application/json"),
+        "headers {headers:?} body {body}"
+    );
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["status"], 404);
+    assert_eq!(json["type"], "error");
+    assert_eq!(json["message"], "nothing here");
+    // the Java guard: a text body that already looks like JSON (or XML) is
+    // left exactly as the function wrote it
+    let (status, _, body) = http(server.port, "GET", "/api/fail/json", &[], "").await;
+    assert_eq!(status, 409);
+    assert_eq!(body, r#"{"custom":true}"#);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -2949,3 +2949,81 @@ awaits the batch concurrently ON THE CALLING TASK (`futures_util::future::join_a
 crate already rides in platform-core and sync-over-async), shared by the three skills;
 responses stay in request order and the batch stays concurrent. Pinned by the new
 end-to-end test's business-cid assertion, which is exactly the symptom.
+
+## Increment 119 — Distributed cache lock-step: the shared Redis foundation, `v1.cache.redis`, the three-layer example (2026-09-19)
+
+Lock-step with the Java engine's v4.12.9 distributed cache (Java spec
+`draft-design-specs/distributed-cache.md`, Q1–Q8; this port's spec
+`draft-design-specs/distributed-cache-port.md`). Three crates, in the Java dependency direction:
+
+- **`mercury-redis-connection`** (`extensions/redis-connection`, new) — the shared Redis client
+  foundation extracted from sync-over-async, as Java's Q2 ruled: `RedisConfig` reads a configurable key
+  prefix (`soa.redis.*` for sync-over-async, plain `redis.*` for the cache) with every key falling back
+  to the un-prefixed `redis.*` form, and gains `username` (RBAC) and the two-key cluster selection
+  (`cluster.detect` / `cluster.mode` / `cluster.nodes`); `RedisBackend` is the standalone-or-cluster
+  seam — an enum over the `redis` crate's auto-reconnecting `ConnectionManager`, a plain
+  `MultiplexedConnection` (the probe's shape) and the `cluster-async` `ClusterConnection`, all behind one
+  `query`, with the `INFO cluster` auto-detect and the inconclusive-probe fallback; `RedisHealthProbe`
+  is sync-over-async's health check generalised (route + config prefix supplied by the binding).
+  sync-over-async now depends on it: `RedisSettings` is a compatibility alias of the foundation's
+  `RedisConfig`, and `soa.redis.health` is a thin binding reading `soa.redis.health.*` with the legacy
+  `redis.health.*` fallback — behaviour-preserving, proven by its unchanged suites.
+- **`mercury-distributed-cache`** (`extensions/distributed-cache`, new) — the cache as ONE composable
+  action function, `v1.cache.redis`, gated by `redis.cache.enabled` (`#[optional_service]`), over opaque
+  bytes: `PUT`/`GET`/`MGET`/`MPUT`/`DELETE`/`PUT_IF_NOT_PRESENT` + FIFO `LIST_PUSH`/`LIST_POP`/`LIST_LEN`,
+  every key TTL'd from birth (`SETEX`, atomic `SET NX EX`, `RPUSH`+`EXPIRE` as one `MULTI`/`EXEC` step —
+  the port's ruled equivalent of Java's `EVAL`, port spec §4), `MPUT` a pipelined per-entry `SETEX`, the
+  optional `redis.cache.key.prefix` namespace stripped again from `MGET`, the same action names and
+  error messages as Java; a lazily built process-wide runtime over ONE multiplexed connection that
+  re-resolves configuration on every failed build (a late credential is picked up, the app boots with
+  Redis down) and releases it through the new `Platform::on_shutdown`; `redis.health` as the
+  foundation probe's plain-namespace binding.
+- **`examples/distributed-cache-example`** (new) — the same profile CRUD on all three layers over one
+  cache: Layer 1 in code (`v1.profile.l1`), Layer 2 as ONE flow (`l2-profile.yml`, **byte-identical** to
+  the Java example's), Layer 3 as ONE graph (`profile-cache.json`, byte-identical) through the standard
+  `/api/graph/{graph_id}` endpoint; the value is a plain MsgPack map (`rmpv`, the Java
+  `MsgPack.packMapOrList` form) under `cache-demo:`, so the two engines' examples read each other's
+  profiles — the cross-engine interop harness. Dev mode pre-wired (Playground + broker script) as in Java.
+
+**Platform additions.** `Platform::on_shutdown(hook)` + `Platform::run_shutdown_hooks()` — the Java
+`Platform.onShutdown(Runnable)` lifecycle (v4.12.9): hooks run once, newest first, each isolated, from
+`AutoStart::run` after the serving loop; the RESP test double gained `MGET` and `SET` options
+(`NX`/`XX`/`EX`/`PX`/`KEEPTTL`).
+
+**Found and fixed on the way — a REST parity gap.** A function's failure (`Err(AppError)`) reached
+the HTTP client as `text/plain`, where the Java engine renders the standard error body
+`{status, message, type: error}` (`AsyncHttpResponse.handleException`: error status, no headers, a
+string body that does not look like JSON or XML). The Rust server had that shape only for its own
+routing errors; the example's Layer 1 miss exposed it. Mirrored with the same guard and pinned in the
+REST suite.
+
+**Found and fixed on the way — a typed function could not set status or headers.** A Java
+`TypedLambdaFunction<I, EventEnvelope>` returns an `EventEnvelope` to set the reply's status, headers and
+body (`WorkerHandler.updateResponse`: `result instanceof EventEnvelope`); the Rust `TypedAdapter` always
+wrapped `O` as the body, and because `EventEnvelope` derives `Serialize` a `TypedFunction<I,
+EventEnvelope>` compiled and silently nested the whole envelope inside the reply body (Eric's question
+during the lock-step). The adapter now downcasts the output — the Java `instanceof` — and honours an
+`EventEnvelope` as the reply; pinned over REST by
+`typed_function_may_return_an_envelope_to_set_status_and_headers`; the authoring guides say so.
+
+**Tests.** Foundation: the `RedisConfig` twins (defaults, discrete keys, two-key cluster selection,
+RBAC username, `soa.*` → `redis.*` fallback and precedence, prefix isolation, seeds, auth/TLS
+descriptors), the backend twins against the double (auto-detect resolves standalone; explicit mode skips
+detection; a pipeline on the one connection; opaque bytes; explicit cluster mode routes to the cluster
+branch — proven by its `CLUSTER` exchange; inconclusive detection falls back), the probe helpers.
+Cache: the action set, the config (incl. "ignores the `soa.*` namespace"), and ONE booted contract
+suite mirroring `RedisCacheTest` + `RedisCacheStoreTest` + `CacheRedisHealthCheckTest` — every
+operation with its TTL-from-birth proven on the double's wire-visible expiry, the prefix stripped from
+`MGET`, `MPUT` pipelined not transactional (journal), `LIST_PUSH` one `MULTI`/`EXEC` (journal), the
+rejections, `redis.health` info + live probe, lazy build and rebuild after `shutdown()` — plus the
+disabled-gate suite ("dependency present, feature off": neither function registers). Example:
+`ProfileCacheTest` twins over the real HTTP stack — Layers 1/2 CRUD, the Layer 3 graph incl. its closed
+dispatch table (400 on an unknown or absent action), cross-layer interop, and the stored bytes decoded
+as a plain MsgPack map. `cargo fmt --check`, `clippy --workspace -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`, `mkdocs build --strict` clean.
+
+**Docs.** `guides/distributed-cache.md` (adapted from the Java guide: Rust snippets, the `MULTI`/`EXEC`
+delta, the `Value::Binary` body rule); the configuration reference's `redis.*` block rewritten as the
+shared foundation namespace (+ `username`, `cluster.*`) with new `soa.redis.*` and `redis.cache.*`
+blocks; reserved names (`v1.cache.redis`, `redis.health`, `soa.redis.health`); `llms.txt`; the mkdocs
+nav; the AI-contract inventory; README and getting-started pointers; crate READMEs.

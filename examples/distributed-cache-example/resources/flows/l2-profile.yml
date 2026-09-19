@@ -1,0 +1,106 @@
+#
+# Layer 2 (Event Script): ONE flow serves the whole profile CRUD, mirroring the single Layer 3 graph.
+# The first task derives the action from the HTTP method (v1.http.method.action) and, as a decision task,
+# routes to the get / save / delete branch. Two branches call v1.cache.redis, so each task carries a unique
+# 'name:' (the alias used in 'next:' and 'first.task') distinct from its 'process:' route.
+#
+flow:
+  id: 'l2-profile'
+  description: 'Layer 2: derive the action from the HTTP method, then GET/PUT/DELETE the shared cache'
+  ttl: 10s
+  exception: 'v1.profile.exception'
+
+first.task: 'method.to.action'
+
+tasks:
+  # Map the HTTP method to an action string + a 1-based routing decision (GET->get 1, POST->save 2,
+  # DELETE->delete 3). This is L2's counterpart to L3's payload 'action' field.
+  - name: 'method.to.action'
+    input:
+      - 'input.method -> method'
+    process: 'v1.http.method.action'
+    output:
+      - 'result.action -> model.action'
+      - 'result.decision -> decision'
+    description: 'Derive the cache action from the HTTP method'
+    execution: decision
+    next:
+      - 'get.cache.read'
+      - 'save.encode'
+      - 'delete.cache.evict'
+
+  # ---- GET branch: read the bytes, decode to the profile Map (or 404 on a miss) ------------------
+  - name: 'get.cache.read'
+    input:
+      - 'text(GET) -> header.action'
+      - 'input.path_parameter.profile_id -> header.key'
+    process: 'v1.cache.redis'
+    output:
+      - 'result -> model.bytes'
+    description: 'Cache GET - the stored bytes, or null on a miss'
+    execution: sequential
+    next:
+      - 'get.decode'
+
+  - name: 'get.decode'
+    input:
+      - 'model.bytes -> *'
+    process: 'v1.profile.decode'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Restore the profile Map from the MsgPack bytes (or raise 404 Profile not found)'
+    execution: end
+
+  # ---- SAVE branch: encode to MsgPack bytes, then PUT -------------------------------------------
+  - name: 'save.encode'
+    input:
+      - 'input.body -> *'
+    process: 'v1.profile.encode'
+    output:
+      - 'result -> model.bytes'
+    description: 'Pack the profile Map to a MsgPack byte[]'
+    execution: sequential
+    next:
+      - 'save.cache.write'
+
+  - name: 'save.cache.write'
+    input:
+      - 'text(PUT) -> header.action'
+      - 'input.path_parameter.profile_id -> header.key'
+      - 'model.bytes -> *'
+    process: 'v1.cache.redis'
+    output:
+      - 'int(201) -> output.status'
+      - 'text(application/json) -> output.header.content-type'
+      - 'input.path_parameter.profile_id -> output.body.id'
+      - 'int(2) -> output.body.layer'
+      - 'text(stored) -> output.body.status'
+    description: 'Cache PUT (SETEX with the default TTL)'
+    execution: end
+
+  # ---- DELETE branch ----------------------------------------------------------------------------
+  - name: 'delete.cache.evict'
+    input:
+      - 'text(DELETE) -> header.action'
+      - 'input.path_parameter.profile_id -> header.key'
+    process: 'v1.cache.redis'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'input.path_parameter.profile_id -> output.body.id'
+      - 'int(2) -> output.body.layer'
+      - 'result -> output.body.deleted'
+    description: 'Cache DELETE - the count removed (0 or 1)'
+    execution: end
+
+  # ---- shared exception handler (e.g. 404 Profile not found) -------------------------------------
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'v1.profile.exception'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Render the error'
+    execution: end

@@ -1,0 +1,26 @@
+[package]
+name = "distributed-cache-example"
+description = "Example application — the same profile CRUD on all three layers over ONE shared Redis cache (v1.cache.redis); the cross-engine interop harness of the distributed cache"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+# not a library release artifact - never publish to crates.io
+publish = false
+
+[dependencies]
+mercury-platform-core = { path = "../../crates/platform-core" }
+mercury-event-script = { path = "../../crates/event-script" }
+mercury-knowledge-graph = { path = "../../crates/knowledge-graph" }
+# the cache: linking this crate registers v1.cache.redis and redis.health
+# automatically (preload inventory) once redis.cache.enabled=true - the
+# connection is lazy, so the app boots normally and connects on first use
+mercury-distributed-cache = { path = "../../extensions/distributed-cache" }
+async-trait = "0.1"
+log = "0.4"
+rmpv = { version = "1", features = ["with-serde"] }
+serde_json = "1"
+
+[dev-dependencies]
+mercury-redis-test-double = { path = "../../extensions/redis-test-double" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util"] }

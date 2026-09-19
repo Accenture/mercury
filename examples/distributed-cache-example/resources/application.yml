@@ -1,0 +1,31 @@
+# distributed-cache-example — the same profile CRUD on all three layers over
+# ONE shared Redis cache (v1.cache.redis). Rust twin of the Java example, same
+# port, same routes, same MsgPack value format: a profile written by either
+# engine reads back through the other.
+application.name: distributed-cache-example
+info.app.description: 'Distributed cache example - profile CRUD over v1.cache.redis at Layers 1, 2 and 3'
+
+rest.automation: true
+rest.server.port: 8305
+log.format: json
+
+# the cache: opt in, point at Redis (env-overridable), default TTL and the
+# app namespace every key is prefixed with (Java parity: cache-demo:)
+redis.cache.enabled: true
+redis.host: ${REDIS_HOST:127.0.0.1}
+redis.port: ${REDIS_PORT:6379}
+redis.cache.default.ttl: 1h
+redis.cache.key.prefix: 'cache-demo:'
+# the cache's Redis is a mandatory dependency of /health
+mandatory.health.dependencies: redis.health
+
+# Layer 3: the graph manifest (the CompileGraph deployment gate) - the one
+# graph, profile-cache, is served by the standard endpoint /api/graph/{graph_id}
+graph.model.automation: 'classpath:/graphs.yaml'
+graph.traversal.log: true
+location.graph.temp: file:/tmp/graph
+
+# dev mode: the Playground / companion services register only when app.env=dev
+# (each is #[optional_service("app.env=dev")]); set APP_ENV=prod for production,
+# where only the three profile route families and /api/graph/{graph_id} remain
+app.env: ${APP_ENV:dev}

@@ -1,0 +1,7 @@
+# distributed-cache contract tests (Java parity: the module's own
+# application.properties). redis.host/redis.port are supplied at runtime by
+# the test (overrides) once the in-process RESP test double has bound its
+# ephemeral port; redis.cache.enabled is set by the suite that expects the
+# functions to register (the disabled-gate suite leaves it unset).
+application.name: distributed-cache-test
+info.app.description: 'Distributed cache extension tests'

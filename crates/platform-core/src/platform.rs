@@ -105,6 +105,16 @@ type RouteRegistry = Arc<RwLock<HashMap<String, RouteEntry>>>;
 /// consulted for routing (Java `Platform.poolRegistry`).
 type PoolRegistry = Arc<RwLock<HashMap<String, usize>>>;
 
+/// A shutdown callback (Java `Runnable`) registered through
+/// [`Platform::on_shutdown`].
+type ShutdownHook = Box<dyn FnOnce() + Send + 'static>;
+
+/// The process-wide shutdown hooks, run once in reverse registration order by
+/// [`Platform::run_shutdown_hooks`] (Java `Platform.onShutdown` keeps ONE JVM
+/// shutdown hook and a list of callbacks behind it — here the process has one
+/// exit path, `AutoStart::run`, and this list behind it).
+static SHUTDOWN_HOOKS: std::sync::Mutex<Vec<ShutdownHook>> = std::sync::Mutex::new(Vec::new());
+
 /// The service registry: route name → manager + worker pool. Cheap to clone.
 #[derive(Clone, Default)]
 pub struct Platform {
@@ -161,6 +171,41 @@ impl Platform {
     pub fn get_instance() -> Platform {
         static GLOBAL: OnceLock<Platform> = OnceLock::new();
         GLOBAL.get_or_init(Platform::new).clone()
+    }
+
+    /// Register a callback to run when the process shuts down — the
+    /// lightweight lifecycle of Java `Platform.onShutdown(Runnable)` (v4.12.9).
+    /// Callbacks run in **reverse registration order** (last opened, first
+    /// released), each isolated: a panicking hook is logged and the rest still
+    /// run. A component that opens a long-lived resource lazily registers its
+    /// release from the code path that opened it, so a process that never
+    /// touched the resource registers nothing.
+    ///
+    /// Hooks run from [`AutoStart::run`](crate::AutoStart::run) after the
+    /// serving loop ends (Ctrl-C) and before the engine's own cleanup. An
+    /// embedder that awaits `AutoStart::main` instead owns its exit and calls
+    /// [`Platform::run_shutdown_hooks`] itself.
+    pub fn on_shutdown(&self, hook: impl FnOnce() + Send + 'static) {
+        SHUTDOWN_HOOKS
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .push(Box::new(hook));
+    }
+
+    /// Run every registered shutdown hook once, newest first, each isolated
+    /// from the others' failures; a second call finds nothing to run (Java
+    /// `runShutdownHooks`).
+    pub fn run_shutdown_hooks() {
+        let hooks: Vec<ShutdownHook> = std::mem::take(
+            &mut *SHUTDOWN_HOOKS
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+        );
+        for hook in hooks.into_iter().rev() {
+            if std::panic::catch_unwind(std::panic::AssertUnwindSafe(hook)).is_err() {
+                log::warn!("Ignorable error while running a shutdown hook");
+            }
+        }
     }
 
     /// The application name (Java `platform.getName()`): `application.name`,
@@ -1006,6 +1051,31 @@ async fn emit_telemetry(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Java `Platform.onShutdown` contract: hooks run once, newest first, and
+    /// one hook's failure never stops the others.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn shutdown_hooks_run_newest_first_once_and_isolated() {
+        let order = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let platform = Platform::new();
+        for tag in ["first", "second", "third"] {
+            let order = order.clone();
+            platform.on_shutdown(move || order.lock().unwrap().push(tag));
+        }
+        let boom = order.clone();
+        platform.on_shutdown(move || {
+            boom.lock().unwrap().push("boom");
+            panic!("a hook that fails must not stop the rest");
+        });
+        Platform::run_shutdown_hooks();
+        assert_eq!(
+            vec!["boom", "third", "second", "first"],
+            *order.lock().unwrap()
+        );
+        // a second run finds nothing to do
+        Platform::run_shutdown_hooks();
+        assert_eq!(4, order.lock().unwrap().len());
+    }
 
     #[test]
     fn route_validation_rules() {

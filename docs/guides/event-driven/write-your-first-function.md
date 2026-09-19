@@ -14,7 +14,9 @@ functions communicate through named routes and `EventEnvelope`, never by direct 
 A function is a struct with a `#[preload]` attribute. There are two authoring surfaces.
 
 **Typed** — implement `TypedFunction<I, O>` with your own `serde` types and add the `typed`
-flag; the platform deserializes the input and wraps your output back into an envelope:
+flag; the platform deserializes the input and wraps your output back into an envelope (or, when
+`O` is `EventEnvelope`, honours it *as* the reply — the way to set the reply's status and headers
+from a typed function, the Java `TypedLambdaFunction<I, EventEnvelope>` contract):
 
 ```rust
 use std::collections::HashMap;
