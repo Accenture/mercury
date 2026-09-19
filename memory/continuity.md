@@ -197,6 +197,19 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   scenario.** Pinned by `function_failure_is_java_shaped_error_body`.
   <!-- id: rest-error-body-standard-shape | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-182617 -->
 
+- **A typed function may return an `EventEnvelope` to set the reply's status, headers and body — the
+  `TypedAdapter` honours it AS the reply (2026-09-19, d0b0363e; Java `TypedLambdaFunction<I, EventEnvelope>`
+  parity, `WorkerHandler.updateResponse`'s `instanceof`).** Before, the adapter wrapped every `O` as the
+  body, and because `EventEnvelope` derives `Serialize` a `TypedFunction<I, EventEnvelope>` compiled and
+  silently nested the whole envelope inside the reply body — a trap that only the untyped
+  `ComposableFunction` (which always returns an envelope) avoided. Now the output is downcast through
+  `Any`: an `EventEnvelope` passes through, anything else is wrapped as before (`O: 'static`, which
+  `TypedAdapter::arc` already required). Eric's question surfaced it; the fix rode the distributed-cache
+  PR at his direction. Pinned over REST by `typed_function_may_return_an_envelope_to_set_status_and_headers`.
+  Relates [[rest-error-body-standard-shape]] (found the same day, the same "Java honours the envelope"
+  family); documented in the three authoring surfaces.
+  <!-- id: typed-function-envelope-reply | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-182617 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
