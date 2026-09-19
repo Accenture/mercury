@@ -65,6 +65,7 @@ fn inventory_equals_the_documentation_closure() {
         "references/llms.txt",
         "references/index.md",
         "references/arch-decisions/ADR.md",
+        "references/arch-decisions/RFC.md",
         "references/background/port-scope.md",
     ]
     .into_iter()

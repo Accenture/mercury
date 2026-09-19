@@ -40,7 +40,7 @@ use rmpv::Value;
 
 use crate::common::{
     get_graph_instance, get_model_ttl, get_node, invalid, ERROR, EXCEPTION, EXECUTE, HEADER, IN,
-    NEXT, NODE, NODE_NAME, RESULT, SKILL, STATUS, TARGET, TYPE,
+    ITERATION_INDEX, MODEL_NAMESPACE, NEXT, NODE, NODE_NAME, RESULT, SKILL, STATUS, TARGET, TYPE,
 };
 use crate::model::GraphInstance;
 
@@ -58,6 +58,9 @@ const CID: &str = "cid";
 const GRAPH: &str = "graph";
 const MODEL: &str = "model";
 const MODEL_CID: &str = "model.cid";
+/// Store-contract field naming the `for_each` iteration; absent for an
+/// ordinary invocation (Java `GraphStateSkill.INDEX`).
+const INDEX: &str = "index";
 /// The engine-managed run flag (`"resume" | "fresh"`): graph.resume is its
 /// only writer. Reserved flow metadata — the flow compiler rejects any data
 /// mapping that overwrites it (reading it as a source stays legal).
@@ -79,7 +82,7 @@ const INTERNAL_SERVER_ERROR: i32 = 500;
 /// values are authoritative (`run` is the fresh/resume flag set by
 /// graph.resume; embalming it would let a later resume read a stale
 /// condition, and the store is pluggable so a record is external input).
-pub const NON_PERSISTED_MODEL_KEYS: [&str; 9] = crate::common::RESERVED_MODEL_METADATA;
+pub const NON_PERSISTED_MODEL_KEYS: [&str; 10] = crate::common::RESERVED_MODEL_METADATA;
 
 /// The shared context ladder (Java `GraphStateSkill.getContext`): validate
 /// EXECUTE, resolve instance/node, check the skill route, require a valid
@@ -181,6 +184,32 @@ fn get_required_correlation_id(
         "{NODE_NAME}{node_name} requires model.cid - supply a business correlation ID \
          (e.g. X-Correlation-Id header) or set model.cid"
     )))
+}
+
+/// This run's `for_each` iteration index, or `None` when the graph was not
+/// invoked as one iteration of a parent's fan-out (Java
+/// `GraphStateSkill.getIterationIndex`).
+///
+/// It scopes the store record so N concurrent iterations of one subgraph —
+/// which all share the parent's business correlation ID by design — stop
+/// colliding on a single key. A resumed run re-derives the same index because
+/// the parent re-forks the same iteration, which only holds while the array is
+/// positionally consistent: a DECLARED constraint the engine cannot check.
+/// Trimmed like the cid, and for the same reason — it is part of the store
+/// key, so padding would split one iteration's records across two keys; a
+/// blank index is no index, never an empty segment.
+pub(crate) fn get_iteration_index(state: &MultiLevelMap) -> Option<String> {
+    match state.get_element(&format!("{MODEL_NAMESPACE}{ITERATION_INDEX}")) {
+        Some(Value::String(text)) => {
+            let index = crate::common::java_trim(text.as_str().unwrap_or_default());
+            if index.is_empty() {
+                None
+            } else {
+                Some(index.to_string())
+            }
+        }
+        _ => None,
+    }
 }
 
 /// Parse and validate a checkpoint ttl — the single implementation shared by
@@ -393,10 +422,12 @@ pub async fn suspend(
     EventEnvelope::new().set_body(next)
 }
 
-/// The persistence envelope (headers `type=put`): `{cid, graph, node, ttl,
-/// model, seen, run}` — model = the model namespace MINUS the reserved keys.
-/// cid + graph form the retrieval key: the same business transaction may
-/// suspend independently in a parent graph and in each subgraph.
+/// The persistence envelope (headers `type=put`): `{cid, graph, [index,] node,
+/// ttl, model, seen, run}` — model = the model namespace MINUS the reserved
+/// keys. cid + graph (+ the `for_each` index, when there is one) form the
+/// retrieval key: the same business transaction may suspend independently in
+/// a parent graph and in each subgraph, and independently per iteration of a
+/// fan-out.
 fn persistence_envelope(
     instance: &GraphInstance,
     state: &MultiLevelMap,
@@ -415,10 +446,16 @@ fn persistence_envelope(
         ),
         _ => Value::Map(vec![]),
     };
-    Value::Map(vec![
+    let mut envelope = vec![
         (Value::from(CID), Value::from(cid)),
         // cid + graph form the retrieval key (self-contained per graph)
         (Value::from(GRAPH), Value::from(instance.graph_id.as_str())),
+    ];
+    // present only for a for_each iteration - see get_iteration_index
+    if let Some(index) = get_iteration_index(state) {
+        envelope.push((Value::from(INDEX), Value::from(index)));
+    }
+    envelope.extend([
         (Value::from(NODE), Value::from(from)),
         (Value::from(TTL), Value::from(ttl_seconds)),
         (Value::from(MODEL), model_copy),
@@ -430,7 +467,25 @@ fn persistence_envelope(
             Value::from(RUN),
             marks_to_value(&instance.skill_run.lock().expect("skill run")),
         ),
-    ])
+    ]);
+    Value::Map(envelope)
+}
+
+/// The record this run is entitled to (Java `GraphResume.lookupKey`): the
+/// graph id scopes the lookup — a resume only ever sees records written by its
+/// own graph (parent and subgraphs are self-contained) — and a `for_each`
+/// iteration adds its index, so it sees only the record its own iteration
+/// wrote. A changed index (an item inserted or removed ahead of it) simply
+/// misses and the run starts fresh, which is the declared behaviour.
+fn lookup_key(instance: &GraphInstance, state: &MultiLevelMap, cid: &str) -> Value {
+    let mut key = vec![
+        (Value::from(CID), Value::from(cid)),
+        (Value::from(GRAPH), Value::from(instance.graph_id.as_str())),
+    ];
+    if let Some(index) = get_iteration_index(state) {
+        key.push((Value::from(INDEX), Value::from(index)));
+    }
+    Value::Map(key)
 }
 
 fn marks_to_value(marks: &HashMap<String, bool>) -> Value {
@@ -483,23 +538,16 @@ pub async fn resume(
     let (po, ctx) = get_context(platform, &headers, RESUME_ROUTE)?;
     let node_name = ctx.node.get_alias().to_string();
     let cid = get_required_correlation_id(&ctx.instance, &node_name)?;
-    let timeout = {
+    let (timeout, key) = {
         let mut state = ctx.instance.state.lock().expect("graph state machine");
-        get_model_ttl(&mut state)
+        let timeout = get_model_ttl(&mut state);
+        (timeout, lookup_key(&ctx.instance, &state, &cid))
     };
     let request = EventEnvelope::new()
         .set_to(&ctx.route)
         .set_correlation_id(&uuid_simple())
         .set_header(TYPE, GET)
-        .set_raw_body(Value::Map(vec![
-            (Value::from(CID), Value::from(cid.as_str())),
-            // the graph id scopes the lookup: a resume only ever sees records
-            // written by its own graph (parent and subgraphs are self-contained)
-            (
-                Value::from(GRAPH),
-                Value::from(ctx.instance.graph_id.as_str()),
-            ),
-        ]));
+        .set_raw_body(key);
     po.annotate_trace(TASK, &ctx.route);
     po.annotate_trace(CID, &cid);
     // issued within the skill's trace context — the store call's span chains
@@ -695,5 +743,79 @@ mod tests {
         // the overflow guard: an absurd day count must reject, not wrap
         assert!(err(Some(&Value::from("99999999999d"))).contains("invalid ttl"));
         assert!(err(Some(&Value::from("9999999999"))).contains("invalid ttl"));
+    }
+
+    /// Java `GraphStateSkillTest.iterationIndexIsAbsentForAnOrdinaryInvocation`:
+    /// the whole backward-compatibility story — no index means the store key
+    /// keeps the two segments it has always had, so a single delegation and
+    /// pre-upgrade records are untouched.
+    #[test]
+    fn iteration_index_is_absent_for_an_ordinary_invocation() {
+        let instance = GraphInstance::new("unit-test");
+        let mut state = instance.state.lock().expect("state");
+        state
+            .set_element(MODEL_CID, Value::from("order-1001"))
+            .expect("seed cid");
+        assert_eq!(None, get_iteration_index(&state));
+        // and the envelope / lookup key carry no 'index' field at all
+        let envelope = MultiLevelMap::from_value(persistence_envelope(
+            &instance,
+            &state,
+            "order-1001",
+            "prepare",
+            30,
+        ));
+        assert_eq!(None, envelope.get_element(INDEX));
+        assert_eq!(Some(Value::from("unit-test")), envelope.get_element(GRAPH));
+        let key = MultiLevelMap::from_value(lookup_key(&instance, &state, "order-1001"));
+        assert_eq!(None, key.get_element(INDEX));
+        assert_eq!(Some(Value::from("order-1001")), key.get_element(CID));
+    }
+
+    /// Java `GraphStateSkillTest.iterationIndexIsReadFromTheReservedModelKey`.
+    #[test]
+    fn iteration_index_is_read_from_the_reserved_model_key() {
+        let instance = GraphInstance::new("unit-test");
+        let mut state = instance.state.lock().expect("state");
+        state
+            .set_element(MODEL_CID, Value::from("order-1001"))
+            .expect("seed cid");
+        state
+            .set_element(
+                &format!("{MODEL_NAMESPACE}{ITERATION_INDEX}"),
+                Value::from(" 2 "),
+            )
+            .expect("seed index");
+        // trimmed like the cid, and for the same reason: it is part of the store
+        // key, so padding would split one iteration's records across two keys
+        assert_eq!(Some("2".to_string()), get_iteration_index(&state));
+        // the envelope carries it as the store-contract field, and NEVER inside
+        // the persisted model (it is reserved: the current run supplies it)
+        let envelope = MultiLevelMap::from_value(persistence_envelope(
+            &instance,
+            &state,
+            "order-1001",
+            "prepare",
+            30,
+        ));
+        assert_eq!(Some(Value::from("2")), envelope.get_element(INDEX));
+        assert_eq!(
+            None,
+            envelope.get_element(&format!("{MODEL}.{ITERATION_INDEX}"))
+        );
+        let key = MultiLevelMap::from_value(lookup_key(&instance, &state, "order-1001"));
+        assert_eq!(Some(Value::from("2")), key.get_element(INDEX));
+
+        state
+            .set_element(
+                &format!("{MODEL_NAMESPACE}{ITERATION_INDEX}"),
+                Value::from("   "),
+            )
+            .expect("seed blank index");
+        assert_eq!(
+            None,
+            get_iteration_index(&state),
+            "a blank index is no index, not an empty segment"
+        );
     }
 }

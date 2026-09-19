@@ -52,6 +52,13 @@ fn scoped_key(graph_id: &str, cid: &str) -> String {
     format!("graph:{graph_id}:{cid}")
 }
 
+/// The iteration-scoped key: `graph:{graph_id}:{cid}:{index}` for one
+/// iteration of a for_each fan-out (the third segment is appended only when
+/// the caller supplies an index).
+fn indexed_key(graph_id: &str, cid: &str, index: &str) -> String {
+    format!("graph:{graph_id}:{cid}:{index}")
+}
+
 #[main_application]
 struct RedisStoreTestApp;
 
@@ -136,6 +143,31 @@ fn get_body(graph_id: &str, cid: &str) -> Value {
         (Value::from("cid"), Value::from(cid)),
         (Value::from("graph"), Value::from(graph_id)),
     ])
+}
+
+/// A retrieve body for one for_each iteration: `{cid, graph, index}`.
+fn get_body_indexed(graph_id: &str, cid: &str, index: &str) -> Value {
+    Value::Map(vec![
+        (Value::from("cid"), Value::from(cid)),
+        (Value::from("graph"), Value::from(graph_id)),
+        (Value::from("index"), Value::from(index)),
+    ])
+}
+
+/// A persistence envelope for one for_each iteration suspended at `node`.
+fn iteration_envelope(cid: &str, index: Option<&str>, node: &str) -> Value {
+    let mut envelope = sample_envelope(cid, 30);
+    if let Value::Map(entries) = &mut envelope {
+        for (k, v) in entries.iter_mut() {
+            if k.as_str() == Some("node") {
+                *v = Value::from(node);
+            }
+        }
+        if let Some(index) = index {
+            entries.push((Value::from("index"), Value::from(index)));
+        }
+    }
+    envelope
 }
 
 // One test function on purpose (the repo convention): the platform boots
@@ -395,5 +427,138 @@ async fn redis_state_store_contract() {
     assert_eq!(
         Some(&Value::from("dispatch")),
         get_element(restored_parent.body(), &["node"])
+    );
+
+    // 10) THE defect the for_each lockstep exists for (Java
+    // `sameCorrelationIdIsIsolatedPerForEachIteration`): a parent fans out to N
+    // copies of ONE subgraph with for_each, and every copy inherits the parent's
+    // business correlation ID by design - so without the iteration segment they
+    // all write graph:{id}:{cid} and only the last survives, concurrently, at
+    // random. Same graph, same cid, different iteration.
+    let cid = uuid::Uuid::new_v4().simple().to_string();
+    let phone = iteration_envelope(&cid, Some("0"), "await-phone-approval");
+    let laptop = iteration_envelope(&cid, Some("1"), "await-laptop-approval");
+    assert_eq!(
+        200,
+        request(&po, PERSIST_ROUTE, "put", phone).await.status()
+    );
+    assert_eq!(
+        200,
+        request(&po, PERSIST_ROUTE, "put", laptop).await.status()
+    );
+    {
+        // two records, not one - the pre-fix behaviour left exactly one
+        let map = raw_store.lock().expect("raw store");
+        assert!(
+            map.contains_key(&indexed_key(GRAPH_ID, &cid, "0").into_bytes()),
+            "iteration 0 must own its record"
+        );
+        assert!(
+            map.contains_key(&indexed_key(GRAPH_ID, &cid, "1").into_bytes()),
+            "iteration 1 must own its record"
+        );
+        assert!(
+            !map.contains_key(&scoped_key(GRAPH_ID, &cid).into_bytes()),
+            "an indexed record must never land on the un-indexed key"
+        );
+    }
+    // and each iteration resumes its OWN workflow, not its neighbour's
+    let restored_phone = request(
+        &po,
+        RETRIEVE_ROUTE,
+        "get",
+        get_body_indexed(GRAPH_ID, &cid, "0"),
+    )
+    .await;
+    assert_eq!(
+        Some(&Value::from("await-phone-approval")),
+        get_element(restored_phone.body(), &["node"])
+    );
+    let restored_laptop = request(
+        &po,
+        RETRIEVE_ROUTE,
+        "get",
+        get_body_indexed(GRAPH_ID, &cid, "1"),
+    )
+    .await;
+    assert_eq!(
+        Some(&Value::from("await-laptop-approval")),
+        get_element(restored_laptop.body(), &["node"])
+    );
+
+    // 11) backward compatibility (Java `anIndexedRecordDoesNotDisturbTheUnindexedKey`):
+    // a single delegation writes the two-segment key it always has, and an
+    // indexed sibling neither overwrites nor shadows it
+    let cid = uuid::Uuid::new_v4().simple().to_string();
+    let plain = iteration_envelope(&cid, None, "single-delegation");
+    let indexed = iteration_envelope(&cid, Some("0"), "iteration-zero");
+    assert_eq!(
+        200,
+        request(&po, PERSIST_ROUTE, "put", plain).await.status()
+    );
+    assert_eq!(
+        200,
+        request(&po, PERSIST_ROUTE, "put", indexed).await.status()
+    );
+    assert!(
+        raw_store
+            .lock()
+            .expect("raw store")
+            .contains_key(&scoped_key(GRAPH_ID, &cid).into_bytes()),
+        "the two-segment key stands"
+    );
+    // a lookup WITHOUT an index must not find the indexed record, and vice versa
+    let restored_plain = request(&po, RETRIEVE_ROUTE, "get", get_body(GRAPH_ID, &cid)).await;
+    assert_eq!(
+        Some(&Value::from("single-delegation")),
+        get_element(restored_plain.body(), &["node"])
+    );
+    let restored_indexed = request(
+        &po,
+        RETRIEVE_ROUTE,
+        "get",
+        get_body_indexed(GRAPH_ID, &cid, "0"),
+    )
+    .await;
+    assert_eq!(
+        Some(&Value::from("iteration-zero")),
+        get_element(restored_indexed.body(), &["node"])
+    );
+
+    // 12) the declared constraint's failure mode, pinned (Java
+    // `aChangedIterationCountMissesRatherThanRestoringTheWrongItem`): an item
+    // inserted or removed shifts positions, and the shifted iteration simply
+    // finds nothing and starts fresh. A miss is already defined behaviour
+    // (model.run=fresh) - what must never happen is a silent hit on another
+    // item's record.
+    let cid = uuid::Uuid::new_v4().simple().to_string();
+    let suspended = iteration_envelope(&cid, Some("1"), "await-approval");
+    assert_eq!(
+        200,
+        request(&po, PERSIST_ROUTE, "put", suspended).await.status()
+    );
+    let shifted = request(
+        &po,
+        RETRIEVE_ROUTE,
+        "get",
+        get_body_indexed(GRAPH_ID, &cid, "2"),
+    )
+    .await;
+    assert_eq!(200, shifted.status());
+    assert!(
+        is_empty_map(shifted.body()),
+        "a shifted position must MISS, never restore another item's state: {:?}",
+        shifted.body()
+    );
+    // the un-indexed lookup misses too: iteration 1's record is reachable by
+    // iteration 1 alone
+    let unindexed = request(&po, RETRIEVE_ROUTE, "get", get_body(GRAPH_ID, &cid)).await;
+    assert!(is_empty_map(unindexed.body()));
+    assert!(
+        raw_store
+            .lock()
+            .expect("raw store")
+            .contains_key(&indexed_key(GRAPH_ID, &cid, "1").into_bytes()),
+        "the misses must not consume the neighbour's record"
     );
 }

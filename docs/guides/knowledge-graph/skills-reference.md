@@ -344,7 +344,10 @@ correlation ID. A **superset of `graph.task`**: the `task` property names the pl
 function, but the persistence envelope (`{cid, graph, node, ttl, model, seen, run}`) is assembled
 by the skill itself — **no input/output mapping on the node**. The record is scoped by
 **graph + cid** (the Redis reference keys it `graph:{graph_id}:{cid}`), so one business
-transaction may suspend independently in each domain's graph and in each subgraph.
+transaction may suspend independently in each domain's graph and in each subgraph. When the
+graph runs as one iteration of a parent's `for_each` fan-out, the iteration index is appended
+as a third segment (`graph:{graph_id}:{cid}:{index}`) so concurrent iterations do not collide
+— see [Workflow suspension](workflow-suspension.md#design-rules).
 
 ```
 skill=graph.suspend

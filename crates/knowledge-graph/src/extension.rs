@@ -34,8 +34,9 @@ use rmpv::Value;
 
 use crate::common::{
     fill_fetcher_api_parameters, get_effective_ttl, get_entries, get_for_each_mapping,
-    get_model_array_size, get_next_model_param_set, invalid, perform_fetcher_output_mapping, ERROR,
-    EXCEPTION, HEADER, NEXT, NODE_NAME, RESULT, SKILL, STATUS, TARGET,
+    get_model_array_size, get_next_model_param_set, invalid, join_batch,
+    perform_fetcher_output_mapping, ERROR, EXCEPTION, HEADER, ITERATION_INDEX_HEADER, NEXT,
+    NODE_NAME, RESULT, SKILL, STATUS, TARGET,
 };
 use crate::model::GraphInstance;
 
@@ -142,12 +143,14 @@ async fn call_extension(
     log::info!("Call extension {extension}, ttl={ttl}");
     po.annotate_trace("extension", extension);
     let business_cid = get_business_cid(instance);
+    // a single delegation has no iteration index - its store key stays two-segment
     let forward = build_forward(
         &node_name,
         extension,
         parameters,
         ttl,
         business_cid.as_deref(),
+        None,
     )?;
     let response = call_flow(po, forward, ttl).await;
     let mut state = instance.state.lock().expect("graph state machine");
@@ -222,12 +225,17 @@ async fn call_extension_with_fork_join(
                     }
                 }
             }
+            // the iteration's position rides with the invocation, so N
+            // iterations of ONE suspending subgraph - which all inherit this
+            // parent's business cid by design - no longer collide on one
+            // suspend/resume record
             forwards.push(build_forward(
                 &node_name,
                 extension,
                 Value::Map(parameters),
                 timeout,
                 business_cid.as_deref(),
+                Some(i),
             )?);
         }
         state
@@ -300,20 +308,39 @@ fn get_business_cid(instance: &Arc<GraphInstance>) -> Option<String> {
 /// exactly like an Event Script sub-flow launch — so a subgraph that suspends
 /// can be resumed under the same business transaction id (its store record is
 /// keyed by graph + cid, never by a per-call random id).
+///
+/// A `for_each` iteration additionally carries its position as the
+/// `x-iteration-index` HEADER of a graph invocation (Java `GraphExtension`):
+/// it must not go in the body, which is the author's own input-mapping
+/// contract, and the header map is the one channel a parent controls that
+/// reaches the executor WITHOUT touching the application-owned
+/// `graph-executor` flow file. The subgraph's suspend/resume key includes it,
+/// so N iterations of one subgraph no longer collide on one record. A
+/// `flow://` target gets no index (Java parity): the flow hop carries no graph
+/// iteration identity, which is why parent → `for_each` → flow → suspending
+/// graph is a declared non-goal rather than a supported shape.
 fn build_forward(
     node_name: &str,
     extension: &str,
     parameters: Value,
     ttl: i64,
     business_cid: Option<&str>,
+    iteration_index: Option<usize>,
 ) -> Result<EventEnvelope, AppError> {
     let body = match parameters {
         v @ Value::Map(_) => v,
         _ => Value::Map(vec![]),
     };
+    let header = match iteration_index {
+        Some(i) if !extension.starts_with(FLOW_PROTOCOL) => Value::Map(vec![(
+            Value::from(ITERATION_INDEX_HEADER),
+            Value::from(i.to_string()),
+        )]),
+        _ => Value::Map(vec![]),
+    };
     let mut dataset: Vec<(Value, Value)> = vec![
         (Value::from("body"), body),
-        (Value::from("header"), Value::Map(vec![])),
+        (Value::from("header"), header),
         (Value::from("ttl"), Value::from(ttl)),
     ];
     let flow_id = if let Some(flow_id) = extension.strip_prefix(FLOW_PROTOCOL) {
@@ -365,25 +392,20 @@ async fn call_flow(po: &PostOffice, forward: EventEnvelope, ttl: i64) -> FlowRes
     }
 }
 
-/// One fork-join batch of flow launches, responses in request order.
+/// One fork-join batch of flow launches, responses in request order — awaited
+/// on the calling task so each child flow inherits this worker's trace and
+/// business correlation-id exactly as a single delegation does (see
+/// `common::join_batch` for why this must not spawn).
 async fn run_flow_batch(forwards: Vec<EventEnvelope>, ttl: i64) -> Vec<FlowResponse> {
-    let mut handles = Vec::with_capacity(forwards.len());
-    for forward in forwards {
-        handles.push(tokio::spawn(async move {
-            let platform = Platform::get_instance();
-            let po = PostOffice::new(&platform);
-            call_flow(&po, forward, ttl).await
-        }));
-    }
-    let mut results = Vec::with_capacity(handles.len());
-    for handle in handles {
-        results.push(handle.await.unwrap_or_else(|_| FlowResponse {
-            status: 500,
-            headers: HashMap::new(),
-            body: Value::from("Extension join failure"),
-        }));
-    }
-    results
+    let platform = Platform::get_instance();
+    let po = PostOffice::new(&platform);
+    join_batch(
+        forwards
+            .into_iter()
+            .map(|forward| call_flow(&po, forward, ttl))
+            .collect(),
+    )
+    .await
 }
 
 fn set_error(

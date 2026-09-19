@@ -42,15 +42,27 @@ use rmpv::Value;
 /// `{expires_at, data}` under /tmp/suspend-resume, DELETE-ON-READ
 /// (consume-on-retrieve: at-most-once resume), expiry honored on read.
 /// Like the Redis reference implementation, records are scoped by
-/// graph + cid so the same business transaction may suspend independently
-/// in a parent graph and in each subgraph.
+/// graph + cid — plus the optional for_each iteration index — so the same
+/// business transaction may suspend independently in a parent graph, in each
+/// subgraph, and in each iteration of a subgraph fan-out.
 #[preload(route = "v1.file.state.store", instances = 10)]
 struct FileStateStore;
 
 const STORE_DIR: &str = "/tmp/suspend-resume";
 
 fn store_file(graph_id: &str, cid: &str) -> std::path::PathBuf {
-    let safe: String = format!("{graph_id}:{cid}")
+    store_file_indexed(graph_id, cid, None)
+}
+
+/// The record's file: `{graph}:{cid}`, plus `:{index}` for one iteration of a
+/// for_each fan-out — the same optional third segment as the Redis reference
+/// implementation's key.
+fn store_file_indexed(graph_id: &str, cid: &str, index: Option<&str>) -> std::path::PathBuf {
+    let key = match index {
+        Some(index) => format!("{graph_id}:{cid}:{index}"),
+        None => format!("{graph_id}:{cid}"),
+    };
+    let safe: String = key
         .chars()
         .map(|c| {
             if c.is_alphanumeric() || c == '-' || c == '_' {
@@ -107,7 +119,21 @@ impl ComposableFunction for FileStateStore {
             }
             None => return Err(AppError::new(400, "Missing graph")),
         };
-        let file = store_file(&graph_id, &cid);
+        // optional: scopes the record to one for_each iteration, so N concurrent
+        // iterations of one subgraph - which share the parent's business cid by
+        // design - do not collide on one record
+        let index = match request.get_element("index") {
+            Some(Value::String(text)) => {
+                let text = text.as_str().unwrap_or_default().trim().to_string();
+                if text.is_empty() {
+                    None
+                } else {
+                    Some(text)
+                }
+            }
+            _ => None,
+        };
+        let file = store_file_indexed(&graph_id, &cid, index.as_deref());
         match headers.get("type").map(String::as_str) {
             Some("put") => {
                 let ttl_seconds = match request.get_element("ttl") {
@@ -517,6 +543,7 @@ async fn graph_runtime_end_to_end() {
     suspend_resume_matches_java_semantics(&platform).await;
     same_cid_suspends_independently_per_graph(&platform).await;
     orchestrator_parent_drives_suspending_subgraph_path(&platform).await;
+    for_each_iterations_suspend_under_their_own_records(&platform).await;
     generic_exception_context_serves_every_node(&platform).await;
     statement_commands_resolve_dynamic_variables(&platform).await;
     successful_retry_resolves_the_error_context(&platform).await;
@@ -2414,6 +2441,143 @@ async fn orchestrator_parent_drives_suspending_subgraph_path(platform: &Platform
         !store_file("unit-test-sub-suspend", cid).exists(),
         "the record must be consumed on resume"
     );
+}
+
+/// The for_each collision the iteration index exists for (pinned at the store
+/// level by the Java `RedisStateStoreTest`; the Rust twin also drives it end
+/// to end through the engine): a parent fans out to N iterations of ONE
+/// suspending subgraph, and every iteration inherits the parent's business
+/// correlation ID by design — so before the index joined the key they all
+/// wrote graph:{id}:{cid} and only the last survived, concurrently, at random.
+/// Now the extension skill carries each iteration's position as a header, the
+/// executor lifts it into the reserved model.iteration_index, and each
+/// iteration suspends under its own record; re-invoking the parent with a
+/// positionally consistent array resumes every iteration past its checkpoint.
+async fn for_each_iterations_suspend_under_their_own_records(platform: &Platform) {
+    let cid = "wf-foreach-020";
+    let subgraph = "unit-test-sub-suspend";
+    // hygiene: an aborted earlier run must not leave records for this fixed cid
+    for file in [
+        store_file(subgraph, cid),
+        store_file_indexed(subgraph, cid, Some("0")),
+        store_file_indexed(subgraph, cid, Some("1")),
+    ] {
+        std::fs::remove_file(file).ok();
+    }
+    let items = serde_json::json!({"items": ["phone", "laptop"]});
+    // run 1: both iterations reach their checkpoint - the parent relays two
+    // suspended replies
+    let first = run_graph_cid(platform, "rust-orchestrator-foreach", cid, items.clone()).await;
+    assert_eq!(200, first.status(), "run 1: {:?}", first.body());
+    let replies = match body_map(&first).get_element("paths") {
+        Some(Value::Array(replies)) => replies,
+        other => panic!("expected one reply per iteration, got {other:?}"),
+    };
+    assert_eq!(2, replies.len(), "one reply per iteration");
+    for reply in &replies {
+        let reply = MultiLevelMap::from_value(reply.clone());
+        assert_eq!(Some(Value::from("suspended")), reply.get_element("type"));
+        assert_eq!(
+            Some(Value::from(cid)),
+            reply.get_element("cid"),
+            "every iteration suspends under the inherited business cid"
+        );
+    }
+    // the working step ran once per iteration, under the inherited cid
+    assert_eq!(2, step_count("sub", cid));
+    assert_eq!(Some(cid.to_string()), step_business_cid("sub", cid));
+    // TWO records, keyed by iteration - the pre-fix behaviour left exactly ONE,
+    // under the un-indexed key, holding whichever iteration wrote last
+    assert!(
+        !store_file(subgraph, cid).exists(),
+        "no iteration may write the un-indexed key"
+    );
+    let mut persisted_items = Vec::new();
+    for index in ["0", "1"] {
+        let file = store_file_indexed(subgraph, cid, Some(index));
+        assert!(file.exists(), "iteration {index} must own its record");
+        let stored = MultiLevelMap::from_value(unpack_value(
+            &std::fs::read(&file).expect("iteration record"),
+        ));
+        assert_eq!(
+            Some(Value::from(index)),
+            stored.get_element("data.index"),
+            "the store contract carries the iteration index"
+        );
+        assert_eq!(
+            Some(Value::from(subgraph)),
+            stored.get_element("data.graph")
+        );
+        assert_eq!(
+            Some(Value::from("prepare")),
+            stored.get_element("data.node")
+        );
+        // the reserved key is never persisted: the current run supplies it
+        assert_eq!(None, stored.get_element("data.model.iteration_index"));
+        persisted_items.push(event_script::conversions::display(
+            &stored
+                .get_element("data.model.item")
+                .expect("persisted item"),
+        ));
+    }
+    persisted_items.sort();
+    assert_eq!(
+        vec!["laptop".to_string(), "phone".to_string()],
+        persisted_items,
+        "each iteration persisted ITS item, not its neighbour's"
+    );
+    // run 2 with the same cid and a positionally consistent array: every
+    // iteration resumes past its own checkpoint with its own model
+    let second = run_graph_cid(platform, "rust-orchestrator-foreach", cid, items).await;
+    assert_eq!(200, second.status(), "run 2: {:?}", second.body());
+    let replies = match body_map(&second).get_element("paths") {
+        Some(Value::Array(replies)) => replies,
+        other => panic!("expected one reply per iteration, got {other:?}"),
+    };
+    assert_eq!(2, replies.len());
+    let mut delivered_items = Vec::new();
+    let mut restored_priors = Vec::new();
+    for reply in &replies {
+        let reply = MultiLevelMap::from_value(reply.clone());
+        assert_eq!(Some(Value::from("resume")), reply.get_element("run"));
+        assert_eq!(Some(Value::from(cid)), reply.get_element("cid_check"));
+        delivered_items.push(event_script::conversions::display(
+            &reply.get_element("item").expect("restored item"),
+        ));
+        restored_priors.push(event_script::conversions::display(
+            &reply
+                .get_element("result.prior")
+                .expect("restored prep_count"),
+        ));
+    }
+    delivered_items.sort();
+    assert_eq!(
+        vec!["laptop".to_string(), "phone".to_string()],
+        delivered_items,
+        "each iteration restored ITS OWN model"
+    );
+    // the iterations share the parent's cid, so the counting step's sub:{cid}
+    // counter read 1 for whichever iteration prepared first and 2 for the
+    // other - and each resumed run carried back the value ITS record held,
+    // which is the per-iteration isolation seen from the model side
+    restored_priors.sort();
+    assert_eq!(
+        vec!["1".to_string(), "2".to_string()],
+        restored_priors,
+        "each iteration restored its own prep_count, not a shared record's"
+    );
+    assert_eq!(
+        2,
+        step_count("sub", cid),
+        "the checkpoint step must not re-execute on resume"
+    );
+    assert_eq!(2, step_count("deliver", cid));
+    for index in ["0", "1"] {
+        assert!(
+            !store_file_indexed(subgraph, cid, Some(index)).exists(),
+            "iteration {index}'s record must be consumed on resume"
+        );
+    }
 }
 
 /// Java `GraphErrorContextTest`: when a failed node routes to its exception=

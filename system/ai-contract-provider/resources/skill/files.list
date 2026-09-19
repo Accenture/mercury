@@ -1,5 +1,6 @@
 SKILL.md
 references/arch-decisions/ADR.md
+references/arch-decisions/RFC.md
 references/background/port-scope.md
 references/guides/actuators-and-http-client.md
 references/guides/ai-developer-guide.md

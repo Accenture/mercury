@@ -450,26 +450,20 @@ pub async fn task(
     EventEnvelope::new().set_body(next)
 }
 
-/// One fork-join batch: requests run concurrently on spawned tasks and the
-/// responses come back in request order (Java `po.request(batch, timeout)`).
+/// One fork-join batch: requests run concurrently ON THE CALLING TASK and the
+/// responses come back in request order (Java `po.request(batch, timeout)`),
+/// so every task call carries this worker's trace and business
+/// correlation-id (see `common::join_batch` for why this must not spawn).
 async fn run_batch(requests: Vec<EventEnvelope>, ttl: i64) -> Vec<TaskResponse> {
-    let mut handles = Vec::with_capacity(requests.len());
-    for request in requests {
-        handles.push(tokio::spawn(async move {
-            let platform = Platform::get_instance();
-            let po = PostOffice::new(&platform);
-            call_task(&po, request, ttl).await
-        }));
-    }
-    let mut results = Vec::with_capacity(handles.len());
-    for handle in handles {
-        results.push(handle.await.unwrap_or_else(|_| TaskResponse {
-            status: 500,
-            headers: HashMap::new(),
-            body: Value::from("Task join failure"),
-        }));
-    }
-    results
+    let platform = Platform::get_instance();
+    let po = PostOffice::new(&platform);
+    crate::common::join_batch(
+        requests
+            .into_iter()
+            .map(|request| call_task(&po, request, ttl))
+            .collect(),
+    )
+    .await
 }
 
 /// The normalized task response: status, headers, body, error flag.

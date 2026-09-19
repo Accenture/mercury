@@ -2892,3 +2892,60 @@ and port-honest invariants (serde rules; no service mesh; no graph.js). Wired in
 Foundations nav, a new llms.txt cross-layer orientation section, and the packaged AI
 contract (files.list). The methodology's interim entry-points section slimmed to the
 same pointer the Java twin carries.
+
+## Increment 118 — Per-iteration suspend/resume records under `for_each` (2026-09-18)
+
+Lock-step with the Java engine's PR #418 (the shared spec is the Java repository's
+`draft-design-specs/subgraph-suspend-resume-for-each.md`, ruled 2026-09-18). A parent
+invoking a suspending subgraph through `graph.extension` with `for_each` wrote ONE store
+record for all iterations: the key was graph + cid, and every iteration inherits the
+parent's business correlation ID by design — that inheritance is what makes a subgraph
+resumable at all — so N concurrent iterations collided, and which suspension survived was
+a race. The array INDEX now joins the key. Mechanism, each step on existing precedent: the
+extension skill's `for_each` branch puts the index in the invocation's `header` map
+(`x-iteration-index`) — never the body, which is the author's input-mapping contract, and
+never the application-owned `graph-executor` flow file, whose new mapping would silently do
+nothing for already-deployed applications; the executor lifts it into the reserved
+`model.iteration_index`, which joins `RESERVED_MODEL_METADATA` (so a mapping cannot write it
+and it is never persisted — `NON_PERSISTED_MODEL_KEYS` aliases the same set); `graph.suspend`
+puts `index` in the persistence envelope and `graph.resume` sends it in the `type=get` body;
+the Redis store keys records `graph:{graph_id}:{cid}:{index}`, appended ONLY when an index
+is present, so a single delegation keeps its two-segment key and pre-upgrade records stay
+reachable. The key is a cross-engine wire contract — a mixed Java/Rust fleet shares one
+Redis — which is why this is a lock-step and not an option. A `flow://` target gets no
+index (Java parity): the flow hop carries no graph iteration identity, so parent →
+`for_each` → flow → suspending graph stays a declared non-goal. Constraints DECLARED, not
+enforced (guide *Design rules*): positional consistency with appending supported; the flow
+hop unsupported; nested `for_each` with suspension a non-goal — and the orchestrator
+pattern's "one record per graph per cid" rule, which the fix made false, corrected. Tests:
+the Java negative controls re-run against the twin — three Redis store scenarios (isolation
+per iteration; an indexed record leaves the un-indexed key alone; a shifted position MISSES
+rather than restoring another item's record), the reserved-key pin (now ten names; claim
+`reserved-model-keys`, count-free), the index reader and the indexed envelope/lookup key —
+plus an end-to-end fan-out over `unit-test-sub-suspend` through the file store
+(`rust-orchestrator-foreach`), which the Java suite does not have: two records keyed by
+iteration, each holding its own item, both resumed on re-invocation. Docs: the guide's
+Design rules, state-store contract and Redis section; skills reference; machine-readable
+command reference; Playground help (bundle rebuilt); claims registry. Ledger housekeeping in
+the same increment: ADR-0012 accepted in place with the index folded in (it had never left
+*Proposed*), ADR-0013/0014 accepted, and the `RFC.md` proposal register adopted so the ADR
+ledger records decisions only.
+
+**Found and fixed on the way — fork-join children ran untraced.** The end-to-end test's
+Java-parity assertion that each iteration's working step sees the inherited business cid
+failed: the step saw a random UUID, while the single-delegation orchestrator test passes the
+same assertion. Telemetry showed why — under the single delegation every child span
+(resume, task, counting step, suspend, store) shares the parent's trace id; under the
+`for_each` fan-out only the parent's four spans exist. All three fork-join sites
+(`graph.extension`, `graph.task`, `graph.api.fetcher`) launched each request on a
+`tokio::spawn`ed task, and the distributed-trace bracket is a tokio task-local, so the
+spawned child started outside it: its `po.request` found no current trace, the launched
+flow or task ran untraced, and every downstream call inside it fell back to a minted
+correlation id. Java's `po.request(batch)` issues and awaits the batch on the worker that
+owns the trace, so the Java engine never had the gap — a telemetry-presentation-parity
+defect (`inv-telemetry-presentation-parity`) that the trace-signature instrument of
+Increment 64 did not cover because it had no fan-out shape. Fix: `common::join_batch`
+awaits the batch concurrently ON THE CALLING TASK (`futures_util::future::join_all`; the
+crate already rides in platform-core and sync-over-async), shared by the three skills;
+responses stay in request order and the batch stays concurrent. Pinned by the new
+end-to-end test's business-cid assertion, which is exactly the symptom.

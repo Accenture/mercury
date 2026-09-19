@@ -1,0 +1,86 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "for_each over a suspending subgraph: every iteration inherits the parent's business correlation ID, so each must suspend under its OWN iteration-scoped record instead of colliding on one",
+        "name": "rust-orchestrator-foreach"
+      }
+    },
+    {
+      "alias": "fan-out",
+      "types": [
+        "Extension"
+      ],
+      "properties": {
+        "skill": "graph.extension",
+        "extension": "unit-test-sub-suspend",
+        "for_each": [
+          "input.body.items -> model.each_item"
+        ],
+        "input": [
+          "model.each_item -> item"
+        ],
+        "output": [
+          "result -> model.paths"
+        ],
+        "purpose": "delegate one processing path per item to the SAME subgraph - the iteration index rides the invocation header and scopes the subgraph's store record to that iteration"
+      }
+    },
+    {
+      "alias": "report",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "model.paths -> output.body.paths"
+        ],
+        "purpose": "relay every iteration's reply to the caller"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "fan-out",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "fan-out",
+      "target": "report",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "report",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

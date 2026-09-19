@@ -352,6 +352,28 @@ curl -s -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   and its join — branches in flight cannot be persisted (the engine logs a warning);
   suspend *after* the join instead. Joins whose predecessors completed before suspension
   work: their completion marks are part of the persisted state.
+- **`for_each` over a suspending subgraph requires a positionally consistent array.** Each
+  iteration gets its own record, keyed by its **position** in the array, so N iterations no longer
+  collide. An item already in flight must keep the same position when the transaction resumes.
+  - **Appending is safe and supported.** Adding `"headset"` to `["phone", "laptop"]` leaves both
+    in-flight workflows on positions `0` and `1`; the new item simply starts fresh.
+  - **Inserting, removing or reordering shifts positions**, and a shifted iteration resumes
+    **another item's** state. The engine cannot detect this. If your list can change in any way
+    other than appending, give each item its own business correlation ID and delegate per item
+    rather than relying on array position.
+  - **Where the array comes from decides how easy this is to keep.** A curated list — a user's
+    products — grows by appending, which is exactly the supported change. An array derived from a
+    query or a batch manifest guarantees nothing about order when re-derived hours later, so
+    **freeze it into the parent's `model` before fanning out** and let the resumed run iterate the
+    array it suspended on.
+- **Do not reach a suspending graph through a flow launched by `for_each`.** Parent → `for_each` →
+  flow → graph with suspend/resume is **not supported**: the iteration identity does not survive
+  the flow hop, so those runs collide exactly as they did before. Put the flow *inside* the
+  subgraph instead — a subgraph may call a flow — and the composition works with the iteration
+  identity intact.
+- **Nested `for_each` over suspending sub-subgraphs is not supported.** Suspension at multiple
+  nesting levels carries too many side effects to reason about, and nested `for_each` is
+  discouraged on its own terms as a formula for slow performance. Flatten the model.
 - **One resume per transaction.** The shipped stores consume the record atomically on
   retrieval (Redis `GETDEL` on 6.2+, or a `MULTI/EXEC` `GET`+`DEL` transaction on older
   servers — detected automatically), so a duplicate resume — a double click, a retried
@@ -365,11 +387,13 @@ curl -s -X POST http://127.0.0.1:8085/api/graph/tutorial-14 \
   resume only ever sees records written by its own graph — you cannot suspend in one
   subgraph and resume in another. A delegated subgraph inherits the parent's business
   correlation ID and is fully resumable on its own; the parent orchestrates —
-  see [the orchestrator pattern](#orchestrator-pattern).
-- The nine reserved model-metadata keys (`model.cid`, `model.instance`, `model.flow`,
-  `model.ttl`, `model.trace`, `model.parent`, `model.root`, `model.none`, `model.run` — the
-  full set in the [skills reference](skills-reference.md)) are never persisted — the resumed
-  run's own identity is
+  see [the orchestrator pattern](#orchestrator-pattern). Under `for_each` the record is scoped by
+  the iteration as well, so each iteration resumes independently — with the positional-consistency
+  requirement in the `for_each` rule above.
+- The ten reserved model-metadata keys (`model.cid`, `model.instance`, `model.flow`,
+  `model.ttl`, `model.trace`, `model.parent`, `model.root`, `model.none`, `model.run`,
+  `model.iteration_index` — the full set in the [skills reference](skills-reference.md)) are
+  never persisted — the resumed run's own identity is
   authoritative. `model.run` is part of the read-only flow metadata family: `graph.resume`
   is its only writer, and the flow compiler rejects any data mapping that targets it
   (like the other reserved keys).
@@ -405,9 +429,12 @@ ELSE: done
   checkpoint, and the parent assembles the results. A subgraph is also a deployed graph,
   so a single path can be resumed directly at `POST /api/graph/{subgraph-id}` with the
   same correlation ID — same capability rules as any resume endpoint.
-- **One record per graph per cid.** Invoke a suspendable subgraph once per correlation ID
-  per run — a `for_each` fan-out of the *same* subgraph under one cid would overwrite its
-  own record. Parallel paths belong in *different* subgraphs.
+- **One record per graph per cid — and per iteration under `for_each`.** A single delegation
+  writes one record per subgraph per correlation ID. A `for_each` fan-out of the *same*
+  subgraph under one cid gives each iteration its own record, keyed by its position in the
+  array, so the iterations suspend and resume independently — subject to the
+  positional-consistency rule in [Design rules](#design-rules). Distinct processing paths
+  still belong in *different* subgraphs.
 
 The engine's reference models for this pattern are the `unit-test-orchestrator` /
 `unit-test-sub-suspend` pair in the knowledge-graph test resources, pinned end-to-end by
@@ -425,6 +452,7 @@ anything else plugs in the same way.
 {
   "cid":   "<business correlation ID>",
   "graph": "<the graph that suspended - cid + graph form the retrieval key>",
+  "index": "<OPTIONAL - the for_each iteration, when the graph is one of a fan-out>",
   "node":  "<the suspension point>",
   "ttl":   172800,
   "model": { "the model namespace minus reserved keys": "..." },
@@ -439,10 +467,20 @@ and reply 2xx only when the record is durable — the reply is the acknowledgeme
 `graph.suspend` requires before the graph completes; any error fails the suspension.
 
 **Retrieve** — invoked by `graph.resume`; headers `type=get`; body
-`{"cid": "...", "graph": "..."}`. Return the stored record as-is, or **null / an empty
-map** when absent or expired — an absent record is the normal fresh-transaction case,
-never an error. Consume the record atomically on retrieval (or document your replay
-semantics). If the store has no native TTL, implement record expiry yourself.
+`{"cid": "...", "graph": "..."}` — plus `"index"` when the run has one. Return the stored
+record as-is, or **null / an empty map** when absent or expired — an absent record is the
+normal fresh-transaction case, never an error. Consume the record atomically on retrieval
+(or document your replay semantics). If the store has no native TTL, implement record
+expiry yourself.
+
+**Include `index` in the key when it is present.** It arrives only when the graph was invoked as
+one iteration of a parent's `for_each` fan-out, where every iteration shares the parent's business
+correlation ID by design — so without it, N concurrent iterations collide on one record and only
+one survives. Append it as a third key segment
+(`graph:{graph_id}:{cid}:{index}` in the Redis reference implementation) and leave the key
+unchanged when it is absent, so ordinary records — and records written before this field existed —
+keep working. The key format is a cross-engine contract: the Java and Rust engines compose it
+identically, so a mixed fleet may share one store. See [the `for_each` rule](#design-rules).
 
 **Scope every record by `graph` + `cid`, never by `cid` alone.** The same business
 correlation ID legitimately suspends in more than one graph — one transaction may cross
@@ -460,7 +498,9 @@ store of ~60 lines (`FileStateStore` in the minigraph test sources).
 `extensions/minigraph-state-redis` ships `v1.redis.persist.model` (SETEX, native expiry)
 and `v1.redis.retrieve.model` (atomic consume-on-retrieve). Records are keyed
 `graph:{graph_id}:{cid}`, so each domain's graph and each subgraph suspends
-independently under a shared business correlation ID. The consume strategy is
+independently under a shared business correlation ID — plus a third `:{index}` segment
+when the graph runs as one iteration of a parent's `for_each` fan-out, so concurrent
+iterations do not collide (see [the `for_each` rule](#design-rules)). The consume strategy is
 **version-aware**: native `GETDEL` on Redis 6.2+, or an equally atomic `MULTI/EXEC`
 `GET`+`DEL` transaction on older servers — detected once per connection from
 `INFO server` and stated in the startup log, since enterprise deployments rarely control

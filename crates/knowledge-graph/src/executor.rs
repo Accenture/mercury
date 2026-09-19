@@ -34,6 +34,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 
 use event_script::conversions::display;
+use event_script::mlm::MultiLevelMap;
 use platform_core::graph::SimpleNode;
 use platform_core::{AppConfigReader, AppError, EventEnvelope, Platform, PostOffice};
 use rmpv::Value;
@@ -194,9 +195,43 @@ fn create_instance(
         let mut state = instance.state.lock().expect("graph state machine");
         state.set_element("input", input_copy).map_err(invalid)?;
         state.set_element("model", model_copy).map_err(invalid)?;
+        lift_iteration_index(&mut state)?;
     }
     initialize_with_node_properties(&instance)?;
     Ok(instance)
+}
+
+/// Promote a `for_each` iteration index from the invocation headers into the
+/// reserved `model.iteration_index` (Java `GraphExecutor.liftIterationIndex`).
+///
+/// It arrives in the header map because that is the only channel a parent
+/// graph controls that reaches here without touching the application-owned
+/// `graph-executor` flow file - adding a mapping there would silently do
+/// nothing for every already-deployed application. Promoting it to the model
+/// gives the suspend/resume skills one place to read, alongside `model.cid`.
+///
+/// Absent for an ordinary invocation, which is exactly what keeps a single
+/// delegation's store key unchanged and pre-upgrade records reachable.
+fn lift_iteration_index(state: &mut MultiLevelMap) -> Result<(), AppError> {
+    let header_path = format!(
+        "input.{}.{}",
+        common::HEADER,
+        common::ITERATION_INDEX_HEADER
+    );
+    if let Some(value) = state.get_element(&header_path) {
+        let text = display(&value);
+        // trimmed like the cid (Java-exact): the index is a store-key segment
+        let index = common::java_trim(&text);
+        if !index.is_empty() {
+            state
+                .set_element(
+                    &format!("{}{}", common::MODEL_NAMESPACE, common::ITERATION_INDEX),
+                    Value::from(index),
+                )
+                .map_err(invalid)?;
+        }
+    }
+    Ok(())
 }
 
 async fn begin_traversal(

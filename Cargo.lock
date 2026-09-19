@@ -801,6 +801,7 @@ version = "4.12.7"
 dependencies = [
  "async-trait",
  "chrono",
+ "futures-util",
  "getrandom 0.4.3",
  "log",
  "mercury-event-script",
