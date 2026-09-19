@@ -133,10 +133,10 @@
       "since": "4.12.3+"
     },
     {
-      "id": "reserved-model-keys-nine",
-      "claim": "The reserved model-metadata key set is exactly nine names: cid, instance, flow, ttl, trace, parent, root, none, run - and every one is rejected as a data-mapping write target.",
+      "id": "reserved-model-keys",
+      "claim": "The reserved model-metadata key set is exactly ten names: cid, instance, flow, ttl, trace, parent, root, none, run, iteration_index - and every one is rejected as a data-mapping write target.",
       "pages": ["docs/guides/knowledge-graph/workflow-suspension.md"],
-      "quote": "The nine reserved model-metadata keys",
+      "quote": "The ten reserved model-metadata keys",
       "test": "crates/knowledge-graph::common::reserved_model_metadata_is_immutable",
       "since": "4.12.3+"
     },

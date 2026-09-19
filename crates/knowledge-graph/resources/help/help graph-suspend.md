@@ -81,7 +81,9 @@ The store function receives headers "type=put" and a body of:
 The record is scoped by graph + cid (the Redis reference implementation keys it
 "graph:{graph_id}:{cid}"), so the same business transaction may suspend independently in
 each domain's graph and in each subgraph, and a resume only ever sees its own graph's
-record. The store must acknowledge with a 2xx reply before the graph completes - a failed
+record. When the graph runs as one iteration of a parent's for_each fan-out, the iteration
+index is appended as a third segment ("graph:{graph_id}:{cid}:{index}") so concurrent
+iterations do not collide. The store must acknowledge with a 2xx reply before the graph completes - a failed
 store call fails the node (the optional "exception" property routes it to a handler node).
 
 Example

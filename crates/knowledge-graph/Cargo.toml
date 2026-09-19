@@ -27,6 +27,11 @@ log = "0.4"
 rmpv = { version = "1", features = ["with-serde"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt", "time", "macros"] }
+# fork-join batches (graph.task / graph.api.fetcher / graph.extension for_each)
+# are awaited CONCURRENTLY ON THE CALLING TASK with join_all, so the worker's
+# task-local trace bracket stays in scope for every child call (tokio::spawn
+# dropped it: fan-out children ran untraced and lost the business cid)
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
 # OS entropy for the math engine's random() — the SecureRandom analog

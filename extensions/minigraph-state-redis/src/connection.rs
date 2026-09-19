@@ -42,12 +42,26 @@ use tokio::sync::OnceCell;
 /// can resume on any other instance sharing the same Redis.
 const KEY_NAMESPACE: &str = "graph:";
 
-/// Compose the store key: `graph:{graph_id}:{cid}`. The graph ID scopes the
-/// record, so the same business correlation ID may suspend independently in
-/// each domain's graph and in each subgraph - and a resume only ever sees its
-/// own graph's record.
-pub(crate) fn store_key(graph_id: &str, cid: &str) -> String {
-    format!("{KEY_NAMESPACE}{graph_id}:{cid}")
+/// Compose the store key: `graph:{graph_id}:{cid}`, or
+/// `graph:{graph_id}:{cid}:{index}` for one iteration of a `for_each` fan-out
+/// (Java `RedisStateConnection.storeKey`).
+///
+/// The graph ID scopes the record, so the same business correlation ID may
+/// suspend independently in each domain's graph and in each subgraph - a
+/// resume only ever sees its own graph's record. The index scopes it one level
+/// further, because every iteration of a fan-out inherits the parent's
+/// correlation ID by design and would otherwise share one record.
+///
+/// The index is appended ONLY when there is one. Every other record keeps the
+/// two-segment key it has always had, so a single delegation is unaffected and
+/// records written before this feature stay reachable. The key format is a
+/// cross-engine contract: a mixed Java/Rust fleet sharing one Redis must
+/// compose it identically.
+pub(crate) fn store_key(graph_id: &str, cid: &str, index: Option<&str>) -> String {
+    match index.map(str::trim).filter(|index| !index.is_empty()) {
+        Some(index) => format!("{KEY_NAMESPACE}{graph_id}:{cid}:{index}"),
+        None => format!("{KEY_NAMESPACE}{graph_id}:{cid}"),
+    }
 }
 
 const REDIS_VERSION: &str = "redis_version:";
@@ -187,7 +201,35 @@ fn supports_getdel(version: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{redis_version, supports_getdel};
+    use super::{redis_version, store_key, supports_getdel};
+
+    /// The Java-identical key composition: two segments for an ordinary
+    /// record, the iteration appended as a third segment only when present.
+    #[test]
+    fn store_key_appends_the_iteration_only_when_present() {
+        assert_eq!(
+            "graph:order-workflow:cid-1",
+            store_key("order-workflow", "cid-1", None)
+        );
+        assert_eq!(
+            "graph:order-workflow:cid-1",
+            store_key("order-workflow", "cid-1", Some("")),
+            "a blank index is no index, not an empty segment"
+        );
+        assert_eq!(
+            "graph:order-workflow:cid-1",
+            store_key("order-workflow", "cid-1", Some("  "))
+        );
+        assert_eq!(
+            "graph:order-workflow:cid-1:0",
+            store_key("order-workflow", "cid-1", Some("0"))
+        );
+        assert_eq!(
+            "graph:order-workflow:cid-1:2",
+            store_key("order-workflow", "cid-1", Some(" 2 ")),
+            "trimmed like the cid - padding must not split one iteration across two keys"
+        );
+    }
 
     #[test]
     fn version_is_extracted_from_info_server_output() {

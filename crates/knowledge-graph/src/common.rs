@@ -103,18 +103,59 @@ pub const RESERVED_PARAMETERS: &[&str] = &[
     "suspend",
 ];
 
+/// Engine-managed model key naming a subgraph's position in a parent's
+/// `for_each` array (Java `GraphLambdaFunction.ITERATION_INDEX`). Present
+/// only for an iteration of a `graph.extension` fan-out; absent otherwise,
+/// which is what keeps a single delegation's store key unchanged.
+///
+/// Reserved (a data mapping may not write it) and non-persisted (the CURRENT
+/// run supplies it, never a restored record) for the same reason `model.cid`
+/// is: it identifies this run, and a resumed run re-derives it by re-forking
+/// the same iteration.
+pub const ITERATION_INDEX: &str = "iteration_index";
+/// Carrier for [`ITERATION_INDEX`] on a subgraph invocation — set by the
+/// extension skill's `for_each` branch and lifted by the executor (Java
+/// `GraphLambdaFunction.ITERATION_INDEX_HEADER`).
+pub const ITERATION_INDEX_HEADER: &str = "x-iteration-index";
+
 /// Engine-managed model metadata — IMMUTABLE during a run: rejected as a
 /// data-mapping write target by the CompileGraph gate, the playground
 /// pre-run check, and the shared runtime guard in both walker lanes. The
 /// per-node `ttl` is the sanctioned deadline mechanism, not rewriting
 /// `model.ttl` (Java `GraphLambdaFunction.RESERVED_MODEL_METADATA`; the
-/// suspend/resume `NON_PERSISTED_MODEL_KEYS` aliases the same nine names).
-pub const RESERVED_MODEL_METADATA: [&str; 9] = [
-    "cid", "instance", "flow", "ttl", "trace", "parent", "root", "none", "run",
+/// suspend/resume `NON_PERSISTED_MODEL_KEYS` aliases the same ten names).
+pub const RESERVED_MODEL_METADATA: [&str; 10] = [
+    "cid",
+    "instance",
+    "flow",
+    "ttl",
+    "trace",
+    "parent",
+    "root",
+    "none",
+    "run",
+    ITERATION_INDEX,
 ];
 
 pub fn invalid(message: impl Into<String>) -> AppError {
     AppError::new(400, message)
+}
+
+/// Await one fork-join batch CONCURRENTLY ON THE CALLING TASK, responses in
+/// request order (Java `po.request(batch, timeout)` parity — the requests are
+/// issued together and awaited together on the worker that owns the trace).
+///
+/// This deliberately does NOT `tokio::spawn`: the distributed-trace bracket is
+/// a tokio task-local, so a spawned child starts outside it — its `po.request`
+/// then finds no current trace, the launched flow or task runs untraced, and
+/// every downstream call inside it falls back to a minted correlation id
+/// instead of the business cid. Found by the `for_each` suspend/resume lockstep:
+/// the single delegation's child spans all shared the parent's trace id while
+/// the fan-out's children emitted none, and the iterations' working steps saw
+/// a random `my_correlation_id`. Shared by the three fan-out skills
+/// (`graph.task`, `graph.api.fetcher`, `graph.extension`).
+pub(crate) async fn join_batch<F: std::future::Future>(futures: Vec<F>) -> Vec<F::Output> {
+    futures_util::future::join_all(futures).await
 }
 
 /// Reject a data-mapping write target inside the reserved model metadata —
@@ -960,10 +1001,23 @@ mod tests {
     /// positives on longer names.
     #[test]
     fn reserved_model_metadata_is_immutable() {
-        // the set is exactly these nine names (claims-registry pin)
+        // the set is exactly these ten names (claims-registry pin: reserved-model-keys);
+        // iteration_index joined for subgraph suspend/resume under for_each - engine-managed
+        // like the rest, so a data mapping may not write it and it is never persisted
         assert_eq!(
             RESERVED_MODEL_METADATA,
-            ["cid", "instance", "flow", "ttl", "trace", "parent", "root", "none", "run"]
+            [
+                "cid",
+                "instance",
+                "flow",
+                "ttl",
+                "trace",
+                "parent",
+                "root",
+                "none",
+                "run",
+                "iteration_index"
+            ]
         );
         for key in RESERVED_MODEL_METADATA {
             let target = format!("model.{key}");

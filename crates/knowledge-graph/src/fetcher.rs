@@ -805,25 +805,19 @@ async fn call_http(po: &PostOffice, request: Value, ttl: i64) -> HttpResponseVie
     }
 }
 
-/// One fork-join batch of HTTP calls, responses in request order.
+/// One fork-join batch of HTTP calls, responses in request order — awaited on
+/// the calling task so every call carries this worker's trace and business
+/// correlation-id (see `common::join_batch` for why this must not spawn).
 async fn run_http_batch(requests: Vec<Value>, ttl: i64) -> Vec<HttpResponseView> {
-    let mut handles = Vec::with_capacity(requests.len());
-    for request in requests {
-        handles.push(tokio::spawn(async move {
-            let platform = Platform::get_instance();
-            let po = PostOffice::new(&platform);
-            call_http(&po, request, ttl).await
-        }));
-    }
-    let mut results = Vec::with_capacity(handles.len());
-    for handle in handles {
-        results.push(handle.await.unwrap_or_else(|_| HttpResponseView {
-            status: 500,
-            headers: Vec::new(),
-            body: Value::from("HTTP join failure"),
-        }));
-    }
-    results
+    let platform = Platform::get_instance();
+    let po = PostOffice::new(&platform);
+    crate::common::join_batch(
+        requests
+            .into_iter()
+            .map(|request| call_http(&po, request, ttl))
+            .collect(),
+    )
+    .await
 }
 
 #[cfg(test)]

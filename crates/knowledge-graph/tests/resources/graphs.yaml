@@ -56,6 +56,9 @@ graphs:
   # under its own graph-scoped record with the inherited business correlation ID
   - 'unit-test-orchestrator'
   - 'unit-test-sub-suspend'
+  # for_each over the SAME suspending subgraph: each iteration suspends under its own
+  # iteration-scoped record (graph + cid + index) instead of colliding on one
+  - 'rust-orchestrator-foreach'
   # every statement command resolves dynamic variables: THEN: {model.hop} + DELAY: {model.backoff}
   - 'unit-test-dynamic-jump'
   # the virtual 'error' node reports recovery: a successful retry of error.source resolves

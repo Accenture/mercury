@@ -22,13 +22,17 @@
 //! annotation inventory — the Java "include the jar" deployment story):
 //!
 //! - **`v1.redis.persist.model`** (`type=put`) — stores the persistence
-//!   envelope `{cid, graph, node, ttl, model, seen, run}` opaquely (MsgPack
-//!   bytes) under the key `graph:{graph_id}:{cid}` with the requested
+//!   envelope `{cid, graph, [index,] node, ttl, model, seen, run}` opaquely
+//!   (MsgPack bytes) under the key `graph:{graph_id}:{cid}` with the requested
 //!   time-to-live (Redis SETEX — expiry is native, no sweeper needed). The
 //!   graph ID scopes the record so the same business correlation ID may
-//!   suspend independently in each domain's graph and in each subgraph. A
-//!   2xx reply is the durability acknowledgement the `graph.suspend` skill
-//!   requires before the graph run completes.
+//!   suspend independently in each domain's graph and in each subgraph — plus
+//!   a third `:{index}` segment when the graph runs as one iteration of a
+//!   parent's `for_each` fan-out, so concurrent iterations (which share the
+//!   parent's correlation ID by design) do not collide; the key stays
+//!   two-segment when no index is supplied, so pre-existing records remain
+//!   reachable. A 2xx reply is the durability acknowledgement the
+//!   `graph.suspend` skill requires before the graph run completes.
 //! - **`v1.redis.retrieve.model`** (`type=get`) — returns the persisted
 //!   record, or an empty map when absent-or-expired (a fresh transaction is
 //!   the normal case, not an error). The record is CONSUMED atomically on
@@ -65,6 +69,8 @@ const PUT: &str = "put";
 const GET: &str = "get";
 const CID: &str = "cid";
 const GRAPH: &str = "graph";
+// optional: scopes the record to one for_each iteration (absent for an ordinary invocation)
+const INDEX: &str = "index";
 const TTL: &str = "ttl";
 
 /// `v1.redis.persist.model` — the PERSIST half of the state-store contract,
@@ -89,6 +95,8 @@ impl ComposableFunction for PersistModel {
         }
         let cid = required_field(input.body(), CID)?;
         let graph_id = required_field(input.body(), GRAPH)?;
+        // optional - present only when the caller is one iteration of a for_each fan-out
+        let index = optional_field(input.body(), INDEX);
         let ttl_seconds = match map_get(input.body(), TTL) {
             Some(Value::Integer(n)) => n.as_i64().unwrap_or(0),
             _ => 0,
@@ -100,7 +108,7 @@ impl ComposableFunction for PersistModel {
         let mut redis = connection::manager().await?;
         with_deadline(
             redis::cmd("SETEX")
-                .arg(store_key(&graph_id, &cid))
+                .arg(store_key(&graph_id, &cid, index.as_deref()))
                 .arg(ttl_seconds)
                 .arg(bytes)
                 .query_async::<()>(&mut redis),
@@ -135,8 +143,10 @@ impl ComposableFunction for RetrieveModel {
         }
         let cid = required_field(input.body(), CID)?;
         let graph_id = required_field(input.body(), GRAPH)?;
+        // optional - present only when the caller is one iteration of a for_each fan-out
+        let index = optional_field(input.body(), INDEX);
         let mut redis = connection::manager().await?;
-        let key = store_key(&graph_id, &cid);
+        let key = store_key(&graph_id, &cid, index.as_deref());
         let data: Option<Vec<u8>> = if connection::native_getdel() {
             with_deadline(redis::cmd("GETDEL").arg(&key).query_async(&mut redis)).await?
         } else {
@@ -181,6 +191,22 @@ fn required_field(body: &Value, name: &str) -> Result<String, AppError> {
             }
         }
         _ => Err(AppError::new(400, format!("Missing {name}"))),
+    }
+}
+
+/// Extract an optional non-blank string field — `None` when absent, blank or
+/// not a string (the `index` field of a for_each iteration).
+fn optional_field(body: &Value, name: &str) -> Option<String> {
+    match map_get(body, name) {
+        Some(Value::String(text)) => {
+            let value = text.as_str().unwrap_or_default().trim();
+            if value.is_empty() {
+                None
+            } else {
+                Some(value.to_string())
+            }
+        }
+        _ => None,
     }
 }
 
