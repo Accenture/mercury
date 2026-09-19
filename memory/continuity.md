@@ -41,7 +41,10 @@ increment 53), **tokio-rustls 0.26 (ring) +
 rustls-native-certs 0.8** (increment 48 — outbound HTTPS with OS-trust-store verification +
 `trust_all_cert`; rcgen dev-dep for the self-signed TLS test), **moka 0.12 (sync)**
 (increment 71 — the ManagedCache engine, Caffeine's Rust lineage, wrapped as an internal
-detail; built with `EvictionPolicy::lru` per Eric's deterministic-eviction ruling). Stack rationale:
+detail; built with `EvictionPolicy::lru` per Eric's deterministic-eviction ruling), **redis 1.5 (`tokio-comp`, `connection-manager`,
+`tokio-rustls-comp`, `cluster-async`)** (Increment 119 — the `mercury-redis-connection` foundation shared by
+`mercury-sync-over-async` and `mercury-distributed-cache`; `mercury-minigraph-state-redis` keeps its own
+connection, as its Java twin does). Stack rationale:
 `platform-core-stack` + design doc D1–D10. `.gitignore` is stack-aware (Rust section:
 `target/`, `**/*.rs.bk`, `*.pdb`; Cargo.lock tracked).
 
@@ -142,6 +145,57 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `rust-orchestrator-foreach`'s business-cid assertion. Relates [[for-each-suspend-index-key-rust]],
   [[port-bottom-up-faithful]].
   <!-- id: fork-join-awaits-on-calling-task | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-022252 -->
+
+- **The Redis client layer is the shared `mercury-redis-connection` foundation — `RedisConfig` with a
+  configurable key prefix and the plain `redis.*` fallback, the `RedisBackend` standalone-or-cluster seam,
+  the reusable `RedisHealthProbe` (Increment 119, 2026-09-19; the Java Q2 extraction in lock-step).**
+  sync-over-async and the distributed cache both depend on it, in the Java dependency direction; the
+  extraction was behaviour-preserving for sync-over-async (`RedisSettings` = alias of `RedisConfig`,
+  `from_config()` = `soa.redis.*` with the `redis.*` fallback — so an existing `redis.*` deployment is
+  unchanged, and `soa.redis.*` decouples the rendezvous from the cache when both run). The seam is an
+  enum over the `redis` crate's `ConnectionManager` (long-lived), `MultiplexedConnection` (the probe's
+  non-healing shape) and `cluster_async::ClusterConnection` (feature `cluster-async`), all
+  `aio::ConnectionLike` — every command through one `query`; `MGET` routes per slot in the cluster client.
+  Two-key selection (`cluster.detect=auto` → `INFO cluster`, else `cluster.mode`, which is also the
+  inconclusive fallback) as Java. **Cluster shipped as the seam plus the branch, tested at the selection
+  level** (the double is one node; the branch is proven by its `CLUSTER` exchange) — live-cluster
+  behaviour is a certification run, as it was for Java; Eric's confirmation pending (port spec §9 Q1).
+  `Platform::on_shutdown` (Java `onShutdown`, v4.12.9) landed with it: hooks run once, newest first,
+  isolated, from `AutoStart::run`. Relates [[distributed-cache-rust]]; twin of the Java
+  `redis-connection-foundation`.
+  <!-- id: redis-connection-foundation-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-182617 -->
+
+- **The distributed cache is `mercury-distributed-cache` — ONE action function `v1.cache.redis` over
+  opaque bytes, gated by `redis.cache.enabled`, byte-compatible with the Java module (Increment 119,
+  2026-09-19; Java v4.12.9 Q1–Q8 in lock-step; PR pending Eric's gate).** Same action names
+  (`PUT`/`GET`/`MGET`/`MPUT`/`DELETE`/`PUT_IF_NOT_PRESENT`/`LIST_PUSH`/`LIST_POP`/`LIST_LEN`), same headers
+  (`action`/`key`/`ttl`), same error messages, same key layout `{redis.cache.key.prefix}{key}`, same
+  config keys — so a Java pod and a Rust pod share one cache. Every key TTL'd from birth: `SETEX`, atomic
+  `SET NX EX`, and `RPUSH`+`EXPIRE` as ONE `MULTI`/`EXEC` step — the port's ruled equivalent of Java's
+  `EVAL` (the delta the sync-over-async port set; the RESP double cannot run Lua). `MPUT` is a pipelined
+  per-entry `SETEX`, never `MSET`. **Bodies are `Value::Binary`**: a `set_body(Vec<u8>)` would serde a
+  list of integers — the one thing a Rust caller can get wrong that a Java caller cannot. Runtime: lazy,
+  double-checked build over ONE multiplexed connection, config re-read per failed attempt (a late vault
+  credential is picked up; the app boots with Redis down), released via `on_shutdown`, `runtime::set` as
+  the test seam. `redis.health` = the foundation probe bound to the plain namespace. The worked example
+  (`examples/distributed-cache-example`) runs the Java example's flow and graph files byte-identical and
+  stores plain-MsgPack maps under `cache-demo:` — **the cross-engine interop harness**: pointed at one
+  Redis, the two examples read each other's profiles (a side-by-side run is the certification step).
+  Builds on [[redis-connection-foundation-rust]]; the example applies [[playground-session-broker]].
+  <!-- id: distributed-cache-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-182617 -->
+
+- **A function's failure reaches a REST client as the standard error body `{status, message, type:
+  error}` — never as bare text (found and fixed 2026-09-19 by the cache example's Layer 1 miss).** Java
+  `AsyncHttpResponse.handleException`: an error status with no headers and a string body that does not
+  look like JSON or XML renders as the standard error map (JSON unless the client negotiated HTML); the
+  Rust server had that shape only for its own routing errors, so `Err(AppError::new(404, "..."))` from a
+  service arrived as `text/plain` while the same failure from a flow's exception handler arrived as
+  JSON — two shapes for one thing, and the Java-parity assertion on the example's miss body is what caught
+  it. `automation/server.rs` now applies the same guard and defaults the body to `application/json` when
+  nothing negotiated a type. **Lesson (the third instance this sprint): a Java-parity assertion carried
+  into a Rust twin test is the cheapest parity instrument there is — copy the assertion, not just the
+  scenario.** Pinned by `function_failure_is_java_shaped_error_body`.
+  <!-- id: rest-error-body-standard-shape | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-182617 -->
 
 ## Conventions
 
