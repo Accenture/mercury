@@ -105,7 +105,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 - **A `for_each` iteration of a suspending subgraph suspends under its OWN record — the store key is
   `graph:{graph_id}:{cid}:{index}`, and that key format is a cross-engine contract (lock-step with the
   Java engine's PR #418; Increment 118, 2026-09-19, branch `feat/for-each-suspend-resume-lockstep`
-  `3c98043d`, PR pending Eric's gate).** Every iteration inherits the parent's business cid by design —
+  `3c98043d`, PR #284 opened by Eric, merge pending his gate).** Every iteration inherits the parent's business cid by design —
   that inheritance is what makes a subgraph resumable at all — so N concurrent iterations of one
   subgraph collided on `graph:{id}:{cid}` and which suspension survived was a race. Mechanism: the
   extension skill's `for_each` branch carries the position as the `x-iteration-index` HEADER of a
