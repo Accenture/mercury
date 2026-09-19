@@ -167,7 +167,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 - **The distributed cache is `mercury-distributed-cache` — ONE action function `v1.cache.redis` over
   opaque bytes, gated by `redis.cache.enabled`, byte-compatible with the Java module (Increment 119,
-  2026-09-19; Java v4.12.9 Q1–Q8 in lock-step; PR #285 opened by Eric, merge pending his gate).** Same action names
+  2026-09-19; Java v4.12.9 Q1–Q8 in lock-step; PR #285 MERGED by Eric 2026-09-19, merge commit `5ac55eaf`; on main, unreleased until the catch-up release).** Same action names
   (`PUT`/`GET`/`MGET`/`MPUT`/`DELETE`/`PUT_IF_NOT_PRESENT`/`LIST_PUSH`/`LIST_POP`/`LIST_LEN`), same headers
   (`action`/`key`/`ttl`), same error messages, same key layout `{redis.cache.key.prefix}{key}`, same
   config keys — so a Java pod and a Rust pod share one cache. Every key TTL'd from birth: `SETEX`, atomic
