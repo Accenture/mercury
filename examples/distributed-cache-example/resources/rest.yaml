@@ -1,0 +1,150 @@
+#
+# distributed-cache-example — the same profile CRUD exposed three times, one
+# route family per layer, all backed by ONE shared cache (v1.cache.redis):
+#
+#   Layer 1  /api/l1/profile/{profile_id}   a function drives the cache with the PostOffice RPC API
+#   Layer 2  /api/l2/profile/{profile_id}   ONE flow (l2-profile) composes the cache task declaratively
+#   Layer 3  /api/graph/profile-cache       ONE graph drives the cache from graph.task nodes, through
+#                                           the standard graph endpoint (the action is in the payload)
+#
+# The remaining entries are the dev-mode Playground / companion services
+# (#[optional_service("app.env=dev")] in the engine): with APP_ENV=prod they are
+# skipped at start-up ("Service ... not available") and only the profile routes
+# plus /api/graph/{graph_id} remain.
+#
+rest:
+  - service: 'v1.profile.l1'
+    methods: ['GET', 'POST', 'DELETE']
+    url: '/api/l1/profile/{profile_id}'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: 'http.flow.adapter'
+    methods: ['GET', 'POST', 'DELETE']
+    url: '/api/l2/profile/{profile_id}'
+    flow: 'l2-profile'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: 'http.flow.adapter'
+    methods: ['POST', 'GET']
+    url: '/api/graph/{graph_id}'
+    flow: 'graph-executor'
+    timeout: 30s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  # ---- dev mode (app.env=dev): the Playground UI + companion endpoints ----
+  - service: 'get.index.html'
+    methods: ['GET']
+    url: '/index.html'
+    timeout: 10s
+
+  - service: 'get.ws.html'
+    methods: ['GET']
+    url: '/api/ws/{id}'
+    timeout: 10s
+    tracing: true
+
+  - service: 'show.graph.model'
+    methods: ['GET']
+    url: '/api/graph/model/{graph_id}/{sequence}'
+    timeout: 30s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: 'get.live.graph'
+    methods: ['GET']
+    url: '/api/graph/session/{id}'
+    timeout: 30s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: 'upload.json.content'
+    methods: ['POST']
+    url: '/api/json/content/{id}'
+    timeout: 30s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: 'upload.mock.content'
+    methods: ['POST']
+    url: '/api/mock/{id}'
+    timeout: 30s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: 'inspect.state.machine'
+    methods: ['GET']
+    url: '/api/inspect/{id}/{key}'
+    timeout: 30s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: 'post.companion.command.sync'
+    methods: ['POST']
+    url: '/api/companion/{id}/sync'
+    timeout: 40s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  # dev-only mock data providers the tutorials' API-fetcher exercises call
+  - service: 'mock.mdm.profile'
+    methods: ['POST']
+    url: '/api/mdm/profile'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: 'mock.mdm.profile'
+    methods: ['GET']
+    url: '/api/mdm/profile/{id}'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: 'mock.account.details'
+    methods: ['POST']
+    url: '/api/account/details'
+    timeout: 10s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+cors:
+  - id: cors_1
+    origin: '*'
+    options:
+      - "Access-Control-Allow-Origin: *"
+      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, PATCH, OPTIONS"
+      - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, X-Correlation-Id, Accept, Content-Type, X-Requested-With"
+      - "Access-Control-Max-Age: 86400"
+    headers:
+      - "Access-Control-Allow-Origin: *"
+      - "Access-Control-Allow-Methods: GET, DELETE, PUT, POST, PATCH, OPTIONS"
+      - "Access-Control-Allow-Headers: Origin, Authorization, X-Session-Id, X-Correlation-Id, Accept, Content-Type, X-Requested-With"
+      - "Access-Control-Allow-Credentials: true"
+
+headers:
+  - id: header_1
+    request:
+      drop: ['Upgrade-Insecure-Requests', 'cache-control', 'accept-encoding', 'connection']
+    response:
+      add:
+        - "Strict-Transport-Security: max-age=31536000"
+        - "Cache-Control: no-cache, no-store"
+        - "Pragma: no-cache"
+        - "Expires: Thu, 01 Jan 1970 00:00:00 GMT"

@@ -174,7 +174,9 @@ mercury-knowledge-graph = "4.12"    # code: use knowledge_graph::...
 
 The macro crates (`mercury-platform-macros`, `mercury-event-script-macros`,
 `mercury-knowledge-graph-macros`) are pulled in automatically; add
-`mercury-minigraph-state-redis` for the Redis suspend/resume state store.
+`mercury-minigraph-state-redis` for the Redis suspend/resume state store, or
+`mercury-distributed-cache` for the opt-in Redis L2 cache
+([Distributed Cache](distributed-cache.md)).
 
 ## Next steps
 

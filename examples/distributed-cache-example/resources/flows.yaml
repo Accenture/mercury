@@ -1,0 +1,10 @@
+# Layer 2 flow (l2-profile) plus the engine's graph-executor flow, which serves
+# every deployed graph at POST /api/graph/{graph_id}. graph-executor.yml is
+# NOT copied into this app: the knowledge-graph engine crate appends its own
+# resources root, so the classpath falls through to the engine's copy (one
+# source of truth) - listing it here is deployment intent, as in Java.
+flows:
+  - 'l2-profile.yml'
+  - 'graph-executor.yml'
+
+location: 'classpath:/flows/'

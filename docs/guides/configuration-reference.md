@@ -588,22 +588,59 @@ the window aborts the traversal. Read by `crates/knowledge-graph`.
 How many visits to the same node within `graph.max.loop.interval` count as a runaway loop
 (floor 2). Read by `crates/knowledge-graph`.
 
-#### `redis.*` (the `minigraph-state-redis` extension crate — crates.io: `mercury-minigraph-state-redis`)
+#### `redis.*` — the shared Redis connection namespace {#redis}
 
 | Key | Type | Default |
 |---|---|---|
 | `redis.host` | string | `127.0.0.1` |
 | `redis.port` | int | `6379` |
+| `redis.username` | string | — (blank = the default user; set for an ACL/RBAC user, e.g. `${REDIS_USERNAME:}`) |
 | `redis.password` | string | — (blank = no auth; source from the environment, e.g. `${REDIS_PASSWORD:}`) |
 | `redis.ssl` | boolean | `false` |
-| `redis.database` | int | `0` |
+| `redis.database` | int | `0` (standalone only — a cluster is database 0) |
 | `redis.timeout.ms` | long (ms) | `5000` |
+| `redis.cluster.detect` | `auto` \| other | `auto` — probe the seed at start-up (`INFO cluster`); anything else = decide by `redis.cluster.mode` |
+| `redis.cluster.mode` | boolean | `false` — `true` = cluster client, `false` = standalone; also the fallback when auto-detection is inconclusive |
+| `redis.cluster.nodes` | string | — (blank = `redis.host:redis.port`; else `host:port,host:port` seeds) |
 
-Connection settings for the graph suspend/resume Redis state store — read lazily on the
-first suspend/resume, so an application boots normally without Redis. The key family is
-shared with the sync-over-async extension in the Java engine, so an application configures
-Redis once. Worker counts are ops-tunable via `worker.instances.v1.redis.persist.model` /
-`worker.instances.v1.redis.retrieve.model`. Read by `extensions/minigraph-state-redis`.
+The base namespace of the shared **`mercury-redis-connection`** foundation (`extensions/redis-connection`,
+the Rust twin of the Java `redis-connection` module). It is read directly by the
+[distributed cache](distributed-cache.md) (`redis.cache.*` below) and by the graph suspend/resume state
+store (`extensions/minigraph-state-redis`, lazily on the first suspend/resume, so an application boots
+normally without Redis; its worker counts are ops-tunable via `worker.instances.v1.redis.persist.model` /
+`worker.instances.v1.redis.retrieve.model`), and it is the **per-key fallback** of sync-over-async's
+`soa.redis.*` namespace below. The username and cluster keys are read by the foundation's consumers (the
+cache, the health probes); the state store reads the host/port/password/ssl/database/timeout subset.
+Authentication is identical for standalone and cluster — a username selects RBAC (`AUTH user pass`), a bare
+password the legacy form. Key names and defaults are the Java engine's.
+
+#### `soa.redis.*` (the `sync-over-async` extension crate — crates.io: `mercury-sync-over-async`) {#soa-redis}
+
+Sync-over-async's own copy of every `redis.*` key above — `soa.redis.host`, `soa.redis.port`,
+`soa.redis.username`, `soa.redis.password`, `soa.redis.ssl`, `soa.redis.database`,
+`soa.redis.timeout.ms`, `soa.redis.cluster.detect`, `soa.redis.cluster.mode`, `soa.redis.cluster.nodes` —
+plus `soa.redis.health.timeout` (default `5s`) and `soa.redis.health.startup.grace` (default `30s`) for the
+`soa.redis.health` probe. **Each key falls back to the un-prefixed `redis.*` form when absent** (the
+`redis.health.*` keys for the two probe settings) — backward compatibility for deployments that predate the
+namespace, and for applications running sync-over-async alone. When the distributed cache also runs, give
+each module its own Redis and set the **whole** `soa.redis.*` connection set: because the fallback is per
+key, a partial override inherits the cache's credentials. See
+[Separate Redis clients, by design](distributed-cache.md#separation). Read by `extensions/sync-over-async`.
+
+#### `redis.cache.*` (the `distributed-cache` extension crate — crates.io: `mercury-distributed-cache`) {#redis-cache}
+
+| Key | Type | Default |
+|---|---|---|
+| `redis.cache.enabled` | boolean | `false` — the master switch: `true` registers `v1.cache.redis` and `redis.health` |
+| `redis.cache.instances` | int | `20` — worker instances of `v1.cache.redis` (function concurrency), **not** a connection count |
+| `redis.cache.default.ttl` | duration | `1h` — the TTL a `PUT` / `MPUT` / `LIST_PUSH` uses when it omits `ttl` |
+| `redis.cache.key.prefix` | string | — (blank) — prepended to every key, stripped again from `MGET` results |
+| `redis.health.timeout` | duration | `5s` — bounds the `redis.health` probe |
+| `redis.health.startup.grace` | duration | `30s` — the probe's start-up placeholder window |
+
+The cache connects through the plain `redis.*` namespace above, on **one shared multiplexed connection**
+built lazily on the first call (a late-published credential is picked up on retry). See the
+[Distributed Cache](distributed-cache.md) guide. Read by `extensions/distributed-cache`.
 
 ## Application-defined keys
 

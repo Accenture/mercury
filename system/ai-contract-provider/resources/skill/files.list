@@ -8,6 +8,7 @@ references/guides/api-overview.md
 references/guides/architecture.md
 references/guides/claims-registry.json
 references/guides/configuration-reference.md
+references/guides/distributed-cache.md
 references/guides/event-driven/ai-agent-guide.md
 references/guides/event-driven/function-execution.md
 references/guides/event-driven/index.md

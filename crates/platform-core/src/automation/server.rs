@@ -784,6 +784,34 @@ async fn process(
     // map the response envelope back to HTTP (Java AsyncHttpResponse:
     // updateHeadersAndContentType + updateHeaders)
     let status = status_of(result.status());
+    // Java AsyncHttpResponse.handleException parity: a function's FAILURE - an
+    // error status with a plain-text body and no headers of its own (the shape
+    // the worker gives a bubbled-up AppError) - renders as the standard error
+    // body {status, message, type: error}, so a REST client sees ONE error
+    // shape whether the failure came from the router or from the service. A
+    // text body that already looks like JSON or XML is left as the function
+    // wrote it (the same guard Java applies).
+    let (result, standard_error) = match result.body() {
+        rmpv::Value::String(text) if result.status() >= 400 && result.headers().is_empty() => {
+            let message = text.as_str().unwrap_or_default().trim().to_string();
+            if message.starts_with('{') || message.starts_with('[') || message.starts_with('<') {
+                (result, false)
+            } else {
+                (
+                    result.set_raw_body(rmpv::Value::Map(vec![
+                        (
+                            rmpv::Value::from("status"),
+                            rmpv::Value::from(status.as_u16()),
+                        ),
+                        (rmpv::Value::from("message"), rmpv::Value::from(message)),
+                        (rmpv::Value::from("type"), rmpv::Value::from("error")),
+                    ])),
+                    true,
+                )
+            }
+        }
+        _ => (result, false),
+    };
     let mut content_type: Option<String> = None;
     let mut set_cookies: Vec<String> = Vec::new();
     let mut response_headers: HashMap<String, String> = HashMap::new();
@@ -823,6 +851,11 @@ async fn process(
     // and map/list bodies render per the negotiated type (handleMapContent).
     if content_type.is_none() && !is_head {
         content_type = accept_fallback_type(accept.as_deref(), result.body());
+    }
+    // the standard error body is JSON unless the client negotiated another
+    // rendering (Java sendError: JSON by default, HTML for a browser)
+    if standard_error && content_type.is_none() && !is_head {
+        content_type = Some("application/json".to_string());
     }
     let payload = render_payload(result.body(), content_type.as_deref());
     // the rest.yaml response transform filters the merged header map (Java

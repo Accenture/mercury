@@ -390,6 +390,9 @@ impl AutoStart {
                 // give fire-and-forget telemetry a beat to be logged before exit
                 tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             }
+            // components release what they opened (Java Platform.onShutdown
+            // parity), newest first, before the engine's own cleanup
+            crate::Platform::run_shutdown_hooks();
             crate::util::elastic_queue::shutdown_cleanup();
             Ok(())
         })

@@ -1,0 +1,28 @@
+[package]
+name = "mercury-distributed-cache"
+description = "Opt-in distributed cache for Mercury: a Redis-backed L2 cache as ONE composable action function (v1.cache.redis) over opaque bytes, reachable from all three layers (import from the application, never the engine)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["redis", "cache", "distributed-cache", "l2-cache", "mercury"]
+categories = ["caching", "database", "asynchronous"]
+
+[lib]
+name = "distributed_cache"
+
+[dependencies]
+mercury-platform-core = { version = "4.12.7", path = "../../crates/platform-core" }
+mercury-redis-connection = { version = "4.12.7", path = "../redis-connection" }
+async-trait = "0.1"
+log = "0.4"
+rmpv = { version = "1", features = ["with-serde"] }
+tokio = { version = "1", features = ["rt", "time", "macros", "sync"] }
+redis = { version = "1.5.0", features = ["tokio-comp", "connection-manager", "tokio-rustls-comp", "cluster-async"] }
+
+[dev-dependencies]
+mercury-redis-test-double = { path = "../redis-test-double" }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util", "sync"] }
+uuid = { version = "1", features = ["v4"] }

@@ -40,7 +40,9 @@ mercury-knowledge-graph = "4.12"    # code: use knowledge_graph::...
 ```
 
 (The macro crates are pulled in automatically; add `mercury-minigraph-state-redis` for
-the Redis suspend/resume state store.)
+the Redis suspend/resume state store, `mercury-distributed-cache` for the opt-in Redis L2
+cache (`v1.cache.redis`), or `mercury-sync-over-async` for the cross-pod streaming return
+route — the last two share the `mercury-redis-connection` client foundation.)
 
 ## Quick start
 

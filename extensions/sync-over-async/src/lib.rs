@@ -48,9 +48,9 @@
 //! | [`StreamResponder`] | the producer API: post a segment, learn whether the rendezvous is live |
 //! | [`SegmentSink`] | the consumer end a facade implements to render segments |
 //! | [`StreamBridge`] / [`EventStreamSink`] | the UI-pod facade half: rendezvous → HTTP edge reply lane, with the idle-expiry watchdog |
-//! | [`RedisHealthCheck`] | the `soa.redis.health` function for the `/health` endpoint |
+//! | [`RedisHealthCheck`] | the `soa.redis.health` function for the `/health` endpoint — a thin binding of the `redis-connection` foundation's probe |
 //! | [`runtime`] | process-wide holder for the one coordinator a real application runs |
-//! | [`SyncOverAsyncConfig`] / [`RedisSettings`] | the `sync.*` and `redis.*` startup parameters |
+//! | [`SyncOverAsyncConfig`] / [`RedisSettings`] | the `sync.*` startup parameters, and the `soa.redis.*` connection parameters (falling back to plain `redis.*`) from the `redis-connection` foundation |
 //!
 //! # Contracts worth knowing
 //!

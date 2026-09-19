@@ -1,0 +1,7 @@
+# The graph manifest — the CompileGraph deployment gate: profile-cache is
+# executable at POST /api/graph/profile-cache only because it is listed here
+# AND passes the gate ("compiled or 404").
+graphs:
+  - 'profile-cache'
+
+location: 'classpath:/graph'

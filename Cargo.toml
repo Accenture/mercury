@@ -12,6 +12,11 @@ members = [
     # suites (publish = false, never shipped - listed so every build proves it
     # stays current for both consumers)
     "extensions/redis-test-double",
+    # the shared Redis client foundation (config, standalone-or-cluster seam,
+    # health probe) that sync-over-async and the distributed cache depend on
+    "extensions/redis-connection",
+    # the opt-in L2 distributed cache (v1.cache.redis) over the foundation
+    "extensions/distributed-cache",
     "extensions/minigraph-state-redis",
     "extensions/sync-over-async",
     "benchmark/benchmark-reporter",
@@ -21,6 +26,7 @@ members = [
     "examples/hello-flow",
     "examples/minigraph-playground",
     "examples/sync-over-async-demo",
+    "examples/distributed-cache-example",
     # starter templates for the three layers (copy one out to begin a new
     # project; explicit metadata - no workspace inheritance - so a copy
     # builds as-is, listed here so every build proves they stay current)

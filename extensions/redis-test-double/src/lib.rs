@@ -29,7 +29,7 @@
 //!
 //! | Family | Commands |
 //! |---|---|
-//! | strings | `SET`, `SETEX`, `GET`, `GETDEL`, `TTL`, `DEL`, `EXPIRE`, `EXISTS` |
+//! | strings | `SET` (with `NX`/`XX`, `EX`/`PX`, `KEEPTTL`), `SETEX`, `GET`, `MGET`, `GETDEL`, `TTL`, `DEL`, `EXPIRE`, `EXISTS` |
 //! | lists | `RPUSH`, `LPUSH`, `LPOP`, `LLEN` (an emptied list deletes its key, as a real server does) |
 //! | pub/sub | `SUBSCRIBE`, `UNSUBSCRIBE`, `PUBLISH` (out-of-band `message` push frames) |
 //! | transactions | `MULTI`, `EXEC`, `DISCARD` with per-connection queueing |
@@ -356,15 +356,63 @@ fn dispatch(args: &[Vec<u8>], connection: &mut Connection) -> Vec<u8> {
             map.clear();
             b"+OK\r\n".to_vec()
         }
+        // the real server's option grammar after the value: NX | XX, EX seconds |
+        // PX millis | KEEPTTL - the cache's atomic put-if-absent is `SET k v NX EX ttl`
         "SET" if args.len() >= 3 => {
+            let (mut nx, mut xx, mut keep_ttl) = (false, false, false);
+            let mut expires_at = None;
+            let mut i = 3;
+            while i < args.len() {
+                let option = String::from_utf8_lossy(&args[i]).to_ascii_uppercase();
+                match option.as_str() {
+                    "NX" => nx = true,
+                    "XX" => xx = true,
+                    "KEEPTTL" => keep_ttl = true,
+                    "EX" | "PX" if i + 1 < args.len() => {
+                        let amount: u64 = String::from_utf8_lossy(&args[i + 1]).parse().unwrap_or(0);
+                        let ttl = if option == "EX" {
+                            Duration::from_secs(amount)
+                        } else {
+                            Duration::from_millis(amount)
+                        };
+                        expires_at = Some(Instant::now() + ttl);
+                        i += 1;
+                    }
+                    _ => return b"-ERR syntax error\r\n".to_vec(),
+                }
+                i += 1;
+            }
+            let existing = live_entry(&mut map, &args[1]).map(|entry| entry.expires_at);
+            if (nx && existing.is_some()) || (xx && existing.is_none()) {
+                // the condition failed: nothing stored, a null reply
+                return null_bulk();
+            }
+            if keep_ttl {
+                expires_at = existing.flatten();
+            }
             map.insert(
                 args[1].clone(),
                 StoredValue {
                     data: StoredData::Text(args[2].clone()),
-                    expires_at: None,
+                    expires_at,
                 },
             );
             b"+OK\r\n".to_vec()
+        }
+        // one bulk (or null) per requested key; a list-typed key answers null
+        // like a real server, never WRONGTYPE
+        "MGET" if args.len() >= 2 => {
+            let mut reply = format!("*{}\r\n", args.len() - 1).into_bytes();
+            for key in &args[1..] {
+                match live_entry(&mut map, key) {
+                    Some(entry) => match &entry.data {
+                        StoredData::Text(value) => reply.extend(bulk(value)),
+                        StoredData::List(_) => reply.extend(null_bulk()),
+                    },
+                    None => reply.extend(null_bulk()),
+                }
+            }
+            reply
         }
         "SETEX" if args.len() == 4 => {
             let seconds: u64 = String::from_utf8_lossy(&args[2]).parse().unwrap_or(0);
