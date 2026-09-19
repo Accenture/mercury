@@ -102,6 +102,47 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `templates/starter-graph` (Eric, 2026-09-14).
   <!-- id: playground-session-broker | created: 2026-09-03 | last_used: 2026-09-17 | uses: 6 | tier: active | origin: 2026-09-03-172834.md -->
 
+- **A `for_each` iteration of a suspending subgraph suspends under its OWN record — the store key is
+  `graph:{graph_id}:{cid}:{index}`, and that key format is a cross-engine contract (lock-step with the
+  Java engine's PR #418; Increment 118, 2026-09-19, branch `feat/for-each-suspend-resume-lockstep`
+  `3c98043d`, PR pending Eric's gate).** Every iteration inherits the parent's business cid by design —
+  that inheritance is what makes a subgraph resumable at all — so N concurrent iterations of one
+  subgraph collided on `graph:{id}:{cid}` and which suspension survived was a race. Mechanism: the
+  extension skill's `for_each` branch carries the position as the `x-iteration-index` HEADER of a
+  graph invocation (never the body, never the application-owned `graph-executor` flow; a `flow://`
+  target gets no index — Java parity); the executor lifts it into the reserved
+  `model.iteration_index` (`RESERVED_MODEL_METADATA` is ten names; `NON_PERSISTED_MODEL_KEYS` aliases
+  it, so it is never persisted and never restored); `graph.suspend` puts `index` in the envelope,
+  `graph.resume` sends it in the `type=get` body; the Redis store and the file-store mock append it
+  ONLY when present, so single delegations and pre-upgrade records keep the two-segment key. A mixed
+  Java/Rust fleet shares one Redis, so the two engines must compose the key identically — the reason
+  this is a lock-step and not an option. Constraints DECLARED in the guide, not enforced (Eric's
+  clean-knowledge-design ruling on the Java side): positional consistency (appending safe; insert/
+  remove/reorder shifts positions and a shifted iteration MISSES rather than restoring another item's
+  record — pinned), parent → `for_each` → flow → suspending graph unsupported, nested `for_each` with
+  suspension a non-goal. Pinned end to end by `rust-orchestrator-foreach` (two records keyed by
+  iteration, each holding its own item and counter, both resumed and consumed), which the Java suite
+  does not have. Amends ADR-0012 in place (see [[conv-proposals-not-in-adr-ledger-rust]]); relates
+  [[fork-join-awaits-on-calling-task]] (found by this increment's test).
+  <!-- id: for-each-suspend-index-key-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-022252 -->
+
+- **Fork-join batches are awaited ON THE CALLING TASK, never `tokio::spawn`ed (found 2026-09-19 by
+  the `for_each` lockstep's end-to-end test; Increment 118).** The distributed-trace bracket is a tokio
+  task-local: a spawned child starts outside it, its `po.request` finds no current trace, the launched
+  flow or task runs UNTRACED, and every downstream call inside it falls back to a minted correlation
+  id instead of the business cid. All three fan-out skills (`graph.extension`, `graph.task`,
+  `graph.api.fetcher`) had carried the pattern since their port — under a single delegation every
+  child span shares the parent's trace id, under a fan-out the children emitted none — a violation of
+  [[inv-telemetry-presentation-parity]] that the Increment-64 signature instrument never saw because
+  it had no fan-out shape. `common::join_batch` (`futures_util::future::join_all`) replaces the spawn
+  at all three sites: concurrent, responses in request order, the worker's trace and business cid in
+  scope — the Java `po.request(batch, timeout)` shape. **Durable lesson:** a parity assertion proven
+  on one shape (the orchestrator test's "the working step sees the business cid") must be re-run on
+  EVERY shape the feature has — the fan-out failed it on the first run. Pinned by
+  `rust-orchestrator-foreach`'s business-cid assertion. Relates [[for-each-suspend-index-key-rust]],
+  [[port-bottom-up-faithful]].
+  <!-- id: fork-join-awaits-on-calling-task | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-022252 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -145,6 +186,23 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   reasoning explicitly from it. Rule of thumb: if you would have decided differently without the
   fact, it is a reference. Twin of `conv-declare-consulted-references` in mercury-composable.
   <!-- id: conv-declare-consulted-references-rust | created: 2026-09-04 | last_used: 2026-09-04 | uses: 1 | tier: core -->
+
+- **A proposal is not a decision: raise it in `docs/arch-decisions/RFC.md` as `RFC-NNNN`, never as a
+  `Proposed` ADR (Eric, 2026-09-18 on the Java side; adopted here 2026-09-19 in lock-step — "ADR were
+  done in a lockstep so it would require the same treatment").** The ADR ledger is an immutable journey
+  of decisions, so an entry is written when a decision is *accepted*, never before; a withdrawn
+  proposal has no honest ledger status. `RFC-NNNN` and `ADR-NNNN` are separate sequences. The rule is
+  also upstream — agent-memory protocol v4.41.2 and the v4.42.0 governance pair, whose `RFC.md`
+  skeleton this repo carries byte-for-byte (status vocabulary `Open · Parked · Promoted → ADR-NNNN ·
+  Withdrawn`, entries never deleted, newest first). Adopted in the sitting that accepted the three ADRs
+  left at *Proposed* (0012–0014), each verified delivered in the tree first, with ADR-0012 amended in
+  place rather than superseded because it had never left *Proposed*. **The snapshot rule, learned from
+  the Java red main (#421/#424), applied before the change this time:** the AI-contract snapshot
+  link-checks every relative link inside itself, so a doc page the ledger links to must be enumerated
+  in TWO places here — `system/ai-contract-provider/resources/skill/files.list` (which `build.rs`
+  embeds from) and `snapshot_test.rs`'s fixed extras — a Rust change, not docs-only. Twin of
+  `conv-proposals-not-in-adr-ledger` in mercury-composable; relates [[eric-release-rhythm-rust]].
+  <!-- id: conv-proposals-not-in-adr-ledger-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: core | origin: 2026-09-19-022252 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 
