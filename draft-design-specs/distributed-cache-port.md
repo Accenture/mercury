@@ -243,6 +243,11 @@ carries all four (Eric may ask to split).
 - **The example is the interop harness the Java repo asked for**: the Java flow and graph files run
   unchanged, and the stored value is a plain MsgPack map under the `cache-demo:` namespace — the same
   bytes the Java example writes — so the two examples pointed at one Redis read each other's profiles.
+- **A typed function could not set status or headers** (Eric's question, folded in at his direction):
+  Java honours a `TypedLambdaFunction<I, EventEnvelope>`'s returned envelope as the reply; the Rust
+  `TypedAdapter` wrapped every `O` as a body — and `EventEnvelope` derives `Serialize`, so the typed
+  form compiled and silently nested the envelope. The adapter now downcasts the output (the Java
+  `instanceof`) and passes an `EventEnvelope` through; pinned over REST.
 
 ## 10. Relation to the blueprint
 

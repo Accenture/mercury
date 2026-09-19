@@ -39,7 +39,9 @@ Without `typed`, the struct must implement `ComposableFunction` (raw `EventEnvel
 out). With `typed`, it implements `TypedFunction<I, O>` with your own `serde` types — and
 `I` may be **`AsyncHttpRequest`** for an HTTP-facing function (the REST edge's request
 dataset deserializes into the model; Java `TypedLambdaFunction<AsyncHttpRequest, Object>`
-parity, with the knowledge on the type instead of an engine special case) — and the
+parity, with the knowledge on the type instead of an engine special case) — and `O` may be
+**`EventEnvelope`** to set the reply's status and headers (the adapter honours it *as* the
+reply, never as a nested body; Java `TypedLambdaFunction<I, EventEnvelope>` parity) — and the
 platform bridges it with an adapter:
 
 ```rust

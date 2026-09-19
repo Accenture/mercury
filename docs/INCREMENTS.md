@@ -2997,6 +2997,15 @@ string body that does not look like JSON or XML). The Rust server had that shape
 routing errors; the example's Layer 1 miss exposed it. Mirrored with the same guard and pinned in the
 REST suite.
 
+**Found and fixed on the way — a typed function could not set status or headers.** A Java
+`TypedLambdaFunction<I, EventEnvelope>` returns an `EventEnvelope` to set the reply's status, headers and
+body (`WorkerHandler.updateResponse`: `result instanceof EventEnvelope`); the Rust `TypedAdapter` always
+wrapped `O` as the body, and because `EventEnvelope` derives `Serialize` a `TypedFunction<I,
+EventEnvelope>` compiled and silently nested the whole envelope inside the reply body (Eric's question
+during the lock-step). The adapter now downcasts the output — the Java `instanceof` — and honours an
+`EventEnvelope` as the reply; pinned over REST by
+`typed_function_may_return_an_envelope_to_set_status_and_headers`; the authoring guides say so.
+
 **Tests.** Foundation: the `RedisConfig` twins (defaults, discrete keys, two-key cluster selection,
 RBAC username, `soa.*` → `redis.*` fallback and precedence, prefix isolation, seeds, auth/TLS
 descriptors), the backend twins against the double (auto-detect resolves standalone; explicit mode skips

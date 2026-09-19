@@ -96,7 +96,10 @@ where
 
 /// Bridges a [`TypedFunction`] to the untyped [`ComposableFunction`] registry
 /// currency: deserializes the envelope body into `I`, invokes the typed
-/// handler, and wraps `O` back into a response envelope.
+/// handler, and wraps `O` back into a response envelope — unless `O` IS an
+/// [`EventEnvelope`], which is honoured as the reply itself (status, headers
+/// and body), the Java `TypedLambdaFunction<I, EventEnvelope>` contract
+/// (`WorkerHandler.updateResponse`: `result instanceof EventEnvelope`).
 pub struct TypedAdapter<T, I, O> {
     inner: T,
     _marker: PhantomData<fn(I) -> O>,
@@ -127,7 +130,7 @@ impl<T, I, O> ComposableFunction for TypedAdapter<T, I, O>
 where
     T: TypedFunction<I, O>,
     I: DeserializeOwned + Send + Sync,
-    O: Serialize + Send + Sync,
+    O: Serialize + Send + Sync + 'static,
 {
     async fn handle_event(
         &self,
@@ -142,7 +145,22 @@ where
             .inner
             .handle_event(headers, typed_input, instance)
             .await?;
-        EventEnvelope::new().set_body(output)
+        // Java WorkerHandler.updateResponse parity: a typed function may return
+        // an EventEnvelope to set the reply's status, headers and body - it is
+        // honoured AS the reply, never serialized into a body (EventEnvelope
+        // derives Serialize, so without this check the whole envelope would
+        // silently nest inside the reply body). The downcast is the Java
+        // `result instanceof EventEnvelope`.
+        let boxed: Box<dyn std::any::Any + Send> = Box::new(output);
+        match boxed.downcast::<EventEnvelope>() {
+            Ok(envelope) => Ok(*envelope),
+            Err(other) => {
+                let output = *other
+                    .downcast::<O>()
+                    .expect("a typed output is either an EventEnvelope or O");
+                EventEnvelope::new().set_body(output)
+            }
+        }
     }
 }
 

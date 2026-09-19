@@ -430,6 +430,10 @@ rest:
     methods: ['GET']
     url: "/api/fail"
     timeout: 5s
+  - service: "typed.envelope.probe"
+    methods: ['GET']
+    url: "/api/typed-envelope/{user}"
+    timeout: 5s
   - service: "json.error.service"
     methods: ['GET']
     url: "/api/fail/json"
@@ -446,6 +450,31 @@ headers:
     response:
       add: ["x-served-by: mercury"]
 "#;
+
+/// A TYPED function that returns an `EventEnvelope` — the Java
+/// `TypedLambdaFunction<I, EventEnvelope>` contract: the envelope IS the reply
+/// (status, headers, body), never a body that nests the envelope.
+struct TypedEnvelopeProbe;
+
+#[async_trait]
+impl platform_core::TypedFunction<automation::AsyncHttpRequest, EventEnvelope>
+    for TypedEnvelopeProbe
+{
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        request: automation::AsyncHttpRequest,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        EventEnvelope::new()
+            .set_status(202)
+            .set_header("x-typed-reply", "envelope")
+            .set_body(serde_json::json!({
+                "user": request.path_parameter("user"),
+                "accepted": true,
+            }))
+    }
+}
 
 /// Fails with an `AppError` — the shape a bubbled-up function error takes
 /// (status + plain-text message, no headers).
@@ -562,6 +591,13 @@ async fn server() -> TestServer {
         .unwrap();
     platform
         .register("failing.service", Arc::new(FailingService), 1)
+        .unwrap();
+    platform
+        .register(
+            "typed.envelope.probe",
+            platform_core::TypedAdapter::arc(TypedEnvelopeProbe),
+            1,
+        )
         .unwrap();
     platform
         .register("json.error.service", Arc::new(JsonErrorService), 1)
@@ -840,6 +876,33 @@ async fn unknown_path_is_java_shaped_404() {
     assert_eq!(json["status"], 404);
     assert_eq!(json["type"], "error");
     assert_eq!(json["message"], "Resource not found");
+}
+
+/// Java `TypedLambdaFunction<I, EventEnvelope>` parity (`WorkerHandler.updateResponse`:
+/// `result instanceof EventEnvelope`): a typed function that returns an
+/// `EventEnvelope` sets the reply's status, headers and body — the adapter
+/// honours it as the reply instead of serializing the envelope into a body.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn typed_function_may_return_an_envelope_to_set_status_and_headers() {
+    let server = server().await;
+    let (status, headers, body) =
+        http(server.port, "GET", "/api/typed-envelope/carol", &[], "").await;
+    assert_eq!(status, 202, "the envelope's status is the reply's: {body}");
+    assert_eq!(
+        headers.get("x-typed-reply").map(String::as_str),
+        Some("envelope"),
+        "the envelope's header reaches the wire: {headers:?}"
+    );
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(
+        json["user"], "carol",
+        "the envelope's body is the reply body, not a nested envelope: {body}"
+    );
+    assert_eq!(json["accepted"], true);
+    assert!(
+        json.get("headers").is_none() && json.get("status").is_none(),
+        "no serialized envelope: {body}"
+    );
 }
 
 /// Java `AsyncHttpResponse.handleException` parity: a function's failure — an

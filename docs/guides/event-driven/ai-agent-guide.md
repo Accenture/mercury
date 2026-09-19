@@ -143,8 +143,11 @@ where I: DeserializeOwned + Send, O: Serialize {
 
 Declare with `#[preload(route = "…", typed)]`; the engine's `TypedAdapter` does the
 `body_as::<I>()` / `set_body(O)` conversion at the boundary (the `TypedLambdaFunction<I, O>`
-analog). Use it when a strict input/output contract helps; use `ComposableFunction` when you need
-envelope details (status, headers on the reply) or varying body shapes.
+analog). Use it when a strict input/output contract helps. **To set the reply's status or
+headers from a typed function, return an `EventEnvelope` as `O`** (`TypedFunction<I, EventEnvelope>`,
+the Java `TypedLambdaFunction<I, EventEnvelope>` contract): the adapter honours it *as* the reply —
+status, headers and body — never as a body that nests the envelope. Use `ComposableFunction` when
+the input shape varies too.
 
 ---
 
