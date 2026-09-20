@@ -99,8 +99,8 @@ input[]=input.body.state -> key
 is a JSON array written as text, so the node reads as a table in the Playground and the function
 reconstructs the lists (SimpleMapper in Java, serde_json in Rust) and reads the rule names from
 "table.keys". For the common case no function is needed at all: a graph.data.mapper decision node
-resolves the rule with the "lookup" simple plugin and supplies a default for a miss -
-see "describe skill graph.data.mapper". Variations: "key[]=member" lines build a real list property,
+resolves the rule in one entry with the "lookup" simple plugin, its optional third argument being the
+default for a miss - see "describe skill graph.data.mapper". Variations: "key[]=member" lines build a real list property,
 and a nested table may be ONE JSON text property (a multi-line '''...''' value) that f:json parses
 at mapping time: input[]=f:json(state-rules.table) -> table. The product owner certifies the table on
 the graph and a new table ships as a new graph version, never as a code change. Wire the table node

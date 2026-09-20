@@ -41,16 +41,15 @@ Decision table lookup
 ---------------------
 A data mapper is also the natural decision node for a static decision table held on a skill-less node
 (see "describe skill graph.task" for the table node). The "lookup" simple plugin returns the name of
-the first rule whose list contains the value (compared as text, case-insensitively) and null on a miss,
-so a second entry supplies the default:
+the first rule whose list contains the value (compared as text, case-insensitively), or the optional
+third argument on a miss (null when it is omitted):
 
 ```
 create node select-rule
 with type Decision
 with properties
 skill=graph.data.mapper
-mapping[]=f:lookup(state-rules, input.body.state) -> model.rule
-mapping[]=f:defaultValue(model.rule, text(unknown)) -> output.body.rule
+mapping[]=f:lookup(state-rules, input.body.state, text(unknown)) -> output.body.rule
 ```
 
 The table's "keys" field lists the rule names in priority order and each rule field lists its values;

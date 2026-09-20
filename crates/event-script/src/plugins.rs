@@ -221,17 +221,25 @@ fn plugin_json(args: &[Value]) -> Result<Value, String> {
     }
 }
 
-/// `f:lookup(table, value)` — the name of the rule of a static decision table
-/// that lists the value (Java `SimpleLookup`). The table is a map: `keys`
-/// names the rules in priority order and each rule is a list of the values that
-/// select it; `keys` and every rule may be a list or a JSON array written as
-/// text (a node property authored as `keys=[ "a", "b" ]`), and the table itself
-/// may be JSON text. Values are compared as text, case-insensitively; no match
-/// is Nil, so a mapping can supply a default with `f:defaultValue`.
+/// `f:lookup(table, value[, default])` — the name of the rule of a static
+/// decision table that lists the value (Java `SimpleLookup`). The table is a
+/// map: `keys` names the rules in priority order and each rule is a list of the
+/// values that select it; `keys` and every rule may be a list or a JSON array
+/// written as text (a node property authored as `keys=[ "a", "b" ]`), and the
+/// table itself may be JSON text. Values are compared as text,
+/// case-insensitively; no match returns the optional third argument (typically
+/// a `text(...)` constant), or Nil when there is none.
 #[simple_plugin("lookup")]
 fn plugin_lookup(args: &[Value]) -> Result<Value, String> {
-    let [table, value] = args else {
-        return Err(format!("Expected two input values - actual={}", args.len()));
+    let (table, value, default) = match args {
+        [table, value] => (table, value, &Value::Nil),
+        [table, value, default] => (table, value, default),
+        _ => {
+            return Err(format!(
+                "Expected two or three input values - actual={}",
+                args.len()
+            ));
+        }
     };
     let table = decision_table(table)?;
     let keys = map_entry(&table, "keys").ok_or_else(|| "Missing keys in input".to_string())?;
@@ -246,7 +254,7 @@ fn plugin_lookup(args: &[Value]) -> Result<Value, String> {
             return Ok(Value::from(rule));
         }
     }
-    Ok(Value::Nil)
+    Ok(default.clone())
 }
 
 /// The decision table as map entries: a map, or a JSON object written as text.
@@ -775,7 +783,7 @@ mod tests {
             calculate("lookup", &[of_lists.clone(), Value::from("tx")]),
             Ok(Value::from("community-property"))
         );
-        // a miss is Nil so that a mapping can supply a default with f:defaultValue
+        // a miss is Nil when no default is given
         assert_eq!(
             calculate("lookup", &[of_lists.clone(), Value::from("ZZ")]),
             Ok(Value::Nil)
@@ -784,10 +792,45 @@ mod tests {
             calculate("lookup", &[table_of_json_text(), Value::Nil]),
             Ok(Value::Nil)
         );
+        // f:lookup(state-rules, input.body.state, text(unknown)): a miss returns the
+        // optional third argument, a hit ignores it
+        assert_eq!(
+            calculate(
+                "lookup",
+                &[of_lists.clone(), Value::from("ZZ"), Value::from("unknown")]
+            ),
+            Ok(Value::from("unknown"))
+        );
+        assert_eq!(
+            calculate(
+                "lookup",
+                &[table_of_json_text(), Value::Nil, Value::from("unknown")]
+            ),
+            Ok(Value::from("unknown"))
+        );
+        assert_eq!(
+            calculate(
+                "lookup",
+                &[of_lists.clone(), Value::from("TX"), Value::from("unknown")]
+            ),
+            Ok(Value::from("community-property"))
+        );
         // invalid inputs: exact Java-parity messages
         assert_eq!(
             calculate("lookup", std::slice::from_ref(&of_lists)),
-            Err("Expected two input values - actual=1".to_string())
+            Err("Expected two or three input values - actual=1".to_string())
+        );
+        assert_eq!(
+            calculate(
+                "lookup",
+                &[
+                    of_lists.clone(),
+                    Value::from("TX"),
+                    Value::from("unknown"),
+                    Value::from("extra")
+                ]
+            ),
+            Err("Expected two or three input values - actual=4".to_string())
         );
         assert_eq!(
             calculate("lookup", &[Value::from("state-rules"), Value::from("TX")]),

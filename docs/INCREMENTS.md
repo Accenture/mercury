@@ -3174,23 +3174,26 @@ maps it out. Ported in lockstep, with his two review fixes applied on both sides
   the table is a map whose `keys` lists the rule names in priority order and whose rule fields list the
   values that select them; `keys` and each rule may be a list or a JSON array written as text (a node
   property authored as `keys=[ "a", "b" ]`), and — the review addition — the table itself may be JSON text.
-  Values compare as text, case-insensitively; a miss is Nil so `f:defaultValue` can supply the default.
-  Errors carry the Java messages verbatim (`Expected two input values - actual=N`, `Missing keys in input`,
+  Values compare as text, case-insensitively; a miss returns the optional third argument (Eric's suggestion
+  — `f:lookup(table, value, text(unknown))`), or Nil when there is none.
+  Errors carry the Java messages verbatim (`Expected two or three input values - actual=N`, `Missing keys in input`,
   `Missing key in input: X`, `Input is not a list of values`); the review's second fix — a first argument
   that is neither a map nor JSON text is an error, not a silent Nil — is
   `First argument must be a decision table as a map or JSON text`. `BUILTIN_PLUGIN_COUNT` is 51.
   Test: `plugins::tests::lookup_matches_java_semantics` (twin of `SimpleLookupTest`).
 - **Recipe, both engines' docs.** The graph.task block in `skills-reference.md` now shows both paths over
-  one table node — the common case (`mapping[]=f:lookup(state-rules, input.body.state) -> model.rule` +
-  `f:defaultValue`) and the composable function for a ruling that needs more than a lookup (Eric: even
+  one table node — the common case, one entry
+  (`mapping[]=f:lookup(state-rules, input.body.state, text(unknown)) -> output.body.rule`) and the
+  composable function for a ruling that needs more than a lookup (Eric: even
   complex rulings generalize into a small number of decision-table functions in the field); the
   `graph.data.mapper` section, both help files, the AI-agent checklist, the Event Script plugin catalog
-  (`syntax.md`, with an L2 worked example: `classpath(json:…)` → `f:lookup` → `f:defaultValue`).
+  (`syntax.md`, with an L2 worked example: `classpath(json:…)` → `f:lookup(…, text(unknown))`).
 - **Pinned** by `unit-test-lookup-1` (byte-identical twin; the compiler manifest count is 53): TX →
-  `community-property`, `ny` → `separate-property` (case-insensitive), ZZ → `unknown` via the default.
-  Note the mapping semantics this relies on: a null source REMOVES the target in both the graph mapper
-  and Event Script, so the default is supplied by a second entry (`f:defaultValue(model.rule, …)`), not
-  by default-then-overlay.
+  `community-property`, `ny` → `separate-property` (case-insensitive), ZZ → `unknown` via the third
+  argument. A probe in the same fixture pins the mapping semantics a default must respect: a null source
+  REMOVES the target in both the graph mapper and Event Script, so a default comes from the plugin's third
+  argument (or a later `f:defaultValue`), never from default-then-overlay — the namespaces doc and this
+  engine's data-mapper help say otherwise (Eric's ruling pending).
 
 Gates: `cargo fmt --check`, `clippy -D warnings` (event-script + knowledge-graph, tests), both crates'
 suites, `mkdocs build --strict`, `check-llms-links`, `check-doc-claims`.

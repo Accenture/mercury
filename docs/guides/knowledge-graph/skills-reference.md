@@ -51,7 +51,7 @@ mapping[]=source -> target
 Sources/targets use `input.*`, `model.*`, `output.*`, or a node name (its properties); `text(...)`,
 `int(...)` etc. inject constants, and `f:` simple plugins compute a value — a mapper is also the
 natural **decision node** for a static decision table held on a skill-less node
-(`mapping[]=f:lookup(state-rules, input.body.state) -> model.rule`; see
+(`mapping[]=f:lookup(state-rules, input.body.state, text(unknown)) -> output.body.rule`; see
 [the graph.task recipe](#task)). **`mapping[]` entries apply in order** within the node, so a
 later entry may read an earlier entry's target — the chain idiom (ingest → transform → publish
 inside one mapper). Example:
@@ -343,17 +343,16 @@ separate-property=[ "NY" ]
 ```
 
 **Common case — the `lookup` simple plugin, no function.** A [`graph.data.mapper`](#data-mapper)
-node is the decision node: `f:lookup(table, value)` returns the name of the first rule that lists
-the value (compared as text, case-insensitively) and `null` on a miss, so a second entry supplies
-the default with `f:defaultValue`:
+node is the decision node: `f:lookup(table, value, default)` returns the name of the first rule that
+lists the value (compared as text, case-insensitively), or the optional third argument on a miss
+(`null` when it is omitted):
 
 ```
 create node select-rule
 with type Decision
 with properties
 skill=graph.data.mapper
-mapping[]=f:lookup(state-rules, input.body.state) -> model.rule
-mapping[]=f:defaultValue(model.rule, text(unknown)) -> output.body.rule
+mapping[]=f:lookup(state-rules, input.body.state, text(unknown)) -> output.body.rule
 ```
 
 **When the ruling needs more than a lookup — a composable function.** One `input[]` entry hands the
