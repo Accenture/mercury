@@ -1,7 +1,10 @@
 # Distributed cache — Rust lock-step port spec
 
-**Status:** IMPLEMENTED (D1–D4) 2026-09-19 under the §9 recommendations, pending the maintainer's PR
-gate; the open questions in §9 remain his to confirm or redirect. Two engine findings surfaced on the
+**Status:** IMPLEMENTED (D1–D4) 2026-09-19 under the §9 recommendations and **MERGED as PR #285**
+(`5ac55eaf`, Increment 119). **The five §9 recommendations were CONFIRMED by the maintainer on
+2026-09-19**, so Q1–Q5 are settled decisions; the section keeps its question form as the record of how
+they were decided. The cross-engine interop was then run live against one Redis — see
+`docs/test-reports/distributed-cache-interop.md`. Two engine findings surfaced on the
 way and are fixed in the same change (§11). Java shipped this feature for v4.12.9 (`extensions/redis-connection` +
 `extensions/distributed-cache` + `examples/distributed-cache-example`); its design spec is the
 canonical one — `draft-design-specs/distributed-cache.md` in the Java repository, Q1–Q8 ruled by Eric
@@ -10,8 +13,8 @@ differs, and how it is proven without a Redis binary.
 
 **Repo scope:** the Rust engine (`mercury`), lock-step with the Java engine (Java Q8: "the Java module
 and the Rust port ship together"). Cache keys are plain Redis keys, so the two caches interoperate on
-the same keys with no wire change; the Java worked example doubles as the interop harness once this
-lands.
+the same keys with no wire change; the two worked examples are the interop harness, exercised live on
+2026-09-19 (`docs/test-reports/distributed-cache-interop.md`).
 
 ---
 
@@ -210,6 +213,9 @@ carries all four (Eric may ask to split).
 - **Pub/Sub on a cluster** — delta 4; sync-over-async only.
 
 ## 9. Open questions for the maintainer (each with the recommendation the work proceeds under)
+
+> **All five CONFIRMED by the maintainer, 2026-09-19.** Each recommendation below is the decision of
+> record; nothing was redirected. The questions stay as written — the history of how each was decided.
 
 - **Q1 — Cluster support now or deferred?** *Recommendation: now, as the seam plus the `cluster-async`
   branch, tested at the selection level.* The Java foundation made cluster a first-class property of
