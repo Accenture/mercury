@@ -15,7 +15,7 @@
 //
 
 //! End-to-end graph execution — parity ports of the Java `GraphTests`
-//! (tutorials 1/2/4/7/8/9/13) and `GraphTaskTest` (unit-test-task-1..7, 9),
+//! (tutorials 1/2/4/7/8/9/13) and `GraphTaskTest` (unit-test-task-1..7, 9, lookup-1),
 //! running the real `graph-executor` flow through the flow engine. Tutorials
 //! needing `graph.api.fetcher` / `graph.extension` join at K-5/K-6.
 //! Rust-supplement graphs (listed in `graphs.yaml` like everything else —
@@ -1675,6 +1675,38 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
         text.contains("No rule for ZZ"),
         "unexpected error response: {text}"
     );
+
+    // --- unit-test-lookup-1: the common case of the same table - a
+    // graph.data.mapper decision node resolves the rule in ONE entry,
+    // 'f:lookup(state-rules, input.body.state, text(unknown))', the optional
+    // third argument being the default for a miss, reading the node's JSON-text
+    // values directly; no composable function is involved
+    for (state, rule) in [
+        ("TX", "community-property"),
+        ("ny", "separate-property"),
+        ("ZZ", "unknown"),
+    ] {
+        let reply = run_graph(
+            &platform,
+            "unit-test-lookup-1",
+            serde_json::json!({"state": state}),
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(200, reply.status(), "state {state}");
+        let mm = body_map(&reply);
+        assert_eq!(
+            Some(Value::from(rule)),
+            mm.get_element("rule"),
+            "state {state}"
+        );
+        assert_eq!(Some(Value::from(state)), mm.get_element("state"));
+        // probe of the mapping semantics a default must respect: a null source
+        // REMOVES the target - 'text(preset)' then an absent 'input.body.missing'
+        // leaves no model.probe, so a default is supplied by the plugin's third
+        // argument (or a later f:defaultValue), never by default-then-overlay
+        assert_eq!(Some(Value::from("removed")), mm.get_element("probe"));
+    }
 }
 
 async fn join_loop_retirement_and_health(platform: &Platform) {

@@ -1,0 +1,101 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Island"
+      ],
+      "alias": "knowledge",
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "reference data certified with the graph"
+      }
+    },
+    {
+      "types": [
+        "DecisionTable"
+      ],
+      "alias": "state-rules",
+      "properties": {
+        "purpose": "illustrative restriction rule by state - the table is graph data, not function code",
+        "keys": "[ \"community-property\", \"separate-property\" ]",
+        "community-property": "[ \"CA\", \"TX\" ]",
+        "separate-property": "[ \"NY\" ]"
+      }
+    },
+    {
+      "types": [
+        "Decision"
+      ],
+      "alias": "select-rule",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "f:lookup(state-rules, input.body.state, text(unknown)) -> output.body.rule",
+          "input.body.state -> output.body.state",
+          "text(preset) -> model.probe",
+          "input.body.missing -> model.probe",
+          "f:defaultValue(model.probe, text(removed)) -> output.body.probe"
+        ]
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "the common case of a static decision table: the lookup simple plugin with its default in a data mapper decision node, no composable function",
+        "name": "unit-test-lookup-1"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "knowledge"
+    },
+    {
+      "source": "knowledge",
+      "relations": [
+        {
+          "type": "table",
+          "properties": {}
+        }
+      ],
+      "target": "state-rules"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "decide",
+          "properties": {}
+        }
+      ],
+      "target": "select-rule"
+    },
+    {
+      "source": "select-rule",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}
