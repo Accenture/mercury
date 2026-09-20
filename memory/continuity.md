@@ -340,9 +340,12 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   miss, and carries the Java error messages verbatim.
   **A null mapping source REMOVES the target** in the graph mapper and in Event Script alike — pinned by a
   probe in `unit-test-lookup-1` on both engines — so a default comes from the plugin's third argument (or a
-  later `f:defaultValue`), never from default-then-overlay;
-  the namespaces doc and this engine's data-mapper help claim "left untouched" + default-then-overlay,
-  which the code contradicts (Eric's ruling pending). **Rule:** the product owner reads and certifies the table ON
+  later `f:defaultValue`), never from default-then-overlay. **Eric's ruling (2026-09-20): the doc moves to
+  the code** — the namespaces section, the command JSON and this engine's data-mapper help now say *A null
+  source removes the target* (indexed target → null), with his Event Script contrast: a null source applies
+  only to `model.*` targets, where it removes the model variable key, and for any other target the entry is
+  ignored; claim `null-source-removes-target` registered against the probe test on both engines (branch
+  `docs/null-source-removes-target` `48111840`, PR pending; Java twin `f233067f`). **Rule:** the product owner reads and certifies the table ON
   the graph, a new table is a new graph version (`v2026-08-prime-rates`) and never a code change, and the
   function stays generic by reading rule names from `table.keys`. The pattern is now in
   `skills-reference.md` (graph.task), the in-Playground help and the AI agent guide's pre-send checklist,
