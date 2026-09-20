@@ -198,9 +198,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   cache outage as 404 *Profile not found*; a POST would have acked `stored`. Fix: `checked()` in the
   example's main.rs, pinned by `tests/l1_cache_failure.rs` (real cache off, a `#[preload]` fail-fast stub
   on `v1.cache.redis`; L1/L2/L3 → 503). The Java example had the identical gap, masked by its RPC timeout
-  racing Lettuce's command timeout — fixed in lock-step. Recorded asymmetry, not changed: an in-function
-  RPC timeout is **408** here (`Result`) and **500** on Java (`TimeoutException`) — both errors, neither a
-  miss. Applies to every PostOffice caller, not only the cache. Relates [[rest-error-body-standard-shape]].
+  racing Lettuce's command timeout — fixed in lock-step. Recorded asymmetry, since CLOSED (2026-09-20): an in-function RPC timeout is **408** here (`Result`)
+  and WAS **500** on Java — a Java platform-core mapping gap (status from the outermost exception), fixed there
+  with a cause-chain rule; 408 on both engines now, this engine unchanged. Applies to every PostOffice caller, not only the cache. Relates [[rest-error-body-standard-shape]].
   <!-- id: l1-caller-checks-reply-status-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
 
 - **A function's failure reaches a REST client as the standard error body `{status, message, type:
