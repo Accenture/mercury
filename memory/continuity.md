@@ -299,8 +299,22 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   arrives through knowledge-graph). No Rust analogue of the Java classpath-order trap: each crate prepends
   or appends its resource root explicitly. Applied to `templates/starter-graph` and
   `examples/minigraph-playground` on 2026-09-20 at Eric's direction (branch `chore/cargo-declare-what-you-name`,
-  `8868613c`, PR #291 opened, merge pending; the root README, the template README and the getting-started guide now state the rule).
+  `8868613c`, PR #291 MERGED 2026-09-20, merge `548ce651`; the root README, the template README and the getting-started guide now state the rule).
   <!-- id: conv-cargo-declare-what-you-name | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
+
+- **A `rest.yaml` entry whose service is not registered is SKIPPED at load, and `/` falls back to the `/index.html`
+  entry — Java REST semantics the port lacked until Increment 122 (Eric found both running the Playground with
+  `-Dapp.env=prod`, 2026-09-20).** `RoutingTable::retain_available` drops such entries and `start_http_server`
+  warns in Java's words (`Skip [GET] /api/x - Service x not available`; `RoutingEntry.resolveServices`); the REST
+  server starts after preload and before the main application on BOTH engines, so a function registered in a main
+  application is invisible to rest.yaml in either — parity, not a Rust quirk. The request handler retries a `/`
+  miss as `/index.html` before static content (Java `HttpRequestHandler`), so `get.index.html` — dev → the
+  Playground's `/public/index.html`, otherwise `/template/index.html` — serves the root as well; static
+  `public/index.html` is only the last resort. Consequence: one `rest.yaml` serves dev and production; an
+  `#[optional_service]` left out by its condition never leaves a live URL behind, and production never shows the
+  React bundle. Verified live in both modes. Relates [[conv-cargo-declare-what-you-name]] (the same Playground
+  polish round).
+  <!-- id: rest-skip-unregistered-and-root-fallback-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
