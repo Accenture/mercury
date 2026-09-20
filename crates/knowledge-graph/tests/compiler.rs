@@ -56,7 +56,9 @@ fn manifest_listed_graphs_are_compiled() {
     // fixture (THEN:/DELAY: dynamic variables) + the error-recovery fixture +
     // the foreign-route fixture (task-7, a declarative event-over-http target) +
     // the for_each orchestrator fixture (rust-orchestrator-foreach: N iterations
-    // of one suspending subgraph under iteration-scoped records);
+    // of one suspending subgraph under iteration-scoped records) + the static
+    // decision table fixture (task-9: a skill-less DecisionTable node mapped
+    // whole into a generic function);
     // the 14 deliberately-invalid fixtures
     // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias) are rejected
     // by the mandatory quality gate. Every graph a runtime test executes MUST
@@ -64,7 +66,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        51,
+        52,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
