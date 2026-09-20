@@ -229,8 +229,9 @@ exception while taking the message from the root cause — so the wrapper's defa
 cause's message. The Java engine now resolves the status from the **cause chain** (the first `AppException`, `TimeoutException` → 408 or `IllegalArgumentException` → 400 wins; 500 only when none is present), one rule shared by its three mappers (mercury-composable PR #427); this engine already returned 408 — `po.request` yields an `AppError` 408 as a `Result`, and there is no wrapper class to hide it. The full drive was then run again against both mains — the
 [validation run](#validation-run-after-the-finding-3-fix-2026-09-20) below: every RPC-timeout failure
 renders **408** on both engines and the pre-fix shape (500 with a timeout message) no longer occurs.
-Java's Layers 2 and 3 keep answering 500 `Command timed out after 5 second(s)` during an outage, because
-that is Lettuce's own timeout exception, which carries no status.
+Java's Layers 2 and 3 still answered 500 `Command timed out after 5 second(s)` in that run — Lettuce's own
+timeout exception, which carried no status — until the cache module learned to classify its own failures
+(Finding 6 and the [second validation run](#validation-run-after-the-cache-failure-classification-2026-09-20)).
 
 **4. Recovery is bounded by the client library's reconnect policy, and health can be green first.**
 The Rust `ConnectionManager` reconnects on the first command after Redis is back. Lettuce reconnects on
@@ -249,6 +250,20 @@ window. Not changed here.
 **5. What matched exactly.** The health contract (`UP`/`DOWN`, HTTP 200/400, the dependency block with
 `{code, text}`), the miss and rejection bodies on all three layers, the key layout, the TTL semantics,
 and — the point of the drive — 36/36 reads and 6/6 deletes across the engine boundary.
+
+**6. The cache module now classifies its own failures — 408 for a timeout, 503 for an unreachable
+Redis — in both engines.** After Finding 3 closed, the Layer 2 and Layer 3 rows still read 500 during an
+outage: the flow and graph engines pass a task's status through faithfully, and the status they were given
+was the one the platform assigns to a client-library exception that carries none — Lettuce's
+`RedisCommandTimeoutException` on Java, the redis crate's I/O and timeout errors on Rust. Layer 1 read
+408 only because its own RPC timer won a race against Lettuce's command timeout by a few milliseconds.
+So the classification moved to where the failure is known: `v1.cache.redis` now maps a command timeout
+to **408** (Java keeps Lettuce's `Command timed out after N second(s)`; Rust `Redis request timed out
+after N ms`), a refused, dropped or unreachable connection — including a connect failure on the lazy
+build — to **503** `Redis unavailable - …`, the vocabulary of `redis.health`, and leaves anything the
+server answered (a wrong type, an unknown command) on the default 500. This engine classifies in the foundation's command path (`classify_command_error`, `command_timeout`, and the connect error's 503) so every consumer of `RedisBackend::query` inherits it; the Java engine classifies in its foundation's `RedisFailure`, applied by `RedisCache`, so the two engines fail alike. The
+[second validation run](#validation-run-after-the-cache-failure-classification-2026-09-20) below shows
+the result: not one outage probe on any layer of either engine answers 500 any more.
 
 ## Validation run after the Finding 3 fix (2026-09-20)
 
@@ -286,6 +301,39 @@ in sequence after Java's). Cross-engine reads of both post-recovery writes 4/4.
 
 What changed since the certification run is exactly the three Java Layer 1 rows — 500 → **408** — and
 nothing else.
+
+## Validation run after the cache-failure classification (2026-09-20)
+
+Finding 6 changes what an outage looks like on every layer, so the drive ran a fifth time against the two
+classified builds, with four more outage assertions: no probe on any layer of either engine answers 500;
+every timeout is 408; every unreachable-Redis failure is 503; and every probe is classified as one or the
+other. **122/122 hard checks passed**, the same single informational byte comparison
+recorded as before.
+
+| Engine | Probe | Result | Latency | Message |
+|--------|-------|--------|---------|---------|
+| Java | L1 GET | HTTP 408 | 5.01 s | `Timeout for 5000 ms` |
+| Java | L1 POST | HTTP 408 | 5.01 s | `Timeout for 5000 ms` |
+| Java | L1 DELETE | HTTP 408 | 5.01 s | `Timeout for 5000 ms` |
+| Java | L2 GET | HTTP 408 | 5.02 s | `Command timed out after 5 second(s)` |
+| Java | L3 get | HTTP 408 | 5.03 s | `Command timed out after 5 second(s)` |
+| Rust | L1 GET | HTTP 503 | 0.0 s | `Redis unavailable - broken pipe` |
+| Rust | L1 POST | HTTP 408 | 5.01 s | `Request timeout for 5000 ms` |
+| Rust | L1 DELETE | HTTP 503 | 4.46 s | `Redis unavailable - Connection refused (os error 61)` |
+| Rust | L2 GET | HTTP 408 | 5.01 s | `Redis request timed out after 5000ms` |
+| Rust | L3 get | HTTP 503 | 4.46 s | `Redis unavailable - Connection refused (os error 61)` |
+
+**Classification.** Timeouts — Java: L1 GET → 408, L1 POST → 408, L1 DELETE → 408, L2 GET → 408, L3 get → 408; Rust: L1 POST → 408, L2 GET → 408.
+Unreachable — Java: none; Rust: L1 GET → 503, L1 DELETE → 503, L3 get → 503. Nothing fell
+to "other", and no probe answered 500. Java's five probes are all timeouts because Lettuce buffers
+commands on a disconnected connection until its command timeout; Rust's mix of 503 and 408 reflects the
+redis crate failing fast on the dead connection and then waiting on its reconnect attempts.
+
+**Recovery, unchanged in shape.** `/health` back to 200 on the first read on both engines; Java's Layer 1
+write: attempt 1 → HTTP 408, attempt 2 → 201 at +8.3 s
+(Lettuce's scheduled reconnect); Rust's: attempt 1 → 201. Cross-engine reads of both post-recovery writes 4/4.
+
+What changed since the previous validation run: Java L2 GET 500 → **408**; Java L3 get 500 → **408**; Rust L1 GET 500 → **503**; Rust L1 DELETE 500 → **503**; Rust L2 GET 500 → **408**; Rust L3 get 500 → **503**. Everything else is identical.
 
 ## How to reproduce
 

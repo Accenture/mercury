@@ -191,3 +191,76 @@ async fn connect_once_builds_a_plain_connection() {
         Err(ConnectError::Redis(_)) | Err(ConnectError::TimedOut(_))
     ));
 }
+
+/// The Java `RedisFailure` classification, mirrored: a timeout is 408, an
+/// unreachable Redis 503 `Redis unavailable`, a server answer 500 - and a
+/// connect failure on the caller's path (the cache runtime's lazy build) is
+/// 503 too, while a configuration that cannot build a client is a 500 defect.
+#[test]
+fn command_and_connect_failures_are_classified() {
+    use platform_core::AppError;
+    use redis_connection::{classify_command_error, command_timeout, ConnectError};
+    let io = |kind: std::io::ErrorKind, text: &str| {
+        redis::RedisError::from(std::io::Error::new(kind, text.to_string()))
+    };
+    let refused = classify_command_error(&io(
+        std::io::ErrorKind::ConnectionRefused,
+        "Connection refused (os error 61)",
+    ));
+    assert_eq!(503, refused.status());
+    assert!(
+        refused.message().starts_with("Redis unavailable - "),
+        "{}",
+        refused.message()
+    );
+    assert_eq!(
+        503,
+        classify_command_error(&io(std::io::ErrorKind::BrokenPipe, "broken pipe")).status()
+    );
+    assert_eq!(
+        503,
+        classify_command_error(&redis::RedisError::from((
+            redis::ErrorKind::Io,
+            "socket closed"
+        )))
+        .status()
+    );
+    let timed_out = classify_command_error(&io(std::io::ErrorKind::TimedOut, "timed out"));
+    assert_eq!(408, timed_out.status());
+    assert!(
+        timed_out.message().starts_with("Redis request timed out"),
+        "{}",
+        timed_out.message()
+    );
+    let deadline = command_timeout(Duration::from_millis(5000));
+    assert_eq!(408, deadline.status());
+    assert_eq!("Redis request timed out after 5000ms", deadline.message());
+    // the server answered (or the client mis-parsed): not an outage, stays 500
+    let answered = classify_command_error(&redis::RedisError::from((
+        redis::ErrorKind::UnexpectedReturnType,
+        "Response was of incompatible type",
+    )));
+    assert_eq!(500, answered.status());
+    assert!(
+        answered.message().starts_with("Redis error - "),
+        "{}",
+        answered.message()
+    );
+    // connect failures on the caller's path
+    assert_eq!(
+        503,
+        AppError::from(ConnectError::Redis(io(
+            std::io::ErrorKind::ConnectionRefused,
+            "Connection refused (os error 61)"
+        )))
+        .status()
+    );
+    assert_eq!(
+        503,
+        AppError::from(ConnectError::TimedOut(Duration::from_secs(1))).status()
+    );
+    assert_eq!(
+        500,
+        AppError::from(ConnectError::Unbuildable("bad host".into())).status()
+    );
+}

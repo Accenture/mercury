@@ -39,6 +39,8 @@ mod backend;
 mod config;
 mod health;
 
-pub use backend::{ConnectError, RedisBackend, RedisConnection};
+pub use backend::{
+    classify_command_error, command_timeout, ConnectError, RedisBackend, RedisConnection,
+};
 pub use config::{RedisConfig, BASE_PREFIX, SOA_PREFIX};
 pub use health::{duration_seconds, resolve_duration, RedisHealthProbe};

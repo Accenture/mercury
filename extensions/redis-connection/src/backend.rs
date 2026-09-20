@@ -131,9 +131,46 @@ impl std::fmt::Display for ConnectError {
 impl std::error::Error for ConnectError {}
 
 impl From<ConnectError> for AppError {
+    /// A connect failure on a caller's path (the cache runtime's lazy build):
+    /// a refused, dropped or unanswered connection is **503** `Redis
+    /// unavailable` — the `redis.health` vocabulary — while a configuration
+    /// that cannot build a client at all is a defect, not an outage (500).
     fn from(error: ConnectError) -> Self {
-        AppError::new(500, format!("Redis unavailable - {error}"))
+        let status = match &error {
+            ConnectError::Unbuildable(_) => 500,
+            ConnectError::Redis(_) | ConnectError::TimedOut(_) => 503,
+        };
+        AppError::new(status, format!("Redis unavailable - {error}"))
     }
+}
+
+/// Classify a failed command the way the Java `RedisFailure.classify` does, so
+/// a caller — or a flow's / graph's exception handler, which passes the status
+/// through — sees the failure for what it is: a timeout is **408**, a refused,
+/// dropped or otherwise unreachable connection (and a cluster that cannot
+/// route) is **503** `Redis unavailable - …`, and anything the server answered
+/// (a wrong type, an unknown command, a rejected credential) stays **500**.
+pub fn classify_command_error(error: &redis::RedisError) -> AppError {
+    if error.is_timeout() {
+        AppError::new(408, format!("Redis request timed out - {error}"))
+    } else if error.is_connection_refusal()
+        || error.is_connection_dropped()
+        || error.is_io_error()
+        || error.is_cluster_error()
+    {
+        AppError::new(503, format!("Redis unavailable - {error}"))
+    } else {
+        AppError::new(500, format!("Redis error - {error}"))
+    }
+}
+
+/// The per-command deadline expired without an answer: **408**, the same
+/// status the platform gives an RPC timeout.
+pub fn command_timeout(timeout: Duration) -> AppError {
+    AppError::new(
+        408,
+        format!("Redis request timed out after {}ms", timeout.as_millis()),
+    )
 }
 
 /// One topology-agnostic Redis backend: the connection, what it is, and the
@@ -252,8 +289,10 @@ impl RedisBackend {
     }
 
     /// Issue one command over the shared connection, bounded by the configured
-    /// timeout; a Redis error or a timeout surfaces as an `AppError` (500) so a
-    /// broken store fails the caller loudly instead of hanging.
+    /// timeout; a failure surfaces as a classified `AppError` — 408 for a
+    /// timeout, 503 for an unreachable Redis, 500 for a server answer (see
+    /// [`classify_command_error`]) — so a broken store fails the caller for
+    /// what it is instead of hanging or hiding behind a generic 500.
     pub async fn query<T: FromRedisValue>(&self, cmd: &Cmd) -> Result<T, AppError> {
         let mut connection = self.connection.clone();
         with_deadline(self.timeout, cmd.query_async::<T>(&mut connection)).await
@@ -330,10 +369,7 @@ async fn with_deadline<T>(
 ) -> Result<T, AppError> {
     match tokio::time::timeout(timeout, future).await {
         Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => Err(AppError::new(500, format!("Redis error - {error}"))),
-        Err(_) => Err(AppError::new(
-            500,
-            format!("Redis request timed out after {}ms", timeout.as_millis()),
-        )),
+        Ok(Err(error)) => Err(classify_command_error(&error)),
+        Err(_) => Err(command_timeout(timeout)),
     }
 }
