@@ -318,7 +318,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 - **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic
   function by ONE `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric,
   2026-09-20; Increment 123 — a doc gap, no engine change; branch `docs/static-decision-table-on-a-node`
-  `a0d2f4aa` + `3186bde1`, PR #293 open; Java twin `00283800` + `6ae1a628`, PR #430).** Found when an AI agent compiled a rule-by-state table
+  `a0d2f4aa` + `3186bde1` + `ac882d11`, PR #293 open; Java twin `00283800` + `6ae1a628`, PR #430).** Found when an AI agent compiled a rule-by-state table
   into a composable function shipped with its graph. `initialize_with_node_properties` already copies every
   node's properties into the state machine at instantiation (skill node → non-reserved keys at
   `{node}.{key}`; skill-less node → the whole map at `{node}`) and the shared LHS resolver reads any
