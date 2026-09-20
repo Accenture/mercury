@@ -13,9 +13,12 @@ The manifest uses an in-repo `path` for the Mercury crates. In your copy, delete
 
 ```toml
 mercury-platform-core = "4.12.7"
-mercury-event-script = "4.12.7"
 mercury-knowledge-graph = "4.12.7"
 ```
+
+Two crates are enough: an application declares what its code names — `platform_core::` for the
+macros and the event types, `knowledge_graph::` for the Layer 3 engine — and `mercury-knowledge-graph`
+brings `mercury-event-script` and the flow engine along transitively.
 
 ## Build, test, run
 

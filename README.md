@@ -39,7 +39,9 @@ mercury-event-script = "4.12"       # code: use event_script::...
 mercury-knowledge-graph = "4.12"    # code: use knowledge_graph::...
 ```
 
-(The macro crates are pulled in automatically; add `mercury-minigraph-state-redis` for
+(Declare the crates your code names plus the engine crate of your top layer — a Layer 3
+application needs only `mercury-platform-core` and `mercury-knowledge-graph`, which brings
+`mercury-event-script` along transitively. The macro crates are pulled in automatically; add `mercury-minigraph-state-redis` for
 the Redis suspend/resume state store, `mercury-distributed-cache` for the opt-in Redis L2
 cache (`v1.cache.redis`), or `mercury-sync-over-async` for the cross-pod streaming return
 route — the last two share the `mercury-redis-connection` client foundation.)
