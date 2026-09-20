@@ -11,9 +11,12 @@ publish = false
 
 [dependencies]
 # inside the Mercury repo the path is used; after copying the template out,
-# delete the `path` keys - the version then resolves from crates.io
+# delete the `path` keys - the version then resolves from crates.io.
+# An application declares the crates its code names: platform-core (the
+# preload/main_application macros, AppError, EventEnvelope, PostOffice) and
+# knowledge-graph, the Layer 3 engine, which brings event-script and the flow
+# engine transitively - nothing here names event_script:: directly.
 mercury-platform-core = { path = "../../crates/platform-core", version = "4.12.7" }
-mercury-event-script = { path = "../../crates/event-script", version = "4.12.7" }
 mercury-knowledge-graph = { path = "../../crates/knowledge-graph", version = "4.12.7" }
 async-trait = "0.1"
 log = "0.4"

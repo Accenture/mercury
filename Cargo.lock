@@ -995,7 +995,6 @@ version = "4.12.7"
 dependencies = [
  "async-trait",
  "log",
- "mercury-event-script",
  "mercury-knowledge-graph",
  "mercury-minigraph-state-redis",
  "mercury-platform-core",
@@ -1812,7 +1811,6 @@ version = "4.12.7"
 dependencies = [
  "async-trait",
  "log",
- "mercury-event-script",
  "mercury-knowledge-graph",
  "mercury-platform-core",
  "serde_json",

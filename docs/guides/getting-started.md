@@ -172,7 +172,12 @@ mercury-event-script = "4.12"       # code: use event_script::...
 mercury-knowledge-graph = "4.12"    # code: use knowledge_graph::...
 ```
 
-The macro crates (`mercury-platform-macros`, `mercury-event-script-macros`,
+Declare the crates your code **names**, plus the engine crate of your top layer: a Layer 3 application
+needs `mercury-platform-core` (the macros and event types every function uses) and `mercury-knowledge-graph`,
+which brings `mercury-event-script` and the flow engine transitively — the starter template and the
+Playground example declare exactly those two. Cargo has no transitive classpath, so a crate you do not
+declare cannot be named in code, but everything it registers (`#[preload]` functions, resource roots)
+still links. The macro crates (`mercury-platform-macros`, `mercury-event-script-macros`,
 `mercury-knowledge-graph-macros`) are pulled in automatically; add
 `mercury-minigraph-state-redis` for the Redis suspend/resume state store, or
 `mercury-distributed-cache` for the opt-in Redis L2 cache
