@@ -23,7 +23,11 @@ its route name, exactly as it would be from any other function.
 
 A `rest.yaml` file has three sections: the `rest` endpoint list, reusable `cors` blocks, and
 reusable `headers` transform blocks, plus an optional `static-content` block. Invalid entries
-**fail the load** — a misconfigured endpoint is a startup error, not a silent 404.
+**fail the load** — a misconfigured endpoint is a startup error, not a silent 404. An entry whose
+`service` is **not registered** when the REST server starts is **skipped with a warning**
+(`Skip [GET] /api/x - Service my.function not available`), as in the Java engine: the server starts
+after preload and before the main application, so a function left out by its `#[optional_service]`
+condition — the Playground's dev-only services in production, for instance — never becomes a live URL.
 
 ## Turning it on
 
@@ -394,7 +398,10 @@ with the matching HTTP status: **404** for an unmatched URL, **401** from authen
 
 When no `rest.yaml` entry claims a URL, `GET`/`HEAD` requests fall through to static content
 served from the application's `resources/public` folder (an entry in `rest.yaml` always wins
-over a static file). `/` and any path ending in `/` resolve to `index.html`; an extensionless
+over a static file). A request for exactly `/` first falls back to a declared `/index.html` entry —
+the home page an application registers as `get.index.html`, which picks the dev or the plain page by
+`app.env` — before static content is considered (Java `HttpRequestHandler`). `/` and any path ending
+in `/` resolve to `index.html`; an extensionless
 filename assumes `.html`; parent-directory traversal is rejected. Content types are resolved
 from the file extension.
 

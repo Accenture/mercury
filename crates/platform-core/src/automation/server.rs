@@ -340,6 +340,13 @@ pub async fn start_http_server(platform: &Platform) -> Result<SocketAddr, AppErr
         .map_err(|e| AppError::new(500, format!("Unable to load {rest_yaml} - {e}")))?;
     let mut table = RoutingTable::load(&reader)?;
     merge_default_endpoints(&mut table)?;
+    // an entry whose backing function is not registered is skipped at load,
+    // as in Java (RoutingEntry.resolveServices): the REST server starts after
+    // preload and before the main application, on both engines, so an
+    // #[optional_service] left out by its condition never becomes a live URL
+    for (methods, url, service) in table.retain_available(|service| platform.has_route(service)) {
+        log::warn!("Skip {methods} {url} - Service {service} not available");
+    }
     let table = table;
     for route in table.routes() {
         log::info!(
@@ -428,7 +435,18 @@ async fn handle(
         Ok(collected) => collected.to_bytes(),
         Err(_) => Bytes::new(),
     };
-    let Some(assigned) = state.table.find(&method, &path) else {
+    // Java HttpRequestHandler: when nothing matches and the URI is exactly
+    // "/", retry with "/index.html" - so an application's home-page entry
+    // (get.index.html, which picks the dev or the plain page by app.env)
+    // serves the root too; static content is the last resort
+    let assigned = state.table.find(&method, &path).or_else(|| {
+        if path == "/" {
+            state.table.find(&method, "/index.html")
+        } else {
+            None
+        }
+    });
+    let Some(assigned) = assigned else {
         // Java HttpRequestHandler: a known path under a WRONG method is 405,
         // never 404 (increment 56, parity F14c — the getSimilarRoute marker)
         if state.table.path_matches_any_method(&path) {

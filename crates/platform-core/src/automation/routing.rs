@@ -219,6 +219,38 @@ impl RoutingTable {
         })
     }
 
+    /// Drop every entry whose target is a function route that is not
+    /// registered, the way Java's `RoutingEntry.resolveServices` does at load
+    /// (`po.exists(service)`, else "Skip [methods] url - Service x not
+    /// available" as a warning). An entry whose backing function was left out,
+    /// such as an `#[optional_service]` whose condition is false or a typo,
+    /// must not become a live URL that answers "Route ... not found". HTTP(S)
+    /// targets are not routes and are never checked. Returns the skipped
+    /// entries' `("[methods]", url, service)` for the caller to log.
+    pub fn retain_available(
+        &mut self,
+        is_registered: impl Fn(&str) -> bool,
+    ) -> Vec<(String, String, String)> {
+        let mut skipped = Vec::new();
+        self.routes.retain(|route| {
+            let target = route.service.to_ascii_lowercase();
+            if target.starts_with("http://") || target.starts_with("https://") {
+                return true;
+            }
+            if is_registered(&route.service) {
+                return true;
+            }
+            // Java logs the method list as "[GET, POST]"
+            skipped.push((
+                format!("[{}]", route.methods.join(", ")),
+                route.url.clone(),
+                route.service.clone(),
+            ));
+            false
+        });
+        skipped
+    }
+
     /// The `static-content` configuration (defaults applied when absent).
     pub fn static_content(&self) -> &StaticContent {
         &self.static_content
@@ -714,6 +746,25 @@ headers:
         assert!(route.tracing);
         assert!(route.cors.is_some());
         assert!(route.headers.is_some());
+    }
+
+    #[test]
+    fn retain_available_drops_only_unregistered_function_routes() {
+        let mut t = table(
+            "rest:\n  - service: keep.me\n    methods: ['GET']\n    url: /a\n  - service: drop.me\n    methods: ['GET', 'POST']\n    url: /b\n",
+        )
+        .unwrap();
+        let skipped = t.retain_available(|service| service == "keep.me");
+        assert_eq!(
+            skipped,
+            vec![(
+                "[GET, POST]".to_string(),
+                "/b".to_string(),
+                "drop.me".to_string()
+            )]
+        );
+        let left: Vec<&str> = t.routes().iter().map(|r| r.service.as_str()).collect();
+        assert_eq!(left, vec!["keep.me"]);
     }
 
     #[test]

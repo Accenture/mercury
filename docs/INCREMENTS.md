@@ -3111,3 +3111,28 @@ milliseconds. So the classification moved to where the failure is known.
 
 Gates: `cargo fmt --check`, `clippy -D warnings` (both crates), the two crates' suites, sync-over-async and
 the example, `mkdocs build --strict`, `check-llms-links`, `check-doc-claims`.
+
+## Increment 122 — REST parity for production mode: entries without a registered service are skipped, and `/` falls back to the `/index.html` entry (2026-09-20)
+
+Found by Eric running `cargo run -p minigraph-playground -- -Dapp.env=prod`: the dev-only functions were
+correctly left out (`#[optional_service("app.env=dev")]`), yet every dev-mode `rest.yaml` entry still
+registered as a live URL answering `Route … not found`, and `/` served the React Playground bundle from
+static content while `/index.html` (the `get.index.html` entry) correctly served the plain page. Both
+are Java behaviours the port lacked:
+
+- **Unregistered service ⇒ the entry is skipped at load** (Java `RoutingEntry.resolveServices`:
+  `po.exists(service)`, else `Skip [methods] url - Service x not available` as a warning). The REST
+  server starts after preload and before the main application on both engines, so the check sees exactly
+  what Java sees. `RoutingTable::retain_available` drops the entries and `start_http_server` logs each one
+  in Java's words; HTTP(S) targets are not routes and are never checked. Test:
+  `rest_automation::entry_without_a_registered_service_is_skipped_at_load` (a `ghost.service` entry answers
+  the plain 404 `Resource not found`) and a routing unit test.
+- **`/` falls back to the `/index.html` entry** (Java `HttpRequestHandler`: when nothing matches and the
+  URI is exactly `/`, retry the lookup with `/index.html`) before static content is considered — so an
+  application's home page follows `app.env` on both paths: the React UI in dev, the plain page otherwise.
+  Test: `rest_automation::root_falls_back_to_the_index_html_entry` (static pages under `public/` still
+  serve when no entry claims them).
+
+Verified live on the Playground in `prod`: the dev-mode URLs are gone from the routing log, `/` and
+`/index.html` both serve the plain page; in `dev` both serve the Playground. Gates: fmt, clippy -D warnings,
+the platform-core lib and REST suites, `mkdocs build --strict`, `check-llms-links`, `check-doc-claims`.
