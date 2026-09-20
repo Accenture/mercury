@@ -297,8 +297,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `mercury-event-script` is declared only when code names `event_script::` — the cache example named
   nothing from it, the dependency was removed, and its Layer 2 flow suites still pass (the flow engine
   arrives through knowledge-graph). No Rust analogue of the Java classpath-order trap: each crate prepends
-  or appends its resource root explicitly. Same trim offered, not done (Eric's call):
-  `templates/starter-graph`, `examples/minigraph-playground`, the getting-started snippet.
+  or appends its resource root explicitly. Applied to `templates/starter-graph` and
+  `examples/minigraph-playground` on 2026-09-20 at Eric's direction (branch `chore/cargo-declare-what-you-name`,
+  `8868613c`; the root README, the template README and the getting-started guide now state the rule).
   <!-- id: conv-cargo-declare-what-you-name | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
