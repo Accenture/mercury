@@ -138,6 +138,24 @@ fn console_has(lines: &Arc<Mutex<Vec<String>>>, needle: &str) -> bool {
         .any(|line| line.contains(needle))
 }
 
+/// Wait for a console line containing `needle`, polling up to 5 s. A command's
+/// reply arrives asynchronously through the console route, so a fixed sleep
+/// after `command()` lost the race on slow CI runners (main failed twice on
+/// 2026-09-20 with "help connect expected" while the reply was still in
+/// flight); absence checks keep using [`console_has`] after a settle.
+async fn console_gets(lines: &Arc<Mutex<Vec<String>>>, needle: &str) -> bool {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        if console_has(lines, needle) {
+            return true;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return false;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn playground_command_grammar_and_companion() {
     let platform = boot().await;
@@ -171,12 +189,15 @@ async fn playground_command_grammar_and_companion() {
 
     // --- help: served from the ported help/*.md resources
     command(&po, in_route, out_route, "help connect").await;
-    assert!(console_has(&lines, "connect"), "help connect expected");
+    assert!(
+        console_gets(&lines, "connect").await,
+        "help connect expected"
+    );
 
     // --- describe skill: resolves help graph-math.md
     command(&po, in_route, out_route, "describe skill graph.math").await;
     assert!(
-        console_has(&lines, "Graph Math"),
+        console_gets(&lines, "Graph Math").await,
         "graph.math help expected"
     );
 
@@ -184,24 +205,24 @@ async fn playground_command_grammar_and_companion() {
     // the read-only surface that makes extension= delegation self-service
     command(&po, in_route, out_route, "list graphs").await;
     assert!(
-        console_has(&lines, "extension={graph-id} targets"),
+        console_gets(&lines, "extension={graph-id} targets").await,
         "list graphs header expected"
     );
     assert!(
-        console_has(&lines, "tutorial-1"),
+        console_gets(&lines, "tutorial-1").await,
         "deployed tutorial-1 expected in the listing"
     );
     assert!(
-        console_has(&lines, "rust-join-chain"),
+        console_gets(&lines, "rust-join-chain").await,
         "manifest-compiled fixture expected in the listing"
     );
     command(&po, in_route, out_route, "list flows").await;
     assert!(
-        console_has(&lines, "extension=flow://{flow-id} targets"),
+        console_gets(&lines, "extension=flow://{flow-id} targets").await,
         "list flows header expected"
     );
     assert!(
-        console_has(&lines, "graph-executor"),
+        console_gets(&lines, "graph-executor").await,
         "the engine's own flow is a flow and must be listed"
     );
     assert!(
@@ -212,37 +233,37 @@ async fn playground_command_grammar_and_companion() {
         "flow listing carries the mandatory flow.description"
     );
     assert!(
-        console_has(&lines, "describe graph {graph-id}"),
+        console_gets(&lines, "describe graph {graph-id}").await,
         "list graphs advertises the contract command"
     );
 
     // --- discovery: the contract view of a deployed model (finding #53)
     command(&po, in_route, out_route, "describe graph tutorial-3").await;
     assert!(
-        console_has(&lines, "Deployed graph model 'tutorial-3'"),
+        console_gets(&lines, "Deployed graph model 'tutorial-3'").await,
         "deployed-model header expected"
     );
     // exact indented lines: a stray trailing character (e.g. the Java
     // engine's `output.body]` toString leak, 2026-07-20) must fail here
     assert!(
-        console_has(&lines, "  input.body.person_id\n"),
+        console_gets(&lines, "  input.body.person_id\n").await,
         "derived input surface expected"
     );
     assert!(
-        console_has(&lines, "  output.body.name\n"),
+        console_gets(&lines, "  output.body.name\n").await,
         "derived output surface expected"
     );
     command(&po, in_route, out_route, "describe graph no-such-model-xyz").await;
     assert!(
-        console_has(&lines, "Graph model 'no-such-model-xyz' not found"),
+        console_gets(&lines, "Graph model 'no-such-model-xyz' not found").await,
         "unknown model reported not found"
     );
 
     // --- build a graph: root, end, a mapper, and connections
     command(&po, in_route, out_route, "create node root").await;
-    assert!(console_has(&lines, "node root created"));
+    assert!(console_gets(&lines, "node root created").await);
     command(&po, in_route, out_route, "create node end").await;
-    assert!(console_has(&lines, "node end created"));
+    assert!(console_gets(&lines, "node end created").await);
     command(
         &po,
         in_route,
@@ -250,7 +271,7 @@ async fn playground_command_grammar_and_companion() {
         "create node mapper\nwith type mapper\nwith properties\nskill=graph.data.mapper\nmapping[]=input.body.id -> output.body",
     )
     .await;
-    assert!(console_has(&lines, "node mapper created"));
+    assert!(console_gets(&lines, "node mapper created").await);
     command(
         &po,
         in_route,
@@ -258,7 +279,7 @@ async fn playground_command_grammar_and_companion() {
         "connect root to mapper with first",
     )
     .await;
-    assert!(console_has(&lines, "root connected to mapper"));
+    assert!(console_gets(&lines, "root connected to mapper").await);
     command(
         &po,
         in_route,
@@ -266,15 +287,15 @@ async fn playground_command_grammar_and_companion() {
         "connect mapper to end with second",
     )
     .await;
-    assert!(console_has(&lines, "mapper connected to end"));
+    assert!(console_gets(&lines, "mapper connected to end").await);
 
     // --- list nodes / connections
     lines.lock().expect("console").clear();
     command(&po, in_route, out_route, "list nodes").await;
-    assert!(console_has(&lines, "mapper"), "list nodes expected");
+    assert!(console_gets(&lines, "mapper").await, "list nodes expected");
     command(&po, in_route, out_route, "list connections").await;
     assert!(
-        console_has(&lines, "root -[first]-> mapper"),
+        console_gets(&lines, "root -[first]-> mapper").await,
         "list connections expected"
     );
 
@@ -288,13 +309,13 @@ async fn playground_command_grammar_and_companion() {
     )
     .await;
     assert!(
-        console_has(&lines, "Graph instance created"),
+        console_gets(&lines, "Graph instance created").await,
         "instantiate expected"
     );
     command(&po, in_route, out_route, "run").await;
     tokio::time::sleep(Duration::from_millis(200)).await;
     assert!(
-        console_has(&lines, "Graph traversal completed"),
+        console_gets(&lines, "Graph traversal completed").await,
         "run expected"
     );
 
@@ -304,13 +325,16 @@ async fn playground_command_grammar_and_companion() {
     lines.lock().expect("console").clear();
     command(&po, in_route, out_route, "inspect output").await;
     assert!(
-        console_has(&lines, "hello world"),
+        console_gets(&lines, "hello world").await,
         "inspect output expected"
     );
 
     // --- export the draft; describe graph writes the temp file
     command(&po, in_route, out_route, "export graph as playtest").await;
-    assert!(console_has(&lines, "Graph exported"), "export expected");
+    assert!(
+        console_gets(&lines, "Graph exported").await,
+        "export expected"
+    );
 
     // --- the retired fire-and-forget companion URL answers 404 (retired
     // 2026-09-02, lock-step with the Java engine): only /sync exists
@@ -408,7 +432,7 @@ async fn playground_command_grammar_and_companion() {
     );
     // The same output is teed live to the session console (human co-view).
     assert!(
-        console_has(&lines, "Graph traversal completed"),
+        console_gets(&lines, "Graph traversal completed").await,
         "sync run output is teed to the session console"
     );
 
@@ -854,7 +878,7 @@ async fn export_name_guard_accepts_missing_and_rejects_mismatch(platform: &Platf
     command(&po, &in1, &out1, "create node root\nwith type Root").await;
     command(&po, &in1, &out1, "export graph as export-guard-test").await;
     assert!(
-        console_has(&lines1, "Graph exported"),
+        console_gets(&lines1, "Graph exported").await,
         "first export expected: {:?}",
         lines1.lock().expect("console")
     );
@@ -866,7 +890,7 @@ async fn export_name_guard_accepts_missing_and_rejects_mismatch(platform: &Platf
     command(&po, &in2, &out2, "create node root\nwith type Root").await;
     command(&po, &in2, &out2, "export graph as export-guard-test").await;
     assert!(
-        console_has(&lines2, "Graph exported"),
+        console_gets(&lines2, "Graph exported").await,
         "an unnamed root must be accepted over an existing file: {:?}",
         lines2.lock().expect("console")
     );
