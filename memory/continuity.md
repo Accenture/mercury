@@ -345,7 +345,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   source removes the target* (indexed target → null), with his Event Script contrast: a null source applies
   only to `model.*` targets, where it removes the model variable key, and for any other target the entry is
   ignored; claim `null-source-removes-target` registered against the probe test on both engines (branch
-  `docs/null-source-removes-target` `48111840`, PR pending; Java twin `f233067f`). **Rule:** the product owner reads and certifies the table ON
+  `docs/null-source-removes-target` `48111840`, PR #295 open; Java twin `f233067f`, PR #432). **Rule:** the product owner reads and certifies the table ON
   the graph, a new table is a new graph version (`v2026-08-prime-rates`) and never a code change, and the
   function stays generic by reading rule names from `table.keys`. The pattern is now in
   `skills-reference.md` (graph.task), the in-Playground help and the AI agent guide's pre-send checklist,
