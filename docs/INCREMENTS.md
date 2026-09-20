@@ -3083,3 +3083,31 @@ reference outcome. Report Finding 3 amended in both twins; nothing changed here.
 **Validation (2026-09-20, after mercury-composable #427):** the full two-engine drive re-run against both mains —
 116/116 hard checks, every RPC-timeout failure 408 on both engines, no pre-fix 500-with-timeout shape; the report
 gained a *Validation run* section (both twins).
+
+## Increment 121 — Redis failures classified on the cache path: 408 for a timeout, 503 for an unreachable Redis (2026-09-20)
+
+Java ⇄ Rust lock-step (mercury-composable companion change), from the interop drive's second question:
+after the Java cause-chain fix the Layer 2 and 3 rows still read 500 during a Redis outage. The flow and
+graph engines pass a task's status through faithfully — the status they were given was the platform's
+default for a client-library exception that carries none (Lettuce's `RedisCommandTimeoutException`, the
+redis crate's I/O and timeout errors), and Layer 1 read 408 only because its own RPC timer won a race by
+milliseconds. So the classification moved to where the failure is known.
+
+- **This engine.** `redis_connection::classify_command_error` — a redis-crate timeout → **408** `Redis
+  request timed out - …`; a refused, dropped, I/O or cluster failure → **503** `Redis unavailable - …`;
+  anything the server answered → 500 `Redis error - …` — and `command_timeout` (the per-command deadline
+  → 408), applied by `RedisBackend::query` / `query_pipeline`, so every consumer of the foundation's
+  command path inherits it (sync-over-async does not use that path; its 45 tests are unchanged). The
+  connect error on a caller's path (`From<ConnectError> for AppError`, the cache runtime's lazy build)
+  is 503 for a refused or timed-out connect and stays 500 for an unbuildable configuration.
+  Test `tests/backend.rs::command_and_connect_failures_are_classified`; the cache guide's failure bullet.
+- **Java.** `RedisFailure.classify` in the `redis-connection` foundation (Lettuce timeout → 408 with
+  Lettuce's message; `RedisConnectionException` / `ConnectException` / closed or rejected connection →
+  503; `RedisCommandExecutionException` left to the default), applied by `RedisCache`.
+- **Validation.** The fifth full drive against both classified builds — **122/122 hard checks**; not one
+  outage probe on any layer of either engine answers 500 (Java: five timeouts, all 408; this engine: two
+  timeouts 408, three unreachable 503). Report section *Validation run after the cache-failure
+  classification*, both twins.
+
+Gates: `cargo fmt --check`, `clippy -D warnings` (both crates), the two crates' suites, sync-over-async and
+the example, `mkdocs build --strict`, `check-llms-links`, `check-doc-claims`.

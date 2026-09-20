@@ -61,6 +61,11 @@ Notes for callers:
 - An unknown `action`, a missing `key`, a missing value, or an unparseable `ttl` is rejected with the
   event's error (status 400 and a message naming the problem, e.g. `Unsupported action 'INCR' - one of
   PUT, GET, MGET, …`).
+- **Redis failures are classified**, so a caller — or the flow's / graph's exception handler, which passes
+  the status through — sees the failure for what it is: a command timeout replies **408** (`Redis request
+  timed out after N ms`), a refused, dropped or unreachable connection replies **503** `Redis unavailable - …`
+  (the `redis.health` vocabulary), and anything the server answered (a wrong type, an unknown command) keeps
+  the default 500. The Java engine classifies the same way, so a mixed fleet fails alike.
 
 ## Enabling and configuring {#config}
 
