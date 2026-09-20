@@ -3040,7 +3040,8 @@ Redis outage (every probe an error, never a miss, never `stored`) and recovery w
 restart. **112/112 hard checks passed**; one informational comparison recorded (the same payload is not
 byte-identical across engines — the Java packer keeps insertion order, `serde_json` sorts keys; both
 decode to the same map, and MsgPack map order is not part of the contract). Report:
-`docs/test-reports/distributed-cache-interop.md` (twin in the Java repository).
+`docs/test-reports/distributed-cache-interop.md` (twin in the Java repository; packaged in the AI-contract
+inventory, as every test report here is).
 
 - **Found and fixed — Layer 1 turned a cache failure into a miss.** The discovery run's outage leg had the
   Rust Layer 1 GET answer 404 *Profile not found* while `v1.cache.redis` was failing (`broken pipe`):
