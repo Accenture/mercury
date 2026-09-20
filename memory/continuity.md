@@ -184,7 +184,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   **CERTIFIED 2026-09-20 (Increment 120):** the two examples side by side on one `redis-standalone` —
   112/112 hard checks (`docs/test-reports/distributed-cache-interop.md`, twin in the Java repo): 6 × 6 layer
   matrix, raw wire, cross-engine deletes, identical error shapes, a 54 s outage and recovery. It found the
-  example's Layer 1 false-miss on a cache failure (fixed — PR #286 opened by Eric 2026-09-20, merge pending — [[l1-caller-checks-reply-status-rust]]) and
+  example's Layer 1 false-miss on a cache failure (fixed — PR #286 MERGED 2026-09-20, merge `01710589` — [[l1-caller-checks-reply-status-rust]]) and
   trimmed the example's direct `mercury-event-script` dependency ([[conv-cargo-declare-what-you-name]]).
   Builds on [[redis-connection-foundation-rust]]; the example applies [[playground-session-broker]].
   <!-- id: distributed-cache-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-182617 -->
@@ -263,6 +263,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   2026-07-26: "ok with the tests/ui without license headers"): a header shifts every
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
+  **Packaging rule (2026-09-20):** every file under `docs/guides/**` and `docs/test-reports/**` must also be
+  listed in `system/ai-contract-provider/resources/skill/files.list` — the snapshot test
+  `inventory_equals_the_documentation_closure` walks both trees (PR #286's first push failed on a new report).
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-09-02 | uses: 113 | tier: core | origin: 2026-07-15-224707.md -->
 
 - **An application crate declares the Mercury crates it NAMES — Cargo has no Maven-style transitive
