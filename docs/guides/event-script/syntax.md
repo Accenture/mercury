@@ -1459,6 +1459,7 @@ For example:
 | **Collection**      | isEmpty         | A single Collection, Map, String or array — true when it has no elements. Use `isNull` / `notNull` for null checks; a null or unsupported input is an error. |
 | **Collection**      | getFirst        | A single non-empty List — returns its first element.                                                                  |
 | **Collection**      | getLast         | A single non-empty List — returns its last element.                                                                   |
+| **Decision**        | lookup          | A decision table and a value — returns the name of the first rule whose list contains the value (compared as text, case-insensitively), or null on a miss. The table is a map: `keys` lists the rule names in priority order and each rule field lists its values; `keys` and each rule may be a list or a JSON array written as text, and the table itself may be JSON text. Syntax: `f:lookup(table, value)` — see the worked example below. |
 | **Type Conversion** | b64             | Either a base64 encoded String, OR a byte array.                                                                      |
 | **Type Conversion** | binary          | Either a byte[], Map or String                                                                                        |
 | **Type Conversion** | length          | Either a byte[], List or String                                                                                       |
@@ -1566,6 +1567,22 @@ constant, a model variable, or any mapping source holding a JSON string or byte 
 - f:json(text([])) -> model.my_empty_list
 - f:json(text({"hello": [1, 2, {"nested": "demo"}]})) -> model.my_nested_dataset
 - f:json(model.raw_json_text) -> model.parsed
+
+*Decision table lookup*
+
+A static decision table is data, not code: `f:lookup(table, value)` returns the rule that lists the
+value, so one table replaces a ladder of IF-THEN-ELSE in a flow or a function. The table may come from
+a resource file, a model variable or (in a knowledge graph) a skill-less node's properties; a miss is
+null, so a second entry supplies the default:
+
+```yaml
+- 'classpath(json:/decision/state-rules.json) -> model.rules'
+- 'f:lookup(model.rules, input.body.state) -> model.rule'
+- 'f:defaultValue(model.rule, text(unknown)) -> output.body.rule'
+```
+
+with `state-rules.json` as `{"keys": ["community-property", "separate-property"],
+"community-property": ["CA", "TX"], "separate-property": ["NY"]}`.
 
 This makes simple dataset creation a one-liner — e.g. seeding an empty list before
 building it up with append-mode (`[]`) mapping rules — without writing a composable

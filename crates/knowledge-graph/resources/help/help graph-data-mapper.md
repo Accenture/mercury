@@ -37,6 +37,26 @@ mapping[]=fetch-two.result.profile -> output.body.profile[1]
 mapping[]=f:now(text(local)) -> output.body.timestamp
 ```
 
+Decision table lookup
+---------------------
+A data mapper is also the natural decision node for a static decision table held on a skill-less node
+(see "describe skill graph.task" for the table node). The "lookup" simple plugin returns the name of
+the first rule whose list contains the value (compared as text, case-insensitively) and null on a miss,
+so a second entry supplies the default:
+
+```
+create node select-rule
+with type Decision
+with properties
+skill=graph.data.mapper
+mapping[]=f:lookup(state-rules, input.body.state) -> model.rule
+mapping[]=f:defaultValue(model.rule, text(unknown)) -> output.body.rule
+```
+
+The table's "keys" field lists the rule names in priority order and each rule field lists its values;
+each may be a list or a JSON array written as text (keys=[ "a", "b" ]), and the table itself may be
+JSON text. One table replaces a ladder of IF-THEN-ELSE and the product owner certifies it on the graph.
+
 Constants
 ---------
 A constant is valid wherever a source is. This is the full set:

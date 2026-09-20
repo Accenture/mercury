@@ -48,7 +48,7 @@ use crate::plugins_e8::value_type_name;
 /// The number of built-in `#[simple_plugin]` declarations the engine itself
 /// ships (this module + `plugins_e8`) — the startup floor the
 /// `SimplePluginLoader` asserts against linker elision.
-pub const BUILTIN_PLUGIN_COUNT: usize = 50;
+pub const BUILTIN_PLUGIN_COUNT: usize = 51;
 
 /// A plugin body (Java `PluginFunction.calculate`): evaluated argument values
 /// in, one value out; a descriptive error is the Java
@@ -218,6 +218,82 @@ fn plugin_json(args: &[Value]) -> Result<Value, String> {
     match args {
         [one] => parse_json(one),
         _ => Err("Input must be a JSON in string or byte array".to_string()),
+    }
+}
+
+/// `f:lookup(table, value)` — the name of the rule of a static decision table
+/// that lists the value (Java `SimpleLookup`). The table is a map: `keys`
+/// names the rules in priority order and each rule is a list of the values that
+/// select it; `keys` and every rule may be a list or a JSON array written as
+/// text (a node property authored as `keys=[ "a", "b" ]`), and the table itself
+/// may be JSON text. Values are compared as text, case-insensitively; no match
+/// is Nil, so a mapping can supply a default with `f:defaultValue`.
+#[simple_plugin("lookup")]
+fn plugin_lookup(args: &[Value]) -> Result<Value, String> {
+    let [table, value] = args else {
+        return Err(format!("Expected two input values - actual={}", args.len()));
+    };
+    let table = decision_table(table)?;
+    let keys = map_entry(&table, "keys").ok_or_else(|| "Missing keys in input".to_string())?;
+    let wanted = display(value).to_lowercase();
+    for rule in decision_table_entry(keys)? {
+        let members =
+            map_entry(&table, &rule).ok_or_else(|| format!("Missing key in input: {rule}"))?;
+        if decision_table_entry(members)?
+            .iter()
+            .any(|member| member.to_lowercase() == wanted)
+        {
+            return Ok(Value::from(rule));
+        }
+    }
+    Ok(Value::Nil)
+}
+
+/// The decision table as map entries: a map, or a JSON object written as text.
+fn decision_table(value: &Value) -> Result<Vec<(Value, Value)>, String> {
+    const NOT_A_TABLE: &str = "First argument must be a decision table as a map or JSON text";
+    match value {
+        Value::Map(entries) => Ok(entries.clone()),
+        Value::String(text) => {
+            let trimmed = text.as_str().unwrap_or_default().trim();
+            if trimmed.starts_with('{') && trimmed.ends_with('}') {
+                match parse_json(&Value::from(trimmed))? {
+                    Value::Map(entries) => Ok(entries),
+                    _ => Err(NOT_A_TABLE.to_string()),
+                }
+            } else {
+                Err(NOT_A_TABLE.to_string())
+            }
+        }
+        _ => Err(NOT_A_TABLE.to_string()),
+    }
+}
+
+fn map_entry<'a>(entries: &'a [(Value, Value)], key: &str) -> Option<&'a Value> {
+    entries
+        .iter()
+        .find(|(k, _)| k.as_str() == Some(key))
+        .map(|(_, v)| v)
+}
+
+/// Java `SimplePluginUtils.normalizeDecisionTableEntry`: a list, or a JSON
+/// array written as text, as the text form of each value.
+fn decision_table_entry(value: &Value) -> Result<Vec<String>, String> {
+    const NOT_A_LIST: &str = "Input is not a list of values";
+    match value {
+        Value::Array(items) => Ok(items.iter().map(display).collect()),
+        Value::String(text) => {
+            let trimmed = text.as_str().unwrap_or_default().trim();
+            if trimmed.starts_with('[') && trimmed.ends_with(']') {
+                match parse_json(&Value::from(trimmed))? {
+                    Value::Array(items) => Ok(items.iter().map(display).collect()),
+                    _ => Err(NOT_A_LIST.to_string()),
+                }
+            } else {
+                Err(NOT_A_LIST.to_string())
+            }
+        }
+        _ => Err(NOT_A_LIST.to_string()),
     }
 }
 
@@ -631,6 +707,121 @@ fn plugin_snake_case(args: &[Value]) -> Result<Value, String> {
 mod tests {
     use super::*;
     use crate::plugins_e8::java_pattern_to_chrono;
+
+    fn table_of_json_text() -> Value {
+        // the shape of a node authored as keys=[ "community-property", "separate-property" ]:
+        // every value is a JSON array written as text
+        Value::Map(vec![
+            (
+                Value::from("purpose"),
+                Value::from("a property the lookup ignores"),
+            ),
+            (
+                Value::from("keys"),
+                Value::from("[ \"community-property\", \"separate-property\" ]"),
+            ),
+            (
+                Value::from("community-property"),
+                Value::from("[ \"CA\", \"TX\" ]"),
+            ),
+            (Value::from("separate-property"), Value::from("[ \"NY\" ]")),
+        ])
+    }
+
+    /// Twin of the Java `SimpleLookupTest`: the rule that lists the value, from
+    /// list values or JSON-text values, the whole table as JSON text, text
+    /// comparison ignoring case, Nil on a miss, exact error messages.
+    #[test]
+    fn lookup_matches_java_semantics() {
+        assert!(contains_simple_plugin("lookup"));
+        let of_lists = Value::Map(vec![
+            (
+                Value::from("keys"),
+                Value::Array(vec![
+                    Value::from("community-property"),
+                    Value::from("separate-property"),
+                ]),
+            ),
+            (
+                Value::from("community-property"),
+                Value::Array(vec![Value::from("CA"), Value::from("TX")]),
+            ),
+            (
+                Value::from("separate-property"),
+                Value::Array(vec![Value::from("NY")]),
+            ),
+        ]);
+        assert_eq!(
+            calculate("lookup", &[of_lists.clone(), Value::from("TX")]),
+            Ok(Value::from("community-property"))
+        );
+        assert_eq!(
+            calculate("lookup", &[table_of_json_text(), Value::from("NY")]),
+            Ok(Value::from("separate-property"))
+        );
+        // the whole table as JSON text, numbers compared as text
+        let json_table =
+            Value::from("{\"keys\": [\"low\", \"high\"], \"low\": [1, 2, 3], \"high\": [4, 5]}");
+        assert_eq!(
+            calculate("lookup", &[json_table.clone(), Value::from(2)]),
+            Ok(Value::from("low"))
+        );
+        assert_eq!(
+            calculate("lookup", &[json_table, Value::from("5")]),
+            Ok(Value::from("high"))
+        );
+        // case-insensitive text comparison
+        assert_eq!(
+            calculate("lookup", &[of_lists.clone(), Value::from("tx")]),
+            Ok(Value::from("community-property"))
+        );
+        // a miss is Nil so that a mapping can supply a default with f:defaultValue
+        assert_eq!(
+            calculate("lookup", &[of_lists.clone(), Value::from("ZZ")]),
+            Ok(Value::Nil)
+        );
+        assert_eq!(
+            calculate("lookup", &[table_of_json_text(), Value::Nil]),
+            Ok(Value::Nil)
+        );
+        // invalid inputs: exact Java-parity messages
+        assert_eq!(
+            calculate("lookup", std::slice::from_ref(&of_lists)),
+            Err("Expected two input values - actual=1".to_string())
+        );
+        assert_eq!(
+            calculate("lookup", &[Value::from("state-rules"), Value::from("TX")]),
+            Err("First argument must be a decision table as a map or JSON text".to_string())
+        );
+        assert_eq!(
+            calculate("lookup", &[Value::Nil, Value::from("TX")]),
+            Err("First argument must be a decision table as a map or JSON text".to_string())
+        );
+        let no_keys = Value::Map(vec![(
+            Value::from("community-property"),
+            Value::Array(vec![Value::from("CA")]),
+        )]);
+        assert_eq!(
+            calculate("lookup", &[no_keys, Value::from("CA")]),
+            Err("Missing keys in input".to_string())
+        );
+        let missing_rule = Value::Map(vec![(
+            Value::from("keys"),
+            Value::Array(vec![Value::from("community-property")]),
+        )]);
+        assert_eq!(
+            calculate("lookup", &[missing_rule, Value::from("CA")]),
+            Err("Missing key in input: community-property".to_string())
+        );
+        let not_a_list = Value::Map(vec![
+            (Value::from("keys"), Value::from("community-property")),
+            (Value::from("community-property"), Value::from("CA")),
+        ]);
+        assert_eq!(
+            calculate("lookup", &[not_a_list, Value::from("CA")]),
+            Err("Input is not a list of values".to_string())
+        );
+    }
 
     /// Twin of the Java `IsEmptyOperatorTest` (PR #220): positives across
     /// the supported types — incl. the byte-array analog of an empty /

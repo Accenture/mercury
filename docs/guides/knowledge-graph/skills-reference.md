@@ -49,7 +49,10 @@ mapping[]=source -> target
 ```
 
 Sources/targets use `input.*`, `model.*`, `output.*`, or a node name (its properties); `text(...)`,
-`int(...)` etc. inject constants. **`mapping[]` entries apply in order** within the node, so a
+`int(...)` etc. inject constants, and `f:` simple plugins compute a value — a mapper is also the
+natural **decision node** for a static decision table held on a skill-less node
+(`mapping[]=f:lookup(state-rules, input.body.state) -> model.rule`; see
+[the graph.task recipe](#task)). **`mapping[]` entries apply in order** within the node, so a
 later entry may read an earlier entry's target — the chain idiom (ingest → transform → publish
 inside one mapper). Example:
 
@@ -315,14 +318,20 @@ same generic `error.source`/`code`/`message`/`stack` context as
 legislation rather than with each request — a restriction rule by state, a rate by band — belongs on
 a **skill-less node**. At instantiation the engine copies every node's properties into the state
 machine, so the node's alias is a mapping source (`{node-name}` in the
-[namespaces table](command-reference.md#namespaces)) and **one `input[]` entry hands the whole
-table to a generic function**. Two reasons to prefer it. **Readability:** the product owner reads and
+[namespaces table](command-reference.md#namespaces)): a `graph.data.mapper` decision node resolves
+the rule with the `lookup` simple plugin (the common case, no function at all), and **one `input[]`
+entry hands the whole table to a generic function** when the ruling needs more than a lookup. Two
+reasons to prefer it. **Readability:** the product owner reads and
 certifies the rules on the graph, in the business vocabulary, and a new table ships as a new graph
 version (`v2026-08-prime-rates`), never as a code change. **Simplicity:** one table replaces a ladder
 of IF-THEN-ELSE — a chain of [`graph.math`](#math) decision nodes, or conditionals inside a composable
 function — that grows a branch per rule and buries the ruling in control flow. Do not hard-code the
 table in `graph.math` statements or in a function bundled with the graph: neither is reusable, and
 neither is certifiable from the graph.
+
+The table node, shared by both examples below — `keys` names the rules in priority order and each
+rule lists the values that select it, every value a JSON array written as text so the node reads as
+a table in the Playground:
 
 ```
 create node state-rules
@@ -331,7 +340,30 @@ with properties
 keys=[ "community-property", "separate-property" ]
 community-property=[ "CA", "TX" ]
 separate-property=[ "NY" ]
+```
 
+**Common case — the `lookup` simple plugin, no function.** A [`graph.data.mapper`](#data-mapper)
+node is the decision node: `f:lookup(table, value)` returns the name of the first rule that lists
+the value (compared as text, case-insensitively) and `null` on a miss, so a second entry supplies
+the default with `f:defaultValue`:
+
+```
+create node select-rule
+with type Decision
+with properties
+skill=graph.data.mapper
+mapping[]=f:lookup(state-rules, input.body.state) -> model.rule
+mapping[]=f:defaultValue(model.rule, text(unknown)) -> output.body.rule
+```
+
+**When the ruling needs more than a lookup — a composable function.** One `input[]` entry hands the
+whole table to the function; the function stays generic by reading the rule names from `table.keys`
+and reconstructing the JSON-text lists (Java: `SimpleMapper.getInstance().getMapper().readValue(text,
+List.class)`; Rust: `serde_json::from_str`), ignoring any other property on the node (a `purpose`, a
+`source`). In the field, even complex rulings generalize into a small number of such decision-table
+functions:
+
+```
 create node select-rule
 with type Task
 with properties
@@ -342,18 +374,15 @@ input[]=input.body.state -> key
 output[]=result.rule -> output.body.rule
 ```
 
-`keys` names the rules in priority order and each rule lists its member keys. Every value is a JSON
-array written as text, so the node reads as a table in the Playground and the function reconstructs
-the lists (Java: `SimpleMapper.getInstance().getMapper().readValue(text, List.class)`; Rust:
-`serde_json::from_str`). The function stays generic: it reads the rule names from `table.keys` and
-ignores any other property on the node (a `purpose`, a `source`). Two variations: `key[]=member`
-lines build a real list property (one row per member in the Playground), and a nested table can be
-**one JSON text property** (a multi-line `'''…'''` value) that
-[`f:json`](command-reference.md#constants) parses at mapping time:
-`input[]=f:json(state-rules.table) -> table`. Wire the table node under the graph's island
+Two variations of the table node: `key[]=member` lines build a real list property (one row per
+member in the Playground; `lookup` and the function accept both), and a nested table can be **one
+JSON text property** (a multi-line `'''…'''` value) that [`f:json`](command-reference.md#constants)
+parses at mapping time (`input[]=f:json(state-rules.table) -> table`) — `f:lookup` also takes the
+table as JSON text directly. Wire the table node under the graph's island
 (`connect knowledge to state-rules with table`) so that [no node is left unconnected](#island).
-Pinned by `unit-test-task-9` on both engines: the JSON-text table and the `f:json` variation both
-resolve, and an unknown key returns the function's own 404 as the graph output.
+Pinned on both engines by `unit-test-lookup-1` (the plugin path: TX, ny and a miss defaulting to
+`unknown`) and `unit-test-task-9` (the function path, incl. the `f:json` variation; an unknown key
+returns the function's own 404 as the graph output).
 
 **Gotchas:** the `task` route must exist at runtime or the node fails fast; a call is bounded by
 `model.ttl` (default 30 s) — or by the node's optional `ttl` property (duration syntax, e.g.
