@@ -24,19 +24,9 @@
       "alias": "state-rules",
       "properties": {
         "purpose": "illustrative restriction rule by state - the table is graph data, not function code",
-        "keys": [
-          "community-property",
-          "separate-property"
-        ],
-        "community-property": [
-          "CA",
-          "TX",
-          "WA"
-        ],
-        "separate-property": [
-          "NY",
-          "FL"
-        ]
+        "keys": "[ \"community-property\", \"separate-property\" ]",
+        "community-property": "[ \"CA\", \"TX\" ]",
+        "separate-property": "[ \"NY\" ]"
       }
     },
     {
@@ -46,7 +36,7 @@
       "alias": "state-rules-json",
       "properties": {
         "purpose": "the same table as one JSON text property, parsed by f:json at mapping time",
-        "table": "{\"keys\": [\"community-property\", \"separate-property\"], \"community-property\": [\"CA\", \"TX\", \"WA\"], \"separate-property\": [\"NY\", \"FL\"]}"
+        "table": "{\"keys\": [\"community-property\", \"separate-property\"], \"community-property\": [\"CA\", \"TX\"], \"separate-property\": [\"NY\"]}"
       }
     },
     {

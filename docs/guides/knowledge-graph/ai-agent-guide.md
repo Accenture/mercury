@@ -143,8 +143,9 @@ engines):
 >       ([required convention](command-reference.md#island)).
 > - [ ] **Static reference data is a node, not code.** A decision table (a rule by state, a rate by
 >       band) is a skill-less node whose properties a `graph.task` hands whole to a generic function
->       (`input[]={table-node} -> table`); never hard-code the table inside the composable function
->       ([static decision table](skills-reference.md#task)).
+>       (`input[]={table-node} -> table`). Never hard-code it as a ladder of IF-THEN-ELSE in
+>       `graph.math` or inside the composable function: the table is more readable, and the product
+>       owner certifies it on the graph ([static decision table](skills-reference.md#task)).
 > - [ ] Multi-line commands (`create`/`update`/`instantiate`) are sent as one block; multi-line
 >       *values* use `'''…'''`.
 > - [ ] `instantiate graph` precedes `run`/`execute`/`inspect`.

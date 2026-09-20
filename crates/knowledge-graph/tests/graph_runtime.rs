@@ -298,18 +298,30 @@ impl ComposableFunction for DecisionTableFunction {
             return Err(AppError::new(400, "Missing decision table"));
         };
         let key = body.get("key").and_then(|k| k.as_str()).unwrap_or("");
-        let rules = table.get("keys").and_then(|k| k.as_array());
-        for rule in rules.into_iter().flatten().filter_map(|r| r.as_str()) {
-            let is_member = table
-                .get(rule)
-                .and_then(|m| m.as_array())
-                .is_some_and(|members| members.iter().any(|m| m.as_str() == Some(key)));
-            if is_member {
+        for rule in as_list(table.get("keys")) {
+            if as_list(table.get(rule.as_str()))
+                .iter()
+                .any(|member| member == key)
+            {
                 return EventEnvelope::new()
                     .set_body(serde_json::json!({"rule": rule, "key": key}));
             }
         }
         Err(AppError::new(404, format!("No rule for {key}")))
+    }
+}
+
+/// A node property authored as `keys=[ "a", "b" ]` arrives as JSON text and is
+/// reconstructed here (Java: SimpleMapper); a `keys[]=a` list property, or a
+/// dataset from `f:json`, arrives as a list already.
+fn as_list(value: Option<&serde_json::Value>) -> Vec<String> {
+    match value {
+        Some(serde_json::Value::Array(items)) => items
+            .iter()
+            .filter_map(|item| item.as_str().map(str::to_string))
+            .collect(),
+        Some(serde_json::Value::String(text)) => serde_json::from_str(text).unwrap_or_default(),
+        _ => Vec::new(),
     }
 }
 
@@ -1628,11 +1640,13 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
     );
 
     // --- unit-test-task-9: a static decision table is graph DATA. The table is
-    // a skill-less DecisionTable node; every node's properties land in the state
+    // a skill-less DecisionTable node whose values are JSON arrays written as
+    // text ('keys=[ "a", "b" ]'); every node's properties land in the state
     // machine at instantiation, so 'state-rules -> table' hands the WHOLE table
-    // to a generic lookup function in one input entry, and a sibling node carries
-    // the same table as one JSON text property that 'f:json(...)' parses at
-    // mapping time. Nothing about the table is compiled into the function.
+    // to a generic lookup function in one input entry (the function reconstructs
+    // the lists), and a sibling node carries the same table as one JSON text
+    // property that 'f:json(...)' parses at mapping time. Nothing about the table
+    // is compiled into the function.
     for (state, rule) in [("TX", "community-property"), ("NY", "separate-property")] {
         let reply = run_graph(
             &platform,

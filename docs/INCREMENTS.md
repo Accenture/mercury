@@ -3148,14 +3148,18 @@ properties to a `graph.task` function. It does not — on either engine — and 
   node's whole map at `{node}`), and the shared LHS resolver reads any selector, so
   `state-rules -> table` hands the whole table to the function in one `input[]` entry; a nested table
   can be one JSON text property that `f:json(...)` parses at mapping time (plugin arguments accept any
-  mapping source). `keys[]` / `rule[]` list properties render as rows in the Playground.
+  mapping source). Each rule is a JSON array written as text (`keys=[ "a", "b" ]`), which reads as a table
+  in the Playground and is reconstructed by the function (`serde_json`; Java `SimpleMapper`); `key[]=` lines
+  build a real list property instead.
 - **Documented** in `skills-reference.md` (graph.task), the in-Playground `help graph-task.md` and
   `ai-agent-guide.md` (pre-send checklist + recipe step 4): the table is a skill-less `DecisionTable`
   node wired under the island, certified by the product owner on the graph, and a new table is a new
-  graph version, never a code change.
+  graph version, never a code change. The why is stated too (Eric): readability, and one table in place
+  of a ladder of IF-THEN-ELSE — a chain of `graph.math` decision nodes or conditionals in a function —
+  so a human or an agent picks the simpler design path.
 - **Pinned** by `unit-test-task-9` (twin of the Java fixture) with a generic `v1.decision.table` test
-  function in `graph_runtime.rs`: both idioms resolve TX/NY, and an unknown key returns the function's
-  own 404 as the graph output.
+  function in `graph_runtime.rs`: the JSON-text table and the `f:json` variation both resolve TX/NY, and
+  an unknown key returns the function's own 404 as the graph output.
 
 No engine change. Gates: `cargo fmt --check`, `clippy -D warnings` (tests), the graph runtime suite,
 `mkdocs build --strict`, `check-llms-links`, `check-doc-claims`.

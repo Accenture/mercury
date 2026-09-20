@@ -74,19 +74,20 @@ input[]=text(/api/mdm/profile/{model.person_id}) -> url
 Static decision table
 ---------------------
 A lookup table that changes with legislation rather than with each request belongs on a node, not
-in the function. Every node's properties are copied into the state machine when the graph is
-instantiated, so a skill-less node's alias is a mapping source and ONE input entry hands the whole
-table to a generic function:
+in the function. It is more readable - the product owner certifies the rules on the graph, in the
+business vocabulary - and it replaces a ladder of IF-THEN-ELSE (a chain of graph.math decision nodes,
+or conditionals inside a composable function) with one table that grows a row per rule instead of a
+branch per rule. Do not hard-code the table in graph.math statements or in a function. Every node's
+properties are copied into the state machine when the graph is instantiated, so a skill-less node's
+alias is a mapping source and ONE input entry hands the whole table to a generic function:
 
 ```
 create node state-rules
 with type DecisionTable
 with properties
-keys[]=community-property
-keys[]=separate-property
-community-property[]=CA
-community-property[]=TX
-separate-property[]=NY
+keys=[ "community-property", "separate-property" ]
+community-property=[ "CA", "TX" ]
+separate-property=[ "NY" ]
 ```
 
 ```
@@ -94,12 +95,14 @@ input[]=state-rules -> table
 input[]=input.body.state -> key
 ```
 
-"keys[]" names the rules in priority order and each rule is a list of its member keys, so the
-table renders as rows in the Playground and the function reads the rule names from "table.keys".
-A nested table may be ONE JSON text property (a multi-line '''...''' value) that f:json parses
-at mapping time: input[]=f:json(state-rules.table) -> table. The product owner certifies the table
-on the graph and a new table ships as a new graph version, never as a code change. Wire the table
-node under the graph's island so that no node is left unconnected.
+"keys" names the rules in priority order and each rule lists its member keys. Every value is a JSON
+array written as text, so the node reads as a table in the Playground and the function reconstructs
+the lists (SimpleMapper in Java, serde_json in Rust) and reads the rule names from "table.keys".
+Variations: "key[]=member" lines build a real list property, and a nested table may be ONE JSON text
+property (a multi-line '''...''' value) that f:json parses at mapping time:
+input[]=f:json(state-rules.table) -> table. The product owner certifies the table on the graph and a
+new table ships as a new graph version, never as a code change. Wire the table node under the
+graph's island so that no node is left unconnected.
 
 If the function is declared as a TypedLambdaFunction with a PoJo input class, the request body map
 is automatically converted to the PoJo at the function boundary.
