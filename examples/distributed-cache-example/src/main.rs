@@ -83,6 +83,25 @@ fn cached_bytes(reply: &EventEnvelope) -> Option<&[u8]> {
     }
 }
 
+/// A cache reply, or the cache's failure as this function's own error. An
+/// `Err` from `v1.cache.redis` arrives as a reply with the error status and
+/// the message as its string body (the Java engine shapes it the same way),
+/// so it must never be read as "nothing cached": a cache outage is a 5xx,
+/// not a miss — found in the live Java ⇄ Rust interop drive (2026-09-19),
+/// where Layer 1 answered 404 *Profile not found* while Redis was down.
+fn checked(reply: EventEnvelope) -> Result<EventEnvelope, AppError> {
+    if reply.has_error() {
+        let message = reply
+            .body()
+            .as_str()
+            .filter(|text| !text.is_empty())
+            .unwrap_or("Cache request failed")
+            .to_string();
+        return Err(AppError::new(reply.status(), message));
+    }
+    Ok(reply)
+}
+
 // ---------------------------------------------------------------------------
 // Layer 1 — the whole CRUD in one function, driving the cache in code
 // ---------------------------------------------------------------------------
@@ -119,15 +138,16 @@ impl ComposableFunction for ProfileCacheL1 {
         let _ = po.update_context(LAYER, "1");
         match method.as_str() {
             "GET" => {
-                let reply = po
-                    .request(
+                let reply = checked(
+                    po.request(
                         EventEnvelope::new()
                             .set_to(CACHE)
                             .set_header(ACTION, "GET")
                             .set_header(KEY, &id),
                         TIMEOUT,
                     )
-                    .await?;
+                    .await?,
+                )?;
                 match cached_bytes(&reply) {
                     Some(bytes) => Ok(EventEnvelope::new().set_raw_body(unpack(bytes)?)),
                     None => Err(AppError::new(404, "Profile not found")),
@@ -140,29 +160,32 @@ impl ComposableFunction for ProfileCacheL1 {
                 if !matches!(profile, Value::Map(_)) {
                     return Err(AppError::new(400, "Profile must be a JSON object"));
                 }
-                po.request(
-                    EventEnvelope::new()
-                        .set_to(CACHE)
-                        .set_header(ACTION, "PUT")
-                        .set_header(KEY, &id)
-                        .set_raw_body(Value::Binary(pack(profile)?)),
-                    TIMEOUT,
-                )
-                .await?;
+                checked(
+                    po.request(
+                        EventEnvelope::new()
+                            .set_to(CACHE)
+                            .set_header(ACTION, "PUT")
+                            .set_header(KEY, &id)
+                            .set_raw_body(Value::Binary(pack(profile)?)),
+                        TIMEOUT,
+                    )
+                    .await?,
+                )?;
                 EventEnvelope::new()
                     .set_status(201)
                     .set_body(serde_json::json!({"id": id, "layer": 1, "status": "stored"}))
             }
             "DELETE" => {
-                let reply = po
-                    .request(
+                let reply = checked(
+                    po.request(
                         EventEnvelope::new()
                             .set_to(CACHE)
                             .set_header(ACTION, "DELETE")
                             .set_header(KEY, &id),
                         TIMEOUT,
                     )
-                    .await?;
+                    .await?,
+                )?;
                 let removed = reply.body().as_i64().unwrap_or(0);
                 EventEnvelope::new()
                     .set_body(serde_json::json!({"id": id, "layer": 1, "deleted": removed > 0}))

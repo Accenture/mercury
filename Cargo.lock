@@ -343,7 +343,6 @@ dependencies = [
  "async-trait",
  "log",
  "mercury-distributed-cache",
- "mercury-event-script",
  "mercury-knowledge-graph",
  "mercury-platform-core",
  "mercury-redis-test-double",
