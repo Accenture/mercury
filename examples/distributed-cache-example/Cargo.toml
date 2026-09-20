@@ -9,8 +9,10 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+# platform-core is named directly (the preload/main_application macros, AppError,
+# EventEnvelope, PostOffice); knowledge-graph brings event-script and the flow
+# engine transitively, and this crate names nothing from event-script itself
 mercury-platform-core = { path = "../../crates/platform-core" }
-mercury-event-script = { path = "../../crates/event-script" }
 mercury-knowledge-graph = { path = "../../crates/knowledge-graph" }
 # the cache: linking this crate registers v1.cache.redis and redis.health
 # automatically (preload inventory) once redis.cache.enabled=true - the

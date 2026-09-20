@@ -3027,3 +3027,50 @@ delta, the `Value::Binary` body rule); the configuration reference's `redis.*` b
 shared foundation namespace (+ `username`, `cluster.*`) with new `soa.redis.*` and `redis.cache.*`
 blocks; reserved names (`v1.cache.redis`, `redis.health`, `soa.redis.health`); `llms.txt`; the mkdocs
 nav; the AI-contract inventory; README and getting-started pointers; crate READMEs.
+
+## Increment 120 — Distributed cache certified Java ⇄ Rust: the live interop drive, and Layer 1 surfaces a cache failure (2026-09-20)
+
+The certification step the Java repository's cache thread asked for: the two `distributed-cache-example`
+applications — Java (mercury-composable main, engine 4.12.12) and Rust (this repository after PR #285) —
+side by side against one `helpers/redis-standalone`, driven through 112 checks: `/info` and `/health`
+identity, a 6 × 6 writer/reader matrix across the three layers of both engines (18 cross-engine reads),
+raw key inspection in Redis (layout, TTL from birth, values decoded as plain MsgPack maps), six
+cross-engine deletes with the miss confirmed on a third layer, field-by-field error-shape parity, a 54 s
+Redis outage (every probe an error, never a miss, never `stored`) and recovery without an application
+restart. **112/112 hard checks passed**; one informational comparison recorded (the same payload is not
+byte-identical across engines — the Java packer keeps insertion order, `serde_json` sorts keys; both
+decode to the same map, and MsgPack map order is not part of the contract). Report:
+`docs/test-reports/distributed-cache-interop.md` (twin in the Java repository; packaged in the AI-contract
+inventory, as every test report here is).
+
+- **Found and fixed — Layer 1 turned a cache failure into a miss.** The discovery run's outage leg had the
+  Rust Layer 1 GET answer 404 *Profile not found* while `v1.cache.redis` was failing (`broken pipe`):
+  `ProfileCacheL1` tested the reply's *body* (`Value::Binary` or null) without checking its **status**,
+  and an `Err` from a function arrives as a reply whose status is the error code and whose body is the
+  message string — so a fast failure read as "nothing cached", and a POST would have acknowledged
+  `stored`. Layers 2 and 3 never had the gap: the flow and graph engines check a task's status for the
+  author. Fix: a `checked()` guard rethrows an error-status reply as the function's own error (GET,
+  POST and DELETE). Test `tests/l1_cache_failure.rs`: the real cache is switched off
+  (`redis.cache.enabled=false`) and a `#[preload]` stub takes the `v1.cache.redis` route failing fast
+  with 503 — Layer 1 GET/POST/DELETE answer 503 with the message, and Layers 2 and 3 propagate the same
+  503 through the exception handler, so the assertion depends neither on a Redis outage nor on which
+  of two timeouts fires first. The Java example had the identical gap (masked by its RPC timeout racing
+  Lettuce's command timeout) and is fixed the same way in its companion change.
+- **Dependency trim.** `mercury-event-script` is no longer a direct dependency of the example: nothing in
+  it names `event_script::`, and the flow engine (with its preload registrations) links transitively
+  through `mercury-knowledge-graph` — the example's suites, Layer 2 included, prove it. `mercury-platform-core`
+  stays: Cargo has no Maven-style transitive classpath, and the example names `platform_core::` items
+  directly (the `preload`/`main_application` macros, `AppError`, `EventEnvelope`, `PostOffice`). The rule
+  for an application crate: declare what you name.
+- **Port spec closed.** `draft-design-specs/distributed-cache-port.md`: status MERGED (#285); the five §9
+  recommendations CONFIRMED by the maintainer 2026-09-19 (cluster via the seam + `cluster-async`,
+  `Platform::on_shutdown` now, publication joins the K5 hold, port 8305, the `RedisSettings` alias).
+- **Recorded, not changed** (report *Findings*): failure latency differs by client library (Lettuce
+  buffers to its 5 s command timeout, redis-rs fails fast then retries ~4.5 s); an in-function RPC
+  timeout surfaces as 500 on Java (`TimeoutException` path) and 408 here (`Result` path) — both errors,
+  neither a miss; after an outage longer than ~30 s the Java pod's shared Lettuce connection recovers
+  on its 30 s backoff cap while `/health` (a fresh probe connection) is already green — a follow-up
+  ruling for the Java side. The Rust `ConnectionManager` reconnects on the first command.
+
+Gates: `cargo fmt --check`, `clippy --workspace --all-targets -D warnings`, the example's suites,
+`check-llms-links`, `check-doc-claims`, `mkdocs build --strict` clean.
