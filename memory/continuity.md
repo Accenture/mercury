@@ -315,6 +315,22 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   React bundle. Verified live in both modes. Relates [[conv-cargo-declare-what-you-name]] (the same Playground
   polish round).
   <!-- id: rest-skip-unregistered-and-root-fallback-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
+- **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic
+  function by ONE `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric,
+  2026-09-20; Increment 123 — a doc gap, no engine change; branch `docs/static-decision-table-on-a-node`
+  `a0d2f4aa`, PR pending; Java twin `00283800`).** Found when an AI agent compiled a rule-by-state table
+  into a composable function shipped with its graph. `initialize_with_node_properties` already copies every
+  node's properties into the state machine at instantiation (skill node → non-reserved keys at
+  `{node}.{key}`; skill-less node → the whole map at `{node}`) and the shared LHS resolver reads any
+  selector, so `state-rules -> table` maps the table in one entry; `keys[]=` / `rule[]=` list properties
+  render as rows in the Playground; a nested table is one triple-quoted JSON text property parsed by
+  `f:json(state-rules.table)` at mapping time. **Rule:** the product owner reads and certifies the table ON
+  the graph, a new table is a new graph version (`v2026-08-prime-rates`) and never a code change, and the
+  function stays generic by reading rule names from `table.keys`. The pattern is now in
+  `skills-reference.md` (graph.task), the in-Playground help and the AI agent guide's pre-send checklist,
+  pinned by `unit-test-task-9` (`graph_runtime.rs`) in lockstep with the Java repo. Extends
+  [[conventions-rust-baseline]] (docs and fixtures stay byte-aligned with the reference).
+  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-152809 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
