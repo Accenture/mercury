@@ -15,7 +15,7 @@
 //
 
 //! End-to-end graph execution — parity ports of the Java `GraphTests`
-//! (tutorials 1/2/4/7/8/9/13) and `GraphTaskTest` (unit-test-task-1..6),
+//! (tutorials 1/2/4/7/8/9/13) and `GraphTaskTest` (unit-test-task-1..7, 9),
 //! running the real `graph-executor` flow through the flow engine. Tutorials
 //! needing `graph.api.fetcher` / `graph.extension` join at K-5/K-6.
 //! Rust-supplement graphs (listed in `graphs.yaml` like everything else —
@@ -274,6 +274,54 @@ impl ComposableFunction for DemoTaskFunction {
         Ok(EventEnvelope::new()
             .set_header("x-task", "demo")
             .set_body(result)?)
+    }
+}
+
+/// Java `DecisionTableFunction` (`v1.decision.table`): a generic decision-table
+/// lookup - the TABLE arrives in the request, nothing about it is compiled into
+/// the function. `table.keys` names the rules in priority order and each rule
+/// is a property listing that rule's member keys, the shape a skill-less
+/// DecisionTable node carries in a graph (unit-test-task-9).
+#[preload(route = "v1.decision.table", instances = 10)]
+struct DecisionTableFunction;
+
+#[async_trait]
+impl ComposableFunction for DecisionTableFunction {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let body: serde_json::Value = input.body_as().unwrap_or(serde_json::Value::Null);
+        let Some(table) = body.get("table").and_then(|t| t.as_object()) else {
+            return Err(AppError::new(400, "Missing decision table"));
+        };
+        let key = body.get("key").and_then(|k| k.as_str()).unwrap_or("");
+        for rule in as_list(table.get("keys")) {
+            if as_list(table.get(rule.as_str()))
+                .iter()
+                .any(|member| member == key)
+            {
+                return EventEnvelope::new()
+                    .set_body(serde_json::json!({"rule": rule, "key": key}));
+            }
+        }
+        Err(AppError::new(404, format!("No rule for {key}")))
+    }
+}
+
+/// A node property authored as `keys=[ "a", "b" ]` arrives as JSON text and is
+/// reconstructed here (Java: SimpleMapper); a `keys[]=a` list property, or a
+/// dataset from `f:json`, arrives as a list already.
+fn as_list(value: Option<&serde_json::Value>) -> Vec<String> {
+    match value {
+        Some(serde_json::Value::Array(items)) => items
+            .iter()
+            .filter_map(|item| item.as_str().map(str::to_string))
+            .collect(),
+        Some(serde_json::Value::String(text)) => serde_json::from_str(text).unwrap_or_default(),
+        _ => Vec::new(),
     }
 }
 
@@ -1588,6 +1636,43 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
     let text = event_script::conversions::to_json_string(reply.body());
     assert!(
         text.contains("not found"),
+        "unexpected error response: {text}"
+    );
+
+    // --- unit-test-task-9: a static decision table is graph DATA. The table is
+    // a skill-less DecisionTable node whose values are JSON arrays written as
+    // text ('keys=[ "a", "b" ]'); every node's properties land in the state
+    // machine at instantiation, so 'state-rules -> table' hands the WHOLE table
+    // to a generic lookup function in one input entry (the function reconstructs
+    // the lists), and a sibling node carries the same table as one JSON text
+    // property that 'f:json(...)' parses at mapping time. Nothing about the table
+    // is compiled into the function.
+    for (state, rule) in [("TX", "community-property"), ("NY", "separate-property")] {
+        let reply = run_graph(
+            &platform,
+            "unit-test-task-9",
+            serde_json::json!({"state": state}),
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(200, reply.status(), "state {state}");
+        let mm = body_map(&reply);
+        assert_eq!(Some(Value::from(rule)), mm.get_element("rule"));
+        assert_eq!(Some(Value::from(rule)), mm.get_element("rule_from_json"));
+    }
+    // a key the table does not know is the function's own 404, returned as the
+    // graph output
+    let reply = run_graph(
+        &platform,
+        "unit-test-task-9",
+        serde_json::json!({"state": "ZZ"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(404, reply.status());
+    let text = event_script::conversions::to_json_string(reply.body());
+    assert!(
+        text.contains("No rule for ZZ"),
         "unexpected error response: {text}"
     );
 }

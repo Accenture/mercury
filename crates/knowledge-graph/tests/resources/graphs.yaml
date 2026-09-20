@@ -30,6 +30,10 @@ graphs:
   - 'unit-test-task-6'
   # foreign route: the task exists only as a declarative event-over-http target
   - 'unit-test-task-7'
+  # a static decision table held on a skill-less DecisionTable node, mapped whole into a
+  # generic lookup function ('state-rules -> table') and, on a sibling node, as one JSON
+  # text property parsed by f:json at mapping time - the table is graph data, not function code
+  - 'unit-test-task-9'
   - 'rust-foreach'
   - 'rust-join'
   - 'rust-join-retry'

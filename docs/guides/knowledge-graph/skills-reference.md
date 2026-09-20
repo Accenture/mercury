@@ -311,6 +311,50 @@ same generic `error.source`/`code`/`message`/`stack` context as
 [`graph.api.fetcher`](#api-fetcher), so one handler serves them all
 ([failure routing](command-reference.md#failure-routing)).
 
+**A static decision table is graph data, not function code.** A lookup table that changes with
+legislation rather than with each request — a restriction rule by state, a rate by band — belongs on
+a **skill-less node**. At instantiation the engine copies every node's properties into the state
+machine, so the node's alias is a mapping source (`{node-name}` in the
+[namespaces table](command-reference.md#namespaces)) and **one `input[]` entry hands the whole
+table to a generic function**. Two reasons to prefer it. **Readability:** the product owner reads and
+certifies the rules on the graph, in the business vocabulary, and a new table ships as a new graph
+version (`v2026-08-prime-rates`), never as a code change. **Simplicity:** one table replaces a ladder
+of IF-THEN-ELSE — a chain of [`graph.math`](#math) decision nodes, or conditionals inside a composable
+function — that grows a branch per rule and buries the ruling in control flow. Do not hard-code the
+table in `graph.math` statements or in a function bundled with the graph: neither is reusable, and
+neither is certifiable from the graph.
+
+```
+create node state-rules
+with type DecisionTable
+with properties
+keys=[ "community-property", "separate-property" ]
+community-property=[ "CA", "TX" ]
+separate-property=[ "NY" ]
+
+create node select-rule
+with type Task
+with properties
+skill=graph.task
+task=v1.decision.table
+input[]=state-rules -> table
+input[]=input.body.state -> key
+output[]=result.rule -> output.body.rule
+```
+
+`keys` names the rules in priority order and each rule lists its member keys. Every value is a JSON
+array written as text, so the node reads as a table in the Playground and the function reconstructs
+the lists (Java: `SimpleMapper.getInstance().getMapper().readValue(text, List.class)`; Rust:
+`serde_json::from_str`). The function stays generic: it reads the rule names from `table.keys` and
+ignores any other property on the node (a `purpose`, a `source`). Two variations: `key[]=member`
+lines build a real list property (one row per member in the Playground), and a nested table can be
+**one JSON text property** (a multi-line `'''…'''` value) that
+[`f:json`](command-reference.md#constants) parses at mapping time:
+`input[]=f:json(state-rules.table) -> table`. Wire the table node under the graph's island
+(`connect knowledge to state-rules with table`) so that [no node is left unconnected](#island).
+Pinned by `unit-test-task-9` on both engines: the JSON-text table and the `f:json` variation both
+resolve, and an unknown key returns the function's own 404 as the graph output.
+
 **Gotchas:** the `task` route must exist at runtime or the node fails fast; a call is bounded by
 `model.ttl` (default 30 s) — or by the node's optional `ttl` property (duration syntax, e.g.
 `10s`), which overrides the propagated value for this node only, the same deadline override as

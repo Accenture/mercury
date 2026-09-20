@@ -1,0 +1,149 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Island"
+      ],
+      "alias": "knowledge",
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "reference data certified with the graph"
+      }
+    },
+    {
+      "types": [
+        "DecisionTable"
+      ],
+      "alias": "state-rules",
+      "properties": {
+        "purpose": "illustrative restriction rule by state - the table is graph data, not function code",
+        "keys": "[ \"community-property\", \"separate-property\" ]",
+        "community-property": "[ \"CA\", \"TX\" ]",
+        "separate-property": "[ \"NY\" ]"
+      }
+    },
+    {
+      "types": [
+        "DecisionTable"
+      ],
+      "alias": "state-rules-json",
+      "properties": {
+        "purpose": "the same table as one JSON text property, parsed by f:json at mapping time",
+        "table": "{\"keys\": [\"community-property\", \"separate-property\"], \"community-property\": [\"CA\", \"TX\"], \"separate-property\": [\"NY\"]}"
+      }
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "select-rule",
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.decision.table",
+        "input": [
+          "state-rules -> table",
+          "input.body.state -> key"
+        ],
+        "output": [
+          "result.rule -> output.body.rule"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "select-rule-json",
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.decision.table",
+        "input": [
+          "f:json(state-rules-json.table) -> table",
+          "input.body.state -> key"
+        ],
+        "output": [
+          "result.rule -> output.body.rule_from_json"
+        ]
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.task with a static decision table held on a skill-less node, mapped whole into a generic lookup function",
+        "name": "unit-test-task-9"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "knowledge"
+    },
+    {
+      "source": "knowledge",
+      "relations": [
+        {
+          "type": "table",
+          "properties": {}
+        }
+      ],
+      "target": "state-rules"
+    },
+    {
+      "source": "knowledge",
+      "relations": [
+        {
+          "type": "table",
+          "properties": {}
+        }
+      ],
+      "target": "state-rules-json"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "select",
+          "properties": {}
+        }
+      ],
+      "target": "select-rule"
+    },
+    {
+      "source": "select-rule",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "select-rule-json"
+    },
+    {
+      "source": "select-rule-json",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}
