@@ -184,7 +184,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   **CERTIFIED 2026-09-20 (Increment 120):** the two examples side by side on one `redis-standalone` —
   112/112 hard checks (`docs/test-reports/distributed-cache-interop.md`, twin in the Java repo): 6 × 6 layer
   matrix, raw wire, cross-engine deletes, identical error shapes, a 54 s outage and recovery. It found the
-  example's Layer 1 false-miss on a cache failure (fixed — [[l1-caller-checks-reply-status-rust]]) and
+  example's Layer 1 false-miss on a cache failure (fixed — PR #286 opened by Eric 2026-09-20, merge pending — [[l1-caller-checks-reply-status-rust]]) and
   trimmed the example's direct `mercury-event-script` dependency ([[conv-cargo-declare-what-you-name]]).
   Builds on [[redis-connection-foundation-rust]]; the example applies [[playground-session-broker]].
   <!-- id: distributed-cache-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-182617 -->
