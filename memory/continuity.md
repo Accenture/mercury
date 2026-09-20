@@ -181,8 +181,27 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (`examples/distributed-cache-example`) runs the Java example's flow and graph files byte-identical and
   stores plain-MsgPack maps under `cache-demo:` — **the cross-engine interop harness**: pointed at one
   Redis, the two examples read each other's profiles (a side-by-side run is the certification step).
+  **CERTIFIED 2026-09-20 (Increment 120):** the two examples side by side on one `redis-standalone` —
+  112/112 hard checks (`docs/test-reports/distributed-cache-interop.md`, twin in the Java repo): 6 × 6 layer
+  matrix, raw wire, cross-engine deletes, identical error shapes, a 54 s outage and recovery. It found the
+  example's Layer 1 false-miss on a cache failure (fixed — [[l1-caller-checks-reply-status-rust]]) and
+  trimmed the example's direct `mercury-event-script` dependency ([[conv-cargo-declare-what-you-name]]).
   Builds on [[redis-connection-foundation-rust]]; the example applies [[playground-session-broker]].
   <!-- id: distributed-cache-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-182617 -->
+
+- **A function that awaits `po.request` must check the reply's STATUS before reading its body — the
+  engines do it for flows and graphs, imperative code must do it itself (Java ⇄ Rust cache interop,
+  2026-09-20, Increment 120).** An `Err(AppError)` from a function arrives at the caller as `Ok(reply)`
+  with `reply.has_error()` and the message as a `Value::String` body (platform.rs: `set_status(e.status())`
+  + `set_raw_body(String)`), never as `Err` — so `po.request(..).await?` propagates only transport failures
+  (408 timeout, closed channel). `ProfileCacheL1` matched the body (`Value::Binary` or nil) and read a
+  cache outage as 404 *Profile not found*; a POST would have acked `stored`. Fix: `checked()` in the
+  example's main.rs, pinned by `tests/l1_cache_failure.rs` (real cache off, a `#[preload]` fail-fast stub
+  on `v1.cache.redis`; L1/L2/L3 → 503). The Java example had the identical gap, masked by its RPC timeout
+  racing Lettuce's command timeout — fixed in lock-step. Recorded asymmetry, not changed: an in-function
+  RPC timeout is **408** here (`Result`) and **500** on Java (`TimeoutException`) — both errors, neither a
+  miss. Applies to every PostOffice caller, not only the cache. Relates [[rest-error-body-standard-shape]].
+  <!-- id: l1-caller-checks-reply-status-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
 
 - **A function's failure reaches a REST client as the standard error body `{status, message, type:
   error}` — never as bare text (found and fixed 2026-09-19 by the cache example's Layer 1 miss).** Java
@@ -245,6 +264,21 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `.stderr` line and forces TRYBUILD regeneration; treated like Java's
   `src/test/resources` files. The ui RUNNERS (`tests/ui.rs`) do carry headers.
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-09-02 | uses: 113 | tier: core | origin: 2026-07-15-224707.md -->
+
+- **An application crate declares the Mercury crates it NAMES — Cargo has no Maven-style transitive
+  classpath (Eric's question, 2026-09-20; proven on the cache example, Increment 120).** The Java rule is
+  ONE dependency (`minigraph-playground-engine` brings the rest, and listing more even collides on
+  `index.html`); the Rust rule differs in kind: a crate can only `use` a dependency it declares
+  (knowledge-graph re-exports only `inventory` and `fetch_feature`), while transitive crates still LINK —
+  `#[preload]` inventory registrations included. So `mercury-platform-core` stays wherever code names
+  `platform_core::` items (the `preload`/`main_application` macros, `AppError`, `EventEnvelope`,
+  `PostOffice` — every app does), `mercury-knowledge-graph` is the Layer 3 engine, and
+  `mercury-event-script` is declared only when code names `event_script::` — the cache example named
+  nothing from it, the dependency was removed, and its Layer 2 flow suites still pass (the flow engine
+  arrives through knowledge-graph). No Rust analogue of the Java classpath-order trap: each crate prepends
+  or appends its resource root explicitly. Same trim offered, not done (Eric's call):
+  `templates/starter-graph`, `examples/minigraph-playground`, the getting-started snippet.
+  <!-- id: conv-cargo-declare-what-you-name | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
