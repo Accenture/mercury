@@ -226,10 +226,11 @@ async fn playground_command_grammar_and_companion() {
         "the engine's own flow is a flow and must be listed"
     );
     assert!(
-        console_has(
+        console_gets(
             &lines,
             "flow-11 - This event flow will echo all input parameters"
-        ),
+        )
+        .await,
         "flow listing carries the mandatory flow.description"
     );
     assert!(
@@ -753,7 +754,7 @@ async fn playground_command_grammar_and_companion() {
     let _ = std::fs::remove_file("/tmp/graph/tutorial-13.json");
     command(&po, t13_in, t13_out, "import graph from tutorial-13").await;
     assert!(
-        console_has(&t13_lines, "Graph model imported"),
+        console_gets(&t13_lines, "Graph model imported").await,
         "tutorial-13 import expected"
     );
     command(
@@ -764,7 +765,7 @@ async fn playground_command_grammar_and_companion() {
     )
     .await;
     assert!(
-        console_has(&t13_lines, "Graph instance created"),
+        console_gets(&t13_lines, "Graph instance created").await,
         "tutorial-13 instantiate expected"
     );
     let sync_t13 = platform_core::automation::AsyncHttpRequest::new()
@@ -910,10 +911,11 @@ async fn export_name_guard_accepts_missing_and_rejects_mismatch(platform: &Platf
     .await;
     command(&po, &in3, &out3, "export graph as export-guard-test").await;
     assert!(
-        console_has(
+        console_gets(
             &lines3,
             "Expect root node name=export-guard-test, Actual: some-other-graph"
-        ),
+        )
+        .await,
         "a declared mismatch must still reject the overwrite: {:?}",
         lines3.lock().expect("console")
     );
