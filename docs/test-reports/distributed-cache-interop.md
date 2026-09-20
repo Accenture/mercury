@@ -180,8 +180,10 @@ with the cause text engine-specific: Java `Redis is not reachable - Command time
 Every probe failed as an error — none answered a 404 miss, none acknowledged `stored`, and the POST
 never landed in Redis (verified after the restart). The latencies are Finding 2; the statuses Finding 3.
 
-> **Amended after the run:** with the Java Finding 3 fix in place, the three Java Layer 1 rows read **HTTP 408**
-> `Timeout for 5000 ms` (re-probed 2026-09-20 01:17 UTC); the Java Layer 2 and 3 rows and every Rust row are unchanged.
+> **Amended after the run:** with the Finding 3 fix in place, the three Java Layer 1 rows read **HTTP 408**
+> `Timeout for 5000 ms` — first in a Java-only re-probe (2026-09-20 01:17 UTC), then in the full
+> [validation run](#validation-run-after-the-finding-3-fix-2026-09-20) below; the Java Layer 2 and 3 rows
+> and every Rust row are unchanged.
 
 ### Recovery — Redis restarted, no application restart
 
@@ -221,16 +223,14 @@ should expect the Java pods to fail slow (bounded by `redis.timeout`) and the Ru
 
 **3. An in-function RPC timeout surfaced as 500 on Java and 408 on Rust — the Java side was a
 platform-core mapping gap, since fixed.** Java's `po.request(...).get()` rethrows the timeout inside an
-`ExecutionException`, and both places that turn a function's exception into a reply read the status off
-the *outermost* exception while taking the message from the root cause — so the wrapper's default 500
-shipped with the cause's message. The Java engine now resolves the status from the **cause chain** (the
-first `AppException`, `TimeoutException` → 408 or `IllegalArgumentException` → 400 wins; 500 only when
-none is present), one rule shared by its three mappers. Re-probed live after that fix with Redis stopped
-(2026-09-20 01:17 UTC): the Java Layer 1 GET, POST and DELETE answer **408 `Timeout for 5000 ms`** — the
-code this engine already returned (`po.request` yields an `AppError` 408 as a `Result`, and the worker
-renders an `AppError`'s status faithfully; there is no wrapper class to hide it). Java's Layers 2 and 3
-keep answering 500 `Command timed out after 5 second(s)`, Lettuce's own timeout exception, which carries
-no status. Fixed in the Java engine on 2026-09-20 (mercury-composable, the follow-up to PR #426).
+`ExecutionException`, and both places that turn a function's exception into a reply
+(`EventEnvelope.setException` and the worker's status mapping) read the status off the *outermost*
+exception while taking the message from the root cause — so the wrapper's default 500 shipped with the
+cause's message. The Java engine now resolves the status from the **cause chain** (the first `AppException`, `TimeoutException` → 408 or `IllegalArgumentException` → 400 wins; 500 only when none is present), one rule shared by its three mappers (mercury-composable PR #427); this engine already returned 408 — `po.request` yields an `AppError` 408 as a `Result`, and there is no wrapper class to hide it. The full drive was then run again against both mains — the
+[validation run](#validation-run-after-the-finding-3-fix-2026-09-20) below: every RPC-timeout failure
+renders **408** on both engines and the pre-fix shape (500 with a timeout message) no longer occurs.
+Java's Layers 2 and 3 keep answering 500 `Command timed out after 5 second(s)` during an outage, because
+that is Lettuce's own timeout exception, which carries no status.
 
 **4. Recovery is bounded by the client library's reconnect policy, and health can be green first.**
 The Rust `ConnectionManager` reconnects on the first command after Redis is back. Lettuce reconnects on
@@ -249,6 +249,43 @@ window. Not changed here.
 **5. What matched exactly.** The health contract (`UP`/`DOWN`, HTTP 200/400, the dependency block with
 `{code, text}`), the miss and rejection bodies on all three layers, the key layout, the TTL semantics,
 and — the point of the drive — 36/36 reads and 6/6 deletes across the engine boundary.
+
+## Validation run after the Finding 3 fix (2026-09-20)
+
+The whole drive was run a fourth time against both mains once the Java fix had merged — Java
+mercury-composable `6f020544` (PR #427), Rust mercury `8424bc65` — with three assertions added to the
+outage phase: every RPC-timeout failure must render 408 on each engine, no probe may carry the pre-fix
+shape (500 with a timeout message), and the set of RPC-timeout statuses must be identical on both
+engines. **116/116 hard checks passed**, the same single informational byte
+comparison recorded as before.
+
+| Engine | Probe | Result | Latency | Message |
+|--------|-------|--------|---------|---------|
+| Java | L1 GET | HTTP 408 | 5.01 s | `Timeout for 5000 ms` |
+| Java | L1 POST | HTTP 408 | 5.01 s | `Timeout for 5000 ms` |
+| Java | L1 DELETE | HTTP 408 | 5.01 s | `Timeout for 5000 ms` |
+| Java | L2 GET | HTTP 500 | 5.02 s | `Command timed out after 5 second(s)` |
+| Java | L3 get | HTTP 500 | 5.02 s | `Command timed out after 5 second(s)` |
+| Rust | L1 GET | HTTP 500 | 0.0 s | `Redis error - broken pipe` |
+| Rust | L1 POST | HTTP 408 | 5.0 s | `Request timeout for 5000 ms` |
+| Rust | L1 DELETE | HTTP 500 | 4.45 s | `Redis error - Connection refused (os error 61)` |
+| Rust | L2 GET | HTTP 500 | 5.01 s | `Redis request timed out after 5000ms` |
+| Rust | L3 get | HTTP 500 | 4.46 s | `Redis error - Connection refused (os error 61)` |
+
+**Parity of the RPC-timeout shape.** Java: L1 GET → 408, L1 POST → 408, L1 DELETE → 408 — all 408. Rust: L1 POST → 408 — all 408.
+The RPC-timeout status set is {408} on Java and {408} on Rust; no probe on either engine returned 500 with
+a timeout message. The
+remaining 500s are the client libraries' own failures surfacing through the flow and graph engines
+(Lettuce `Command timed out`, redis-rs `Connection refused`/`broken pipe`), which carry no status and
+are the same category on both sides.
+
+**Recovery, same shape as the certification run.** `/health` back to 200 on the first read on both
+engines. Java's Layer 1 write: attempt 1 → HTTP 408 (the RPC timeout, now 408), attempt 2 →
+201 at +10.0 s, Lettuce's scheduled reconnect; Rust's: attempt 1 → 201 (its first probe,
+in sequence after Java's). Cross-engine reads of both post-recovery writes 4/4.
+
+What changed since the certification run is exactly the three Java Layer 1 rows — 500 → **408** — and
+nothing else.
 
 ## How to reproduce
 
