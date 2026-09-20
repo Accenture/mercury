@@ -299,7 +299,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   arrives through knowledge-graph). No Rust analogue of the Java classpath-order trap: each crate prepends
   or appends its resource root explicitly. Applied to `templates/starter-graph` and
   `examples/minigraph-playground` on 2026-09-20 at Eric's direction (branch `chore/cargo-declare-what-you-name`,
-  `8868613c`; the root README, the template README and the getting-started guide now state the rule).
+  `8868613c`, PR #291 opened, merge pending; the root README, the template README and the getting-started guide now state the rule).
   <!-- id: conv-cargo-declare-what-you-name | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
