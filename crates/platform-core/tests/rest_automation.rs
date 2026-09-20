@@ -352,6 +352,17 @@ rest:
     timeout: 5s
     cors: cors_1
     headers: header_1
+  # the backing function is never registered: the entry is skipped at load
+  # (Java RoutingEntry.resolveServices), so the URL is a plain 404
+  - service: "ghost.service"
+    methods: ['GET']
+    url: "/api/ghost"
+    timeout: 5s
+  # the home page: "/" falls back to this entry (Java HttpRequestHandler)
+  - service: "plain.text"
+    methods: ['GET']
+    url: "/index.html"
+    timeout: 5s
   - service: "header.probe"
     methods: ['GET', 'HEAD']
     url: "/api/headers"
@@ -876,6 +887,48 @@ async fn unknown_path_is_java_shaped_404() {
     assert_eq!(json["status"], 404);
     assert_eq!(json["type"], "error");
     assert_eq!(json["message"], "Resource not found");
+}
+
+/// Java `RoutingEntry.resolveServices`: a rest.yaml entry whose backing
+/// function is not registered is skipped at load ("Skip [GET] /api/ghost -
+/// Service ghost.service not available"), so its URL is an ordinary 404 - not
+/// a live route answering "Route ghost.service not found". This is what keeps
+/// an `#[optional_service]` left out by its condition (the Playground in
+/// production) from leaving dead endpoints behind.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn entry_without_a_registered_service_is_skipped_at_load() {
+    let server = server().await;
+    let (status, _, body) = http(server.port, "GET", "/api/ghost", &[], "").await;
+    assert_eq!(status, 404, "{body}");
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["message"], "Resource not found");
+    // the neighbouring entries are unaffected
+    let (status, _, _) = http(server.port, "GET", "/api/echo/alice", &[], "").await;
+    assert_eq!(status, 200);
+}
+
+/// Java `HttpRequestHandler`: a request for exactly "/" that matches no route
+/// falls back to the "/index.html" entry when one is declared - the way a
+/// Playground app's `get.index.html` (dev page or plain page by `app.env`)
+/// serves the root - before static content is considered.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn root_falls_back_to_the_index_html_entry() {
+    let server = server().await;
+    let (status, _, body) = http(server.port, "GET", "/index.html", &[], "").await;
+    assert_eq!(status, 200, "{body}");
+    let (root_status, _, root_body) = http(server.port, "GET", "/", &[], "").await;
+    assert_eq!(root_status, 200, "{root_body}");
+    assert_eq!(
+        root_body, body,
+        "the root serves the /index.html entry's reply"
+    );
+    // a static page under resources/public is still served when no entry claims it
+    let (status, headers, _) = http(server.port, "GET", "/about.html", &[], "").await;
+    assert_eq!(status, 200);
+    assert!(
+        headers["content-type"].starts_with("text/html"),
+        "{headers:?}"
+    );
 }
 
 /// Java `TypedLambdaFunction<I, EventEnvelope>` parity (`WorkerHandler.updateResponse`:
