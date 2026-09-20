@@ -3074,3 +3074,9 @@ inventory, as every test report here is).
 
 Gates: `cargo fmt --check`, `clippy --workspace --all-targets -D warnings`, the example's suites,
 `check-llms-links`, `check-doc-claims`, `mkdocs build --strict` clean.
+
+**Addendum (2026-09-20) — Finding 3 closed on the Java side.** The 500-vs-408 asymmetry for an in-function
+RPC timeout was a Java platform-core mapping gap (status read from the outermost exception, message from
+the root cause); the Java engine now resolves the status from the cause chain, and a live re-probe shows
+its Layer 1 outage replies as 408 `Timeout for 5000 ms` — this engine's behaviour was already the
+reference outcome. Report Finding 3 amended in both twins; nothing changed here.
