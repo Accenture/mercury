@@ -319,7 +319,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   function by ONE `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric,
   2026-09-20; Increment 123 — a doc gap, no engine change; branch `docs/static-decision-table-on-a-node`
   `a0d2f4aa` + `3186bde1` + `ac882d11`, PR #293 MERGED 2026-09-20 `d4b1af10`; Java twin PR #430 squash
-  `c5adc58f`; the `lookup` plugin follows as Increment 124 on branch `feat/lookup-plugin` `f942b7cb` + `d61a1285`; PR #294 open, Java twin PR #431).** Found when an AI agent compiled a rule-by-state table
+  `c5adc58f`; the `lookup` plugin follows as Increment 124 on branch `feat/lookup-plugin` `f942b7cb` + `d61a1285`; PR #294 MERGED 2026-09-20 `c4750128`, Java twin PR #431 squash `e52aeaca`).** Found when an AI agent compiled a rule-by-state table
   into a composable function shipped with its graph. `initialize_with_node_properties` already copies every
   node's properties into the state machine at instantiation (skill node → non-reserved keys at
   `{node}.{key}`; skill-less node → the whole map at `{node}`) and the shared LHS resolver reads any
