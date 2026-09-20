@@ -318,13 +318,18 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 - **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic
   function by ONE `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric,
   2026-09-20; Increment 123 — a doc gap, no engine change; branch `docs/static-decision-table-on-a-node`
-  `a0d2f4aa`, PR pending; Java twin `00283800`).** Found when an AI agent compiled a rule-by-state table
+  `a0d2f4aa` + `3186bde1`, PR pending; Java twin `00283800` + `6ae1a628`).** Found when an AI agent compiled a rule-by-state table
   into a composable function shipped with its graph. `initialize_with_node_properties` already copies every
   node's properties into the state machine at instantiation (skill node → non-reserved keys at
   `{node}.{key}`; skill-less node → the whole map at `{node}`) and the shared LHS resolver reads any
-  selector, so `state-rules -> table` maps the table in one entry; `keys[]=` / `rule[]=` list properties
-  render as rows in the Playground; a nested table is one triple-quoted JSON text property parsed by
-  `f:json(state-rules.table)` at mapping time. **Rule:** the product owner reads and certifies the table ON
+  selector, so `state-rules -> table` maps the table in one entry. **Presentation (Eric's review):** each
+  value is a JSON array written as text — `keys=[ "a", "b" ]`, `a=[ "CA", "TX" ]` — which reads as a table
+  on the node and arrives as a string the function reconstructs (`serde_json::from_str`; Java
+  `SimpleMapper`); `key[]=` lines build a real list instead, and a nested table is one triple-quoted JSON
+  text property parsed by `f:json(state-rules.table)` at mapping time. **Why (Eric):** readability — the
+  product owner certifies the rules on the graph in the business vocabulary — and one table replaces a
+  ladder of IF-THEN-ELSE in `graph.math` or inside a function, so neither a human nor an agent hard-codes
+  it; the engine was fully capable all along, and the recipe is what steers the design choice. **Rule:** the product owner reads and certifies the table ON
   the graph, a new table is a new graph version (`v2026-08-prime-rates`) and never a code change, and the
   function stays generic by reading rule names from `table.keys`. The pattern is now in
   `skills-reference.md` (graph.task), the in-Playground help and the AI agent guide's pre-send checklist,
