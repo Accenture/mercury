@@ -203,6 +203,24 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   with a cause-chain rule; 408 on both engines now, this engine unchanged. Applies to every PostOffice caller, not only the cache. Relates [[rest-error-body-standard-shape]].
   <!-- id: l1-caller-checks-reply-status-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
 
+- **The foundation's command path classifies Redis failures — a timeout is 408, an unreachable Redis 503,
+  only a server answer stays 500 — so `v1.cache.redis` fails for what it is, in lock-step with Java (Eric,
+  2026-09-20, Increment 121).** `classify_command_error` (redis-crate `is_timeout` → 408 `Redis request
+  timed out - …`; `is_connection_refusal` / `is_connection_dropped` / `is_io_error` / `is_cluster_error` →
+  503 `Redis unavailable - …`; else 500 `Redis error - …`), `command_timeout` (the per-command deadline →
+  408) and `From<ConnectError> for AppError` (a refused or timed-out connect on a caller's path → 503; an
+  unbuildable configuration stays 500 — a defect, not an outage) — applied by `RedisBackend::query` and
+  `query_pipeline`, so every consumer of that path inherits it (sync-over-async does not use it). Why: the
+  flow and graph engines pass a task's status through *faithfully*; the Layer 2/3 500s during the interop's
+  outage leg were the default for a client error that carried none, and Layer 1's 408 was only its RPC timer
+  winning a race. **Rule:** set the status where the failure is known, in the function that owns the client.
+  Proven by the fifth full drive: 122/122, no outage probe on any layer of either engine answers 500 (this
+  engine 408 for its deadline, 503 for refused/broken-pipe; Java all 408 because Lettuce buffers to its command
+  timeout). Java twin: `RedisFailure.classify` applied by `RedisCache`. Behaviour change to READ: a caller
+  that keyed on 500 for a Redis outage now sees 408/503. Relates [[redis-connection-foundation-rust]],
+  [[l1-caller-checks-reply-status-rust]].
+  <!-- id: redis-failure-classification-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
+
 - **A function's failure reaches a REST client as the standard error body `{status, message, type:
   error}` — never as bare text (found and fixed 2026-09-19 by the cache example's Layer 1 miss).** Java
   `AsyncHttpResponse.handleException`: an error status with no headers and a string body that does not
