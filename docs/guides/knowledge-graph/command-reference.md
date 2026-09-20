@@ -81,10 +81,14 @@ A **non-leaf (interior) path maps the entire subtree**, not just scalars: a sour
 `fetch-one.result.profile` above carries the whole profile object, and `response.accounts` in a
 Dictionary mapping carries the whole array.
 
-**An unresolvable source skips the entry** — when a mapping's source key does not exist, the
-target is left **untouched** (not nulled). Two idioms for defaults follow from this:
-`f:defaultValue(input.body.flag, boolean(false)) -> model.flag`, or default-then-overlay
-(`boolean(false) -> model.flag` followed by `input.body.flag -> model.flag`).
+**A null source removes the target.** When a mapping's source resolves to null — the key does not
+exist, or a plugin returns null — the graph engine **removes the target key** (an indexed target such
+as `profile[1]` is set to null instead, so list positions stay stable). A default therefore comes from
+the **source** side: `f:defaultValue(input.body.flag, boolean(false)) -> model.flag`, or a plugin's own
+default such as `f:lookup(table, value, text(unknown))`. Do not write a default first and overlay it
+with a possibly-null source — the overlay removes the default. (Event Script flows differ: there a null
+source applies only to `model.*` targets, where it removes the model variable key; for any other target
+the entry is ignored.)
 
 ## Constants {#constants}
 

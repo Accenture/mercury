@@ -29,7 +29,7 @@
     "list_property": "a 'key[]=entry' line appends one entry to the list 'key'; repeat to add more",
     "multiline_value": "wrap a value in triple single quotes ''' ... ''' to span lines",
     "constant": "type(value) — the CLOSED set in the 'constants' object below; no other constant/coercion form exists (the legacy ':type' suffix is deprecated — never generate it)",
-    "mapping_operator": "source -> target (left is source, right is target); an UNRESOLVABLE source skips the entry (target left untouched, not nulled) - use f:defaultValue(...) or default-then-overlay for defaults",
+    "mapping_operator": "source -> target (left is source, right is target); a NULL source (missing key, or a plugin returning null) REMOVES the target key (an indexed target is set to null) - defaults come from the source side: f:defaultValue(...) or a plugin default such as f:lookup(table, value, text(unknown)); never default-then-overlay",
     "variable_substitution": "{namespace.key} inside COMPUTE/IF expressions, e.g. {book.price}"
   },
   "constants": {

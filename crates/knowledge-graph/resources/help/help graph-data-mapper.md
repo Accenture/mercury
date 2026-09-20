@@ -90,11 +90,12 @@ Notes
   the list with that first element when it does not yet exist).
 - An interior (non-leaf) source path maps the ENTIRE subtree, not just
   scalars - fetch-one.result.profile above carries the whole profile object.
-- An unresolvable source SKIPS the entry: the target is left untouched (not
-  nulled). Two idioms for defaults follow from this:
-  f:defaultValue(input.body.flag, boolean(false)) -> model.flag, or
-  default-then-overlay (boolean(false) -> model.flag followed by
-  input.body.flag -> model.flag).
+- A NULL source (a missing key, or a plugin returning null) REMOVES the
+  target key (an indexed target such as profile[1] is set to null instead).
+  Defaults come from the source side: f:defaultValue(input.body.flag,
+  boolean(false)) -> model.flag, or a plugin default such as
+  f:lookup(table, value, text(unknown)) - never default-then-overlay, which
+  the null overlay would remove.
 - The legacy colon-type suffix ("simple type matching") is deprecated - use
   the f:plugin forms instead.
 - Inside a graph.math node, MAPPING: statements use exactly this syntax; see
