@@ -205,7 +205,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 - **The foundation's command path classifies Redis failures — a timeout is 408, an unreachable Redis 503,
   only a server answer stays 500 — so `v1.cache.redis` fails for what it is, in lock-step with Java (Eric,
-  2026-09-20, Increment 121).** `classify_command_error` (redis-crate `is_timeout` → 408 `Redis request
+  2026-09-20, Increment 121; PR #289 merged `017bf8ed`).** `classify_command_error` (redis-crate `is_timeout` → 408 `Redis request
   timed out - …`; `is_connection_refusal` / `is_connection_dropped` / `is_io_error` / `is_cluster_error` →
   503 `Redis unavailable - …`; else 500 `Redis error - …`), `command_timeout` (the per-command deadline →
   408) and `From<ConnectError> for AppError` (a refused or timed-out connect on a caller's path → 503; an
