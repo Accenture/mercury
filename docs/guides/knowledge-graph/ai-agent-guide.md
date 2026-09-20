@@ -141,6 +141,10 @@ engines):
 >       (`root -[contains]-> island -[data]-> dictionary -[provider]-> provider`): the island is
 >       the graph's entity-relationship knowledge layer
 >       ([required convention](command-reference.md#island)).
+> - [ ] **Static reference data is a node, not code.** A decision table (a rule by state, a rate by
+>       band) is a skill-less node whose properties a `graph.task` hands whole to a generic function
+>       (`input[]={table-node} -> table`); never hard-code the table inside the composable function
+>       ([static decision table](skills-reference.md#task)).
 > - [ ] Multi-line commands (`create`/`update`/`instantiate`) are sent as one block; multi-line
 >       *values* use `'''…'''`.
 > - [ ] `instantiate graph` precedes `run`/`execute`/`inspect`.
@@ -178,8 +182,10 @@ A reliable order for building a graph:
 4. **Wire the knowledge layer:** whenever the graph has `Dictionary`/`Provider` or data-entity
    nodes, an `Island` (`skill=graph.island`) is **required** — connect
    `root -[contains]-> island -[data]-> dictionary -[provider]-> provider`; **no node is left
-   unconnected**. For a graph with none, an island with data-entity nodes documenting the domain
-   is **encouraged** ([convention](command-reference.md#island)).
+   unconnected**. A **static decision table** is such a data node — a skill-less node holding the
+   table that a `graph.task` maps whole into a generic function — and is wired under the island too
+   ([pattern](skills-reference.md#task)). For a graph with none, an island with data-entity nodes
+   documenting the domain is **encouraged** ([convention](command-reference.md#island)).
 5. **Instantiate** with mock input: `instantiate graph` + `{constant} -> input.body.{key}` lines.
 6. **Run and inspect:** `run` (or `execute {node}`), then `inspect output.body`; iterate.
    (`{node}` is a placeholder — you write e.g. `execute fetcher`, `inspect output.body`.)

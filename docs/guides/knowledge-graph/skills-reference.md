@@ -311,6 +311,48 @@ same generic `error.source`/`code`/`message`/`stack` context as
 [`graph.api.fetcher`](#api-fetcher), so one handler serves them all
 ([failure routing](command-reference.md#failure-routing)).
 
+**A static decision table is graph data, not function code.** A lookup table that changes with
+legislation rather than with each request — a restriction rule by state, a rate by band — belongs on
+a **skill-less node**. At instantiation the engine copies every node's properties into the state
+machine, so the node's alias is a mapping source (`{node-name}` in the
+[namespaces table](command-reference.md#namespaces)) and **one `input[]` entry hands the whole
+table to a generic function**. The product owner reads and certifies the table on the graph, and a
+new table ships as a new graph version (`v2026-08-prime-rates`), never as a code change. Do not
+compile the table into a function bundled with the graph: that function is neither reusable nor
+certifiable from the graph.
+
+```
+create node state-rules
+with type DecisionTable
+with properties
+keys[]=community-property
+keys[]=separate-property
+community-property[]=CA
+community-property[]=TX
+community-property[]=WA
+separate-property[]=NY
+separate-property[]=FL
+
+create node select-rule
+with type Task
+with properties
+skill=graph.task
+task=v1.decision.table
+input[]=state-rules -> table
+input[]=input.body.state -> key
+output[]=result.rule -> output.body.rule
+```
+
+`keys[]` names the rules in priority order and each rule is a list property of its member keys, so
+the Playground renders the table as rows and the function stays generic: it reads the rule names
+from `table.keys` and ignores any other property on the node (a `purpose`, a `source`). A nested
+table reads better as **one JSON text property** (a multi-line `'''…'''` value) that
+[`f:json`](command-reference.md#constants) parses at mapping time:
+`input[]=f:json(state-rules.table) -> table`. Wire the table node under the graph's island
+(`connect knowledge to state-rules with table`) so that [no node is left unconnected](#island).
+Pinned by `unit-test-task-9` on both engines: both idioms resolve, and an unknown key returns the
+function's own 404 as the graph output.
+
 **Gotchas:** the `task` route must exist at runtime or the node fails fast; a call is bounded by
 `model.ttl` (default 30 s) — or by the node's optional `ttl` property (duration syntax, e.g.
 `10s`), which overrides the propagated value for this node only, the same deadline override as

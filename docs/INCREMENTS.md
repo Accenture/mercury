@@ -3136,3 +3136,26 @@ are Java behaviours the port lacked:
 Verified live on the Playground in `prod`: the dev-mode URLs are gone from the routing log, `/` and
 `/index.html` both serve the plain page; in `dev` both serve the Playground. Gates: fmt, clippy -D warnings,
 the platform-core lib and REST suites, `mkdocs build --strict`, `check-llms-links`, `check-doc-claims`.
+
+## Increment 123 — A static decision table is graph data: the pattern documented and pinned (2026-09-20)
+
+Eric found that an AI agent had hard-coded a static decision table (a restriction rule by state) inside
+a composable function bundled with a graph, and asked whether the engine lacked a way to hand a node's
+properties to a `graph.task` function. It does not — on either engine — and nothing said so:
+
+- **Mechanism, unchanged.** `initialize_with_node_properties` copies every node's properties into the
+  state machine at instantiation (a skill node's non-reserved properties at `{node}.{key}`, a skill-less
+  node's whole map at `{node}`), and the shared LHS resolver reads any selector, so
+  `state-rules -> table` hands the whole table to the function in one `input[]` entry; a nested table
+  can be one JSON text property that `f:json(...)` parses at mapping time (plugin arguments accept any
+  mapping source). `keys[]` / `rule[]` list properties render as rows in the Playground.
+- **Documented** in `skills-reference.md` (graph.task), the in-Playground `help graph-task.md` and
+  `ai-agent-guide.md` (pre-send checklist + recipe step 4): the table is a skill-less `DecisionTable`
+  node wired under the island, certified by the product owner on the graph, and a new table is a new
+  graph version, never a code change.
+- **Pinned** by `unit-test-task-9` (twin of the Java fixture) with a generic `v1.decision.table` test
+  function in `graph_runtime.rs`: both idioms resolve TX/NY, and an unknown key returns the function's
+  own 404 as the graph output.
+
+No engine change. Gates: `cargo fmt --check`, `clippy -D warnings` (tests), the graph runtime suite,
+`mkdocs build --strict`, `check-llms-links`, `check-doc-claims`.
