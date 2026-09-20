@@ -3080,3 +3080,6 @@ RPC timeout was a Java platform-core mapping gap (status read from the outermost
 the root cause); the Java engine now resolves the status from the cause chain, and a live re-probe shows
 its Layer 1 outage replies as 408 `Timeout for 5000 ms` — this engine's behaviour was already the
 reference outcome. Report Finding 3 amended in both twins; nothing changed here.
+**Validation (2026-09-20, after mercury-composable #427):** the full two-engine drive re-run against both mains —
+116/116 hard checks, every RPC-timeout failure 408 on both engines, no pre-fix 500-with-timeout shape; the report
+gained a *Validation run* section (both twins).
