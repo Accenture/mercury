@@ -304,7 +304,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 - **A `rest.yaml` entry whose service is not registered is SKIPPED at load, and `/` falls back to the `/index.html`
   entry — Java REST semantics the port lacked until Increment 122 (Eric found both running the Playground with
-  `-Dapp.env=prod`, 2026-09-20).** `RoutingTable::retain_available` drops such entries and `start_http_server`
+  `-Dapp.env=prod`, 2026-09-20; PR #292 opened, merge pending).** `RoutingTable::retain_available` drops such entries and `start_http_server`
   warns in Java's words (`Skip [GET] /api/x - Service x not available`; `RoutingEntry.resolveServices`); the REST
   server starts after preload and before the main application on BOTH engines, so a function registered in a main
   application is invisible to rest.yaml in either — parity, not a Rust quirk. The request handler retries a `/`
