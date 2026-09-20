@@ -163,6 +163,14 @@
       "quote": "a missing `flow://{flow-id}` aborts the run *before* any call is made",
       "test": "crates/knowledge-graph::claims::extension_missing_flow_aborts_but_missing_graph_routes_to_handler",
       "since": "4.12.3+"
+    },
+    {
+      "id": "null-source-removes-target",
+      "claim": "In a MiniGraph data mapping a source that resolves to null (a missing key, or a plugin returning null) removes the target key, so a default must come from the source side, never from default-then-overlay.",
+      "pages": ["docs/guides/knowledge-graph/command-reference.md"],
+      "quote": "A null source removes the target",
+      "test": "crates/knowledge-graph::graph_runtime::graph_task_matches_java_semantics",
+      "since": "4.12.12+"
     }
   ]
 }
