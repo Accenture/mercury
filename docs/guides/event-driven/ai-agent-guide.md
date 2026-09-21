@@ -112,8 +112,9 @@ pub trait ComposableFunction: Send + Sync {
 }
 ```
 
-- `headers` — the event headers. Lookup is exact-match; headers arriving from the HTTP boundary
-  are lowercased, so use lowercase keys.
+- `headers` — the event headers (exact-match lookup). They are never HTTP headers: a function bound
+  to a REST endpoint reads those from its `AsyncHttpRequest` input (`request.header(name)`,
+  case-insensitive — names arrive lowercased), and a flow maps them as `input.header.<name>`.
 - `input` — the incoming envelope. Read the payload with `input.body_as::<T>()` (any
   `serde`-deserializable type — `serde_json::Value` for free-form access, your own struct, a
   `Vec<T>`), or `input.body()` for the raw `rmpv::Value`. For key-by-key data mapping
@@ -160,6 +161,9 @@ the input shape varies too.
 > - [ ] `impl ComposableFunction` is wrapped in `#[async_trait]`.
 > - [ ] Input body is a map/struct when the function participates in key-by-key data mapping —
 >       not a list.
+> - [ ] A function bound directly to a REST endpoint declares `TypedFunction<AsyncHttpRequest, O>` (or
+>       reads the request map from the raw envelope) — the edge delivers the **whole HTTP request**,
+>       never just the body.
 > - [ ] The function holds **no direct reference to another user function** (no
 >       `OtherFunction::…` calls) — coupling is route-name + envelope only.
 > - [ ] Errors are returned as `Err(AppError::new(status, message))` — no `unwrap()`/`expect()`
@@ -200,6 +204,12 @@ impl ComposableFunction for HelloFunction {
     }
 }
 ```
+
+A JSON (or struct) body is the shape a function receives from a flow task's data mapping or from
+another function's `request`. **Bound directly to a REST endpoint it would receive the whole
+`AsyncHttpRequest` map** (`method`, `url`, `headers`, `parameters`, `body`, …) — so a REST-bound
+function is declared `TypedFunction<AsyncHttpRequest, O>` and reads `request.query_parameter(..)`,
+`request.header(..)` and `request.body_as::<T>()` (see the worked example below).
 
 ### Typed function — struct I/O
 
@@ -342,23 +352,27 @@ boundaries). The Java engine's Gson/MsgPack integer-downcast gotchas do not carr
 ## Worked example — full function + HTTP wiring {#example}
 
 ```rust
-// 1. The function (in an examples/<name>/ app crate)
-#[preload(route = "greeting.function", instances = 10)]
+// 1. The function (in an examples/<name>/ app crate) - REST-bound, so it receives the whole HTTP request
+use platform_core::{automation::AsyncHttpRequest, TypedFunction};
+
+#[preload(route = "greeting.function", instances = 10, typed)]
 struct GreetingFunction;
 
 #[async_trait]
-impl ComposableFunction for GreetingFunction {
+impl TypedFunction<AsyncHttpRequest, serde_json::Value> for GreetingFunction {
     async fn handle_event(
         &self,
         _headers: HashMap<String, String>,
-        input: EventEnvelope,
+        request: AsyncHttpRequest,
         _instance: usize,
-    ) -> Result<EventEnvelope, AppError> {
-        let body: serde_json::Value = input.body_as()?;
-        let name = body["name"].as_str().unwrap_or("world");
-        EventEnvelope::new().set_body(serde_json::json!({
-            "greeting": format!("Hello, {name}!"),
-        }))
+    ) -> Result<serde_json::Value, AppError> {
+        // GET /api/greeting?name=World is a query parameter; POST {"name": "Mercury"} arrives as the body
+        let body: serde_json::Value = request.body_as().unwrap_or(serde_json::Value::Null);
+        let name = request
+            .query_parameter("name")
+            .or_else(|| body["name"].as_str().map(str::to_string))
+            .unwrap_or_else(|| "world".to_string());
+        Ok(serde_json::json!({ "greeting": format!("Hello, {name}!") }))
     }
 }
 
@@ -377,6 +391,8 @@ rest:
 
 ```bash
 # 4. Test (rest.server.port from resources/application.yml)
+curl -s "http://127.0.0.1:8100/api/greeting?name=World"       # the query parameter
+# → {"greeting": "Hello, World!"}
 curl -s -X POST http://127.0.0.1:8100/api/greeting \
      -H "content-type: application/json" \
      -d '{"name": "Mercury"}'

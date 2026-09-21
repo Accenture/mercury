@@ -95,6 +95,15 @@ impl TypedFunction<AsyncHttpRequest, serde_json::Value> for GreetingApi {
                 Duration::from_secs(5),
             )
             .await?;
+        // a callee that fails replies with its error status and message - check before reading the body
+        if reply.has_error() {
+            let message = reply
+                .body()
+                .as_str()
+                .unwrap_or("greeting.demo failed")
+                .to_string();
+            return Err(AppError::new(reply.status(), message));
+        }
         let body: GreetingResponse = reply.body_as()?;
         Ok(serde_json::json!({
             "message": body.message,
@@ -187,6 +196,15 @@ let reply = po
         Duration::from_secs(5),
     )
     .await?;
+// a callee that fails replies with its error status and message - check before reading the body
+if reply.has_error() {
+    let message = reply
+        .body()
+        .as_str()
+        .unwrap_or("greeting.demo failed")
+        .to_string();
+    return Err(AppError::new(reply.status(), message));
+}
 let body: GreetingResponse = reply.body_as()?;
 ```
 
@@ -194,7 +212,9 @@ let body: GreetingResponse = reply.body_as()?;
 task is suspended until the reply arrives (or the timeout expires with status 408). When the
 call happens inside a traced request, the trace propagates to `greeting.demo` automatically —
 the response's `trace_id` in step 6 is proof. For fire-and-forget delivery use `po.send`;
-[Function execution](function-execution.md) covers the full messaging surface.
+[Function execution](function-execution.md) covers the full messaging surface. A callee that fails does not make
+`request` fail: it replies with its error status and message, which is why the snippet checks
+`has_error()` before reading the body. Only a timeout is an `Err` (status 408).
 
 ## 5. Bootstrap the application
 

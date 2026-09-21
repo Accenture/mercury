@@ -114,6 +114,10 @@ Result set
 Upon successful execution, the function's response body is stored in the "result" parameter, the
 response status in "status" and the response headers in "header" in the properties of the node.
 The optional output data mapping can copy them to the 'model.' or 'output.' namespace.
+The source of an output entry is a constant, a simple-plugin call (f:...), 'result' or 'result.{key}',
+'model.{key}' or this node's own namespace - 'input.*' is valid only on the input side. To echo a request value, stage it at a
+graph.data.mapper node (input.body.id -> model.id) and map model.id out; any other source fails the
+node with an error that names the entry.
 
 Example:
 ```

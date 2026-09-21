@@ -3197,3 +3197,45 @@ maps it out. Ported in lockstep, with his two review fixes applied on both sides
 
 Gates: `cargo fmt --check`, `clippy -D warnings` (event-script + knowledge-graph, tests), both crates'
 suites, `mkdocs build --strict`, `check-llms-links`, `check-doc-claims`.
+
+## Increment 125 — Guide parity round from the Java W2 probe: REST-bound input, reply status and headers, the output-mapping source rule (2026-09-21)
+
+The Java engine's doc-improvement loop measured guide sufficiency with a source-blind fresh-agent probe
+(11/15 → 15/15 after fixes; mercury-composable #434). Each fix was checked against this port's guides
+and, where it depends on engine behaviour, against the source (`automation/server.rs`, `post_office.rs`,
+`actuator.rs`, `knowledge-graph/src/common.rs`). Four applied, one optional item was taken, and the rest
+were already correct here:
+
+- **R1 — the REST-bound worked example in `event-driven/ai-agent-guide.md`** read `body["name"]` from
+  the raw envelope, but `build_event` delivers the whole AsyncHttpRequest map as the body and copies no
+  HTTP header into the event headers — the documented `Hello, Mercury!` would have run as
+  `Hello, world!`. It is now a `TypedFunction<AsyncHttpRequest, serde_json::Value>` reading the query
+  parameter or the body; the `headers` bullet says HTTP headers live in the request
+  (`request.header(name)`, case-insensitive) or in a flow's `input.header.*`; the free-form pattern
+  carries the "bound to REST it receives the whole request" caveat; the pre-write checklist gained the
+  REST-binding item.
+- **R2 — `rest-automation.md` "Replying with a status and headers"**: what `server.rs` does with a
+  reply — status → HTTP status; headers minus the protected `my_*` metadata, `x-stream-id`/`x-ttl`
+  withheld, `content-type` (overrides `Accept` negotiation) and `set-cookie` honoured, then the entry's
+  `headers.response` rules and the correlation-id echo; `Err(AppError)` → the standard error body unless
+  the text already looks like JSON or XML.
+- **R3 — the `graph.task` output-mapping source rule** (a constant, a `f:` plugin call,
+  `result`/`result.{key}`, `model.*` or the node's own namespace; `input.*` is input-side only; stage a
+  request value at a mapper node) stated in `skills-reference.md`, `help graph-task.md` (byte-identical
+  with Java) and the commands catalog note. The engine enforced it all along in
+  `set_fetcher_output_entry`; its two errors now carry the Java #394 wording — they name the entry
+  (`'{lhs} -> {rhs}' in node {node}`) and give the `input.*` clue — instead of the stale
+  "API fetcher"/"data dictionary" labels.
+- **R4 — `event-script/syntax.md`**: a JSON array body becomes a list (`ParsedBody::Json` → `to_value`),
+  pointing at "Special consideration for Lists as input" (`Vec<T>`).
+- **R5 (optional, taken)** — `greeting.api` in `examples/hello-world`, already the RPC idiom the tutorial
+  builds on, now checks `has_error()` before reading the reply body: a callee that fails replies with its
+  error status and message, which `request` returns as `Ok`; only a timeout is `Err` 408. That is the
+  twin of the Java `hello.rpc` demo, and `api-overview.md` points at it as the runnable example. The
+  tutorial snippets follow the source.
+- Already correct here, no change: the `/health` shape and the info/health contract, `Vec<T>` list
+  input, the `#[zero_tracing]` example, `location.graph.temp`, the cache guide's Layer 3 snippet, the
+  skills count, the envelope reference's header wording.
+
+Gates: `cargo fmt --check`, `clippy -D warnings` (hello-world + knowledge-graph, all targets), the two
+crates' suites, `mkdocs build --strict`, `check-llms-links`, `check-doc-claims`.

@@ -550,7 +550,7 @@ pub fn get_next_model_param_set(
 
 /// Output data mapping for task/fetcher nodes: bare `result` selectors are
 /// namespaced under the node, LHS/RHS namespaces are enforced
-/// (Java `performFetcherOutputMapping` + `setFetcherOutputEntry`).
+/// (Java `performOutputMapping` + `setOutputMappingEntry`, renamed in mercury-composable #394).
 pub fn perform_fetcher_output_mapping(
     node_name: &str,
     state: &mut MultiLevelMap,
@@ -590,8 +590,9 @@ fn set_fetcher_output_entry(
                 && !lhs.starts_with("$.model.")
             {
                 return Err(invalid(format!(
-                    "Invalid output data mapping in API fetcher {node_name} - LHS must start \
-                     with 'model.', 'result.' namespace or '{node_name}.'"
+                    "Invalid output mapping '{lhs} -> {rhs}' in node {node_name}: the left side must \
+                     be a constant or start with 'result.', 'model.', or the node's own namespace \
+                     '{node_name}.' ('input.*' is valid only on the input side)"
                 )));
             }
         }
@@ -600,8 +601,8 @@ fn set_fetcher_output_entry(
     if let Some(v) = value {
         if !rhs.starts_with(MODEL_NAMESPACE) && !rhs.starts_with(OUTPUT_NAMESPACE) {
             return Err(invalid(format!(
-                "Invalid output data mapping in data dictionary {node_name} - RHS must start \
-                 with 'model.' or 'output.' namespace"
+                "Invalid output mapping '{lhs} -> {rhs}' in node {node_name}: the right side must \
+                 start with 'model.' or 'output.'"
             )));
         }
         assert_mutable_model_target(node_name, rhs)?;

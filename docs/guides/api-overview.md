@@ -224,6 +224,12 @@ let body: GreetingResponse = reply.body_as()?;
 A reply with `status() >= 400` is a delivered error response — check `has_error()` when the
 callee can fail meaningfully.
 
+> **Runnable example.** `greeting.api` in `examples/hello-world` (`GET /api/greeting/{user}`) is the
+> whole idiom in one REST-bound function: build the event, `request(...).await?`, **check
+> `has_error()` before reading the body** (a callee that fails replies with its error status and
+> message), return the result. A timeout is not a reply — `request` returns `Err(AppError 408)`, and
+> propagating it with `?` makes the function's own reply a 408 for the REST caller.
+
 ### `send_later(event, delay)`
 
 | Signature | Returns |
