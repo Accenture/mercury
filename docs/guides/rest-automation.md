@@ -333,6 +333,17 @@ untyped `ComposableFunction` sees the same map on the raw envelope. See
 [Write Your First Function](event-driven/write-your-first-function.md) for the full
 example.
 
+**Replying with a status and headers.** The reply's status becomes the HTTP status and its headers
+the response headers. From a `ComposableFunction`, return
+`EventEnvelope::new().set_status(201).set_header("location", url).set_body(result)`; from a typed
+function declare `O = EventEnvelope` (`TypedFunction<AsyncHttpRequest, EventEnvelope>`) — the adapter
+honours the envelope *as* the reply, never as a nested body. The engine drops the reserved `my_*`
+metadata, withholds the streaming handles (`x-stream-id`, `x-ttl`), honours a function-set
+`content-type` (it overrides `Accept` negotiation) and `set-cookie`, then applies the entry's
+`headers.response` rules and echoes the business correlation-id header. An error is
+`Err(AppError::new(status, message))`: the client receives the standard error body
+`{"status", "message", "type": "error"}` unless the message already looks like JSON or XML.
+
 ### Content-type dispatch — how the body is parsed
 
 The request body is parsed by the **declared** `content-type` (any `;charset=…` suffix is
