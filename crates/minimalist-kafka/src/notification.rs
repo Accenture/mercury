@@ -42,10 +42,11 @@ use platform_core::{preload, w3c_trace, AppConfigReader, AppError, ComposableFun
 use platform_core::{EventEnvelope, Platform, PostOffice};
 
 use crate::headers::{
-    CORRELATION_ID, MY_CORRELATION_ID, MY_ROUTE, MY_TRACE_ID, MY_TRACE_PATH, PARTITION, SUBJECT,
-    TOPIC, VERSION,
+    CORRELATION_ID, DEFAULT_VERSION, MY_CORRELATION_ID, MY_ROUTE, MY_TRACE_ID, MY_TRACE_PATH,
+    PARTITION, SUBJECT, TOPIC, VERSION,
 };
 use crate::runtime;
+use crate::schema;
 
 /// The route this function registers under.
 pub const ROUTE: &str = "simple.kafka.notification";
@@ -95,17 +96,6 @@ impl ComposableFunction for SimpleKafkaNotification {
         let Some(topic) = headers.get(TOPIC) else {
             return Err(AppError::new(400, format!("Missing '{TOPIC}' header")));
         };
-        if headers.get(SUBJECT).is_some_and(|s| !s.trim().is_empty()) {
-            // the Confluent wire-format path is a deliberate deferral, not an
-            // accident - refuse loudly instead of publishing a surprising shape
-            return Err(AppError::new(
-                501,
-                format!(
-                    "'{SUBJECT}' header set, but Schema Registry support is deferred in this port \
-                     (minimalist-kafka port spec, ruling Q2)"
-                ),
-            ));
-        }
         let partition = parse_partition(headers.get(PARTITION).map(String::as_str))?;
         let names = header_names();
         let mut kafka_headers: HashMap<String, Vec<u8>> = HashMap::new();
@@ -151,7 +141,25 @@ impl ComposableFunction for SimpleKafkaNotification {
                 kafka_headers.insert(trace_header.clone(), trace_id.into_bytes());
             }
         }
-        let payload = to_bytes(&input)?;
+        // the schema path when a subject is named, else the raw-bytes contract;
+        // both before the publisher check, so every caller-input error (a
+        // non-bytes schema document, an unknown subject) surfaces ahead of an
+        // environment condition (Java parity)
+        let payload = match headers
+            .get(SUBJECT)
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+        {
+            None => to_bytes(&input)?,
+            Some(subject) => {
+                let version = headers
+                    .get(VERSION)
+                    .map(|v| v.trim())
+                    .filter(|v| !v.is_empty())
+                    .unwrap_or(DEFAULT_VERSION);
+                Some(encode_with_schema(subject, version, &input).await?)
+            }
+        };
         // checked last: every caller-input error above is the caller's own
         // mistake and must surface ahead of this environment condition
         let Some(publisher) = runtime::publisher() else {
@@ -168,6 +176,49 @@ impl ComposableFunction for SimpleKafkaNotification {
             .await?;
         Ok(EventEnvelope::new())
     }
+}
+
+/// The schema path (Java `SimpleKafkaNotification.encode`): when a `subject`
+/// header is present, the body must be bytes — a JSON document — and is
+/// serialized into the Confluent wire format: the subject (+ `version`,
+/// default `latest`) resolves to a pre-registered global schema id and type,
+/// the document is converted with that type's codec and framed with the id.
+/// The Map/List-to-JSON convenience of the raw path does not apply here: the
+/// schema-path body contract stays bytes, unchanged from Java.
+async fn encode_with_schema(
+    subject: &str,
+    version: &str,
+    input: &EventEnvelope,
+) -> Result<Vec<u8>, AppError> {
+    let document = match input.body() {
+        rmpv::Value::Binary(bytes) => bytes,
+        other => {
+            return Err(AppError::new(
+                400,
+                format!(
+                    "body must be bytes (a JSON document) when '{SUBJECT}' is set, got {}",
+                    type_name(other)
+                ),
+            ))
+        }
+    };
+    let Some(codec) = runtime::schema_codec() else {
+        return Err(AppError::new(
+            500,
+            format!(
+                "'{SUBJECT}' header set but '{}' is not configured",
+                schema::REGISTRY_URL
+            ),
+        ));
+    };
+    let resolved = codec.resolve(subject, version).await?;
+    let value: serde_json::Value = serde_json::from_slice(document).map_err(|e| {
+        AppError::new(
+            400,
+            format!("body is not a JSON document (required when '{SUBJECT}' is set) - {e}"),
+        )
+    })?;
+    codec.encode(resolved, &value).await
 }
 
 /// The body contract (Java `SimpleKafkaNotification.toBytes`): bytes pass
@@ -197,6 +248,9 @@ fn to_bytes(input: &EventEnvelope) -> Result<Option<Vec<u8>>, AppError> {
 
 fn type_name(value: &rmpv::Value) -> &'static str {
     match value {
+        rmpv::Value::Nil => "null",
+        rmpv::Value::Map(_) => "Map",
+        rmpv::Value::Array(_) => "List",
         rmpv::Value::String(_) => "String",
         rmpv::Value::Integer(_) => "Integer",
         rmpv::Value::F32(_) | rmpv::Value::F64(_) => "Float",

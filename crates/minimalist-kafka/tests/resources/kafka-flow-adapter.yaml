@@ -44,3 +44,25 @@ consumer:
     group: 'k3-autocommit-group'
     auto-commit: true
     max-poll-records: 50
+  #
+  # K5 bindings: Schema Registry decode by embedded id (flat and nested
+  # spellings), a poison frame dead-lettered at once, and routing rules over
+  # a decoded schema body
+  #
+  - topic: 'k5-schema-json'
+    flow: 'kafka-ingest'
+    group: 'k5-schema-json-group'
+    schema.enabled: true
+    dlq-topic: 'k5-schema-dlq'
+  - topic: 'k5-schema-avro'
+    flow: 'kafka-ingest'
+    group: 'k5-schema-avro-group'
+    schema:
+      enabled: true
+    dlq-topic: 'k5-schema-dlq'
+  - topic: 'k5-schema-routed'
+    group: 'k5-schema-routed-group'
+    schema.enabled: true
+    flows:
+      - 'input.body.kind(order) -> flow://kafka-routed'
+      - 'default -> task://kafka.task.sink'

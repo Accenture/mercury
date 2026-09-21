@@ -30,7 +30,17 @@ serde_json = "1"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 rdkafka = { version = "0.38", features = ["tokio"] }
 uuid = { version = "1", features = ["v4"] }
+# --- Schema Registry (the Confluent wire format for JSON Schema and Avro values) ---
+# the Apache Avro reference implementation for Rust: schema parsing + binary datum encode/decode
+apache-avro = "0.22"
+# JSON Schema validation only (no remote $ref retrieval, no aws-lc TLS - the workspace stays on ring)
+jsonschema = { version = "0.56", default-features = false }
+base64 = "0.22"
 
 [dev-dependencies]
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net"] }
 uuid = { version = "1", features = ["v4"] }
+# the in-process Confluent-compatible registry double (tests/support)
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"

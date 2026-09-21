@@ -45,11 +45,6 @@ use crate::routing::RoutingRuleSet;
 const DEFAULT_GROUP_PREFIX: &str = "kafka-flow-adapter";
 const SERIALIZER_JSON: &str = "json";
 
-/// Adapter fields deferred to the post-K5 Schema Registry spec (port spec §9,
-/// Q2) — present in the Java module, deliberately not served yet. Naming them
-/// beats ignoring them.
-const DEFERRED_FIELDS: [&str; 1] = ["schema.enabled"];
-
 /// One validated `consumer[]` binding.
 #[derive(Clone, Debug)]
 pub struct KafkaConsumerBinding {
@@ -71,6 +66,12 @@ pub struct KafkaConsumerBinding {
     /// `serializer: 'json'` — best-effort JSON decode of the record value
     /// before routing (a JSON object or array; anything else keeps the bytes).
     pub json_serializer: bool,
+    /// `schema.enabled: true` — the record value is Confluent schema-framed:
+    /// decode it by its embedded id through the Schema Registry codec and hand
+    /// the flow the decoded value (a map) instead of bytes; a decode failure is
+    /// a poison message, dead-lettered at once. Mutually exclusive with
+    /// `serializer`; requires `schema.registry.url`.
+    pub schema_enabled: bool,
     /// The per-binding `ttl` in ms — the deadline for a `task://` target,
     /// which has no flow ttl of its own; `None` = the consumer's 30 s default.
     pub task_ttl_ms: Option<u64>,
@@ -103,6 +104,7 @@ impl KafkaConsumerBinding {
             group_id: format!("{DEFAULT_GROUP_PREFIX}.{topic}"),
             partition: None,
             json_serializer: false,
+            schema_enabled: false,
             task_ttl_ms: None,
             dlq_topic: None,
             auto_commit: false,
@@ -175,14 +177,6 @@ fn parse_binding_shape(
             "consumer[{i}] must be a map with 'topic' and 'flow'"
         )));
     };
-    for field in DEFERRED_FIELDS {
-        if nested_text(entry, field).is_some() {
-            return Err(bad_config(&format!(
-                "consumer[{i}] sets '{field}', which belongs to the Schema Registry phase of this \
-                 port - deferred to its own spec (see draft-design-specs/minimalist-kafka-port.md §9, Q2)"
-            )));
-        }
-    }
     // --- the source: exactly one of topic / topic-pattern
     let topic = text(entry, "topic");
     let topic_pattern = text(entry, "topic-pattern");
@@ -218,6 +212,10 @@ fn parse_binding_shape(
     let flow_id = text(entry, "flow");
     let routing = resolve_routing(i, &label, entry, flow_id.as_deref())?;
     // --- the optional knobs
+    // schema.enabled, flat or nested (ConfigReader normalizes dotted YAML
+    // keys into nested maps) - Java `isSchemaEnabled`
+    let schema_enabled =
+        nested_text(entry, "schema.enabled").is_some_and(|v| v.eq_ignore_ascii_case("true"));
     let json_serializer = match text(entry, "serializer") {
         None => false,
         Some(serializer) => {
@@ -226,6 +224,12 @@ fn parse_binding_shape(
                     "consumer[{i}] ({label}) unsupported 'serializer' '{other}' - only 'json' is \
                      supported",
                     other = serializer
+                )));
+            }
+            if schema_enabled {
+                return Err(bad_config(&format!(
+                    "consumer[{i}] ({label}) cannot combine 'serializer' with schema.enabled - the \
+                     schema registry already owns the decode"
                 )));
             }
             true
@@ -297,6 +301,7 @@ fn parse_binding_shape(
         group_id,
         partition,
         json_serializer,
+        schema_enabled,
         task_ttl_ms,
         dlq_topic,
         auto_commit,
@@ -398,6 +403,29 @@ fn resolve_routing(
     }
 }
 
+/// The schema startup guard (Java `KafkaFlowAdapter.buildConsumer`): a
+/// binding that sets `schema.enabled` needs the Schema Registry codec, which
+/// exists only when `schema.registry.url` is configured — the contradiction
+/// fails the deployment at startup, naming the binding and the setting.
+pub fn reject_schema_without_registry(
+    bindings: &[KafkaConsumerBinding],
+    codec_available: bool,
+    registry_url_key: &str,
+) -> Result<(), AppError> {
+    if codec_available {
+        return Ok(());
+    }
+    for (i, binding) in bindings.iter().enumerate() {
+        if binding.schema_enabled {
+            return Err(bad_config(&format!(
+                "consumer[{i}] ({}) sets schema.enabled but '{registry_url_key}' is not configured",
+                binding.label()
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// The dead-letter startup guard (Java
 /// `KafkaFlowAdapter.rejectDeadLetterWithoutProducer`): dead letters are
 /// published through this cluster's own producer, so a binding that declares
@@ -425,7 +453,7 @@ pub fn reject_dead_letter_without_producer(
 /// suffix (case-insensitive), or bare seconds. Zero, negative, fractional,
 /// unknown-suffix and overflowing inputs are `None` — the Java module's
 /// long-math twin: an absurd duration is rejected, never silently wrapped.
-fn parse_duration_ms(text: &str) -> Option<u64> {
+pub(crate) fn parse_duration_ms(text: &str) -> Option<u64> {
     let text = text.trim();
     let last = text.chars().last()?;
     let (number, multiplier) = if last.is_ascii_digit() {
@@ -551,17 +579,45 @@ mod tests {
     }
 
     #[test]
-    fn schema_decode_is_deferred_by_name() {
+    fn schema_enabled_is_read_in_nested_and_flat_form() {
         for yaml in [
             "consumer:\n  - topic: t\n    flow: f\n    schema.enabled: true\n",
             "consumer:\n  - topic: t\n    flow: f\n    schema:\n      enabled: true\n",
         ] {
-            let error = error_of(yaml);
-            assert!(
-                error.contains("schema.enabled") && error.contains("Schema Registry"),
-                "{error}"
-            );
+            assert!(shape_of(yaml).schema_enabled, "{yaml}");
         }
+        assert!(!shape_of("consumer:\n  - topic: t\n    flow: f\n").schema_enabled);
+        assert!(
+            !shape_of("consumer:\n  - topic: t\n    flow: f\n    schema.enabled: false\n")
+                .schema_enabled
+        );
+    }
+
+    #[test]
+    fn schema_enabled_excludes_the_json_serializer_and_needs_the_registry() {
+        assert!(error_of(
+            "consumer:\n  - topic: t\n    flow: f\n    schema.enabled: true\n    serializer: json\n"
+        )
+        .contains(
+            "consumer[0] (topic 't') cannot combine 'serializer' with schema.enabled - the schema \
+             registry already owns the decode"
+        ));
+        let mut binding = KafkaConsumerBinding::direct("orders", "f");
+        binding.schema_enabled = true;
+        let error =
+            reject_schema_without_registry(&[binding.clone()], false, "schema.registry.url")
+                .expect_err("rejected");
+        assert!(error.message().contains(
+            "consumer[0] (topic 'orders') sets schema.enabled but 'schema.registry.url' is not \
+             configured"
+        ));
+        assert!(reject_schema_without_registry(&[binding], true, "schema.registry.url").is_ok());
+        assert!(reject_schema_without_registry(
+            &[KafkaConsumerBinding::direct("plain", "f")],
+            false,
+            "schema.registry.url"
+        )
+        .is_ok());
     }
 
     #[test]

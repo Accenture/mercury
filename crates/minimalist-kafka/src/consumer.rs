@@ -87,6 +87,7 @@ use crate::client_config::{DEFAULT_TASK_TTL_MS, GROUP_PROTOCOL};
 use crate::headers::CORRELATION_ID;
 use crate::publisher::KafkaRequestPublisher;
 use crate::routing::RoutingTarget;
+use crate::schema::SchemaCodec;
 
 const ADAPTER_ROUTE: &str = "kafka.flow.adapter";
 const FLOW_ID_HEADER: &str = "flow_id";
@@ -157,7 +158,18 @@ impl KafkaFlowConsumer {
         retry_policy: RetryPolicy,
         dlq_timeout: Duration,
         optimistic_consumer_protocol: bool,
+        schema_codec: Option<Arc<SchemaCodec>>,
     ) -> Result<KafkaFlowConsumer, AppError> {
+        if binding.schema_enabled && schema_codec.is_none() {
+            return Err(AppError::new(
+                400,
+                format!(
+                    "kafka-flow-adapter: {} sets schema.enabled but no Schema Registry codec was \
+                     provided",
+                    binding.label()
+                ),
+            ));
+        }
         let consumer = build_consumer(&consumer_config, &binding)?;
         log_binding(&binding, &consumer_config, optimistic_consumer_protocol);
         let (shutdown, shutdown_rx) = watch::channel(false);
@@ -175,6 +187,7 @@ impl KafkaFlowConsumer {
             binding,
             retry_policy,
             dlq_timeout,
+            schema_codec,
             shutdown_rx,
             stopped,
         ));
@@ -266,6 +279,9 @@ fn log_binding(binding: &KafkaConsumerBinding, config: &ClientConfig, optimistic
     if binding.json_serializer {
         extras.push_str(", serializer 'json'");
     }
+    if binding.schema_enabled {
+        extras.push_str(", schema decode on");
+    }
     if let Some(ttl) = binding.task_ttl_ms {
         extras.push_str(&format!(", task ttl {}s", ttl / 1000));
     }
@@ -305,6 +321,7 @@ async fn poll_loop(
     binding: KafkaConsumerBinding,
     retry_policy: RetryPolicy,
     dlq_timeout: Duration,
+    schema_codec: Option<Arc<SchemaCodec>>,
     mut shutdown: watch::Receiver<bool>,
     stopped: Arc<AtomicBool>,
 ) {
@@ -327,6 +344,7 @@ async fn poll_loop(
                     &names,
                     &retry_policy,
                     dlq_timeout,
+                    schema_codec.as_deref(),
                     &message,
                 )
                 .await;
@@ -413,15 +431,40 @@ async fn deliver_record(
     names: &InboundNames,
     retry_policy: &RetryPolicy,
     dlq_timeout: Duration,
+    schema_codec: Option<&SchemaCodec>,
     message: &BorrowedMessage<'_>,
 ) -> bool {
     let headers = record_headers(message);
-    // serializer: 'json' - best-effort decode BEFORE routing, so input.body
-    // rules see the decoded value and the target receives it
-    let decoded = if binding.json_serializer {
-        best_effort_json(message.payload())
+    // the body, decoded BEFORE routing so input.body rules see the decoded
+    // value and the target receives it: schema.enabled decodes the Confluent
+    // frame by its embedded id (a decode failure is a poison message -
+    // retrying cannot help - so the RAW record is dead-lettered at once, under
+    // the record's own topic, correct for literal and pattern bindings alike);
+    // serializer: 'json' is the best-effort decode of a non-schema topic
+    let (body, decoded) = if let Some(codec) = schema_codec {
+        match codec.decode(message.topic(), message.payload()).await {
+            Ok(value) => {
+                let view = crate::schema::json_view(&value);
+                (value, Some(view))
+            }
+            Err(cause) => {
+                log::warn!(
+                    "Failed to decode schema-framed message on '{}'; routing to {:?} - {}",
+                    message.topic(),
+                    binding.dlq_topic,
+                    cause.message()
+                );
+                return write_to_dead_letter(binding, retry_policy, dlq_timeout, message, &cause)
+                    .await;
+            }
+        }
+    } else if binding.json_serializer {
+        match best_effort_json(message.payload()) {
+            Some(json) => (json_to_value(&json), Some(json)),
+            None => (raw_body(message), None),
+        }
     } else {
-        None
+        (raw_body(message), None)
     };
     let target = match &binding.routing {
         Some(rules) => rules.select(&headers, decoded.as_ref()).clone(),
@@ -439,10 +482,6 @@ async fn deliver_record(
     });
     let trace_path = format!("KAFKA /{}", message.topic());
     let business_cid = resolve_business_cid(&headers, names, &trace_id);
-    let body = match &decoded {
-        Some(json) => json_to_value(json),
-        None => raw_body(message),
-    };
     let ttl_ms = if target.task {
         binding.task_ttl_ms.unwrap_or(DEFAULT_TASK_TTL_MS)
     } else {

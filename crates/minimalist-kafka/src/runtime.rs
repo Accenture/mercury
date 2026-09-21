@@ -15,16 +15,20 @@
 //
 
 //! Process-wide holder for the singletons the Kafka building blocks share
-//! (Java `KafkaRuntime`): the publisher used by `simple.kafka.notification`.
-//! Populated once at startup by the library's auto-start entry point.
+//! (Java `KafkaRuntime`): the publisher used by `simple.kafka.notification`,
+//! the Schema Registry codec (when `schema.registry.url` is set) and the
+//! running flow consumers. Populated once at startup by the library's
+//! auto-start entry point.
 
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use crate::consumer::KafkaFlowConsumer;
 use crate::publisher::KafkaRequestPublisher;
+use crate::schema::SchemaCodec;
 
 static PUBLISHER: RwLock<Option<Arc<KafkaRequestPublisher>>> = RwLock::new(None);
+static SCHEMA_CODEC: RwLock<Option<Arc<SchemaCodec>>> = RwLock::new(None);
 static FLOW_CONSUMERS: RwLock<Vec<KafkaFlowConsumer>> = RwLock::new(Vec::new());
 
 /// Install the shared publisher (the auto-start entry point; tests install
@@ -41,6 +45,23 @@ pub fn publisher() -> Option<Arc<KafkaRequestPublisher>> {
 /// Release the shared publisher (test lifecycle).
 pub fn clear_publisher() {
     PUBLISHER.write().expect("kafka runtime poisoned").take();
+}
+
+/// Install the shared Schema Registry codec (the auto-start entry point, when
+/// `schema.registry.url` is configured; tests install their own against an
+/// embedded registry).
+pub fn set_schema_codec(codec: Arc<SchemaCodec>) {
+    *SCHEMA_CODEC.write().expect("kafka runtime poisoned") = Some(codec);
+}
+
+/// The shared codec, or `None` when schema features are off.
+pub fn schema_codec() -> Option<Arc<SchemaCodec>> {
+    SCHEMA_CODEC.read().expect("kafka runtime poisoned").clone()
+}
+
+/// Release the shared codec (test lifecycle).
+pub fn clear_schema_codec() {
+    SCHEMA_CODEC.write().expect("kafka runtime poisoned").take();
 }
 
 /// Install the running flow-adapter consumers (the auto-start entry point).

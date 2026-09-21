@@ -203,16 +203,18 @@ async fn caller_input_errors_surface_with_java_parity_messages() {
         string_body.message()
     );
 
+    // the schema path without a registry: a configuration error, named
+    // (the path itself is covered by the notification_schema suite)
     let subject = call(
         &[("topic", "t-bytes"), ("subject", "orders-value")],
         EventEnvelope::new().set_raw_body(rmpv::Value::Binary(b"{}".to_vec())),
     )
     .await
-    .expect_err("schema path deferred");
-    assert_eq!(501, subject.status());
+    .expect_err("no registry configured");
+    assert_eq!(500, subject.status());
     assert!(subject
         .message()
-        .contains("Schema Registry support is deferred"));
+        .contains("'subject' header set but 'schema.registry.url' is not configured"));
 
     let bad_partition = call(
         &[("topic", "t-bytes"), ("partition", "not-a-number")],
