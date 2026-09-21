@@ -1,0 +1,42 @@
+#
+# Backend flow (backend role) - Avro variant of 'system-of-record'. Reached when the Kafka flow adapter
+# routes a message from 'avro-topic-1'. Because that binding sets schema.enabled, the adapter has already
+# decoded the Confluent Avro value to a Map, which 'system.of.record.avro' receives.
+#
+#   1. system.of.record.avro     - the backend logic on the decoded Map; builds a FLAT reply matching the
+#                                  closed-shape Avro SyncDemoMessage record (action, status, processedBy, traceId).
+#   2. simple.kafka.notification - publish the reply to 'avro-topic-2' with subject=sync-demo-avro (version
+#                                  defaults to latest); the producer resolves the schema id from the subject.
+#
+# subject 'sync-demo-avro' is the demo's pre-registered Avro SyncDemoMessage schema (see registry/2.json,
+# which carries subject + version).
+#
+flow:
+  id: 'system-of-record-avro'
+  description: 'Process the Avro request and publish an Avro reply'
+  ttl: 30s
+
+first.task: 'system.of.record.avro'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+      - 'model.cid -> header.cid'
+      - 'input.header.traceparent -> header.traceparent'
+    process: 'system.of.record.avro'
+    output:
+      - 'result -> model.payload'
+    description: 'Process the decoded request'
+    execution: sequential
+    next:
+      - 'simple.kafka.notification'
+
+  - input:
+      - 'text(avro-topic-2) -> header.topic'
+      - 'text(sync-demo-avro) -> header.subject'
+      - 'model.cid -> header.cid'
+      - 'model.payload -> *'
+    process: 'simple.kafka.notification'
+    output: []
+    description: 'Publish the reply to avro-topic-2 as Avro'
+    execution: end

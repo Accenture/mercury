@@ -1,0 +1,7 @@
+#
+# Event Script flow manifest for the sync-over-async MVP.
+#
+flows:
+  - 'sync-to-async.yml'
+  - 'system-of-record.yml'
+  - 'soa-reply.yml'

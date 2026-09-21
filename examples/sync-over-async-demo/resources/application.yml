@@ -1,9 +1,29 @@
 # sync-over-async-demo base configuration. Pick a role with an active profile
 # (the Java demo's spring.profiles.active analog):
-#   sync-over-async-demo -Dapp.profiles.active=stream-ui
-#   sync-over-async-demo -Dapp.profiles.active=stream-producer
+#   sync-over-async-demo -Dapp.profiles.active=facade           # REST + sync-to-async + soa-reply + Redis coordinator
+#   sync-over-async-demo -Dapp.profiles.active=backend          # system-of-record over Kafka; no REST, no Redis
+#   sync-over-async-demo -Dapp.profiles.active=stream-ui        # streaming return route, the SSE side
+#   sync-over-async-demo -Dapp.profiles.active=stream-producer  # streaming return route, the producer side
 application.name: sync-over-async-demo
 log.format: text
+
+# Kafka (the facade/backend roles): client connection comes from the templates bundled in
+# minimalist-kafka; their default bootstrap is ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092} - the local
+# kafka-standalone helper. Dead-letter confirm-write timeout; flow processing is bounded by each
+# flow's own ttl.
+kafka.dlq.timeout.ms: 10000
+# Confluent Schema Registry (the local schema-registry-standalone helper) for the JSON Schema and
+# Avro demo paths (json-topic-1/2, avro-topic-1/2). The raw path (soa.request / soa.response) does
+# not use it.
+schema.registry.url: '${SCHEMA_REGISTRY_URL:http://127.0.0.1:8081}'
+# id->schema cache TTL. 30m lets schema changes be picked up while running (no pod restart);
+# not-found is never cached, so a newly registered schema is visible immediately.
+schema.registry.cache.ttl: 30m
+# return-route engine tunables (the facade role; the soa.redis.* namespace falls back to redis.*)
+sync.return.channel.prefix: svc-return
+sync.route.ttl.seconds: 90
+sync.response.ttl.seconds: 30
+sync.max.pending.requests: 10000
 
 info.app.description: 'streaming return route demo - cross-pod progressive rendering'
 

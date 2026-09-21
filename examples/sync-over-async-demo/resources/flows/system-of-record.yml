@@ -1,0 +1,35 @@
+#
+# Backend flow (backend role). Reached when the Kafka flow adapter routes a message from the request
+# topic (soa.request). It processes the request and publishes the reply to the response topic.
+#
+#   1. system.of.record          - the application-specific backend logic (echo + processing metadata).
+#   2. simple.kafka.notification - publish the reply to the 'soa.response' topic (drop-n-forget).
+#
+flow:
+  id: 'system-of-record'
+  description: 'Process the async request and publish a reply'
+  ttl: 30s
+
+first.task: 'system.of.record'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+      - 'model.cid -> header.cid'
+      - 'input.header.traceparent -> header.traceparent'
+    process: 'system.of.record'
+    output:
+      - 'result -> model.payload'
+    description: 'Process the request'
+    execution: sequential
+    next:
+      - 'simple.kafka.notification'
+
+  - input:
+      - 'text(soa.response) -> header.topic'
+      - 'model.cid -> header.cid'
+      - 'model.payload -> *'
+    process: 'simple.kafka.notification'
+    output: []
+    description: 'Publish the reply to Kafka topic soa.response'
+    execution: end

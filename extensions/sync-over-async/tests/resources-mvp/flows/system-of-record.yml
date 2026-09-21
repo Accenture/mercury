@@ -1,0 +1,46 @@
+#
+# Mock System-of-Record flow, expressed in the composable (Event Script) pattern. Reached when the Kafka
+# flow adapter routes a message from the request topic (topic-1).
+#
+#   1. system.of.record          - echo the request and decide whether to reply (decision task):
+#                                     decision 2 -> publish a reply; decision 1 -> drop (no reply).
+#   2a. simple.kafka.notification - publish the reply payload to the response topic (topic-2).
+#   2b. no.op                     - drop the request (no reply) to exercise the facade's timeout path.
+#
+flow:
+  id: 'system-of-record'
+  description: 'Process the async request and publish a reply'
+  ttl: 30s
+
+first.task: 'system.of.record'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+      - 'model.cid -> header.cid'
+      - 'input.header.traceparent -> header.traceparent'
+    process: 'system.of.record'
+    output:
+      - 'result -> model.payload'
+      - 'header.decision -> decision'
+    description: 'Echo the request and decide whether to reply'
+    execution: decision
+    next:
+      - 'no.op'                       # decision 1: no-reply -> drop
+      - 'simple.kafka.notification'   # decision 2: reply -> publish to topic-2
+
+  - input:
+      - 'text(topic-2) -> header.topic'
+      - 'model.cid -> header.cid'
+      - 'model.payload -> *'
+    process: 'simple.kafka.notification'
+    output: []
+    description: 'Publish the reply to Kafka topic-2 (drop-n-forget)'
+    execution: end
+
+  - input:
+      - 'text(no-reply) -> dropped'
+    process: 'no.op'
+    output: []
+    description: 'Drop the request (no reply) to exercise the facade timeout path'
+    execution: end

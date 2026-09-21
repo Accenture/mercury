@@ -1,0 +1,70 @@
+#
+# Synchronous REST facade flow, expressed in the composable (Event Script) pattern.
+#
+# The round-trip is three sequential tasks:
+#   1. sync.prepare              - register the cross-pod return route in Redis and serialize the request
+#                                  into the Kafka payload.
+#   2. simple.kafka.notification - publish the payload to the Kafka request topic (topic-1). Because the
+#                                  notification returns a Mono that completes on broker acknowledgement, a
+#                                  publish failure fails this task and is routed to the exception handler -
+#                                  the caller is rejected (fail-fast) instead of waiting out the timeout.
+#   3. sync.await                - block until the asynchronous backend's response arrives via the Kafka
+#                                  response topic + Redis return route; return HTTP 200 with the body, or
+#                                  raise 408 on timeout.
+#
+# Correlation-id: model.cid is the business correlation-id captured at the edge (from the configured
+# http.correlation.id.header, default X-Correlation-Id, or a fresh UUID). It is passed to sync.prepare via 'model.cid -> header.cid'. To use a proprietary upstream header
+# instead, replace that mapping with 'input.header.<your-header> -> header.cid', for example:
+#   'input.header.x-b3-traceid -> header.cid'   (Zipkin / B3 tracing)
+#   'input.header.x-request-id -> header.cid'   (NGINX / Kong / AWS ALB)
+#
+flow:
+  id: 'sync-to-async'
+  description: 'Synchronous REST facade over asynchronous Kafka processing'
+  ttl: 30s
+  exception: 'sync.error.handler'
+
+first.task: 'sync.prepare'
+
+tasks:
+  - input:
+      - 'model.cid -> header.cid'
+      - 'input.body -> *'
+    process: 'sync.prepare'
+    output:
+      - 'result -> model.payload'
+    description: 'Register the return route and serialize the request payload'
+    execution: sequential
+    next:
+      - 'simple.kafka.notification'
+
+  - input:
+      - 'text(topic-1) -> header.topic'
+      - 'model.cid -> header.cid'
+      - 'model.payload -> *'
+    process: 'simple.kafka.notification'
+    output: []
+    description: 'Publish the request to Kafka topic-1; a publish failure fails the flow (fail-fast)'
+    execution: sequential
+    next:
+      - 'sync.await'
+
+  - input:
+      - 'model.cid -> cid'
+      - 'input.header.x-sync-timeout -> header.x-sync-timeout'
+    process: 'sync.await'
+    output:
+      - 'result -> output.body'
+    description: 'Await the async response via Kafka topic-2 + Redis, then return it (HTTP 200)'
+    execution: end
+
+  - input:
+      - 'model.cid -> cid'
+      - 'error.code -> status'
+      - 'error.message -> message'
+    process: 'sync.error.handler'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Map a publish failure or timeout to an HTTP status'
+    execution: end

@@ -42,16 +42,26 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+// link the libraries this binary activates by configuration alone - the flow
+// engine (http.flow.adapter, the flow compiler) and the Kafka building blocks
+// (simple.kafka.notification, the flow adapter, kafka.health): their inventory
+// entries register at link time, and the Rust linker drops an rlib no symbol
+// references - the one line a Rust application needs where the Java jar needs
+// only the dependency (port spec §7 item 6)
+use event_script as _;
+use minimalist_kafka as _;
 use platform_core::automation::AsyncHttpRequest;
 use platform_core::{
-    before_application, main_application, preload, AppConfigReader, AppError, ComposableFunction,
-    EntryPoint, EventEnvelope, EventStreamWriter, Platform,
+    main_application, preload, AppConfigReader, AppError, ComposableFunction, EntryPoint,
+    EventEnvelope, EventStreamWriter, Platform,
 };
 use sync_over_async::{
-    runtime, segment, RedisHealthCheck, RedisSettings, ReturnRouteStore, StreamBridge,
-    StreamResponder, StreamSegment, SyncOverAsyncConfig,
+    runtime, segment, RedisSettings, ReturnRouteStore, StreamBridge, StreamResponder, StreamSegment,
 };
 use tokio::sync::OnceCell;
+
+/// The request/reply roles (facade / backend): synchronous REST over Kafka.
+mod soa;
 
 // ---------------------------------------------------------------------------
 // stream-ui role: the notification channel facade
@@ -279,40 +289,11 @@ async fn produce_chat_tokens(cid: &str, result: &mut serde_json::Value) -> Resul
 // lifecycle
 // ---------------------------------------------------------------------------
 
-/// Start the return-route coordinator when the role enables it, and register
-/// the Redis health check on every role — the Java `SyncOverAsyncAutoStart`
-/// analog. `/health` includes the probe wherever `mandatory.health.dependencies`
-/// lists `soa.redis.health`.
-#[before_application(sequence = 10)]
-struct SyncOverAsyncBootstrap;
-
-#[async_trait]
-impl EntryPoint for SyncOverAsyncBootstrap {
-    async fn start(&self, _args: &[String]) -> Result<(), AppError> {
-        let platform = Platform::get_instance();
-        RedisHealthCheck::from_config().register(&platform)?;
-        let config = AppConfigReader::get_instance();
-        if config.get_property_or("sync.over.async.enabled", "false") == "true" {
-            let settings = RedisSettings::from_config();
-            let coordinator = runtime::init(
-                &settings,
-                Platform::origin(),
-                SyncOverAsyncConfig::from_config(),
-            )
-            .await?;
-            log::info!(
-                "Return-route coordinator started for pod {} (redis {}:{}, channel {})",
-                Platform::origin(),
-                settings.host(),
-                settings.port(),
-                coordinator.return_channel()
-            );
-        } else {
-            log::info!("No return-route coordinator on this pod (producer role)");
-        }
-        Ok(())
-    }
-}
+// The return-route coordinator and the `soa.redis.health` probe are started by
+// the sync-over-async extension's own auto-start (`sync.over.async.enabled`),
+// and the Kafka clients by minimalist-kafka's - the Java `SyncOverAsyncAutoStart`
+// / `KafkaFlowAutoStart` parity. Linking both crates is all this binary does:
+// the roles differ only by their profile configuration.
 
 #[main_application]
 struct MainApp;
@@ -322,14 +303,24 @@ impl EntryPoint for MainApp {
     async fn start(&self, _args: &[String]) -> Result<(), AppError> {
         let config = AppConfigReader::get_instance();
         let port = config.get_property_or("rest.server.port", "8085");
-        if config.get_property_or("sync.over.async.enabled", "false") == "true" {
-            log::info!(
+        let profile = config.get_property_or("app.profiles.active", "(none)");
+        match profile.as_str() {
+            "facade" => log::info!(
+                "facade ready - try: curl -sS -X POST http://127.0.0.1:{port}/api/sync-to-async \
+                 -H 'content-type: application/json' -d '{{\"order\":\"A-100\"}}' (also \
+                 /api/sync-to-async-json and /api/sync-to-async-avro)"
+            ),
+            "backend" => log::info!(
+                "backend ready - the system-of-record flows consume soa.request, json-topic-1 and \
+                 avro-topic-1"
+            ),
+            "stream-ui" => log::info!(
                 "stream-ui ready - try: node scripts/sse-client.mjs http://127.0.0.1:{port}/api/notifications"
-            );
-        } else {
-            log::info!(
+            ),
+            "stream-producer" => log::info!(
                 "stream-producer ready - POST http://127.0.0.1:{port}/api/produce with {{\"cid\": \"...\", \"mode\": \"chat\"}}"
-            );
+            ),
+            other => log::info!("sync-over-async-demo started; active profile(s)={other}"),
         }
         Ok(())
     }

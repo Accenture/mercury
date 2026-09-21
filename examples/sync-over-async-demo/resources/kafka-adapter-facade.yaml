@@ -1,0 +1,18 @@
+#
+# Kafka Flow Adapter for the facade role: bind the response topic to the reply-delivery flow.
+# The facade consumes replies here and the coordinator wakes the matching awaiting REST request.
+#
+consumer:
+  - topic: 'soa.response'
+    flow: 'soa-reply'
+    group: '${SOA_REPLY_GROUP:soa-reply-group}'
+  # JSON Schema reply leg: decode the Confluent-framed value to a Map before routing into the flow.
+  - topic: 'json-topic-2'
+    flow: 'soa-reply-json'
+    group: '${SOA_REPLY_JSON_GROUP:soa-reply-json-group}'
+    schema.enabled: true
+  # Avro reply leg: decode the Confluent Avro value to a Map before routing into the flow.
+  - topic: 'avro-topic-2'
+    flow: 'soa-reply-avro'
+    group: '${SOA_REPLY_AVRO_GROUP:soa-reply-avro-group}'
+    schema.enabled: true

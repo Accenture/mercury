@@ -1,0 +1,70 @@
+#
+# Synchronous REST facade flow (facade role) - JSON Schema variant of 'sync-to-async'.
+#
+# Identical to the byte[] flow except it publishes to 'json-topic-1' as Confluent JSON Schema:
+#   1. sync.prepare              - register the return route and serialize the request payload.
+#   2. simple.kafka.notification - publish to 'json-topic-1' with subject=sync-demo-json (version defaults to
+#                                  latest); the producer resolves the schema id from the subject and serializes
+#                                  the body into the Confluent wire format (magic byte + id + payload).
+#   3. sync.await                - block until the backend's reply arrives via 'json-topic-2' + Redis.
+#
+# subject 'sync-demo-json' is the demo's JSON SyncDemoMessage schema, pre-registered in the Schema Registry
+# (see registry/1.json, which carries subject + version). The producer resolves the schema id internally.
+#
+# Correlation-id: model.cid is the business correlation-id captured at the edge (from the configured
+# http.correlation.id.header, default X-Correlation-Id, or a fresh UUID). It is passed to sync.prepare via 'model.cid -> header.cid'. To use a proprietary upstream header
+# instead, replace that mapping with 'input.header.<your-header> -> header.cid', for example:
+#   'input.header.x-b3-traceid -> header.cid'   (Zipkin / B3 tracing)
+#   'input.header.x-request-id -> header.cid'   (NGINX / Kong / AWS ALB)
+#
+flow:
+  id: 'sync-to-async-json'
+  description: 'Synchronous REST facade over Kafka, using Confluent JSON Schema on the wire'
+  ttl: 30s
+  exception: 'sync.error.handler'
+
+first.task: 'sync.prepare'
+
+tasks:
+  - input:
+      - 'model.cid -> header.cid'
+      - 'input.body -> *'
+    process: 'sync.prepare'
+    output:
+      - 'result -> model.payload'
+    description: 'Register the return route and serialize the request payload'
+    execution: sequential
+    next:
+      - 'simple.kafka.notification'
+
+  - input:
+      - 'text(json-topic-1) -> header.topic'
+      - 'text(sync-demo-json) -> header.subject'
+      - 'model.cid -> header.cid'
+      - 'model.payload -> *'
+    process: 'simple.kafka.notification'
+    output: []
+    description: 'Publish the request to json-topic-1 as JSON Schema; a publish failure fails the flow'
+    execution: sequential
+    next:
+      - 'sync.await'
+
+  - input:
+      - 'model.cid -> cid'
+      - 'input.header.x-sync-timeout -> header.x-sync-timeout'
+    process: 'sync.await'
+    output:
+      - 'result -> output.body'
+    description: 'Await the async response via json-topic-2 + Redis, then return it (HTTP 200)'
+    execution: end
+
+  - input:
+      - 'model.cid -> cid'
+      - 'error.code -> status'
+      - 'error.message -> message'
+    process: 'sync.error.handler'
+    output:
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Map a publish failure or timeout to an HTTP status'
+    execution: end

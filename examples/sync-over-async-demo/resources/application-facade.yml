@@ -1,0 +1,15 @@
+# Facade role: the synchronous REST front end (the Java demo's facade profile).
+#   cargo run -p sync-over-async-demo -- -Dapp.profiles.active=facade
+# Run more than one facade on a dev machine by overriding the port:
+#   cargo run -p sync-over-async-demo -- -Dapp.profiles.active=facade -Drest.server.port=8401
+rest.automation: true
+rest.server.port: 8400
+yaml.rest.automation: classpath:/rest.yaml
+# facade flows: the REST sync-to-async facade + the reply-delivery flow (raw, JSON Schema, Avro)
+yaml.flow.automation: classpath:/flows-facade.yaml
+# bind the response topics to the reply flows (replies are delivered to the awaiting REST request)
+yaml.kafka.flow.adapter: classpath:/kafka-adapter-facade.yaml
+# enable the Redis return-route coordinator (the facade awaits cross-pod replies)
+sync.over.async.enabled: true
+# /health includes the Redis probe and the Kafka probe
+mandatory.health.dependencies: 'soa.redis.health, kafka.health'

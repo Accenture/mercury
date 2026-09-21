@@ -12,3 +12,8 @@ sync.over.async.enabled: false
 
 # /health still probes the one shared dependency this pod writes to
 mandatory.health.dependencies: 'soa.redis.health'
+
+# this binary also carries the Kafka roles (facade/backend); the stream roles are broker-free by
+# design (spec D3), so both Kafka clients are switched off here
+kafka.producer.enabled: false
+kafka.consumer.enabled: false

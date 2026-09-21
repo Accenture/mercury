@@ -1,0 +1,6 @@
+{
+  "schema": "{\"type\":\"record\",\"name\":\"SyncDemoMessage\",\"namespace\":\"com.accenture.soa.demo\",\"fields\":[{\"name\":\"action\",\"type\":\"string\",\"default\":\"\"},{\"name\":\"status\",\"type\":\"string\",\"default\":\"\"},{\"name\":\"processedBy\",\"type\":\"string\",\"default\":\"\"},{\"name\":\"traceId\",\"type\":\"string\",\"default\":\"\"}]}",
+  "schemaType": "AVRO",
+  "subject": "sync-demo-avro",
+  "version": 1
+}

@@ -1,0 +1,22 @@
+#
+# Reply-delivery flow (facade role) - JSON Schema variant of 'soa-reply'. Reached when the Kafka flow
+# adapter routes a message from 'json-topic-2'. Because that binding sets schema.enabled, the adapter has
+# already decoded the Confluent-framed reply to a Map, which 'soa.reply.json' hands to the return-route
+# coordinator (re-serialized to JSON) to complete the awaiting REST request.
+#
+flow:
+  id: 'soa-reply-json'
+  description: 'Deliver the JSON-Schema async response back to the awaiting REST request'
+  ttl: 30s
+
+first.task: 'soa.reply.json'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+      - 'model.cid -> header.cid'
+    process: 'soa.reply.json'
+    output:
+      - 'result -> output.body'
+    description: 'Bridge the decoded Kafka response to the return-route coordinator'
+    execution: end

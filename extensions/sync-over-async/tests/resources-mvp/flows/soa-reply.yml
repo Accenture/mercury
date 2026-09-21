@@ -1,0 +1,20 @@
+#
+# Reply flow. Reached when the Kafka flow adapter routes a message from the response topic (topic-2).
+# Its task hands the response to the return-route coordinator, completing the awaiting REST request.
+#
+flow:
+  id: 'soa-reply'
+  description: 'Deliver the async response back to the awaiting REST request'
+  ttl: 30s
+
+first.task: 'soa.reply'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+      - 'model.cid -> header.cid'
+    process: 'soa.reply'
+    output:
+      - 'result -> output.body'
+    description: 'Bridge the Kafka response to the return-route coordinator'
+    execution: end

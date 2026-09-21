@@ -1,0 +1,11 @@
+# Backend role: the system-of-record that processes requests off Kafka and publishes replies
+# (the Java demo's backend profile).
+#   cargo run -p sync-over-async-demo -- -Dapp.profiles.active=backend
+# No REST and no Redis - it only consumes the request topics and publishes to the response topics.
+rest.automation: false
+# backend flows: system-of-record (raw, JSON Schema, Avro)
+yaml.flow.automation: classpath:/flows-backend.yaml
+# bind the request topics to the system-of-record flows
+yaml.kafka.flow.adapter: classpath:/kafka-adapter-backend.yaml
+# the backend does not originate synchronous requests, so it needs no return-route coordinator
+sync.over.async.enabled: false

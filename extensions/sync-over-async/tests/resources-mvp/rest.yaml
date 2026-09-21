@@ -1,0 +1,11 @@
+#
+# The MVP suite's REST automation: the synchronous facade endpoint, backed by the
+# sync-to-async flow through http.flow.adapter (the Java RestFlowMvpTest resources).
+#
+rest:
+  - service: "http.flow.adapter"
+    methods: ['POST']
+    url: "/api/sync-to-async"
+    flow: 'sync-to-async'
+    timeout: 30s
+    tracing: true

@@ -15,3 +15,8 @@ sync.max.pending.streams: 1000
 # /health includes the Redis probe (the soa. prefix is deliberate - the plain
 # redis.health route name is reserved for the future distributed-cache module)
 mandatory.health.dependencies: 'soa.redis.health'
+
+# this binary also carries the Kafka roles (facade/backend); the stream roles are broker-free by
+# design (spec D3), so both Kafka clients are switched off here
+kafka.producer.enabled: false
+kafka.consumer.enabled: false
