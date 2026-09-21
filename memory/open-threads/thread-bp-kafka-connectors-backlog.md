@@ -4,4 +4,4 @@
   shipped (`ot-sync-over-async-port`, R1–R4, closed 2026-09-13); minimalist-kafka is in scope and mid-flight
   under its own thread `ot-minimalist-kafka-port` (K1–K2 done, K3 next; now traced `→ serves: vision-mercury`);
   twin-kafka stays deferred (port spec Q3); the Kafka service mesh stays out of scope. → serves: vision-mercury
-  <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-09-17 | uses: 6 | tier: active | origin: 2026-07-20-030615.md -->
+  <!-- id: bp-kafka-connectors-backlog | created: 2026-07-20 | last_used: 2026-09-17 | uses: 6 | tier: archive-candidate | origin: 2026-07-20-030615.md -->

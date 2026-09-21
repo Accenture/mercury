@@ -4,4 +4,4 @@
   69 sessions. Future UI work arrives as concrete threads serving the Vision directly. Lesson: a Blueprint
   gap phrased as "reframe as picked up" has no owner and no trigger — it stalls by construction.
   → serves: vision-mercury
-  <!-- id: bp-foundation-to-ui | created: 2026-07-15 | last_used: 2026-09-17 | uses: 4 | tier: active | origin: 2026-07-15-215538.md -->
+  <!-- id: bp-foundation-to-ui | created: 2026-07-15 | last_used: 2026-09-17 | uses: 4 | tier: archive-candidate | origin: 2026-07-15-215538.md -->

@@ -22,7 +22,13 @@
   ported (stated in the entry, backlog P8–P10): the CompileGraph task↔skill gate, the case-insensitive
   `input.header.*` fallback for Kafka headers, dev mode in the starter-graph template. Prior: v4.12.7 (2026-09-11).
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-09-17 | through 2026-09-17-004239.md
+- **last_review:** 2026-09-21 | through 2026-09-21-025547.md (cadence — 10 sessions since; archived 0, swept 0 —
+  the six closed threads sit at sslu 9–15, inside the 20-session window; tier changes 14 (refresh-metadata:
+  6 → active, the 6 closed threads → archive-candidate, 2 uses-only). **Near-miss recorded:**
+  `conv-template-version-sweep-rust` read sslu 25 and was archived in the first pass; step 6 found it APPLIED on
+  2026-09-20 (the v4.12.12 template sweep) with no declaration — the declaration was added to that session's own
+  log and the archive reverted before commit; see [[conv-declare-consulted-references-rust]]. Invariant re-verify
+  not due (10 of 40). Stalled threads: none. Prior: 2026-09-17 | through 2026-09-17-004239.md)
 - **last_invariant_check:** 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, team-eric-maintainer, vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -110,7 +116,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   was owed since then): the AI docs now lead with the broker and name the keep-alive failure mode;
   the scaffolding manifest carries `scripts/` into derived projects; the broker also ships in
   `templates/starter-graph` (Eric, 2026-09-14).
-  <!-- id: playground-session-broker | created: 2026-09-03 | last_used: 2026-09-17 | uses: 6 | tier: active | origin: 2026-09-03-172834.md -->
+  <!-- id: playground-session-broker | created: 2026-09-03 | last_used: 2026-09-19 | uses: 7 | tier: active | origin: 2026-09-03-172834.md -->
 
 - **A `for_each` iteration of a suspending subgraph suspends under its OWN record — the store key is
   `graph:{graph_id}:{cid}:{index}`, and that key format is a cross-engine contract (lock-step with the
@@ -134,7 +140,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   iteration, each holding its own item and counter, both resumed and consumed), which the Java suite
   does not have. Amends ADR-0012 in place (see [[conv-proposals-not-in-adr-ledger-rust]]); relates
   [[fork-join-awaits-on-calling-task]] (found by this increment's test).
-  <!-- id: for-each-suspend-index-key-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-022252 -->
+  <!-- id: for-each-suspend-index-key-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 2 | tier: active | origin: 2026-09-19-022252 -->
 
 - **Fork-join batches are awaited ON THE CALLING TASK, never `tokio::spawn`ed (found 2026-09-19 by
   the `for_each` lockstep's end-to-end test; Increment 118).** The distributed-trace bracket is a tokio
@@ -170,7 +176,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `Platform::on_shutdown` (Java `onShutdown`, v4.12.9) landed with it: hooks run once, newest first,
   isolated, from `AutoStart::run`. Relates [[distributed-cache-rust]]; twin of the Java
   `redis-connection-foundation`.
-  <!-- id: redis-connection-foundation-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-182617 -->
+  <!-- id: redis-connection-foundation-rust | created: 2026-09-19 | last_used: 2026-09-20 | uses: 2 | tier: active | origin: 2026-09-19-182617 -->
 
 - **The distributed cache is `mercury-distributed-cache` — ONE action function `v1.cache.redis` over
   opaque bytes, gated by `redis.cache.enabled`, byte-compatible with the Java module (Increment 119,
@@ -194,7 +200,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   example's Layer 1 false-miss on a cache failure (fixed — PR #286 MERGED 2026-09-20, merge `01710589` — [[l1-caller-checks-reply-status-rust]]) and
   trimmed the example's direct `mercury-event-script` dependency ([[conv-cargo-declare-what-you-name]]).
   Builds on [[redis-connection-foundation-rust]]; the example applies [[playground-session-broker]].
-  <!-- id: distributed-cache-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-182617 -->
+  <!-- id: distributed-cache-rust | created: 2026-09-19 | last_used: 2026-09-20 | uses: 3 | tier: active | origin: 2026-09-19-182617 -->
 
 - **A function that awaits `po.request` must check the reply's STATUS before reading its body — the
   engines do it for flows and graphs, imperative code must do it itself (Java ⇄ Rust cache interop,
@@ -239,7 +245,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   nothing negotiated a type. **Lesson (the third instance this sprint): a Java-parity assertion carried
   into a Rust twin test is the cheapest parity instrument there is — copy the assertion, not just the
   scenario.** Pinned by `function_failure_is_java_shaped_error_body`.
-  <!-- id: rest-error-body-standard-shape | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-182617 -->
+  <!-- id: rest-error-body-standard-shape | created: 2026-09-19 | last_used: 2026-09-20 | uses: 2 | tier: active | origin: 2026-09-19-182617 -->
 
 - **A typed function may return an `EventEnvelope` to set the reply's status, headers and body — the
   `TypedAdapter` honours it AS the reply (2026-09-19, d0b0363e; Java `TypedLambdaFunction<I, EventEnvelope>`
@@ -268,7 +274,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `templates/*/Cargo.toml` carries an EXPLICIT `version = "<version>"` and mercury-* dep
   pins (deliberately NOT workspace-inherited, so a copied-out template builds as-is after
   deleting the in-repo `path` keys) — the release edit list grows from 5 manifests to 8.
-  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-11 | uses: 3 | tier: archive-candidate | origin: 2026-09-11-005808 -->
+  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-20 | uses: 4 | tier: active | origin: 2026-09-11-005808 -->
 - Each ported module's `//!` doc names the **Java class it ports** (e.g.
   `org.platformlambda.core.util.ConfigReader`) so reviewers can diff behavior side-by-side.
 - **Tests:** unit tests in-module (`#[cfg(test)]`), integration tests in `tests/` with
@@ -321,7 +327,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `#[optional_service]` left out by its condition never leaves a live URL behind, and production never shows the
   React bundle. Verified live in both modes. Relates [[conv-cargo-declare-what-you-name]] (the same Playground
   polish round).
-  <!-- id: rest-skip-unregistered-and-root-fallback-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
+  <!-- id: rest-skip-unregistered-and-root-fallback-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 2 | tier: active | origin: 2026-09-20-004627 -->
 - **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic
   function by ONE `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric,
   2026-09-20; Increment 123 — a doc gap, no engine change; branch `docs/static-decision-table-on-a-node`
@@ -366,6 +372,13 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Java sibling this demoted a 42-use core convention after one log declared `(none)` while
   reasoning explicitly from it. Rule of thumb: if you would have decided differently without the
   fact, it is a reference. Twin of `conv-declare-consulted-references` in mercury-composable.
+  **Second instance, 2026-09-21 — caught at the review's archival check, not by the refresh:** the v4.12.12
+  catch-up release applied `conv-template-version-sweep-rust` (the templates' manifests were swept) and its log
+  did not declare it; nine sessions later the fact read sslu 25 and was archived in the review's first pass.
+  Step 6's verification — count the sessions since the last DECLARED use, then read the window's logs for the
+  convention's fingerprints — reversed it before commit. The guard is two-sided: declare at write time, and at
+  review time treat an `[overdue]` convention whose subject was exercised in the window as a declaration gap
+  first and a fade second.
   <!-- id: conv-declare-consulted-references-rust | created: 2026-09-04 | last_used: 2026-09-04 | uses: 1 | tier: core -->
 
 - **A proposal is not a decision: raise it in `docs/arch-decisions/RFC.md` as `RFC-NNNN`, never as a

@@ -4,4 +4,4 @@
   (69 — delivered/absorbed; the UI is the lock-step Playground webapp), `ot-cratesio-followups` (67 — parked;
   reactivate at a registry-polish release). 0 re-affirmed. Both Blueprint gaps closed → continuity's Blueprint
   section now points at the live Vision-serving thread.
-  <!-- id: ot-close-stalled-threads-20260917 | created: 2026-09-17 | last_used: 2026-09-17 | uses: 1 | tier: working | origin: 2026-09-17-004239 -->
+  <!-- id: ot-close-stalled-threads-20260917 | created: 2026-09-17 | last_used: 2026-09-17 | uses: 1 | tier: archive-candidate | origin: 2026-09-17-004239 -->
