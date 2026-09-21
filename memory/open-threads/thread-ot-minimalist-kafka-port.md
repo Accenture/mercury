@@ -27,7 +27,7 @@
   table; `schema.enabled` alone still deferred by name (Q2). 34 unit + the 14-scenario e2e
   against MockCluster. Deltas: spec §7 items 5, 7, 9, 10. **Open (Eric):** `auto` = classic
   on librdkafka (no feature probe) — accept as the delta, or a trial-join probe at K4?
-  **K4 DONE 2026-09-21** (origin: 2026-09-21-175430.md; branch `feat/minimalist-kafka-k4` `e9f07188`, PR #300 opened 2026-09-21):
+  **K4 DONE 2026-09-21** (origin: 2026-09-21-175430.md; branch `feat/minimalist-kafka-k4` `e9f07188` + `30cdc289`, PR #300 MERGED 2026-09-21, merge `4363bae9`):
   `examples/kafka-demo` ported one to one (four functions + Java tests, three flows, two-binding
   adapter YAML, Node helpers copied, an `interop` relay profile) and driven live on the Java
   `kafka-standalone` (Kafka 4.3.1) with the Java demo: routing both styles, the DLQ path, both
