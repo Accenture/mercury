@@ -24,7 +24,8 @@ mercury-platform-core = { version = "4.12.12", path = "../platform-core" }
 mercury-event-script = { version = "4.12.12", path = "../event-script" }
 async-trait = "0.1"
 log = "0.4"
-rmpv = "1"
+regex = "1"
+rmpv = { version = "1", features = ["with-serde"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync"] }
 rdkafka = { version = "0.38", features = ["tokio"] }

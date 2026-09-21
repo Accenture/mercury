@@ -31,7 +31,9 @@ use async_trait::async_trait;
 // preloaded functions) register at link time - the one line a Rust
 // application needs where the Java jar needs only the dependency
 use minimalist_kafka as _;
-use platform_core::{preload, AppError, ComposableFunction, EventEnvelope, Platform, PostOffice};
+use platform_core::{
+    preload, AppError, ComposableFunction, ConfigReader, EventEnvelope, Platform, PostOffice,
+};
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::message::{Header, Headers, Message, OwnedHeaders};
@@ -157,6 +159,35 @@ impl ComposableFunction for KafkaPoisonTask {
     }
 }
 
+/// A `task://` routing target: records the whole payload it received as its
+/// body, its input headers (the copied record headers plus the worker's
+/// injected my_* keys) and the worker-visible trace and cid facts.
+#[preload(route = "kafka.task.sink", instances = 5)]
+#[derive(Default)]
+struct KafkaTaskSink;
+
+#[async_trait]
+impl ComposableFunction for KafkaTaskSink {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let po = PostOffice::new(&Platform::get_instance());
+        let mut record = serde_json::json!({
+            "kind": "task",
+            "body": bytes_tolerant_json(input.body()),
+            "headers": headers,
+        });
+        record["observed_trace_id"] = po.my_trace_id().unwrap_or_default().into();
+        record["observed_trace_path"] = po.my_trace_path().unwrap_or_default().into();
+        record["observed_cid"] = po.my_correlation_id().unwrap_or_default().into();
+        captured().lock().expect("captured").push(record);
+        Ok(EventEnvelope::new())
+    }
+}
+
 // ---------------------------------------------------------------------------
 // harness
 // ---------------------------------------------------------------------------
@@ -172,9 +203,16 @@ fn bootstrap_servers() -> &'static str {
             "k2-poison",
             "k2-poison-dlq",
             "k2-drop",
+            "k3-events.de",
+            "k3-events.fr",
+            "k3-routed",
+            "k3-legacy",
+            "k3-autocommit",
         ] {
             cluster.create_topic(topic, 1, 1).expect("topic");
         }
+        // two partitions: the pinned binding reads exactly one of them
+        cluster.create_topic("k3-pinned", 2, 1).expect("topic");
         let servers = cluster.bootstrap_servers();
         // the bundled templates read ${KAFKA_BOOTSTRAP_SERVERS:...} - config,
         // not code, reaches the mock
@@ -187,6 +225,10 @@ fn bootstrap_servers() -> &'static str {
 }
 
 async fn produce(topic: &str, payload: &str, headers: &[(&str, &str)]) {
+    produce_to(topic, None, payload, headers).await;
+}
+
+async fn produce_to(topic: &str, partition: Option<i32>, payload: &str, headers: &[(&str, &str)]) {
     static PRODUCER: OnceLock<FutureProducer> = OnceLock::new();
     let producer = PRODUCER.get_or_init(|| {
         ClientConfig::new()
@@ -202,14 +244,15 @@ async fn produce(topic: &str, payload: &str, headers: &[(&str, &str)]) {
             value: Some(*value),
         });
     }
+    let mut record = FutureRecord::to(topic)
+        .key("k2")
+        .payload(payload)
+        .headers(kafka_headers);
+    if let Some(partition) = partition {
+        record = record.partition(partition);
+    }
     producer
-        .send(
-            FutureRecord::to(topic)
-                .key("k2")
-                .payload(payload)
-                .headers(kafka_headers),
-            Duration::from_secs(5),
-        )
+        .send(record, Duration::from_secs(5))
         .await
         .expect("test record delivered");
 }
@@ -228,6 +271,39 @@ async fn await_captured(count: usize) -> Vec<serde_json::Value> {
         "expected {count} captured dataset(s), got {}",
         captured().lock().expect("captured").len()
     );
+}
+
+/// The first captured record whose `observed_cid` is the given one (the K3
+/// scenarios tag every record with a distinct business cid).
+async fn await_captured_cid(cid: &str) -> serde_json::Value {
+    for _ in 0..600 {
+        {
+            let captured = captured().lock().expect("captured");
+            if let Some(found) = captured.iter().find(|d| d["observed_cid"] == cid) {
+                return found.clone();
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    panic!("no captured record with observed_cid {cid}");
+}
+
+fn captured_has_cid(cid: &str) -> bool {
+    captured()
+        .lock()
+        .expect("captured")
+        .iter()
+        .any(|d| d["observed_cid"] == cid)
+}
+
+fn payload_text(dataset: &serde_json::Value) -> String {
+    let bytes: Vec<u8> = dataset["body"]
+        .as_array()
+        .expect("byte body")
+        .iter()
+        .map(|n| n.as_u64().unwrap_or(0) as u8)
+        .collect();
+    String::from_utf8_lossy(&bytes).to_string()
 }
 
 // ---------------------------------------------------------------------------
@@ -371,5 +447,212 @@ async fn inbound_adapter_end_to_end() {
     assert_eq!(
         "after-drop", captured_now[2]["observed_cid"],
         "the binding without a dlq stays live after dropping a poison message"
+    );
+
+    // =======================================================================
+    // K3 - inbound completions
+    // =======================================================================
+
+    // --- scenario 5: a topic-pattern binding routes the concrete matched topic;
+    // metadata carries the record's ACTUAL topic, not the binding's regex
+    produce(
+        "k3-events.de",
+        "{\"region\":\"de\"}",
+        &[("cid", "k3-pattern-cid")],
+    )
+    .await;
+    let pattern = await_captured_cid("k3-pattern-cid").await;
+    assert_eq!("k3-events.de", pattern["metadata"]["topic"]);
+    assert_eq!("KAFKA /k3-events.de", pattern["observed_trace_path"]);
+
+    // --- scenario 6: second-level routing - an exact header rule selects the
+    // flow, and serializer 'json' delivers a decoded map body
+    produce(
+        "k3-routed",
+        "{\"hello\":\"routed\"}",
+        &[
+            ("type", "order"),
+            ("cid", "k3-order-cid"),
+            (
+                "traceparent",
+                "00-33333333333333333333333333333333-4444444444444444-01",
+            ),
+        ],
+    )
+    .await;
+    let routed = await_captured_cid("k3-order-cid").await;
+    assert_eq!(
+        "order", routed["type"],
+        "the routing key the rule matched on"
+    );
+    assert_eq!(
+        "routed", routed["body"]["hello"],
+        "serializer 'json' delivered a decoded map to the selected flow"
+    );
+    assert_eq!(
+        "33333333333333333333333333333333",
+        routed["observed_trace_id"]
+    );
+
+    // --- scenario 7: the wildcard rule
+    produce(
+        "k3-routed",
+        "{\"hello\":\"bulk\"}",
+        &[("type", "bulk-7"), ("cid", "k3-bulk-cid")],
+    )
+    .await;
+    assert_eq!("bulk-7", await_captured_cid("k3-bulk-cid").await["type"]);
+
+    // --- scenario 8: an input.body rule routes to a task:// target - the whole
+    // decoded payload is the body, record headers are copied verbatim, the
+    // business cid rides the my_cid tag and the trace stays continuous
+    produce(
+        "k3-routed",
+        "{\"event\":{\"kind\":\"refund\"},\"amount\":10}",
+        &[
+            ("cid", "k3-refund-cid"),
+            (
+                "traceparent",
+                "00-55555555555555555555555555555555-6666666666666666-01",
+            ),
+        ],
+    )
+    .await;
+    let refund = await_captured_cid("k3-refund-cid").await;
+    assert_eq!(
+        "task", refund["kind"],
+        "the task target received it, not a flow"
+    );
+    assert_eq!("refund", refund["body"]["event"]["kind"]);
+    assert_eq!(10, refund["body"]["amount"]);
+    assert_eq!(
+        "k3-refund-cid", refund["headers"]["cid"],
+        "inbound record headers are copied verbatim to the task"
+    );
+    assert_eq!(
+        "55555555555555555555555555555555",
+        refund["observed_trace_id"]
+    );
+    assert_eq!("KAFKA /k3-routed", refund["observed_trace_path"]);
+
+    // --- scenario 9: a top-level JSON array decodes to a list, addressable by a
+    // bracket rule and delivered whole
+    produce(
+        "k3-routed",
+        "[{\"type\":\"batch-order\"},{\"type\":\"noise\"}]",
+        &[("cid", "k3-batch-cid")],
+    )
+    .await;
+    let batch = await_captured_cid("k3-batch-cid").await;
+    assert_eq!("task", batch["kind"]);
+    assert_eq!("batch-order", batch["body"][0]["type"]);
+
+    // --- scenario 10: a non-JSON record keeps its raw bytes, every body rule is
+    // a non-match, and the default target receives the bytes unchanged
+    produce("k3-routed", "not-json-payload", &[("cid", "k3-raw-cid")]).await;
+    let raw = await_captured_cid("k3-raw-cid").await;
+    assert_eq!(
+        "task", raw["kind"],
+        "the default rule caught the unmatched record"
+    );
+    assert_eq!("not-json-payload", payload_text(&raw));
+
+    // --- scenario 11: per-binding header-name overrides (impedance matching
+    // for a legacy upstream)
+    produce(
+        "k3-legacy",
+        "legacy",
+        &[
+            ("X-Correlation-ID", "k3-legacy-cid"),
+            ("X-Legacy-Trace", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+        ],
+    )
+    .await;
+    let legacy = await_captured_cid("k3-legacy-cid").await;
+    assert_eq!(
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", legacy["observed_trace_id"],
+        "the binding's trace-id header is the fallback trace source"
+    );
+    produce(
+        "k3-legacy",
+        "legacy-context",
+        &[
+            ("X-Correlation-ID", "k3-legacy-tp"),
+            (
+                "X-Trace-Context",
+                "00-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb-cccccccccccccccc-01",
+            ),
+        ],
+    )
+    .await;
+    assert_eq!(
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        await_captured_cid("k3-legacy-tp").await["observed_trace_id"],
+        "the binding's traceparent header carries the W3C context when the standard one is absent"
+    );
+    produce(
+        "k3-legacy",
+        "standard-wins",
+        &[
+            ("X-Correlation-ID", "k3-legacy-std"),
+            (
+                "traceparent",
+                "00-dddddddddddddddddddddddddddddddd-eeeeeeeeeeeeeeee-01",
+            ),
+            (
+                "X-Trace-Context",
+                "00-ffffffffffffffffffffffffffffffff-1111111111111111-01",
+            ),
+        ],
+    )
+    .await;
+    assert_eq!(
+        "dddddddddddddddddddddddddddddddd",
+        await_captured_cid("k3-legacy-std").await["observed_trace_id"],
+        "the standard traceparent always wins over the custom name"
+    );
+
+    // --- scenario 12: partition pinning - the binding reads exactly partition 1
+    produce_to("k3-pinned", Some(0), "p0", &[("cid", "k3-pinned-p0")]).await;
+    produce_to("k3-pinned", Some(1), "p1", &[("cid", "k3-pinned-p1")]).await;
+    let pinned = await_captured_cid("k3-pinned-p1").await;
+    assert_eq!(1, pinned["metadata"]["partition"]);
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    assert!(
+        !captured_has_cid("k3-pinned-p0"),
+        "a record on the unpinned partition never reaches the pinned binding"
+    );
+
+    // --- scenario 13: an auto-commit binding delivers like any other (the
+    // commit timing is the client's; the overlay is pinned at unit level)
+    produce("k3-autocommit", "clicks", &[("cid", "k3-auto-cid")]).await;
+    assert_eq!(
+        "k3-autocommit",
+        await_captured_cid("k3-auto-cid").await["metadata"]["topic"]
+    );
+
+    // --- scenario 14: startup validation against the LIVE registries - a
+    // task:// target must be a registered route, a flow:// target a compiled flow
+    let unknown_task = ConfigReader::from_yaml_text(
+        "consumer:\n  - topic: t\n    flows:\n      - 'default -> task://no.such.route'\n",
+    )
+    .expect("yaml");
+    let error = minimalist_kafka::adapter::parse_bindings(&unknown_task).expect_err("rejected");
+    assert!(
+        error
+            .message()
+            .contains("references unknown task route 'no.such.route'"),
+        "{}",
+        error.message()
+    );
+    let valid = ConfigReader::from_yaml_text(
+        "consumer:\n  - topic: t\n    flows:\n      - 'input.header.type(x) -> flow://kafka-ingest'\n      - 'default -> task://kafka.task.sink'\n",
+    )
+    .expect("yaml");
+    assert_eq!(
+        1,
+        minimalist_kafka::adapter::parse_bindings(&valid)
+            .expect("registered targets accepted")
+            .len()
     );
 }

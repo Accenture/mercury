@@ -19,8 +19,10 @@
 //! every composable function — collected automatically from this library by
 //! the application's `auto_start_main!()` (the Java classpath-scan parity).
 //!
-//! This increment (K1) builds the shared producer; the inbound flow adapter
-//! (`yaml.kafka.flow.adapter`) arrives in a later increment of the port.
+//! Builds the shared producer (`simple.kafka.notification`), then starts the
+//! inbound flow adapter from `yaml.kafka.flow.adapter` — one consumer per
+//! validated binding, each with its own group id, delivery-mode overlay and
+//! derived poll interval on top of the consumer template.
 
 use std::sync::Arc;
 
@@ -89,7 +91,7 @@ impl EntryPoint for KafkaAutoStart {
 /// Start one consumer per validated binding (the Java `KafkaFlowAdapter`
 /// start): parse + validate the YAML (fail-fast), enforce the
 /// dead-letter-needs-producer guard, build each binding's consumer from the
-/// template with the pinned delivery-mode overlay, and launch the poll loops.
+/// template with its delivery-mode overlay, and launch the poll loops.
 async fn start_flow_adapter(adapter_location: &str) -> Result<(), AppError> {
     let config = AppConfigReader::get_instance();
     let reader = ConfigReader::load(adapter_location).map_err(|e| {
@@ -128,24 +130,25 @@ async fn start_flow_adapter(adapter_location: &str) -> Result<(), AppError> {
     let platform = Platform::get_instance();
     let mut consumers = Vec::with_capacity(bindings.len());
     for binding in bindings {
-        // the pinned delivery-mode overlay: the binding's group id and manual
-        // commit-after-process (per-record recv IS the poll-batch-of-one -
-        // librdkafka has no max.poll.records and needs none here)
+        // the template + the binding's group id + its delivery-mode overlay
+        // (the one place that decides the commit contract) + the poll interval
+        // derived from its retry envelope + the group.protocol resolution
         let mut consumer_config = client_config::consumer_client_config()?;
         consumer_config.set("group.id", &binding.group_id);
-        consumer_config.set("enable.auto.commit", "false");
-        if consumer_config.get("group.protocol").map(str::trim) == Some("auto") {
-            // the Java module's 'auto' probes the cluster; this port resolves
-            // it at a later increment - classic is every broker's safe answer
-            log::info!("group.protocol=auto is not resolved by this increment; using classic");
-            consumer_config.remove("group.protocol");
-        }
+        client_config::apply_delivery_mode(&mut consumer_config, &binding);
+        client_config::apply_poll_interval(
+            &mut consumer_config,
+            &binding,
+            retry_policy.max_retries,
+            retry_policy.backoff_ms,
+        );
+        client_config::resolve_group_protocol(&mut consumer_config);
         let stream_consumer = consumer_config.create().map_err(|e| {
             AppError::new(
                 500,
                 format!(
-                    "Unable to build Kafka consumer for '{}' - {e}",
-                    binding.topic
+                    "Unable to build Kafka consumer for {} - {e}",
+                    binding.label()
                 ),
             )
         })?;

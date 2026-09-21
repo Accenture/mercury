@@ -17,8 +17,12 @@
 //! **Minimalist Kafka** — the opt-in Kafka building blocks for Mercury (Rust
 //! port of the Java `system/minimalist-kafka`): publish events to topics
 //! through the composable [`notification`] function, health-check the cluster
-//! with [`health`], and (from a later increment of the port) route topics
-//! into Event Script flows.
+//! with [`health`], and route topics into Event Script flows with the flow
+//! adapter (`kafka-flow-adapter.yaml` — literal or regex topics, partition
+//! pinning, per-record second-level [`routing`] to flows or functions,
+//! retry + dead-letter, a per-binding delivery mode; see [`adapter`] and
+//! [`consumer`]). The Schema Registry decode is the one Java surface still
+//! deferred (port spec §9, Q2).
 //!
 //! **Config, not code**: the Kafka client connection/security parameters come
 //! from external `kafka-producer` / `kafka-consumer` templates with
@@ -47,6 +51,7 @@ pub mod headers;
 pub mod health;
 pub mod notification;
 pub mod publisher;
+pub mod routing;
 pub mod runtime;
 
 pub use adapter::KafkaConsumerBinding;
@@ -54,3 +59,4 @@ pub use consumer::{KafkaFlowConsumer, RetryPolicy};
 pub use health::{KafkaHealthProbe, KAFKA_HEALTH_ROUTE};
 pub use notification::{SimpleKafkaNotification, ROUTE as NOTIFICATION_ROUTE};
 pub use publisher::KafkaRequestPublisher;
+pub use routing::{RoutingRuleSet, RoutingTarget};

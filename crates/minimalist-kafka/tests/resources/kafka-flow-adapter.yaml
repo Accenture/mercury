@@ -12,3 +12,35 @@ consumer:
     dlq-topic: 'k2-poison-dlq'
   - topic: 'k2-drop'
     flow: 'kafka-poison'
+  #
+  # K3 bindings: regex subscription, second-level routing, per-binding header
+  # overrides, partition pinning, auto-commit
+  #
+  - topic-pattern: 'k3-events\.[a-z]{2}'
+    flow: 'kafka-ingest'
+    group: 'k3-events-group'
+  - topic: 'k3-routed'
+    group: 'k3-routed-group'
+    serializer: 'json'
+    ttl: '10s'
+    flows:
+      - 'input.header.type(order) -> flow://kafka-routed'
+      - 'input.header.type(bulk-*) -> flow://kafka-routed'
+      - 'input.body.event.kind(refund) -> task://kafka.task.sink'
+      - 'input.body[0].type(batch-order) -> task://kafka.task.sink'
+      - 'default -> task://kafka.task.sink'
+  - topic: 'k3-legacy'
+    flow: 'kafka-ingest'
+    group: 'k3-legacy-group'
+    trace.id.header: 'X-Legacy-Trace'
+    correlation.id.header: 'X-Correlation-ID'
+    traceparent.header: 'X-Trace-Context'
+  - topic: 'k3-pinned'
+    flow: 'kafka-ingest'
+    group: 'k3-pinned-group'
+    partition: 1
+  - topic: 'k3-autocommit'
+    flow: 'kafka-ingest'
+    group: 'k3-autocommit-group'
+    auto-commit: true
+    max-poll-records: 50

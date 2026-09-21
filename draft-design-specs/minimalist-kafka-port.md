@@ -259,20 +259,53 @@ return route's R4.
    engine (interop-relevant) — and `client_config` defaults it (a template that sets
    `partitioner` wins, the `putIfAbsent` parity). Nothing needs pinning either: this client
    is byte-native, so the Java module's serializer pinning has no analog.
-5. **`max.poll.records` has no librdkafka analog and needs none** (K2): the Java module
-   pins `max.poll.records=1` to enforce one-at-a-time commit-after-process; this client's
-   per-record async `recv()` IS a poll batch of one by construction. The per-binding
-   `max-poll-records` knob returns with auto-commit at K3 as a fetch-tuning mapping.
+5. **`max.poll.records` has no librdkafka analog and needs none** (K2; the mapping decided at
+   K3): the Java module pins `max.poll.records=1` to enforce one-at-a-time
+   commit-after-process; this client's per-record async `recv()` IS a poll batch of one by
+   construction. **K3:** an EXPLICIT per-binding `max-poll-records` maps to
+   `queued.min.messages` — the client's per-partition prefetch depth, the nearest
+   fetch-tuning analog — and the mapping is stated in the startup log. The Java mode
+   defaults (1 manual / 500 auto-commit) are NOT applied: manual mode's batch-of-one is
+   inherent, and auto-commit mode keeps the client's own prefetch defaults. The
+   poll-interval envelope (Java `applyPollInterval` — `max.poll.interval.ms` derived from
+   `(retries + 1) x` the slowest target ttl `+ retries x backoff + headroom`, never below the
+   client default, an explicit template value respected with a WARN) is ported with a
+   per-record multiplier of one for the same reason.
 6. **Library activation needs one `use` line** (K2 finding): inventory entries register at
    link time, and the Rust linker drops an rlib no symbol references — so an application
    that activates the module purely by configuration must carry a single
    `use mercury_minimalist_kafka as _;` where the Java jar needs only the dependency.
    Documented in the crate docs; the K4 demo shows it.
-7. **`group.protocol=auto` is not resolved by K2** (the Java module probes the cluster's
-   `group.version` feature): the K2 bootstrap logs and strips `auto` (classic — every
-   broker's safe answer); the resolver arrives with the rebalance work at K3.
+7. **`group.protocol=auto` resolves to `classic` on this engine** (K3, replacing the K2
+   note): the Java module probes the cluster's finalized `group.version` feature through the
+   Admin client's `describeFeatures`; librdkafka exposes no feature probe, and the
+   alternatives examined were rejected — a broker config
+   (`group.coordinator.rebalance.protocols`) is not the feature flag and needs a
+   DescribeConfigs grant; a trial join with `consumer` churns a real group, or hits group
+   ACLs with a synthetic one. So `auto` → `classic` with a WARN (stated once per process)
+   naming the explicit setting: `group.protocol=consumer` on Apache Kafka 4.0+ with
+   `group.version >= 1`, which this client supports natively and passes through verbatim.
+   The Java conflict guard is kept — a template that also sets `session.timeout.ms`,
+   `heartbeat.interval.ms` or `partition.assignment.strategy` resolves to `classic` naming
+   the keys. **Open for the maintainer:** whether a trial-join probe is wanted once K4 runs
+   against a live cluster; the delta is the honest default until then.
 8. Anything else discovered at implementation joins this list; wire-visible behavior
    (headers, DLQ headers, dataset shape) is normative parity, never a delta.
+9. **Regex subscriptions are anchored with a capturing group** (K3): a `topic-pattern` is
+   handed to the client as `^(<pattern>)$` — full-string, like the Java
+   `subscribe(Pattern)`. The client's regex engine (minilibs, JavaScript-flavoured) rejects
+   the `(?:` non-capturing form in a subscription (probed against librdkafka 2.12), so the
+   group captures — harmless. The pattern is validated at startup with Rust's `regex`
+   (fail-fast, and the dlq-must-not-match-pattern check), then compiled again by the client;
+   a dialect difference between the three engines (Java, Rust `regex`, librdkafka) surfaces
+   as a subscribe error at startup, never silently. A newly created matching topic joins on
+   the next full metadata refresh (`topic.metadata.refresh.interval.ms`, default 5 minutes)
+   — the client's analog of the Java `metadata.max.age.ms`.
+10. **`${ENV:default}` substitution in the adapter YAML needs an application base config**
+    (K3, a testing note rather than a behaviour delta): `ConfigReader::get` substitutes only
+    when the `AppConfigReader` is initialised (the Java `baseConfig != null` parity). Every
+    application satisfies it — the auto-start runs after the configuration snapshot — and
+    the e2e proves the group substitution; only a bare unit test sees the literal.
 
 ## 8. Experiment plan (K-series)
 
@@ -280,7 +313,7 @@ return route's R4.
 |---|---|---|
 | K1 ✅ | Crate + client templates + **outbound** (`simple.kafka.notification`, partitioner) + `kafka.health` + the unit suite against the §5 double | **DONE 2026-09-14** — `crates/minimalist-kafka` ships the outbound contract (body shapes incl. tombstones and Java-parity rejects, header propagation with the reserved-header exclusions, cid auto-stamp fallback, fresh traceparent from the hop's own span, explicit-partition routing), `kafka.health` (placeholder/warm-up, waiting-vs-outage, `{text, code}` 503, topics count, produce-only-leg probe rule), the template pipeline (embedded defaults + app-classpath shadowing + override chains + the JVM-only-key filter), the opt-out flags, and library auto-activation via inventory (`#[preload]` + `#[main_application]` — Java classpath-scan parity). 16 tests green against `MockCluster`, incl. a traced RPC through a registered worker. Platform-core gained `PostOffice::my_span_id()` and the public `w3c_trace` export (Java `W3cTrace` parity) |
 | K2 ✅ | **Inbound core**: literal-topic bindings, groups, manual commit-after-process, dataset (§3 item 2), retry + DLQ, opt-out flags + startup guards | **DONE 2026-09-14** — `adapter` (YAML parse + the fail-fast validation table, incl. rejecting later-increment fields BY NAME, the dlq-equals-source check, the group default, and the dead-letter-needs-producer deployment guard) and `consumer` (one tokio task per binding: async recv → dataset → real flow launch via `event.script.manager` → sync commit under `block_in_place` after the flow finishes; bounded retry + backoff; the confirmed DLQ write with `dlq.origin.topic`/`dlq.error` and original headers/body preserved; DATA-LOSS drop for partition liveness; escalating error backoff keeps a binding alive). E2e through the REAL Event Script engine against `MockCluster` — configuration only: dataset shape (actual topic/partition/offset/timestamp/key, raw byte body), W3C traceparent chaining + `KAFKA /<topic>` trace path + business-cid resolution, exactly-one-retry success, retry-exhaustion parking with origin facts, and no-DLQ drop with the binding still live after |
-| K3 | Inbound completions: second-level routing, `topic-pattern`, partition pinning, auto-commit + `max-poll-records`, per-binding header overrides | remaining §3 items pinned |
+| K3 ✅ | Inbound completions: second-level routing, `topic-pattern`, partition pinning, auto-commit + `max-poll-records`, per-binding header overrides | **DONE 2026-09-21** — `routing` (the `flows` rule grammar: `input.header.<name>` / `input.body...` selectors, exact / wildcard / explicit-regex matchers anchored full-string, first match wins, the mandatory `default`, `flow://` / `task://` targets validated against the live flow registry and platform routes — `task://event.script.manager` refused); `adapter` (the full Java validation table: source and destination exclusivity, an invalid regex, pattern + `partition`, pattern without `group`, a `dlq-topic` that equals or matches its source, `serializer` only `json`, positive `ttl` / `partition` / `max-poll-records`, the header overrides in nested and flat form; `schema.enabled` the one field still deferred by name — §9 Q2); `consumer` (group `subscribe`, manual `assign` for a pinned partition, anchored-regex `subscribe` for a pattern; best-effort JSON decode BEFORE routing; `task://` dispatch with every record header copied, the whole payload as body, the business cid on the `my_cid` tag and the binding `ttl` as deadline; per-binding header names; auto-commit skips the manual commit); `client_config` (the delivery-mode overlay, the derived `max.poll.interval.ms`, `group.protocol=auto` → classic — §7 items 5, 7, 9). E2e against `MockCluster` through the REAL flow engine, configuration only: pattern binding with actual-topic metadata, header exact and wildcard rules → flow with a decoded map body, body rule → task (headers copied, cid via the tag, trace continuous), list body → task, non-JSON → default with raw bytes, the three header-override legs (trace-id fallback, custom traceparent adopted, standard traceparent wins), partition pinning (the unpinned partition never arrives), auto-commit delivery, live-registry startup validation. 34 unit tests + the 14-scenario e2e; whole crate green |
 | K4 | **Live dry-run + interop** against `kafka-standalone`: Rust↔Java flow adapters both ways, DLQ and rebalance chaos; report kept as permanent record | Java-guide behavior reproduced; cross-engine records interoperate (headers, traceparent, cid) |
 | K5 | **The held items close**: sync-over-async facade tasks (`sync.prepare`/`sync.await`/`soa.reply`) over this transport + the demo's Kafka request leg; then the release gate publishes `mercury-sync-over-async` + this crate together | the Java sync-over-async MVP flow (`RestFlowMvpTest` analog) green in Rust; publication un-holds |
 
