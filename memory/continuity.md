@@ -269,7 +269,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   the process declares it once (the flow adapter does, when its consumers start, and registers their
   stop as a shutdown hook); `AutoStart::run` honours the flag like serving; embedders awaiting
   `AutoStart::main` are unaffected. **The platform-wide follow-up is CLOSED (2026-09-21, branch
-  `fix/sigterm-graceful-stop` `5688e643`, PR pending):** the entry point now stops on `SIGTERM` as on Ctrl-C
+  `fix/sigterm-graceful-stop` `5688e643`, PR #301 MERGED, merge `922e13c7`):** the entry point now stops on `SIGTERM` as on Ctrl-C
   (the listener registered before the wait) and the flow adapter's hook drains its consumers within a
   10 s grace, so a Kubernetes pod stop commits the record in hand and leaves the group explicitly —
   proven live: explicit `LeaveGroup` 22 ms after the signal, where a hard kill waits the 45 s session

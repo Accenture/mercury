@@ -43,7 +43,7 @@
   `consumer` first, rebuilt once as `classic` on librdkafka's fatal `ConsumerGroupHeartbeat` refusal;
   both engines ship `auto` in the bundled template (Java `feat/kafka-group-protocol-auto-default`
   `ee37b907`). Proven live both ways on the standalone broker (spec §7 item 7; report addendum).
-  P11 (`SIGTERM`) closed on `fix/sigterm-graceful-stop` `5688e643` = PR #301.
+  P11 (`SIGTERM`) closed on `fix/sigterm-graceful-stop` `5688e643` = PR #301, MERGED 2026-09-21 (`922e13c7`).
   Next gate: K5 — the held items close: sync-over-async facade tasks (`sync.prepare` / `sync.await`
   / `soa.reply`) over this transport + the demo's Kafka request leg (the Java `RestFlowMvpTest`
   analog green in Rust); then the release gate publishes `mercury-sync-over-async` + this crate
