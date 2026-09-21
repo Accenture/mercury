@@ -74,14 +74,16 @@ use std::time::Duration;
 
 use platform_core::post_office::BUSINESS_CID_TAG;
 use platform_core::{w3c_trace, AppConfigReader, AppError, EventEnvelope, Platform, PostOffice};
+use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{CommitMode, Consumer, StreamConsumer};
+use rdkafka::error::RDKafkaErrorCode;
 use rdkafka::message::{BorrowedMessage, Headers, Message};
 use rdkafka::TopicPartitionList;
 use rmpv::Value;
 use tokio::sync::watch;
 
 use crate::adapter::KafkaConsumerBinding;
-use crate::client_config::DEFAULT_TASK_TTL_MS;
+use crate::client_config::{DEFAULT_TASK_TTL_MS, GROUP_PROTOCOL};
 use crate::headers::CORRELATION_ID;
 use crate::publisher::KafkaRequestPublisher;
 use crate::routing::RoutingTarget;
@@ -141,17 +143,23 @@ pub struct KafkaFlowConsumer {
 }
 
 impl KafkaFlowConsumer {
-    /// Start the poll loop for one binding on the given consumer (already
-    /// carrying the binding's `group.id` and its delivery-mode overlay).
+    /// Build the binding's consumer from its resolved client config (already
+    /// carrying the binding's `group.id`, its delivery-mode overlay and the
+    /// resolved `group.protocol`), subscribe or assign, and start the poll
+    /// loop. `optimistic_consumer_protocol` says the config carries the
+    /// KIP-848 `consumer` protocol because the template asked for `auto`: if
+    /// the broker rejects it at the first join, the loop rebuilds the consumer
+    /// once with `classic` (see `client_config::resolve_group_protocol`).
     pub fn start(
         platform: Platform,
-        consumer: StreamConsumer,
+        consumer_config: ClientConfig,
         binding: KafkaConsumerBinding,
         retry_policy: RetryPolicy,
         dlq_timeout: Duration,
+        optimistic_consumer_protocol: bool,
     ) -> Result<KafkaFlowConsumer, AppError> {
-        subscribe_or_assign(&consumer, &binding)?;
-        log_binding(&binding);
+        let consumer = build_consumer(&consumer_config, &binding)?;
+        log_binding(&binding, &consumer_config, optimistic_consumer_protocol);
         let (shutdown, shutdown_rx) = watch::channel(false);
         let stopped = Arc::new(AtomicBool::new(false));
         let handle = KafkaFlowConsumer {
@@ -162,6 +170,8 @@ impl KafkaFlowConsumer {
         tokio::spawn(poll_loop(
             platform,
             consumer,
+            consumer_config,
+            optimistic_consumer_protocol,
             binding,
             retry_policy,
             dlq_timeout,
@@ -184,6 +194,37 @@ impl KafkaFlowConsumer {
     pub fn is_stopped(&self) -> bool {
         self.stopped.load(Ordering::Acquire)
     }
+}
+
+/// Create the client from the resolved config and subscribe or assign — the
+/// same path for the first build and for the classic fallback.
+fn build_consumer(
+    config: &ClientConfig,
+    binding: &KafkaConsumerBinding,
+) -> Result<StreamConsumer, AppError> {
+    let consumer: StreamConsumer = config.create().map_err(|e| {
+        AppError::new(
+            500,
+            format!(
+                "Unable to build Kafka consumer for {} - {e}",
+                binding.label()
+            ),
+        )
+    })?;
+    subscribe_or_assign(&consumer, binding)?;
+    Ok(consumer)
+}
+
+/// Whether a fatal client error means the broker does not offer the KIP-848
+/// consumer protocol — `ConsumerGroupHeartbeat` refused as an unsupported
+/// feature (the API is not advertised: a broker before 4.0) or version (the
+/// coordinator has the protocol disabled) — rather than a genuine consumer
+/// fault such as a group authorization failure, which classic would hit too.
+pub(crate) fn consumer_protocol_rejected(code: RDKafkaErrorCode, reason: &str) -> bool {
+    matches!(
+        code,
+        RDKafkaErrorCode::UnsupportedFeature | RDKafkaErrorCode::UnsupportedVersion
+    ) && reason.contains("ConsumerGroupHeartbeat")
 }
 
 /// Group-managed `subscribe` by default; manual `assign` of the single pinned
@@ -211,8 +252,9 @@ fn subscribe_or_assign(
     })
 }
 
-/// One-line summary of a resolved binding (Java `logBinding`).
-fn log_binding(binding: &KafkaConsumerBinding) {
+/// One-line summary of a resolved binding (Java `logBinding`), plus the
+/// rebalance protocol the consumer starts with.
+fn log_binding(binding: &KafkaConsumerBinding, config: &ClientConfig, optimistic: bool) {
     let destination = match &binding.routing {
         Some(rules) => format!("second-level routing ({} rules + default)", rules.size()),
         None => format!("flow '{}'", binding.flow_id.as_deref().unwrap_or_default()),
@@ -242,6 +284,11 @@ fn log_binding(binding: &KafkaConsumerBinding) {
     if let Some(header) = &binding.traceparent_header {
         extras.push_str(&format!(", traceparent header '{header}'"));
     }
+    extras.push_str(&format!(
+        ", protocol {}{}",
+        config.get(GROUP_PROTOCOL).unwrap_or("classic"),
+        if optimistic { " (auto)" } else { "" }
+    ));
     log::info!(
         "Kafka flow adapter binding: {} -> {destination} (consumer group '{}'{extras})",
         binding.label(),
@@ -249,9 +296,12 @@ fn log_binding(binding: &KafkaConsumerBinding) {
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn poll_loop(
     platform: Platform,
-    consumer: StreamConsumer,
+    mut consumer: StreamConsumer,
+    mut config: ClientConfig,
+    mut optimistic_consumer_protocol: bool,
     binding: KafkaConsumerBinding,
     retry_policy: RetryPolicy,
     dlq_timeout: Duration,
@@ -303,6 +353,33 @@ async fn poll_loop(
                 consecutive_failures = 0;
             }
             Err(error) => {
+                // group.protocol=auto: the broker rejected the KIP-848 consumer
+                // protocol at the first join (a fatal ConsumerGroupHeartbeat
+                // error) - resolve this binding to classic and rejoin, once
+                if optimistic_consumer_protocol {
+                    if let Some((code, reason)) = consumer.client().fatal_error() {
+                        if consumer_protocol_rejected(code, &reason) {
+                            optimistic_consumer_protocol = false;
+                            log::warn!(
+                                "{GROUP_PROTOCOL}=auto resolved to classic for {label} - the broker \
+                                 does not support the consumer rebalance protocol ({reason}); \
+                                 rejoining with the classic protocol"
+                            );
+                            config.set(GROUP_PROTOCOL, "classic");
+                            match build_consumer(&config, &binding) {
+                                Ok(rebuilt) => {
+                                    consumer = rebuilt;
+                                    consecutive_failures = 0;
+                                    continue;
+                                }
+                                Err(e) => log::error!(
+                                    "Unable to rebuild the consumer for {label} with the classic \
+                                     protocol - {e}"
+                                ),
+                            }
+                        }
+                    }
+                }
                 // stay alive (the alternative is a binding that is dead until
                 // the pod restarts) but pause with escalating backoff so a
                 // persistent error cannot hot-loop
@@ -702,6 +779,31 @@ mod tests {
         assert!(best_effort_json(Some(b"\"scalar\"")).is_none());
         assert!(best_effort_json(Some(&[0xff, 0xfe])).is_none(), "not UTF-8");
         assert!(best_effort_json(None).is_none(), "a tombstone has no body");
+    }
+
+    /// Only a heartbeat refused as an unsupported feature or version means "the
+    /// broker has no consumer protocol"; other fatal errors are the consumer's
+    /// own and would hit classic too.
+    #[test]
+    fn only_an_unsupported_heartbeat_resolves_auto_to_classic() {
+        let refused =
+            "ConsumerGroupHeartbeat fatal error: Local: Required feature not supported by broker";
+        assert!(consumer_protocol_rejected(
+            RDKafkaErrorCode::UnsupportedFeature,
+            refused
+        ));
+        assert!(consumer_protocol_rejected(
+            RDKafkaErrorCode::UnsupportedVersion,
+            "ConsumerGroupHeartbeat fatal error: Broker: Unsupported version"
+        ));
+        assert!(!consumer_protocol_rejected(
+            RDKafkaErrorCode::GroupAuthorizationFailed,
+            "ConsumerGroupHeartbeat fatal error: Broker: Group authorization failed"
+        ));
+        assert!(!consumer_protocol_rejected(
+            RDKafkaErrorCode::UnsupportedFeature,
+            "Fatal consumer error: something else"
+        ));
     }
 
     #[test]

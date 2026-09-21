@@ -142,22 +142,14 @@ async fn start_flow_adapter(adapter_location: &str) -> Result<(), AppError> {
             retry_policy.max_retries,
             retry_policy.backoff_ms,
         );
-        client_config::resolve_group_protocol(&mut consumer_config);
-        let stream_consumer = consumer_config.create().map_err(|e| {
-            AppError::new(
-                500,
-                format!(
-                    "Unable to build Kafka consumer for {} - {e}",
-                    binding.label()
-                ),
-            )
-        })?;
+        let optimistic = client_config::resolve_group_protocol(&mut consumer_config);
         consumers.push(KafkaFlowConsumer::start(
             platform.clone(),
-            stream_consumer,
+            consumer_config,
             binding,
             retry_policy.clone(),
             dlq_timeout,
+            optimistic,
         )?);
     }
     let started = consumers.len();

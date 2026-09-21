@@ -76,7 +76,7 @@ const CONSUMER_PROTOCOL_CONFLICTS: [&str; 3] = [
     "heartbeat.interval.ms",
     "partition.assignment.strategy",
 ];
-static AUTO_PROTOCOL_WARNED: AtomicBool = AtomicBool::new(false);
+static AUTO_PROTOCOL_NOTED: AtomicBool = AtomicBool::new(false);
 
 const PRODUCER_LOCATION: &str = "kafka.producer.properties";
 const CONSUMER_LOCATION: &str = "kafka.consumer.properties";
@@ -288,45 +288,48 @@ fn flow_ttl_ms(flow_id: &str, fallback: u64) -> u64 {
 /// `GroupProtocolResolver`); `classic` and `consumer` pass through verbatim —
 /// this client supports the KIP-848 `consumer` protocol natively.
 ///
-/// **Delta from the Java module (port spec §7 item 7):** the Java resolver
-/// probes the cluster's finalized `group.version` feature through the Admin
-/// client's `describeFeatures`. librdkafka exposes no feature probe, and every
-/// side-effect-free alternative was rejected (a broker config is not the
-/// feature flag; a trial join churns a real group), so on this engine `auto`
-/// resolves to `classic` — every broker's safe answer — with a `WARN` that
-/// names the explicit setting for a KIP-848 cluster. The conflict guard is
-/// kept: a template that also sets client-side tuning the consumer protocol
-/// does not allow resolves to `classic` naming the keys, as the Java module
-/// does.
-pub fn resolve_group_protocol(config: &mut ClientConfig) {
+/// **The Rust resolution is optimistic (port spec §7 item 7, ruled
+/// 2026-09-21).** The Java module probes the cluster's finalized
+/// `group.version` feature through the Admin client's `describeFeatures`;
+/// librdkafka exposes no feature probe, so `auto` starts the binding's consumer
+/// with the `consumer` protocol and the consumer falls back to `classic` once,
+/// at its first join, if the broker rejects the protocol — librdkafka raises a
+/// fatal `ConsumerGroupHeartbeat` error: `_UNSUPPORTED_FEATURE` when the API is
+/// not advertised (a broker before 4.0), `UNSUPPORTED_VERSION` when the
+/// coordinator has the protocol disabled. Same semantics as the Java probe,
+/// resolved per binding, with no synthetic group and no extra member. Returns
+/// `true` when the config now carries that optimistic `consumer` — the
+/// consumer must be ready to fall back. The conflict guard is the Java
+/// module's: a template that also sets client-side tuning the consumer protocol
+/// does not allow resolves `auto` to `classic` naming the keys.
+pub fn resolve_group_protocol(config: &mut ClientConfig) -> bool {
     let auto = config
         .get(GROUP_PROTOCOL)
         .is_some_and(|value| value.trim().eq_ignore_ascii_case("auto"));
     if !auto {
-        return;
+        return false;
     }
     let conflicts: Vec<&str> = CONSUMER_PROTOCOL_CONFLICTS
         .iter()
         .copied()
         .filter(|key| config.get(key).is_some())
         .collect();
-    config.set(GROUP_PROTOCOL, "classic");
     if !conflicts.is_empty() {
+        config.set(GROUP_PROTOCOL, "classic");
         log::warn!(
             "{GROUP_PROTOCOL}=auto resolved to classic - {conflicts:?} cannot be used with the \
-             consumer rebalance protocol; remove the setting(s) before selecting \
-             {GROUP_PROTOCOL}=consumer"
+             consumer rebalance protocol; remove the setting(s) to let auto try it"
         );
-    } else if !AUTO_PROTOCOL_WARNED.swap(true, Ordering::AcqRel) {
-        log::warn!(
-            "{GROUP_PROTOCOL}=auto resolved to classic - this client (librdkafka) exposes no cluster \
-             feature probe, so 'auto' cannot detect a KIP-848 cluster the way the Java module does; \
-             on an Apache Kafka 4.0+ cluster with group.version >= 1, set {GROUP_PROTOCOL}=consumer \
-             explicitly"
-        );
-    } else {
-        log::debug!("{GROUP_PROTOCOL}=auto resolved to classic (stated once per process)");
+        return false;
     }
+    config.set(GROUP_PROTOCOL, "consumer");
+    if !AUTO_PROTOCOL_NOTED.swap(true, Ordering::AcqRel) {
+        log::info!(
+            "{GROUP_PROTOCOL}=auto - trying the KIP-848 consumer rebalance protocol first; a broker \
+             without it resolves the binding to classic at its first join"
+        );
+    }
+    true
 }
 
 /// Load a template into a [`ClientConfig`]: the configured locations when the
@@ -468,19 +471,23 @@ mod tests {
         );
     }
 
-    /// `auto` resolves to classic on this engine (with or without the conflict
-    /// guard); explicit values and an absent key pass through untouched.
+    /// `auto` is optimistic: the config carries `consumer` and the caller is
+    /// told to be ready to fall back; the conflict guard still resolves to
+    /// classic; explicit values and an absent key pass through untouched.
     #[test]
-    fn group_protocol_auto_resolves_to_classic() {
+    fn group_protocol_auto_is_optimistic() {
         let mut config = ClientConfig::new();
         config.set(GROUP_PROTOCOL, " Auto ");
-        resolve_group_protocol(&mut config);
-        assert_eq!(Some("classic"), config.get(GROUP_PROTOCOL));
+        assert!(
+            resolve_group_protocol(&mut config),
+            "optimistic consumer protocol"
+        );
+        assert_eq!(Some("consumer"), config.get(GROUP_PROTOCOL));
 
         let mut conflicting = ClientConfig::new();
         conflicting.set(GROUP_PROTOCOL, "auto");
         conflicting.set("session.timeout.ms", "45000");
-        resolve_group_protocol(&mut conflicting);
+        assert!(!resolve_group_protocol(&mut conflicting));
         assert_eq!(Some("classic"), conflicting.get(GROUP_PROTOCOL));
         assert_eq!(
             Some("45000"),
@@ -491,11 +498,11 @@ mod tests {
         for explicit in ["consumer", "classic"] {
             let mut config = ClientConfig::new();
             config.set(GROUP_PROTOCOL, explicit);
-            resolve_group_protocol(&mut config);
+            assert!(!resolve_group_protocol(&mut config));
             assert_eq!(Some(explicit), config.get(GROUP_PROTOCOL));
         }
         let mut absent = ClientConfig::new();
-        resolve_group_protocol(&mut absent);
+        assert!(!resolve_group_protocol(&mut absent));
         assert!(absent.get(GROUP_PROTOCOL).is_none());
     }
 }

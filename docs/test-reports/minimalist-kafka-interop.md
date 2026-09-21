@@ -31,7 +31,7 @@ recorded. Everything here is reproducible from the shipped examples by following
 | Java app | `examples/kafka-demo` 4.12.13, unchanged: `demo.inbound` → `kafka-demo-flow`, `demo.orders` → the second-level routing rules; groups `kafka-demo-group` and `kafka-demo-orders-group` |
 | Rust app | `examples/kafka-demo` (this port's twin, new at K4) on the K3 engine (`mercury-minimalist-kafka`, mercury #299) — the same topics, flows, rule list and **the same group ids** as the Java app, deliberately, so the two can share a group; the `interop` profile turns it into a relay between `demo.interop.in`, `demo.inbound`, `demo.outbound` and `demo.interop.out` |
 | Helpers | Node 22 with kafkajs 2.2.4 — the five programs copied from the Java demo (`create-topics`, `listen-outbound`, `listen-dlq`, `publish-inbound`, `publish-orders`); seven topics with 10 partitions each |
-| Protocol | classic rebalance protocol on both clients (`group.protocol=auto` resolves to `classic` on the Rust engine — spec §7 item 7) |
+| Protocol | classic rebalance protocol on both clients during the drive — both bundled templates left `group.protocol` unset at the time (the Java line was commented out); re-ruled the same evening, see the [addendum](#addendum-groupprotocolauto-re-ruled-and-proven-live) |
 
 Timestamps below are the machines' own: the Node programs and the Rust app print UTC (`Z`), the
 Java app and the broker print local time (UTC−7).
@@ -236,3 +236,47 @@ The rebalance is immediate, where the hard kill cost 45 s.
 - **Run the failure path against the real broker at least once**: the mock cluster proves the
   logic, the live broker proves the timing (retry spacing, DLQ latency, takeover) that operators
   will actually see.
+
+## Addendum — `group.protocol=auto` re-ruled and proven live
+
+The maintainer asked, after the drive, why the Rust port had not switched to the KIP-848 consumer
+protocol on a broker that supports it. The evidence: the broker finalizes `group.version=1`; the Java
+template shipped `group.protocol` commented out, so the Java demo had joined classic as well; the
+Rust template set no key. The K3 delta (`auto` = `classic`, for want of a feature probe in librdkafka)
+was replaced the same evening by an **optimistic `auto`** — start each binding's consumer with
+`consumer`, and if the broker refuses it, rebuild the consumer once with `classic` — because librdkafka
+reports the refusal as a fatal `ConsumerGroupHeartbeat` error (`UNSUPPORTED_VERSION` when the
+coordinator has the protocol disabled, `_UNSUPPORTED_FEATURE` when the API is not advertised), and a
+refused join never becomes a group member. **Both engines now ship `auto` uncommented in their bundled
+consumer templates** (maintainer decision, 2026-09-21).
+
+**Proof A — the default template against the KIP-848 broker** (`kafka-standalone`, `group.version=1`):
+
+```
+rust app  group.protocol=auto - trying the KIP-848 consumer rebalance protocol first; a broker without it resolves the binding to classic at its first join
+rust app  Kafka flow adapter binding: topic 'demo.inbound' -> flow 'kafka-demo-flow' (consumer group 'kafka-demo-group', dlq-topic 'demo.inbound.dlq', protocol consumer (auto))
+broker    [GroupId kafka-demo-group] Member NzRWAus/TUaUSqJb63ZcWg joins the consumer group using the consumer protocol.
+broker    [GroupId kafka-demo-group] Bumped group epoch to 2 with metadata hash 2421248355301747518.
+broker    [GroupId kafka-demo-orders-group] Computed a new target assignment for epoch 2 with 'uniform' assignor in 3ms.
+```
+
+A published message was consumed; `SIGTERM` produced `Member … left the consumer group` — the
+KIP-848 explicit leave.
+
+**Proof B — the same binary against a coordinator with the consumer protocol disabled**
+(the standalone broker started with `group.coordinator.rebalance.protocols=classic` through the
+Spring Boot `PropertiesLauncher` and a `loader.path` override of `server.properties`):
+
+```
+rust app  ERROR librdkafka: FATAL [thrd:main]: Fatal error: Broker: API version not supported: ConsumerGroupHeartbeat fatal error: Broker: API version not supported
+rust app  WARN  group.protocol=auto resolved to classic for topic 'demo.inbound' - the broker does not support the consumer rebalance protocol (ConsumerGroupHeartbeat fatal error: Broker: API version not supported); rejoining with the classic protocol
+broker    Dynamic member with unknown member id joins group kafka-demo-group in Empty state. Created a new member id rdkafka-0b6d4827-…
+```
+
+Both bindings rejoined classic and consumed the published message. The client logs the refusal at
+`ERROR` (twice per binding, librdkafka's own "Fatal error" and "Global error" lines) before the
+adapter's `WARN` states the resolution — loud, but the outcome is the Java resolver's.
+
+The flow adapter's own e2e now runs `auto` against `MockCluster`, which accepts the consumer protocol:
+every binding logs `protocol consumer (auto)` and none falls back. Spec §7 item 7 records the
+re-ruling.

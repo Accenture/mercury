@@ -19,6 +19,17 @@ bootstrap.servers: '${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}'
 # --- Where a brand-new consumer group starts reading ---
 auto.offset.reset: '${KAFKA_AUTO_OFFSET_RESET:earliest}'
 
+# --- Consumer rebalance protocol (KIP-848) ---
+# 'classic'  = Kafka's classic protocol, works on every broker.
+# 'consumer' = the KIP-848 broker-driven incremental protocol (Kafka 4.0+ with the group.version
+#              feature enabled) - faster, less disruptive rebalances.
+# 'auto'     = try 'consumer' first; a broker without it resolves the binding to 'classic' at its
+#              first join (this client reports the refused heartbeat as a fatal error - no probe, no
+#              extra group member). Note: session.timeout.ms / heartbeat.interval.ms /
+#              partition.assignment.strategy cannot be combined with the consumer protocol - if set
+#              here, 'auto' keeps 'classic' and warns.
+group.protocol: '${KAFKA_GROUP_PROTOCOL:auto}'
+
 # --- Enterprise security: uncomment and complete for your installation (librdkafka names) ---
 # security.protocol: '${KAFKA_SECURITY_PROTOCOL:SASL_SSL}'
 # sasl.mechanism: '${KAFKA_SASL_MECHANISM:OAUTHBEARER}'
