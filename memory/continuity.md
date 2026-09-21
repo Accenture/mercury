@@ -268,10 +268,12 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   e2e (a test function keeps the runtime alive). The component that runs background work for the life of
   the process declares it once (the flow adapter does, when its consumers start, and registers their
   stop as a shutdown hook); `AutoStart::run` honours the flag like serving; embedders awaiting
-  `AutoStart::main` are unaffected. **Open follow-up, platform-wide:** the entry point waits on
-  `tokio::signal::ctrl_c()` only — a Kubernetes `SIGTERM` skips the shutdown hooks and a Kafka member's
-  partitions are held until the 45 s session timeout instead of an immediate `LeaveGroup` (backlog P11).
-  Report: `docs/test-reports/minimalist-kafka-interop.md` Findings 1–2. Relates [[port-bottom-up-faithful]]
+  `AutoStart::main` are unaffected. **The platform-wide follow-up is CLOSED (2026-09-21, branch
+  `fix/sigterm-graceful-stop` `5688e643`, PR pending):** the entry point now stops on `SIGTERM` as on Ctrl-C
+  (the listener registered before the wait) and the flow adapter's hook drains its consumers within a
+  10 s grace, so a Kubernetes pod stop commits the record in hand and leaves the group explicitly —
+  proven live: explicit `LeaveGroup` 22 ms after the signal, where a hard kill waits the 45 s session
+  timeout. Report: `docs/test-reports/minimalist-kafka-interop.md` Findings 1–2; Increment 126. Relates [[port-bottom-up-faithful]]
   (an implicit JVM property mapped to an explicit Rust declaration).
   <!-- id: headless-app-keep-running | created: 2026-09-21 | last_used: 2026-09-21 | uses: 1 | tier: working | origin: 2026-09-21-175430 -->
 

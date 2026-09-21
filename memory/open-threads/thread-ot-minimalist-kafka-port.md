@@ -38,6 +38,12 @@
   platform-core: [[headless-app-keep-running]] (a headless app exited after boot). Follow-up
   recorded, platform-wide: `SIGTERM` not handled by `AutoStart::run` (backlog P11). Rulings at the
   gate (Eric): `auto` = classic accepted (spec §7 item 7), helpers copied, chained-hop shape.
+  **Open (Eric, 2026-09-21 evening; origin 2026-09-21-183033.md):** re-ruling on `group.protocol=auto` — the
+  standalone broker finalizes `group.version=1`, `consumer` works on this engine live, and librdkafka
+  raises a fatal `ConsumerGroupHeartbeat` error where a broker lacks the protocol, so an optimistic
+  `auto` (start as `consumer`, rebuild once as `classic` on that error) is feasible with no probe;
+  and whether the templates should ship `auto` by default (Java parity today: commented opt-in).
+  P11 (`SIGTERM`) closed on `fix/sigterm-graceful-stop` `5688e643`.
   Next gate: K5 — the held items close: sync-over-async facade tasks (`sync.prepare` / `sync.await`
   / `soa.reply`) over this transport + the demo's Kafka request leg (the Java `RestFlowMvpTest`
   analog green in Rust); then the release gate publishes `mercury-sync-over-async` + this crate
