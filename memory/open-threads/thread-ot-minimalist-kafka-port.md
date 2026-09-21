@@ -39,10 +39,10 @@
   recorded, platform-wide: `SIGTERM` not handled by `AutoStart::run` (backlog P11). Rulings at the
   gate (Eric): `auto` = classic accepted (spec §7 item 7), helpers copied, chained-hop shape.
   **`group.protocol=auto` RE-RULED and IMPLEMENTED 2026-09-21** (origin 2026-09-21-184821.md; branch
-  `feat/kafka-group-protocol-auto` `0beba0f8`, PR #302 opened 2026-09-21): optimistic `auto` —
+  `feat/kafka-group-protocol-auto` `0beba0f8` + `03959e60`, PR #302 MERGED 2026-09-21, merge `0432ed42`): optimistic `auto` —
   `consumer` first, rebuilt once as `classic` on librdkafka's fatal `ConsumerGroupHeartbeat` refusal;
   both engines ship `auto` in the bundled template (Java `feat/kafka-group-protocol-auto-default`
-  `ee37b907`). Proven live both ways on the standalone broker (spec §7 item 7; report addendum).
+  `ee37b907`, PR #436 MERGED squash `7def2bb4`). Proven live both ways on the standalone broker (spec §7 item 7; report addendum).
   P11 (`SIGTERM`) closed on `fix/sigterm-graceful-stop` `5688e643` = PR #301, MERGED 2026-09-21 (`922e13c7`).
   Next gate: K5 — the held items close: sync-over-async facade tasks (`sync.prepare` / `sync.await`
   / `soa.reply`) over this transport + the demo's Kafka request leg (the Java `RestFlowMvpTest`
