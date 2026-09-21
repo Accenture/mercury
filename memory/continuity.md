@@ -14,6 +14,13 @@
 
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.12.7** (2026-09-11, lock-step with Java v4.12.7 same-day — a documentation-and-templates release, Increments 116–117: the three-layer starter template crates and the AI developer guide, plus the Mercury Family page and the IDD methodology synthesis; NO engine behavior change — the Java headline gate fix has no Rust counterpart; all seven mercury-* crates on crates.io at 4.12.7, API-verified. Prior: v4.12.6 — the sprint release, Increments 110–115). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04: the smoke test flagged this line for carrying version history against its own rule.)
+- **latest_release:** v4.12.12 (2026-09-21 — **the catch-up release**, PR #296 `13744c77` merged as `983e7550`;
+  tag `v4.12.12` → `1ef183cb`, one memory-only commit past the merge, workspace version verified at the tag; GitHub
+  release published 00:53Z, body = the CHANGELOG entry). Adopts the Java number per the Java-side
+  `conv-ports-adopt-java-release-number`: 4.12.7 → 4.12.12 in one step, carrying Increments 118–124 plus the
+  sync-over-async R1–R4 and minimalist-kafka K1–K2 gates. Crates.io publication still held until K5. Not yet
+  ported (stated in the entry, backlog P8–P10): the CompileGraph task↔skill gate, the case-insensitive
+  `input.header.*` fallback for Kafka headers, dev mode in the starter-graph template. Prior: v4.12.7 (2026-09-11).
 - **last_enabled:** 2026-07-15
 - **last_review:** 2026-09-17 | through 2026-09-17-004239.md
 - **last_invariant_check:** 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, team-eric-maintainer, vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
@@ -167,7 +174,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 - **The distributed cache is `mercury-distributed-cache` — ONE action function `v1.cache.redis` over
   opaque bytes, gated by `redis.cache.enabled`, byte-compatible with the Java module (Increment 119,
-  2026-09-19; Java v4.12.9 Q1–Q8 in lock-step; PR #285 MERGED by Eric 2026-09-19, merge commit `5ac55eaf`; on main, unreleased until the catch-up release).** Same action names
+  2026-09-19; Java v4.12.9 Q1–Q8 in lock-step; PR #285 MERGED by Eric 2026-09-19, merge commit `5ac55eaf`; on main; released in v4.12.12, 2026-09-21).** Same action names
   (`PUT`/`GET`/`MGET`/`MPUT`/`DELETE`/`PUT_IF_NOT_PRESENT`/`LIST_PUSH`/`LIST_POP`/`LIST_LEN`), same headers
   (`action`/`key`/`ttl`), same error messages, same key layout `{redis.cache.key.prefix}{key}`, same
   config keys — so a Java pod and a Rust pod share one cache. Every key TTL'd from birth: `SETEX`, atomic
