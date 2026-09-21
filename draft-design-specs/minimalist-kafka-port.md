@@ -315,7 +315,9 @@ return route's R4.
     by the flow adapter when its consumers start (and it registers their stop as a shutdown
     hook). A REST application is unaffected. Recorded with the drive in
     `docs/test-reports/minimalist-kafka-interop.md`, together with the platform-wide follow-up
-    it exposed: the Rust entry point stops on `SIGINT` only, not on `SIGTERM`.
+    it exposed — the Rust entry point stopped on `SIGINT` only — closed the same day: the entry
+    point now stops on `SIGTERM` too, and the flow adapter's shutdown hook waits (10 s grace) for
+    its consumers to finish their in-flight record and leave the group explicitly.
 
 ## 8. Experiment plan (K-series)
 

@@ -655,4 +655,13 @@ async fn inbound_adapter_end_to_end() {
             .expect("registered targets accepted")
             .len()
     );
+
+    // --- scenario 15: the stop is what a SIGTERM/Ctrl-C triggers through the
+    // shutdown hook - every binding consumer finishes and reports stopped
+    // within the grace, so the process can go on shutting down with nothing
+    // abandoned mid-flow (the consumers leave their groups as they drop)
+    let still_running = tokio::task::spawn_blocking(minimalist_kafka::runtime::stop_flow_consumers)
+        .await
+        .expect("stop runs");
+    assert_eq!(0, still_running, "every consumer stopped within the grace");
 }

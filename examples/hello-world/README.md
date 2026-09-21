@@ -93,7 +93,7 @@ session info that shows up in the echo. The echo also forwards to
 `hello.pojo` so the span propagation is visible in the trace. See the
 hello-flow README and the docs site's *Event over HTTP* guide.
 
-Stop with Ctrl-C (graceful shutdown cleans the elastic store).
+Stop with Ctrl-C or `SIGTERM` (graceful shutdown runs the shutdown hooks and cleans the elastic store).
 
 ## Progressive result set rendering (SSE demo)
 

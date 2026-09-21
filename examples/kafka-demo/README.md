@@ -260,7 +260,8 @@ whose `received` field is the Java output JSON, under the publisher's trace id.
 
 Both apps can also share one consumer group: start this app in its plain profile next to the Java demo
 and the coordinator splits `demo.inbound`'s partitions between a Java member and a Rust member. Stop
-this app with Ctrl-C and it leaves the group explicitly (an immediate rebalance); kill it hard and the
+this app with Ctrl-C or `SIGTERM` (a pod stop) and it finishes its in-flight record and leaves the group
+explicitly (an immediate rebalance); kill it hard and the
 coordinator hands its partitions over after the 45 s session timeout, with every record still delivered.
 
 The permanent record of this drive — evidence, defects found and their fixes — is

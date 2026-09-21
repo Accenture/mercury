@@ -353,7 +353,7 @@ builds the tokio runtime, loads `-Dkey=value` launch overrides, installs structu
 logging, collects every annotated item from the link-time inventory, runs the lifecycle in
 the Java startup order (essential services → before-application hooks → preload → REST
 automation → main applications), and — when the application serves HTTP or websockets —
-stays alive until Ctrl-C.
+stays alive until Ctrl-C or `SIGTERM`.
 
 Embedders (tests, an existing async context) call `AutoStart::main(args).await` directly,
 which returns once the application is booted, or build the lifecycle explicitly with the
