@@ -19,6 +19,7 @@
 //! Populated once at startup by the library's auto-start entry point.
 
 use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
 
 use crate::consumer::KafkaFlowConsumer;
 use crate::publisher::KafkaRequestPublisher;
@@ -47,13 +48,42 @@ pub fn set_flow_consumers(consumers: Vec<KafkaFlowConsumer>) {
     *FLOW_CONSUMERS.write().expect("kafka runtime poisoned") = consumers;
 }
 
-/// Stop every running binding consumer after its in-flight record completes.
-pub fn stop_flow_consumers() {
-    for consumer in FLOW_CONSUMERS
-        .read()
-        .expect("kafka runtime poisoned")
-        .iter()
-    {
+/// How long a stop waits for the binding consumers to finish their in-flight
+/// records before the process goes on shutting down (a Kubernetes pod's default
+/// termination grace is 30 s; a record still in flight after this redelivers).
+const SHUTDOWN_GRACE: Duration = Duration::from_secs(10);
+
+/// Stop every running binding consumer and wait — bounded by
+/// [`SHUTDOWN_GRACE`] — for each to finish its in-flight record, so a stop
+/// (Ctrl-C, `SIGTERM`) commits the last record and leaves the group explicitly
+/// instead of abandoning work mid-flow (Java parity: the running flag is
+/// honoured per iteration and the JVM waits for the thread). Runs from the
+/// platform's shutdown hook on the entry point's thread, while the consumer
+/// tasks finish on the runtime's workers. Returns how many consumers were still
+/// running when the grace period ended (their records redeliver: at-least-once).
+pub fn stop_flow_consumers() -> usize {
+    let consumers = FLOW_CONSUMERS.read().expect("kafka runtime poisoned");
+    if consumers.is_empty() {
+        return 0;
+    }
+    for consumer in consumers.iter() {
         consumer.close();
+    }
+    let deadline = Instant::now() + SHUTDOWN_GRACE;
+    loop {
+        let running = consumers.iter().filter(|c| !c.is_stopped()).count();
+        if running == 0 {
+            log::info!("Kafka flow consumers stopped");
+            return 0;
+        }
+        if Instant::now() >= deadline {
+            log::warn!(
+                "{running} Kafka flow consumer(s) still running {} s after the stop - their in-flight \
+                 records redeliver (at-least-once)",
+                SHUTDOWN_GRACE.as_secs()
+            );
+            return running;
+        }
+        std::thread::sleep(Duration::from_millis(20));
     }
 }

@@ -165,9 +165,12 @@ async fn start_flow_adapter(adapter_location: &str) -> Result<(), AppError> {
     log::info!("Kafka flow adapter started from {adapter_location} ({started} binding(s))");
     // the consumers are this process's reason to exist (a headless app has no
     // HTTP server holding it open - the Java module's kernel threads are
-    // non-daemon; here the platform is told explicitly), and they stop after
-    // their in-flight record when the process is told to stop
+    // non-daemon; here the platform is told explicitly), and on Ctrl-C or
+    // SIGTERM they finish their in-flight record and leave the group before
+    // the process goes on shutting down
     platform.keep_running(&format!("Kafka flow adapter ({started} binding(s))"));
-    platform.on_shutdown(runtime::stop_flow_consumers);
+    platform.on_shutdown(|| {
+        runtime::stop_flow_consumers();
+    });
     Ok(())
 }

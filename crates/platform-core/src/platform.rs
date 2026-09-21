@@ -185,7 +185,7 @@ impl Platform {
     /// touched the resource registers nothing.
     ///
     /// Hooks run from [`AutoStart::run`](crate::AutoStart::run) after the
-    /// serving loop ends (Ctrl-C) and before the engine's own cleanup. An
+    /// serving loop ends (Ctrl-C or `SIGTERM`) and before the engine's own cleanup. An
     /// embedder that awaits `AutoStart::main` instead owns its exit and calls
     /// [`Platform::run_shutdown_hooks`] itself.
     pub fn on_shutdown(&self, hook: impl FnOnce() + Send + 'static) {
@@ -198,7 +198,7 @@ impl Platform {
     /// Declare that this process must stay up until it is told to stop — the
     /// Rust analog of a Java component holding a **non-daemon thread**. A
     /// standalone process ([`AutoStart::run`](crate::AutoStart::run)) stays
-    /// alive until Ctrl-C when it serves HTTP or websockets; a headless
+    /// alive until Ctrl-C or `SIGTERM` when it serves HTTP or websockets; a headless
     /// application — a Kafka flow adapter consuming topics, a scheduler — has
     /// nothing else holding it open and would exit as soon as its
     /// main-application hooks returned. The component that starts such
@@ -1077,7 +1077,7 @@ mod tests {
     use super::*;
 
     /// A component that runs background work declares it once; the
-    /// standalone entry point reads the flag to stay alive until Ctrl-C.
+    /// standalone entry point reads the flag to stay alive until Ctrl-C or SIGTERM.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn keep_running_is_declared_once_and_read_by_the_entry_point() {
         let platform = Platform::new();

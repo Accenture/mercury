@@ -359,10 +359,42 @@ impl AppStarter {
 /// annotated item from the link-time inventory** (`#[preload]`,
 /// `#[before_application]`, `#[main_application]` — the classpath-scanning
 /// analog), and runs the lifecycle. A standalone `fn main()` uses
-/// [`AutoStart::run`], which then keeps serving until Ctrl-C; an embedder
+/// [`AutoStart::run`], which then keeps serving until Ctrl-C or `SIGTERM`; an embedder
 /// (tests, an existing async context) calls [`AutoStart::main`], which returns
 /// once the app is booted (the HTTP/websocket accept loop runs in the
 /// background).
+/// The future that resolves when the process is told to stop — Ctrl-C
+/// (`SIGINT`), or on Unix also `SIGTERM`, the signal a Kubernetes pod stop or a
+/// plain `kill <pid>` sends. Handling both is what lets the shutdown hooks run
+/// on a pod stop: a Kafka consumer leaves its group explicitly (an immediate
+/// rebalance) instead of expiring at the broker's session timeout. Resolves to
+/// the name of the signal received. The `SIGTERM` listener is registered when
+/// this function is CALLED (not when the future is first polled), so a caller
+/// that raises the signal right after calling it cannot race the registration.
+/// Requires a Tokio runtime context.
+pub(crate) fn shutdown_signal() -> impl std::future::Future<Output = &'static str> {
+    #[cfg(unix)]
+    let terminate = match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+    {
+        Ok(stream) => Some(stream),
+        Err(e) => {
+            log::warn!("Unable to listen for SIGTERM ({e}) - stopping on Ctrl-C only");
+            None
+        }
+    };
+    async move {
+        #[cfg(unix)]
+        if let Some(mut terminate) = terminate {
+            return tokio::select! {
+                _ = tokio::signal::ctrl_c() => "SIGINT",
+                _ = terminate.recv() => "SIGTERM",
+            };
+        }
+        let _ = tokio::signal::ctrl_c().await;
+        "SIGINT"
+    }
+}
+
 pub struct AutoStart;
 
 impl AutoStart {
@@ -370,26 +402,29 @@ impl AutoStart {
     /// automation on, or any websocket service registered) or when a component
     /// declared [`Platform::keep_running`](crate::Platform::keep_running) (a
     /// headless app whose Kafka flow adapter consumes topics, say) — stay alive
-    /// until Ctrl-C (Java: the JVM stays up on non-daemon threads). This is the
-    /// whole `fn main()` body; the `auto_start_main!` macro wraps exactly this
-    /// plus the app's resource root.
+    /// until the process is told to stop: Ctrl-C, or `SIGTERM` on Unix (Java:
+    /// the JVM stays up on non-daemon threads and runs its shutdown hooks on
+    /// either). This is the whole `fn main()` body; the `auto_start_main!` macro
+    /// wraps exactly this plus the app's resource root.
     pub fn run() -> Result<(), AppError> {
         let runtime = tokio::runtime::Runtime::new()
             .map_err(|e| AppError::new(500, format!("Unable to start runtime: {e}")))?;
         runtime.block_on(async {
             Self::main(std::env::args().collect()).await?;
             // HTTP/websocket serving, or a component that runs background work
-            // for the life of the process: stay alive until Ctrl-C. This
-            // blocking wait lives here (the standalone-process entry point),
-            // NOT in `main`, so an embedder that awaits `main` gets control
-            // back once the app is booted instead of hanging on the signal.
+            // for the life of the process: stay alive until Ctrl-C or SIGTERM.
+            // This blocking wait lives here (the standalone-process entry
+            // point), NOT in `main`, so an embedder that awaits `main` gets
+            // control back once the app is booted instead of hanging on the
+            // signal.
             let config = AppConfigReader::get_instance();
             if config.get_property_or("rest.automation", "false") == "true"
                 || crate::automation::ws_server::has_ws_services()
                 || crate::Platform::is_kept_running()
             {
-                log::info!("Application running - press Ctrl-C to stop");
-                let _ = tokio::signal::ctrl_c().await;
+                log::info!("Application running - stop with Ctrl-C or SIGTERM");
+                let signal = shutdown_signal().await;
+                log::info!("{signal} received - stopping");
             } else {
                 // give fire-and-forget telemetry a beat to be logged before exit
                 tokio::time::sleep(std::time::Duration::from_millis(200)).await;
@@ -406,7 +441,7 @@ impl AutoStart {
     /// before-application hook, bind the preloads, start the HTTP/websocket
     /// server when serving — then **return** (the accept loop keeps running as
     /// a background task). Booting the engine hands control back to the caller;
-    /// a standalone process uses [`AutoStart::run`] to serve until Ctrl-C.
+    /// a standalone process uses [`AutoStart::run`] to serve until Ctrl-C or `SIGTERM`.
     ///
     /// Runs only once per process (Java parity: `AutoStart.started` is an
     /// `AtomicBoolean`) — repeated execution is a no-op.
@@ -489,7 +524,7 @@ impl AutoStart {
         starter.run(args).await?;
         // The app is booted; the HTTP/websocket accept loop (if serving) runs
         // as a background task. Return control to the caller — `AutoStart::run`
-        // is what blocks a standalone process alive until Ctrl-C.
+        // is what blocks a standalone process alive until Ctrl-C or SIGTERM.
         Ok(())
     }
 }
@@ -501,4 +536,27 @@ fn validate_ws_service_name(name: &str) -> bool {
         && name.bytes().all(|b| {
             b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'.' | b'-' | b'_')
         })
+}
+
+#[cfg(test)]
+mod tests {
+    /// A `SIGTERM` (the Kubernetes pod-stop signal) ends the standalone wait
+    /// exactly like Ctrl-C does — the process keeps running and the caller
+    /// learns which signal arrived, so the shutdown hooks follow.
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn sigterm_ends_the_shutdown_wait() {
+        // the listener is registered on the call, before the signal is raised
+        let wait = super::shutdown_signal();
+        let status = std::process::Command::new("kill")
+            .arg("-TERM")
+            .arg(std::process::id().to_string())
+            .status()
+            .expect("kill runs");
+        assert!(status.success());
+        let signal = tokio::time::timeout(std::time::Duration::from_secs(5), wait)
+            .await
+            .expect("the wait ends within 5 s of SIGTERM");
+        assert_eq!("SIGTERM", signal);
+    }
 }

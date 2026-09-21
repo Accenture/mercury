@@ -241,7 +241,7 @@ platform_core::auto_start_main!();
 `auto_start_main!()` is the Java `AutoStart.main(args)` analog: it builds the tokio runtime,
 loads `-Dkey=value` launch overrides, installs structured logging, collects every annotated
 item from the link-time inventory, runs the lifecycle, and — when the application serves
-HTTP — stays alive until Ctrl-C. The startup order matches the Java sequence exactly:
+HTTP — stays alive until Ctrl-C or `SIGTERM`. The startup order matches the Java sequence exactly:
 
 1. **Essential services** (sequence 0, framework-reserved) — the telemetry sink, actuators
    (`/info`, `/env`, `/health`, `/livenessprobe`), the `no.op` echo function, and the async

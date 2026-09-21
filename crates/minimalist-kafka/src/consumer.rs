@@ -68,6 +68,7 @@
 //! async-correct home for a short blocking round trip.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -135,6 +136,8 @@ impl InboundNames {
 pub struct KafkaFlowConsumer {
     shutdown: watch::Sender<bool>,
     binding_label: String,
+    /// Set by the poll loop when it has exited — after its in-flight record.
+    stopped: Arc<AtomicBool>,
 }
 
 impl KafkaFlowConsumer {
@@ -150,9 +153,11 @@ impl KafkaFlowConsumer {
         subscribe_or_assign(&consumer, &binding)?;
         log_binding(&binding);
         let (shutdown, shutdown_rx) = watch::channel(false);
+        let stopped = Arc::new(AtomicBool::new(false));
         let handle = KafkaFlowConsumer {
             shutdown,
             binding_label: binding.label(),
+            stopped: stopped.clone(),
         };
         tokio::spawn(poll_loop(
             platform,
@@ -161,6 +166,7 @@ impl KafkaFlowConsumer {
             retry_policy,
             dlq_timeout,
             shutdown_rx,
+            stopped,
         ));
         Ok(handle)
     }
@@ -171,6 +177,12 @@ impl KafkaFlowConsumer {
     pub fn close(&self) {
         let _ = self.shutdown.send(true);
         log::info!("Kafka flow consumer for {} stopping", self.binding_label);
+    }
+
+    /// Whether the poll loop has exited (its in-flight record finished, the
+    /// consumer about to leave the group).
+    pub fn is_stopped(&self) -> bool {
+        self.stopped.load(Ordering::Acquire)
     }
 }
 
@@ -244,6 +256,7 @@ async fn poll_loop(
     retry_policy: RetryPolicy,
     dlq_timeout: Duration,
     mut shutdown: watch::Receiver<bool>,
+    stopped: Arc<AtomicBool>,
 ) {
     let names = InboundNames::for_binding(&binding);
     let label = binding.label();
@@ -307,6 +320,9 @@ async fn poll_loop(
             }
         }
     }
+    // dropping the consumer (when this task ends) closes it: the client
+    // commits what auto-commit holds and leaves the group explicitly
+    stopped.store(true, Ordering::Release);
     log::info!("Kafka flow consumer for {label} stopped");
 }
 

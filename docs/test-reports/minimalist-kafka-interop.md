@@ -198,8 +198,13 @@ The rebalance is immediate, where the hard kill cost 45 s.
    waits on Ctrl-C (`SIGINT`) only. A Kubernetes pod stop sends `SIGTERM`, so a rolling restart of a
    Rust consumer today looks like scenario 7c (partitions held until the 45 s session timeout)
    rather than 7d (immediate `LeaveGroup`). The Java process runs its shutdown hooks on `SIGTERM`.
-   This is not Kafka-specific — every headless or REST Rust application is affected — and is
-   recorded for platform-core rather than patched here.
+   This is not Kafka-specific — every headless or REST Rust application is affected — and was
+   recorded for platform-core rather than patched in the K4 change. **Closed the same day**
+   (branch `fix/sigterm-graceful-stop`, the maintainer's direction): `AutoStart::run` now stops on
+   `SIGTERM` exactly as on Ctrl-C, and the flow adapter's shutdown hook waits — bounded by a 10 s
+   grace — for every binding consumer to finish its in-flight record before the process goes on, so a
+   pod stop takes the scenario 7d path: the record commits, the member leaves the group explicitly,
+   the rebalance is immediate.
 3. **Presentation differences, not defects.** (a) The dead-letter `dlq.error` text differs: the
    Rust engine reports `flow 'demo-order-flow' returned status 400` (a typed function's input that
    cannot be deserialized is a 400), the Java engine

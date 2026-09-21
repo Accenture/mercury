@@ -3239,3 +3239,32 @@ were already correct here:
 
 Gates: `cargo fmt --check`, `clippy -D warnings` (hello-world + knowledge-graph, all targets), the two
 crates' suites, `mkdocs build --strict`, `check-llms-links`, `check-doc-claims`.
+
+## Increment 126 — Application lifecycle: a headless app declares it keeps running, and the entry point stops on `SIGTERM` as on Ctrl-C (2026-09-21)
+
+Two lifecycle gaps in the standalone entry point, both found by running a real headless binary — the
+Rust `kafka-demo` — against a live broker during the minimalist-kafka K4 drive
+(`docs/test-reports/minimalist-kafka-interop.md`, Findings 1 and 2):
+
+- **`Platform::keep_running(reason)`** (mercury #300). `AutoStart::run` parked the process until Ctrl-C
+  only when it served HTTP or websockets, so an application with no REST server — a Kafka flow adapter
+  consuming topics — booted, started its consumers and exited 200 ms later. On the JVM a component's
+  non-daemon threads hold the process; here the component declares it: the flow adapter calls
+  `keep_running` once when its consumers start (and registers their stop as a shutdown hook), and
+  `AutoStart::run` honours the flag exactly like serving. `Platform::is_kept_running()` reads it.
+  Embedders that await `AutoStart::main` are unaffected.
+- **`SIGTERM` stops the process like Ctrl-C** (this increment). The entry point waited on
+  `tokio::signal::ctrl_c()` alone, so a Kubernetes pod stop killed a Rust application without its
+  shutdown hooks — a Kafka member's partitions were then held by the broker until the 45 s session
+  timeout instead of an immediate, explicit `LeaveGroup`. `AutoStart::run` now waits on either signal
+  (the `SIGTERM` listener is registered before the wait, on Unix), logs which one arrived, and runs the
+  shutdown hooks as before. The flow adapter's hook waits — bounded by a 10 s grace — for every binding
+  consumer to finish its in-flight record before the process goes on, so a stop commits the last record
+  and leaves the group explicitly (the Java module honours its running flag per iteration the same way).
+  Proven live: `SIGTERM` at T, `SIGTERM received - stopping` at T+21 ms, both consumers stopped, the
+  broker's explicit `LeaveGroup` for both groups at T+22 ms, rebalance immediate.
+
+Gates: `cargo fmt --check`, `clippy --workspace --all-targets -D warnings`, `cargo test --workspace`
+(the new `sigterm_ends_the_shutdown_wait` raises the signal against the test process itself; the flow
+adapter's e2e ends with the bounded stop reporting nothing left running), `check-doc-claims`,
+`check-llms-links`, `mkdocs build --strict`.
