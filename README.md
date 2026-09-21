@@ -90,12 +90,15 @@ that the fresh-agent validation sweep was driven from.
 ## Non-goals
 
 The Kafka **service mesh** (service discovery + sync-over-Kafka, the `connectors/` tree) and
-Spring (`rest-spring-3/-4`) are out of scope. `minimalist-kafka` and `twin-kafka` are
-lightweight cloud-native connectors — not part of the mesh exclusion — planned for future
-iterations together with `sync-over-async` (see
-[`docs/background/port-scope.md`](docs/background/port-scope.md)). `graph.js` is deliberately
-retired in this port (an arbitrary-code interpreter is an attack surface); `graph.math` and
-`graph.task` cover its use cases.
+Spring (`rest-spring-3/-4`) are out of scope. The lightweight cloud-native connectors are not part
+of that exclusion: `minimalist-kafka` is ported (`crates/minimalist-kafka`, crate
+`mercury-minimalist-kafka` — the Kafka flow adapter, `simple.kafka.notification`, `kafka.health`
+and the Confluent Schema Registry wire format; see
+[`docs/guides/minimalist-kafka.md`](docs/guides/minimalist-kafka.md)), as is `sync-over-async`
+(`extensions/sync-over-async`); `twin-kafka` (the second-cluster bridge) is deferred until a bridge
+need exists (see [`docs/background/port-scope.md`](docs/background/port-scope.md)). `graph.js` is
+deliberately retired in this port (an arbitrary-code interpreter is an attack surface); `graph.math`
+and `graph.task` cover its use cases.
 
 ## Legacy versions
 

@@ -366,9 +366,33 @@ fn from_template(
     Ok(config)
 }
 
+/// The values of `keys` in the Kafka client template — the consumer's when
+/// the consumer is enabled, else the producer's — for the Schema Registry
+/// `*_INHERIT` credential sources (one credential for broker and registry).
+/// Blank values are absent.
+pub(crate) fn kafka_template_values(
+    keys: &[&str],
+) -> Result<std::collections::BTreeMap<String, String>, AppError> {
+    let config = if consumer_enabled() || !producer_enabled() {
+        consumer_client_config()?
+    } else {
+        producer_client_config()?
+    };
+    Ok(keys
+        .iter()
+        .filter_map(|key| {
+            config
+                .get(key)
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(|v| (key.to_string(), v.to_string()))
+        })
+        .collect())
+}
+
 /// Try each comma-separated location in order, returning the first that
 /// loads (Java `loadFirst`).
-fn load_first(locations: &str) -> Option<ConfigReader> {
+pub(crate) fn load_first(locations: &str) -> Option<ConfigReader> {
     locations
         .split(',')
         .map(str::trim)

@@ -21,8 +21,9 @@
 //! adapter (`kafka-flow-adapter.yaml` — literal or regex topics, partition
 //! pinning, per-record second-level [`routing`] to flows or functions,
 //! retry + dead-letter, a per-binding delivery mode; see [`adapter`] and
-//! [`consumer`]). The Schema Registry decode is the one Java surface still
-//! deferred (port spec §9, Q2).
+//! [`consumer`]), and speak the Confluent Schema Registry wire format for
+//! JSON Schema and Avro values ([`schema`]: subject-driven produce, decode by
+//! embedded id on a `schema.enabled` binding).
 //!
 //! **Config, not code**: the Kafka client connection/security parameters come
 //! from external `kafka-producer` / `kafka-consumer` templates with
@@ -53,6 +54,7 @@ pub mod notification;
 pub mod publisher;
 pub mod routing;
 pub mod runtime;
+pub mod schema;
 
 pub use adapter::KafkaConsumerBinding;
 pub use consumer::{KafkaFlowConsumer, RetryPolicy};
@@ -60,3 +62,4 @@ pub use health::{KafkaHealthProbe, KAFKA_HEALTH_ROUTE};
 pub use notification::{SimpleKafkaNotification, ROUTE as NOTIFICATION_ROUTE};
 pub use publisher::KafkaRequestPublisher;
 pub use routing::{RoutingRuleSet, RoutingTarget};
+pub use schema::{ResolvedSchema, SchemaCodec, SchemaType};

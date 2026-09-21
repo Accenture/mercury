@@ -26,11 +26,16 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
+#[path = "support/embedded_registry.rs"]
+mod embedded_registry;
+
 use async_trait::async_trait;
+use embedded_registry::EmbeddedRegistry;
 // link the library crate: its inventory entries (the auto-start hook and the
 // preloaded functions) register at link time - the one line a Rust
 // application needs where the Java jar needs only the dependency
 use minimalist_kafka as _;
+use minimalist_kafka::SchemaCodec;
 use platform_core::{
     preload, AppError, ComposableFunction, ConfigReader, EventEnvelope, Platform, PostOffice,
 };
@@ -208,6 +213,10 @@ fn bootstrap_servers() -> &'static str {
             "k3-routed",
             "k3-legacy",
             "k3-autocommit",
+            "k5-schema-json",
+            "k5-schema-avro",
+            "k5-schema-routed",
+            "k5-schema-dlq",
         ] {
             cluster.create_topic(topic, 1, 1).expect("topic");
         }
@@ -225,10 +234,15 @@ fn bootstrap_servers() -> &'static str {
 }
 
 async fn produce(topic: &str, payload: &str, headers: &[(&str, &str)]) {
+    produce_to(topic, None, payload.as_bytes(), headers).await;
+}
+
+/// A binary payload (a Confluent-framed record).
+async fn produce_bytes(topic: &str, payload: &[u8], headers: &[(&str, &str)]) {
     produce_to(topic, None, payload, headers).await;
 }
 
-async fn produce_to(topic: &str, partition: Option<i32>, payload: &str, headers: &[(&str, &str)]) {
+async fn produce_to(topic: &str, partition: Option<i32>, payload: &[u8], headers: &[(&str, &str)]) {
     static PRODUCER: OnceLock<FutureProducer> = OnceLock::new();
     let producer = PRODUCER.get_or_init(|| {
         ClientConfig::new()
@@ -312,6 +326,11 @@ fn payload_text(dataset: &serde_json::Value) -> String {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn inbound_adapter_end_to_end() {
+    // the in-process Schema Registry double, reached through the same
+    // ${SCHEMA_REGISTRY_URL} substitution a deployment would use - pinned
+    // before the configuration snapshot, like the mock cluster
+    let registry = EmbeddedRegistry::start().await;
+    std::env::set_var("SCHEMA_REGISTRY_URL", registry.base_url());
     bootstrap_servers();
     platform_core::AutoStart::main(vec![])
         .await
@@ -613,8 +632,8 @@ async fn inbound_adapter_end_to_end() {
     );
 
     // --- scenario 12: partition pinning - the binding reads exactly partition 1
-    produce_to("k3-pinned", Some(0), "p0", &[("cid", "k3-pinned-p0")]).await;
-    produce_to("k3-pinned", Some(1), "p1", &[("cid", "k3-pinned-p1")]).await;
+    produce_to("k3-pinned", Some(0), b"p0", &[("cid", "k3-pinned-p0")]).await;
+    produce_to("k3-pinned", Some(1), b"p1", &[("cid", "k3-pinned-p1")]).await;
     let pinned = await_captured_cid("k3-pinned-p1").await;
     assert_eq!(1, pinned["metadata"]["partition"]);
     tokio::time::sleep(Duration::from_millis(1500)).await;
@@ -655,6 +674,143 @@ async fn inbound_adapter_end_to_end() {
             .expect("registered targets accepted")
             .len()
     );
+
+    // --- scenario 16: schema.enabled decodes a Confluent JSON Schema frame by
+    // its embedded id - the flow receives a map, not bytes
+    let json_id = registry.register(
+        "k5-schema-json-value",
+        "JSON",
+        r#"{"type":"object","additionalProperties":true}"#,
+    );
+    produce_bytes(
+        "k5-schema-json",
+        &SchemaCodec::frame(json_id, br#"{"hello":"schema","n":1}"#),
+        &[("cid", "k5-json-cid")],
+    )
+    .await;
+    let dataset = await_captured_cid("k5-json-cid").await;
+    assert_eq!(
+        serde_json::json!({"hello": "schema", "n": 1}),
+        dataset["body"],
+        "the decoded document is the body"
+    );
+    assert_eq!("k5-schema-json", dataset["metadata"]["topic"]);
+
+    // --- scenario 17: the nested `schema: enabled:` spelling, an Avro frame -
+    // the binary datum a stock Confluent Avro serializer writes, hand-computed
+    // ('avro-schema' = len 11 -> zigzag 0x16; count 3 -> 0x06) - decodes to a
+    // map through the registered writer schema
+    let avro_id = registry.register(
+        "k5-schema-avro-value",
+        "AVRO",
+        r#"{"type":"record","name":"Greeting","fields":[{"name":"hello","type":"string"},{"name":"count","type":"int","default":0}]}"#,
+    );
+    let mut datum = vec![0x16];
+    datum.extend_from_slice(b"avro-schema");
+    datum.push(0x06);
+    produce_bytes(
+        "k5-schema-avro",
+        &SchemaCodec::frame(avro_id, &datum),
+        &[("cid", "k5-avro-cid")],
+    )
+    .await;
+    assert_eq!(
+        serde_json::json!({"hello": "avro-schema", "count": 3}),
+        await_captured_cid("k5-avro-cid").await["body"]
+    );
+
+    // --- scenario 18: a poison frame is dead-lettered AT ONCE - no retry, no
+    // flow attempt - with the raw record preserved and the cause named; an
+    // unresolvable id is poison too
+    let captured_before = captured().lock().expect("captured").len();
+    let dlq_consumer: StreamConsumer = ClientConfig::new()
+        .set("bootstrap.servers", bootstrap_servers())
+        .set("group.id", "k5-dlq-observer")
+        .set("auto.offset.reset", "earliest")
+        .set("enable.auto.commit", "false")
+        .create()
+        .expect("dlq consumer");
+    dlq_consumer
+        .subscribe(&["k5-schema-dlq"])
+        .expect("subscribe");
+    produce("k5-schema-json", "not-framed", &[("cid", "k5-poison-cid")]).await;
+    let parked = tokio::time::timeout(Duration::from_secs(15), dlq_consumer.recv())
+        .await
+        .expect("dead letter within deadline")
+        .expect("dead letter");
+    assert_eq!(
+        "not-framed",
+        String::from_utf8_lossy(parked.payload().unwrap_or_default()),
+        "the raw record is preserved"
+    );
+    let mut parked_headers = HashMap::new();
+    if let Some(borrowed) = parked.headers() {
+        for i in 0..borrowed.count() {
+            let header = borrowed.get(i);
+            parked_headers.insert(
+                header.key.to_string(),
+                String::from_utf8_lossy(header.value.unwrap_or_default()).to_string(),
+            );
+        }
+    }
+    assert_eq!("k5-schema-json", parked_headers["dlq.origin.topic"]);
+    assert_eq!("k5-poison-cid", parked_headers["cid"]);
+    assert!(
+        parked_headers["dlq.error"].contains("not Confluent schema-framed"),
+        "the dead letter names the decode failure: {}",
+        parked_headers["dlq.error"]
+    );
+    produce_bytes(
+        "k5-schema-json",
+        &SchemaCodec::frame(987_654, br#"{"hello":"orphan"}"#),
+        &[("cid", "k5-orphan-cid")],
+    )
+    .await;
+    let parked = tokio::time::timeout(Duration::from_secs(15), dlq_consumer.recv())
+        .await
+        .expect("dead letter within deadline")
+        .expect("dead letter");
+    let orphan_error = parked
+        .headers()
+        .and_then(|h| h.iter().find(|h| h.key == "dlq.error"))
+        .map(|h| String::from_utf8_lossy(h.value.unwrap_or_default()).to_string())
+        .unwrap_or_default();
+    assert!(
+        orphan_error.contains("Unable to resolve schema id 987654"),
+        "{orphan_error}"
+    );
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(
+        captured_before,
+        captured().lock().expect("captured").len(),
+        "a poison frame never reaches the flow (no retry attempt)"
+    );
+
+    // --- scenario 19: second-level routing over a DECODED schema body - the
+    // rule reads the document, the flow target and the task target both
+    // receive the decoded map
+    produce_bytes(
+        "k5-schema-routed",
+        &SchemaCodec::frame(json_id, br#"{"kind":"order","id":7}"#),
+        &[("cid", "k5-routed-order")],
+    )
+    .await;
+    let routed = await_captured_cid("k5-routed-order").await;
+    assert_eq!("order", routed["body"]["kind"]);
+    assert_eq!(7, routed["body"]["id"]);
+    assert_eq!("KAFKA /k5-schema-routed", routed["observed_trace_path"]);
+    produce_bytes(
+        "k5-schema-routed",
+        &SchemaCodec::frame(json_id, br#"{"kind":"other"}"#),
+        &[("cid", "k5-routed-default")],
+    )
+    .await;
+    let defaulted = await_captured_cid("k5-routed-default").await;
+    assert_eq!(
+        "task", defaulted["kind"],
+        "the default rule's task:// target"
+    );
+    assert_eq!("other", defaulted["body"]["kind"]);
 
     // --- scenario 15: the stop is what a SIGTERM/Ctrl-C triggers through the
     // shutdown hook - every binding consumer finishes and reports stopped

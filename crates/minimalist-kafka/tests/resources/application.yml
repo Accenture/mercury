@@ -10,3 +10,9 @@ yaml.kafka.flow.adapter: 'classpath:/kafka-flow-adapter.yaml'
 kafka.flow.max.retries: 2
 kafka.flow.retry.backoff.ms: 50
 kafka.dlq.timeout.ms: 5000
+
+# Schema Registry: the e2e suite points this at its in-process registry double
+# through the environment before the snapshot is pinned; blank = features off
+schema.registry.url: '${SCHEMA_REGISTRY_URL:}'
+# a second codec prefix used by the codec suite: JSON validation on
+schema.strict.serde.json.fail.invalid.schema: true

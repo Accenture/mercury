@@ -28,13 +28,19 @@ pub const PARTITION: &str = "partition";
 /// flow's correlation-id.
 pub const CORRELATION_ID: &str = "cid";
 
-/// Optional for `simple.kafka.notification`: the Schema Registry subject —
-/// reserved by the deferred schema phase (port spec Q2); a publish carrying it
-/// is refused with a clear message until that phase lands.
+/// Optional for `simple.kafka.notification`: the Schema Registry **subject**
+/// to serialize against. The schema must be pre-registered; the producer
+/// resolves the subject to a global schema id and its type and frames the
+/// body (a JSON document) in the Confluent wire format — it never registers.
 pub const SUBJECT: &str = "subject";
 
-/// Optional companion to [`SUBJECT`] (reserved with it).
+/// Optional companion to [`SUBJECT`]: the subject version to resolve — a
+/// positive integer pins a version, `latest` (the default) tracks the current
+/// one.
 pub const VERSION: &str = "version";
+
+/// The default [`VERSION`].
+pub const DEFAULT_VERSION: &str = "latest";
 
 // Read-only reserved headers injected by the framework worker; never
 // forwarded to Kafka as raw headers.

@@ -1,0 +1,50 @@
+#
+# Confluent SCHEMA REGISTRY client configuration template for the minimalist-kafka building blocks.
+#
+# The keys and values are the Confluent Schema Registry client's own, so a Java-side
+# schema-registry.properties ports here by renaming the file - authentication (OAuth 2.0 bearer,
+# basic auth) and the optional Confluent Cloud parameters bearer.auth.logical.cluster /
+# bearer.auth.identity.pool.id. This client INTERPRETS the template (there is no Confluent client
+# library for Rust to pass it to): the keys below are honoured; any other key is logged at startup
+# and ignored, never silently. TLS trust comes from the OS trust store (the platform's HTTP
+# client) - add a private CA there; the schema.registry.ssl.* truststore keys have no analog here.
+#
+# Like the kafka-producer/consumer templates, point schema.registry.properties (in
+# application.yml) at another location to externalize it. Normally that is one location; a
+# comma-separated list is an optional fallback chain. Values support ${ENV_VAR:default_value}
+# environment-variable substitution.
+#
+# NOTE: the registry URL itself stays in application.yml (schema.registry.url) - it is the
+# feature switch: unset means schema features are off. The library also pins its cache behavior
+# (positive-results-only) in code; everything here is yours.
+#
+
+# --- OAuth 2.0 client-credentials (e.g. Azure AD / Entra ID): uncomment and complete ---
+# bearer.auth.credentials.source: OAUTHBEARER
+# bearer.auth.issuer.endpoint.url: '${SCHEMA_REGISTRY_OAUTH_TOKEN_URL:}'
+# bearer.auth.client.id: '${SCHEMA_REGISTRY_CLIENT_ID:}'
+# bearer.auth.client.secret: '${SCHEMA_REGISTRY_CLIENT_SECRET:}'
+# bearer.auth.scope: '${SCHEMA_REGISTRY_OAUTH_SCOPE:}'
+
+# --- Optional (Confluent Cloud): uncomment when your installation requires them ---
+# bearer.auth.logical.cluster: '${SCHEMA_REGISTRY_LOGICAL_CLUSTER:}'
+# bearer.auth.identity.pool.id: '${SCHEMA_REGISTRY_IDENTITY_POOL_ID:}'
+
+# --- Token cache tuning (seconds before expiry to refresh; the default is 300) ---
+# bearer.auth.cache.expiry.buffer.seconds: 300
+
+# --- Alternatives ---
+# Reuse the Kafka client template's SASL OAuth settings (single credential for broker + registry):
+# bearer.auth.credentials.source: SASL_OAUTHBEARER_INHERIT
+# Fixed token (dev/test only):
+# bearer.auth.credentials.source: STATIC_TOKEN
+# bearer.auth.token: '${SCHEMA_REGISTRY_STATIC_TOKEN:}'
+# Basic authentication (user:password), or SASL_INHERIT to reuse the Kafka template's
+# sasl.username / sasl.password, or URL for credentials carried in schema.registry.url:
+# basic.auth.credentials.source: USER_INFO
+# basic.auth.user.info: '${SCHEMA_REGISTRY_BASIC_AUTH:}'
+
+# --- JSON Schema validation (Confluent's json.fail.invalid.schema; default off) ---
+# Validate JSON payloads against their registered schema on both produce and consume. Also
+# settable per application as schema.registry.serde.json.fail.invalid.schema in application.yml.
+# json.fail.invalid.schema: true

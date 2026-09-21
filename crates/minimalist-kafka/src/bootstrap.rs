@@ -19,10 +19,11 @@
 //! every composable function — collected automatically from this library by
 //! the application's `auto_start_main!()` (the Java classpath-scan parity).
 //!
-//! Builds the shared producer (`simple.kafka.notification`), then starts the
-//! inbound flow adapter from `yaml.kafka.flow.adapter` — one consumer per
-//! validated binding, each with its own group id, delivery-mode overlay and
-//! derived poll interval on top of the consumer template.
+//! Builds the Schema Registry codec when `schema.registry.url` is set, the
+//! shared producer (`simple.kafka.notification`), then starts the inbound
+//! flow adapter from `yaml.kafka.flow.adapter` — one consumer per validated
+//! binding, each with its own group id, delivery-mode overlay and derived poll
+//! interval on top of the consumer template.
 
 use std::sync::Arc;
 
@@ -38,6 +39,7 @@ use crate::adapter;
 use crate::client_config::{self, CONSUMER_ENABLED, PRODUCER_ENABLED};
 use crate::consumer::{KafkaFlowConsumer, RetryPolicy};
 use crate::publisher::KafkaRequestPublisher;
+use crate::schema::{self, SchemaCodec};
 use crate::{notification, runtime};
 
 const ADAPTER_CONFIG: &str = "yaml.kafka.flow.adapter";
@@ -61,6 +63,15 @@ impl EntryPoint for KafkaAutoStart {
         if !producer_enabled && !consumer_enabled {
             // a legitimate "Kafka off in this profile" switch - stated loudly
             log::warn!("Kafka is inert - both {PRODUCER_ENABLED} and {CONSUMER_ENABLED} are false");
+        }
+        // the Schema Registry codec (Java parity: built once, shared by the
+        // producer and every schema-enabled binding); None keeps raw bytes
+        match SchemaCodec::from_config(config)? {
+            Some(codec) => runtime::set_schema_codec(codec),
+            None => log::info!(
+                "{} not set; schema features off (raw bytes on the wire)",
+                schema::REGISTRY_URL
+            ),
         }
         if producer_enabled {
             let producer: FutureProducer = client_config::producer_client_config()?
@@ -101,6 +112,14 @@ async fn start_flow_adapter(adapter_location: &str) -> Result<(), AppError> {
         )
     })?;
     let bindings = adapter::parse_bindings(&reader)?;
+    let schema_codec = runtime::schema_codec();
+    // a schema.enabled binding without a registry would fail every record:
+    // the contradiction fails the deployment, naming the binding
+    adapter::reject_schema_without_registry(
+        &bindings,
+        schema_codec.is_some(),
+        schema::REGISTRY_URL,
+    )?;
     let publisher = runtime::publisher();
     if publisher.is_none() {
         // no producer to dead-letter through: a binding's dlq-topic would
@@ -143,6 +162,12 @@ async fn start_flow_adapter(adapter_location: &str) -> Result<(), AppError> {
             retry_policy.backoff_ms,
         );
         let optimistic = client_config::resolve_group_protocol(&mut consumer_config);
+        // only a schema.enabled binding decodes (Java: schemaEnabled ? codec : null)
+        let codec = if binding.schema_enabled {
+            schema_codec.clone()
+        } else {
+            None
+        };
         consumers.push(KafkaFlowConsumer::start(
             platform.clone(),
             consumer_config,
@@ -150,6 +175,7 @@ async fn start_flow_adapter(adapter_location: &str) -> Result<(), AppError> {
             retry_policy.clone(),
             dlq_timeout,
             optimistic,
+            codec,
         )?);
     }
     let started = consumers.len();
