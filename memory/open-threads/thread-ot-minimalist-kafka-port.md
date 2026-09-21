@@ -39,7 +39,7 @@
   recorded, platform-wide: `SIGTERM` not handled by `AutoStart::run` (backlog P11). Rulings at the
   gate (Eric): `auto` = classic accepted (spec §7 item 7), helpers copied, chained-hop shape.
   **`group.protocol=auto` RE-RULED and IMPLEMENTED 2026-09-21** (origin 2026-09-21-184821.md; branch
-  `feat/kafka-group-protocol-auto` `0beba0f8`, stacked on PR #301, PR pending): optimistic `auto` —
+  `feat/kafka-group-protocol-auto` `0beba0f8`, PR #302 opened 2026-09-21): optimistic `auto` —
   `consumer` first, rebuilt once as `classic` on librdkafka's fatal `ConsumerGroupHeartbeat` refusal;
   both engines ship `auto` in the bundled template (Java `feat/kafka-group-protocol-auto-default`
   `ee37b907`). Proven live both ways on the standalone broker (spec §7 item 7; report addendum).
