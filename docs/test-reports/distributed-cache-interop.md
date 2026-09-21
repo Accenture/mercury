@@ -247,6 +247,13 @@ Worth a follow-up ruling: reset the shared Lettuce connection when a command tim
 is bounded by `redis.timeout` instead of the backoff), lower the reconnect cap, or document the
 window. Not changed here.
 
+*Follow-up, 2026-09-21 — ruled and fixed on the Java side:* the `redis-connection` foundation resets the
+shared connection after a command timeout (at once when the connection is not open, on the second
+consecutive timeout when it is), so the next command reconnects and recovery is bounded by the command
+timeout; while Redis is still down that command fails fast with 503. The Rust engine needed no change (its
+client already reconnected on the first command after Redis returned). Live re-run of this scenario:
+see the *Recovery after the connection-reset fix* section below.
+
 **5. What matched exactly.** The health contract (`UP`/`DOWN`, HTTP 200/400, the dependency block with
 `{code, text}`), the miss and rejection bodies on all three layers, the key layout, the TTL semantics,
 and — the point of the drive — 36/36 reads and 6/6 deletes across the engine boundary.
@@ -334,6 +341,29 @@ write: attempt 1 → HTTP 408, attempt 2 → 201 at +8.3 s
 (Lettuce's scheduled reconnect); Rust's: attempt 1 → 201. Cross-engine reads of both post-recovery writes 4/4.
 
 What changed since the previous validation run: Java L2 GET 500 → **408**; Java L3 get 500 → **408**; Rust L1 GET 500 → **503**; Rust L1 DELETE 500 → **503**; Rust L2 GET 500 → **408**; Rust L3 get 500 → **503**. Everything else is identical.
+
+## Recovery after the connection-reset fix (2026-09-21) {#reset-recovery}
+
+Finding 4 was ruled on 2026-09-21 — *reset the shared connection on command timeout* — and fixed in the
+Java `redis-connection` foundation: a command timeout on a connection that is not open resets the shared
+connection at once (on an open connection, the second consecutive timeout does), the next command opens a
+fresh connection, and while Redis is still down that connect fails fast with 503 instead of waiting out
+another 5 s timeout. The Rust engine needed no change. The outage scenario was re-driven against the
+rebuilt Java example (`distributed-cache-example` 4.12.12 with the fix; `helpers/redis-standalone`
+4.12.12; Layer 1 `GET /api/l1/profile/{id}` probed every 5 s during the outage and every second after
+the restart, `/health` alongside). The embedded Redis restarts empty, so a live reply after the restart is
+a 404 miss; the write path was then exercised (201, then 200).
+
+| Scenario | During the outage | First call after Redis returned | Before the fix (this report) |
+|---|---|---|---|
+| Redis down 40 s | first probe 408 `Timeout for 5000 ms` (the command in flight when Redis died), then every probe **503** `Redis unavailable - Unable to connect …` within milliseconds; `/health` 400 throughout | **live reply at +0.03 s** (404 miss), `/health` 200 at the same poll; write path 201 → 200 | recovery 10.5 s after Redis returned, on Lettuce's next backoff attempt (Finding 4) |
+| Redis down 10 s | first probe 408, then the restart | **live reply at +0.03 s**, `/health` 200; write path 201 → 200 | every cache call failed for the whole 10 s window while `/health` was green (Finding 4) |
+
+Two things changed. Recovery is no longer bounded by the reconnect backoff — the first request after
+Redis returned succeeded in both runs, because the reset had already closed the dead connection and the
+first call opened a new one — and the outage itself now reads honestly: after the one in-flight timeout,
+callers see a fast 503 rather than a 5 s 408 per call, and `/health` and the cache path agree at every
+poll. The asymmetry Finding 4 described (health green, cache still failing) did not reappear.
 
 ## How to reproduce
 
