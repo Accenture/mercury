@@ -1,0 +1,27 @@
+#
+# REST automation for the facade role. The endpoint is backed by an Event Script flow (no controller)
+# via the built-in 'http.flow.adapter' service - the Mercury Composable way.
+#
+rest:
+  - service: "http.flow.adapter"
+    methods: ['POST']
+    url: "/api/sync-to-async"
+    flow: 'sync-to-async'
+    timeout: 30s
+    tracing: true
+
+  # JSON Schema variant: same end-to-end path, but the Kafka legs use the Confluent JSON Schema wire format.
+  - service: "http.flow.adapter"
+    methods: ['POST']
+    url: "/api/sync-to-async-json"
+    flow: 'sync-to-async-json'
+    timeout: 30s
+    tracing: true
+
+  # Avro variant: same end-to-end path, but the Kafka legs use the Confluent Avro wire format.
+  - service: "http.flow.adapter"
+    methods: ['POST']
+    url: "/api/sync-to-async-avro"
+    flow: 'sync-to-async-avro'
+    timeout: 30s
+    tracing: true

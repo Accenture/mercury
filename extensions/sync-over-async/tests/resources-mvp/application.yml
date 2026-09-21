@@ -1,0 +1,23 @@
+# The sync-over-async MVP suite (Java RestFlowMvpTest parity): REST facade + flows +
+# the Kafka flow adapter against the in-process mock cluster, the return route
+# against the in-process RESP double. Both endpoints are pinned through the
+# environment before the configuration snapshot (KAFKA_BOOTSTRAP_SERVERS reaches
+# the bundled Kafka templates; SOA_REDIS_PORT the return route).
+application.name: sync-over-async-mvp
+rest.automation: true
+rest.server.port: 8305
+yaml.rest.automation: classpath:/rest.yaml
+yaml.flow.automation: classpath:/flows.yaml
+yaml.kafka.flow.adapter: classpath:/kafka-flow-adapter.yaml
+kafka.dlq.timeout.ms: 20000
+sync.over.async.enabled: true
+soa.redis.host: 127.0.0.1
+soa.redis.port: '${SOA_REDIS_PORT:6379}'
+soa.redis.password: ''
+soa.redis.ssl: false
+soa.redis.database: 0
+soa.redis.timeout.ms: 5000
+sync.return.channel.prefix: svc-return
+sync.route.ttl.seconds: 90
+sync.response.ttl.seconds: 30
+sync.max.pending.requests: 10000

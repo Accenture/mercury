@@ -3268,3 +3268,58 @@ Gates: `cargo fmt --check`, `clippy --workspace --all-targets -D warnings`, `car
 (the new `sigterm_ends_the_shutdown_wait` raises the signal against the test process itself; the flow
 adapter's e2e ends with the bounded stop reporting nothing left running), `check-doc-claims`,
 `check-llms-links`, `mkdocs build --strict`.
+
+## Increment 127 — The minimalist-kafka port complete (K1–K5): the Kafka flow adapter, `simple.kafka.notification`, `kafka.health`, the Schema Registry wire format, and sync-over-async over Kafka (2026-09-21)
+
+One entry for the whole port — the arc ran as gates K1–K5 recorded in `draft-design-specs/minimalist-kafka-port.md`
+§8 (the Java `system/minimalist-kafka` module and its guide are the canon), and closes the two items that
+waited on it: the sync-over-async facade tasks and the crates.io publication of `mercury-sync-over-async`
+together with the new crate.
+
+- **K1 — outbound + health + templates** (`crates/minimalist-kafka`, mercury #272–#274): `simple.kafka.notification`
+  (bytes / map / list body, `topic` + `partition` directives, the auto-stamped correlation id, a fresh W3C
+  `traceparent` per hop, the reserved-header exclusions), `kafka.health` (placeholder warm-up, waiting versus
+  outage, the `{text, code}` 503), the externalized `kafka-producer.yml` / `kafka-consumer.yml` templates with
+  `${ENV:default}` substitution and the JVM-only-key filter, the opt-out flags, library auto-activation through
+  the annotation inventory; the client's `murmur2_random` partitioner replaces the Java partitioner class.
+- **K2 — the inbound core**: `kafka-flow-adapter.yaml` parsed and validated fail-fast, one consumer task per
+  binding, commit-after-process, bounded retry then a confirmed dead-letter write with `dlq.origin.topic` /
+  `dlq.error`, the DATA-LOSS drop for partition liveness, escalating error backoff.
+- **K3 — the inbound completions** (mercury #299): second-level routing (`flows` rules — `input.header.*` /
+  `input.body…` selectors, exact / wildcard / regex matchers, first match wins, the mandatory `default`,
+  `flow://` and `task://` targets validated against the live registries), `topic-pattern`, `partition` pinning,
+  `auto-commit` with `max-poll-records` mapped to the client's prefetch depth, per-binding header overrides,
+  `serializer: 'json'`, `ttl`, the derived `max.poll.interval.ms`.
+- **K4 — the live dry-run and interop** (mercury #300, the `kafka-demo` twin, `docs/test-reports/minimalist-kafka-interop.md`):
+  both routing styles, the DLQ path, both chained legs under one trace id, a mixed Java+Rust consumer group, a
+  hard-killed member's partitions taken over, the graceful `SIGINT`. Findings fixed on the platform:
+  `Platform::keep_running` and the `SIGTERM` stop (Increment 126); then the optimistic `group.protocol=auto`
+  (mercury #302; both engines ship `auto`).
+- **K5a — the Schema Registry** (re-ruled in from the deferred Q2): the Confluent wire format for JSON Schema and
+  Avro on this engine's own codec (`apache-avro`, `jsonschema`) — subject-driven produce (`subject` / `version`
+  headers, the schema pre-registered, never registered by the producer), decode by embedded id on a
+  `schema.enabled` binding (a decode failure is poison: dead-lettered at once), the positive-only id cache and
+  the pinned-version cache on `ManagedCache`, the interpreted `schema-registry.yml` template (OAuth 2.0 client
+  credentials with a cached bearer token, static token, SASL inheritance, basic auth, the Confluent Cloud
+  headers; unknown keys logged); CSFLE, data-contract rules, schema references and Protobuf refused with a 501
+  rather than degraded. Spec §7 items 12–16.
+- **K5b — sync-over-async over this transport**: `mercury-sync-over-async` gains the three facade tasks
+  (`sync.prepare`, `sync.await`, `soa.reply` — transport-neutral, the Java contracts) and its own auto-start
+  (the Java `SyncOverAsyncAutoStart`); the `sync-over-async-demo` mirrors the Java demo's `facade` / `backend`
+  roles with the raw, JSON Schema and Avro legs next to its streaming roles. The MVP e2e
+  (`extensions/sync-over-async/tests/rest_flow_mvp.rs`, the Java `RestFlowMvpTest` twin) runs REST → flow →
+  mock cluster → flow → the RESP double → 200 with the echoed request and a continuous trace id, and 408 when
+  the backend drops the request. Driven live (report addendum, Scenarios 8–13): every leg on Rust alone, both
+  cross-engine pairings with the Confluent frames decoded both ways by both engines, a mixed backend group, and
+  the Java facade delivering replies to the waiting Rust facade through the Redis return route — the route
+  works across pods and across engines. Finding 5: the configuration-only link line (spec §7 item 6) applies to
+  every crate a binary activates by configuration alone — the demo shipped without `http.flow.adapter` until
+  two `use … as _;` lines were added.
+- **Docs**: the `docs/guides/minimalist-kafka.md` twin for the AI contract with a "Differences from the Java
+  engine" table (branch `docs/minimalist-kafka-guide`), the configuration reference's Kafka section, two
+  registered behaviour claims, the README non-goals and port-scope pages updated (`twin-kafka` stays deferred).
+
+Gates per branch: `cargo fmt --check`, `clippy --workspace --all-targets -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`, `mkdocs build --strict`. Release: v4.12.14 on both engines after the
+lock-step round (Eric, 2026-09-21), publishing `mercury-sync-over-async` and `mercury-minimalist-kafka`.
+

@@ -1,0 +1,17 @@
+#
+# Kafka Flow Adapter for the backend role: bind the request topic to the system-of-record flow.
+#
+consumer:
+  - topic: 'soa.request'
+    flow: 'system-of-record'
+    group: '${SOA_BACKEND_GROUP:system-of-record-group}'
+  # JSON Schema request leg: decode the Confluent-framed value to a Map before routing into the flow.
+  - topic: 'json-topic-1'
+    flow: 'system-of-record-json'
+    group: '${SOA_BACKEND_JSON_GROUP:system-of-record-json-group}'
+    schema.enabled: true
+  # Avro request leg: decode the Confluent Avro value to a Map before routing into the flow.
+  - topic: 'avro-topic-1'
+    flow: 'system-of-record-avro'
+    group: '${SOA_BACKEND_AVRO_GROUP:system-of-record-avro-group}'
+    schema.enabled: true

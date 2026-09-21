@@ -3,7 +3,9 @@ title: Interop Test Report — Minimalist Kafka, Java ⇄ Rust
 summary: Permanent record of the live validation of the Rust minimalist-kafka port against the Java
   module on one real broker - the Rust kafka-demo alone, the two engines chained in both directions
   under one trace id, a mixed Java-plus-Rust consumer group, a hard-killed member's partitions taken
-  over, and the defects the drive surfaced - kept as the K4 gate evidence for the port.
+  over, and the defects the drive surfaced - kept as the K4 gate evidence for the port; the K5
+  addendum adds the sync-over-async facade pattern over this transport with the Schema Registry
+  legs, in every Java-Rust pairing.
 layer: reference
 audience: [developer, architect, devops]
 keywords: [interop, kafka, minimalist-kafka, flow adapter, rust, traceparent, dead-letter, rebalance, consumer group, test report]
@@ -280,3 +282,140 @@ adapter's `WARN` states the resolution — loud, but the outcome is the Java res
 The flow adapter's own e2e now runs `auto` against `MockCluster`, which accepts the consumer protocol:
 every binding logs `protocol consumer (auto)` and none falls back. Spec §7 item 7 records the
 re-ruling.
+
+## Addendum — K5: sync-over-async over this transport, and the Schema Registry legs, both engines
+
+*Conducted 2026-09-21, after K5a (the Schema Registry codec, branch
+`feat/minimalist-kafka-schema-registry`) and K5b (the facade tasks `sync.prepare` / `sync.await` /
+`soa.reply` in `mercury-sync-over-async`, and the `sync-over-async-demo` mirrored from Java with its
+`facade` and `backend` roles) were built. The same broker as above plus the Java repository's other two
+helpers; the Java demo unchanged at 4.12.13.*
+
+### Setup
+
+| Piece | What ran |
+|-------|----------|
+| Broker | `helpers/kafka-standalone` 4.12.13 (Apache Kafka 4.3.1, KRaft, `127.0.0.1:9092`), started fresh; the six demo topics with 10 partitions each created by the demo's `create-topics.js` |
+| Redis | `helpers/redis-standalone` 4.12.13 on `6379` — the return route (`request:{cid}` / `queue:{cid}` keys, one return channel per pod) |
+| Registry | `helpers/schema-registry-standalone` 4.12.13 on `8081`, seeded from the demo's `registry/1.json` (subject `sync-demo-json`, a JSON Schema) and `2.json` (subject `sync-demo-avro`, an Avro record) |
+| Java app | `examples/sync-over-async-demo` 4.12.13, unchanged: profile `facade` (REST on `:8500` here) with Confluent's own serializers behind `simple.kafka.notification`, profile `backend` |
+| Rust app | `examples/sync-over-async-demo` (this port's mirror, new at K5b): profile `facade` (`:8400`, a second instance on `:8401`), profile `backend`; the Confluent legs through this engine's own codec |
+| Protocol | every Rust binding joined with the KIP-848 consumer protocol — `protocol consumer (auto)` for all six bindings; the Java demo's bundled template is `auto` too and its clients joined the same groups |
+
+### Scenario 8 — Rust facade + Rust backend, the three legs
+
+```
+[raw-1]  HTTP 200 trace=00000000000000000000000002e2d06d
+{"processedAt":"2026-09-21T23:06:11.977Z","processedBy":"system-of-record","request":{"action":"create","order":"raw-1"},"status":"processed","traceId":"00000000000000000000000002e2d06d"}
+[json-1] HTTP 200 trace=0000000000000000000000007993c3cf   ... "traceId":"0000000000000000000000007993c3cf"
+[avro-1] HTTP 200 trace=00000000000000000000000002395ee0
+{"action":"create","processedBy":"system-of-record","status":"processed","traceId":"00000000000000000000000002395ee0"}
+```
+
+Every reply's `traceId` is the trace id of the `traceparent` the caller sent — REST edge → `sync.prepare`
+→ Kafka → the backend flow → Kafka → `soa.reply` → the Redis return route → `sync.await`, one trace. The
+Avro request reached the backend as `{"action":"create","processedBy":"","status":"","traceId":""}`:
+the codec applied the record's defaults on the way out and dropped `order` (a closed-shape record), and
+the flat reply came back the same way. Facade start-up:
+
+```
+Schema codec ready (registry=http://127.0.0.1:8081, cache=schema.registry, ttlMs=1800000, types=[JSON, AVRO], strictJson=false, csfle=unsupported, auth=none)
+Kafka flow adapter binding: topic 'soa.response' -> flow 'soa-reply' (consumer group 'soa-reply-group', protocol consumer (auto))
+Kafka flow adapter binding: topic 'json-topic-2' -> flow 'soa-reply-json' (consumer group 'soa-reply-json-group', schema decode on, protocol consumer (auto))
+Kafka flow adapter binding: topic 'avro-topic-2' -> flow 'soa-reply-avro' (consumer group 'soa-reply-avro-group', schema decode on, protocol consumer (auto))
+Return-route coordinator started for pod a5fab940c34a45cbb908dfca85febaed (redis 127.0.0.1:6379, ssl=false, channel svc-return:a5fab940c34a45cbb908dfca85febaed)
+```
+
+**The first attempt answered 404 on every endpoint** — `Skip [POST] /api/sync-to-async - Service
+http.flow.adapter not available`, no bindings, no codec. The demo binary named no symbol of the flow
+engine or the Kafka crate (it activates both by configuration alone), so the linker dropped their
+inventories — exactly the caveat of spec §7 item 6, met again one crate further out. Two lines fixed it
+(`use event_script as _; use minimalist_kafka as _;`); recorded as Finding 5.
+
+### Scenario 9 — the timeout path
+
+The Rust backend stopped; a request with `x-sync-timeout: 2000`:
+
+```
+[timeout-1] HTTP 408 trace=0000000000000000000000007493789d      (3 s wall clock, curl included)
+{"message":"Timed out awaiting response for e425aa446692460f81e151d5f8c403b7","status":408,"type":"error"}
+```
+
+`sync.await` failed with 408, the flow's exception handler (`sync.error.handler`) passed it through and
+aborted the pending entry. The request itself sat on `soa.request`; when the Java backend joined the group
+20 s later (Scenario 10) it processed it — `Processing request (cid=e425aa44…): {action=create,
+order=timeout-1}` — and its reply found no return route: the orphan contract (`delivered: false`), nothing
+retried, nothing leaked.
+
+### Scenario 10 — Java backend, Rust facade: the frames cross both ways
+
+The Rust facade's three legs against the Java backend, all `200` with continuous trace ids. On the request
+legs Confluent's deserializers decoded this engine's frames; on the reply legs this engine's codec decoded
+Confluent's serializers' frames:
+
+```
+java backend  Processing request (cid=c5ea4622…): {action=create, order=raw-j1}
+java backend  Processing request (cid=fbe85bc8…): {action=create, order=json-j1}
+java backend  Processing Avro request (cid=8f4b6241…): {traceId=, action=create, processedBy=, status=}
+```
+
+The JSON leg carried `order` through (the schema is `additionalProperties: true`); the Avro leg arrived
+with the defaults this engine's codec applied. Java logged `AssociatedNameStrategy: Associations endpoint
+not found (404), using fallback strategy` per schema call — the mock registry lacks that endpoint;
+Confluent falls back, harmless.
+
+### Scenario 11 — Java facade, Rust backend
+
+The Java facade on `:8500` (`-Dspring.profiles.active=facade -Drest.server.port=8500`) with the Rust
+backend: raw, JSON Schema and Avro all `200`; the Rust backend processed all three and the Java facade's
+reply flows decoded this engine's frames — `{trace={path=KAFKA /json-topic-2, … service=soa.reply.json,
+success=true, … status=200}}`.
+
+### Scenario 12 — a mixed consumer group on the request topic, and the return route across engines
+
+Both backends in `system-of-record-group`; 20 raw requests through the Rust facade (`:8400`): **20 of 20
+answered 200**, split **9 processed by the Rust backend, 11 by the Java backend**. The Java facade had
+stayed a member of `soa-reply-group` from Scenario 11 — and consumed **8 of the 20 replies**:
+
+```
+a8827fe5: rust=0, java=3   096e73b7: rust=0, java=3   48ffee4f: rust=0, java=3   3aa5975d: rust=0, java=3
+5ab5360d: rust=0, java=3   b3ae1288: rust=0, java=3   b177c127: rust=0, java=3   122fa39d: rust=0, java=3
+```
+
+(per trace id: the facade whose log carries the `KAFKA /soa.response` → `soa.reply` span). Each of those
+eight requests still returned 200 to the Rust facade that was waiting: the Java `soa.reply` handed the
+reply to *its* coordinator, which published to the Rust pod's return channel, and the Rust `sync.await`
+woke. **The return route works across pods and across engines** — the Redis keys and the channel name
+are the wire contract, and both engines honour it.
+
+### Scenario 13 — two Rust facades
+
+A second Rust facade on `:8401` joined `soa-reply-group` (three members with the Java facade). Six requests
+alternating between `:8401` and `:8400`, all `200`; three replies were consumed by the answering facade,
+three by the Java facade and delivered cross-pod as in Scenario 12. In this sample no reply for a `:8401`
+request landed on `:8400` (ten partitions, three members, random placement of keyless records) — the
+Rust-to-Rust hop is the same mechanism the Java-to-Rust hop already exercised.
+
+### Findings (K5)
+
+**Finding 5 — configuration-only activation needs the link line in every binary.** The demo's `Cargo.toml`
+declared `mercury-event-script` and `mercury-minimalist-kafka`, its YAML used both, and the binary shipped
+without either: the Rust linker drops an rlib no symbol references, inventory entries included, so the REST
+endpoints had no `http.flow.adapter` and no consumer started — the application answered 404 and looked
+configured. The MVP e2e in the extension had the two `use … as _;` lines and was green; the binary did
+not. Fixed in the demo (`src/main.rs`), stated in its README and the guide; spec §7 item 6 already
+recorded the caveat for the Kafka crate, this drive shows it applies to every crate activated by
+configuration alone (the flow engine too). **Lesson:** run the real binary against the real helpers before
+calling a configuration-only feature done — the in-process test links what the binary may not.
+
+Observed, not defects: the orphan reply after a facade timeout (Scenario 9) and Confluent's associations
+WARN against the mock registry (Scenario 10).
+
+### Verdict
+
+The K5b gate holds: the Java `RestFlowMvpTest` analog (`extensions/sync-over-async/tests/rest_flow_mvp.rs`)
+is green in Rust — REST → flow → mock cluster → flow → return route → 200 with the echoed request and a
+continuous trace id, and 408 when the backend drops the request — and the live drive proves the facade
+pattern on the Rust engine alone, in both cross-engine pairings including the Confluent JSON Schema and
+Avro legs in both directions, with a mixed consumer group on the request topic and the return route
+delivering across engines.

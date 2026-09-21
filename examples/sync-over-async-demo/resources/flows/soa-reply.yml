@@ -1,0 +1,21 @@
+#
+# Reply-delivery flow (facade role). Reached when the Kafka flow adapter routes a message from the
+# response topic (soa.response). Its single task hands the reply to the return-route coordinator, which
+# completes the awaiting REST request (cross-pod via the Redis return route).
+#
+flow:
+  id: 'soa-reply'
+  description: 'Deliver the async response back to the awaiting REST request'
+  ttl: 30s
+
+first.task: 'soa.reply'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+      - 'model.cid -> header.cid'
+    process: 'soa.reply'
+    output:
+      - 'result -> output.body'
+    description: 'Bridge the Kafka response to the return-route coordinator'
+    execution: end

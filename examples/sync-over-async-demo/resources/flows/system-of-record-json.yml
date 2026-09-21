@@ -1,0 +1,41 @@
+#
+# Backend flow (backend role) - JSON Schema variant of 'system-of-record'. Reached when the Kafka flow
+# adapter routes a message from 'json-topic-1'. Because that binding sets schema.enabled, the adapter has
+# already decoded the Confluent-framed value to a Map, which 'system.of.record.json' receives.
+#
+#   1. system.of.record.json     - the backend logic (echo + metadata) on the decoded Map.
+#   2. simple.kafka.notification - publish the reply to 'json-topic-2' with subject=sync-demo-json (version
+#                                  defaults to latest); the producer resolves the schema id from the subject.
+#
+# subject 'sync-demo-json' is the demo's pre-registered JSON SyncDemoMessage schema (see registry/1.json,
+# which carries subject + version).
+#
+flow:
+  id: 'system-of-record-json'
+  description: 'Process the JSON-Schema request and publish a JSON-Schema reply'
+  ttl: 30s
+
+first.task: 'system.of.record.json'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+      - 'model.cid -> header.cid'
+      - 'input.header.traceparent -> header.traceparent'
+    process: 'system.of.record.json'
+    output:
+      - 'result -> model.payload'
+    description: 'Process the decoded request'
+    execution: sequential
+    next:
+      - 'simple.kafka.notification'
+
+  - input:
+      - 'text(json-topic-2) -> header.topic'
+      - 'text(sync-demo-json) -> header.subject'
+      - 'model.cid -> header.cid'
+      - 'model.payload -> *'
+    process: 'simple.kafka.notification'
+    output: []
+    description: 'Publish the reply to json-topic-2 as JSON Schema'
+    execution: end

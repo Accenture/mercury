@@ -1,0 +1,9 @@
+#
+# Backend flow: the system-of-record that processes requests and publishes replies.
+#
+flows:
+  - 'system-of-record.yml'
+  # JSON Schema variant of the backend flow
+  - 'system-of-record-json.yml'
+  # Avro variant of the backend flow
+  - 'system-of-record-avro.yml'

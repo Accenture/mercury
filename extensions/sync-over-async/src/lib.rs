@@ -67,6 +67,7 @@
 //! - **A one-shot response is the degenerate stream** — a queue whose first
 //!   entry is terminal — so both patterns share one mechanism and one contract.
 
+pub mod bootstrap;
 mod bridge;
 mod config;
 mod connection;
@@ -78,6 +79,7 @@ mod store;
 
 pub mod runtime;
 pub mod segment;
+pub mod tasks;
 
 pub use bridge::{EventStreamSink, SharedStreamWriter, StreamBridge, EDGE_GRACE_SECONDS};
 pub use config::{
@@ -91,6 +93,9 @@ pub use pending::{PendingEntry, PendingRequests, PendingStreams, SegmentSink, St
 pub use responder::{StreamResponder, DEFAULT_TTL_SECONDS};
 pub use segment::StreamSegment;
 pub use store::ReturnRouteStore;
+pub use tasks::{
+    SoaReply, SyncAwait, SyncPrepare, SOA_REPLY_ROUTE, SYNC_AWAIT_ROUTE, SYNC_PREPARE_ROUTE,
+};
 
 /// The module's self-contained correlation-id key (`"cid"`) — the flow-level
 /// contract shared by the facade tasks and their data mappings.
