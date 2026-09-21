@@ -11,8 +11,8 @@ The manifest uses an in-repo `path` for the Mercury crates. In your copy, delete
 `path` keys in `Cargo.toml` — the pinned versions then resolve from crates.io:
 
 ```toml
-mercury-platform-core = "4.12.7"
-mercury-event-script = "4.12.7"
+mercury-platform-core = "4.12.12"
+mercury-event-script = "4.12.12"
 ```
 
 ## Build, test, run
