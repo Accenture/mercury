@@ -59,8 +59,8 @@
   configuration-only link line applies to every crate (the demo shipped without `http.flow.adapter`).
   **Lock-step round** `feat/lockstep-4-12-13` `48506b99` (from main; Increment 128): the task↔skill gate,
   the case-insensitive `input.header.*` fallback, snake_case log-context keys + automatic timestamp; P2
-  confirmed no change; **P10 needs a ruling**. PRs: **K5a = #303 (opened 2026-09-21, CI pending)**; docs, K5b and the lock-step branch await
-  their PRs (docs and K5b stacked on K5a; lock-step independent); Java release = mercury-composable #437. Increment 127 records the whole port.
+  confirmed no change; **P10 needs a ruling**. PRs: **#303 = K5a + the docs twin** (opened 2026-09-21 from `docs/minimalist-kafka-guide`, which is
+  stacked on K5a — two commits; CI pending); K5b (stacked on K5a) and the lock-step branch await their PRs; Java release = mercury-composable #437. Increment 127 records the whole port.
   Next gate: **the release** — after the four Rust PRs and the Java `release/v4.12.14` PR merge, the Rust
   release branch (4.12.12 → 4.12.14 in one step) and the crates.io publication of `mercury-sync-over-async`
   + `mercury-minimalist-kafka` (Eric publishes).
