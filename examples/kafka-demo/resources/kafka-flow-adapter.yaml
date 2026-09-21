@@ -1,0 +1,36 @@
+#
+# Kafka Flow Adapter configuration for the worked example - both routing styles side by side:
+#
+#   demo.inbound  -> DIRECT routing:       every message goes to one flow ('flow')
+#   demo.orders   -> SECOND-LEVEL routing: a rule list picks the target per message ('flows')
+#
+consumer:
+  - topic: 'demo.inbound'
+    flow: 'kafka-demo-flow'
+    group: '${KAFKA_DEMO_CONSUMER_GROUP:kafka-demo-group}'
+    dlq-topic: 'demo.inbound.dlq'      # pre-provision this topic to exercise the failure path
+    # partition: 0                    # optional; pins one partition (manual assign, no group rebalancing)
+
+  # Second-level routing: one topic carrying mixed event types. 'flows' (instead of a single 'flow')
+  # inspects a key-value of each record and picks the target per message - the FIRST matching rule
+  # wins, in declaration order, and the mandatory 'default' catches the rest. A non-match (missing
+  # header/key, non-JSON body for an input.body rule) is never an error - it just falls through.
+  #
+  # serializer: 'json' decodes each JSON record to a map before routing, so the input.body rule can
+  # match and the selected flow/task receives a map. A record that is not a JSON object/array keeps
+  # its raw bytes and simply passes to the selected target (best-effort by design).
+  #
+  # Targets: flow://<flow-id> dispatches to an Event Script flow exactly like direct routing;
+  # task://<route> invokes a registered function DIRECTLY (all record headers copied verbatim, the
+  # whole payload as the body) - for processing simple enough that a flow is overweight. 'ttl' is
+  # the deadline for task:// invocations (a bare function has no flow ttl; default 30s).
+  - topic: 'demo.orders'
+    group: '${KAFKA_DEMO_ORDERS_GROUP:kafka-demo-orders-group}'
+    serializer: 'json'
+    ttl: '15s'
+    dlq-topic: 'demo.orders.dlq'       # pre-provision this topic to exercise the failure path
+    flows:
+      - 'input.header.type(order) -> flow://demo-order-flow'
+      - 'input.header.type(order-*) -> flow://demo-order-flow'
+      - 'input.body.event.kind(refund) -> task://demo.refund.processor'
+      - 'default -> flow://demo-catch-all-flow'

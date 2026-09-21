@@ -1,0 +1,35 @@
+#
+# Worked example flow: consume from 'demo.inbound', process, and publish to 'demo.outbound'.
+# Reached when the Kafka flow adapter routes a message from 'demo.inbound'.
+#
+#   1. demo.processor            - wrap the inbound message with processing metadata (self-contained function)
+#   2. simple.kafka.notification - publish the result to 'demo.outbound' (drop-n-forget)
+#
+flow:
+  id: 'kafka-demo-flow'
+  description: 'Consume demo.inbound, process, and publish to demo.outbound'
+  ttl: 30s
+
+first.task: 'demo.processor'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+      - 'model.cid -> header.cid'
+      - 'input.header.traceparent -> header.traceparent'
+    process: 'demo.processor'
+    output:
+      - 'result -> model.payload'
+    description: 'Process the inbound message'
+    execution: sequential
+    next:
+      - 'simple.kafka.notification'
+
+  - input:
+      - 'text(demo.outbound) -> header.topic'
+      - 'model.cid -> header.cid'
+      - 'model.payload -> *'
+    process: 'simple.kafka.notification'
+    output: []
+    description: 'Publish the processed message to demo.outbound'
+    execution: end

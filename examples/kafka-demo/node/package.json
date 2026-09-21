@@ -1,0 +1,15 @@
+{
+  "name": "kafka-demo-node",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node helpers for the minimalist-kafka worked example (topic admin, listeners, publishers) - shared with the Java kafka-demo",
+  "type": "module",
+  "scripts": {
+    "create-topics": "node create-topics.js",
+    "listen": "node listen-outbound.js",
+    "publish": "node publish-inbound.js"
+  },
+  "dependencies": {
+    "kafkajs": "^2.2.4"
+  }
+}

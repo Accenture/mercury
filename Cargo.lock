@@ -764,6 +764,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "kafka-demo"
+version = "4.12.12"
+dependencies = [
+ "async-trait",
+ "log",
+ "mercury-event-script",
+ "mercury-minimalist-kafka",
+ "mercury-platform-core",
+ "rmpv",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"

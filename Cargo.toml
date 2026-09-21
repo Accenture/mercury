@@ -27,6 +27,10 @@ members = [
     "examples/minigraph-playground",
     "examples/sync-over-async-demo",
     "examples/distributed-cache-example",
+    # the minimalist-kafka worked example (twin of the Java kafka-demo): the flow
+    # adapter in both routing styles + simple.kafka.notification, driven live
+    # against the Java kafka-standalone helper
+    "examples/kafka-demo",
     # starter templates for the three layers (copy one out to begin a new
     # project; explicit metadata - no workspace inheritance - so a copy
     # builds as-is, listed here so every build proves they stay current)

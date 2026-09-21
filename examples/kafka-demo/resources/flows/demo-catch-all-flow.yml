@@ -1,0 +1,36 @@
+#
+# The DEFAULT FLOW of the second-level routing demo: reached when NO routing rule matches a
+# demo.orders record - the mandatory 'default' entry in kafka-flow-adapter.yaml selects it.
+#
+# The body here can be EITHER shape: a map or list (a JSON record that matched no rule) or the raw
+# bytes (a record that serializer: 'json' could not parse - best-effort by design, the raw bytes
+# simply pass through). demo.catch.all stays untyped and handles both, which is exactly the
+# pattern a production default handler should follow.
+#
+flow:
+  id: 'demo-catch-all-flow'
+  description: 'Catch every demo.orders record no routing rule matched and publish to demo.outbound'
+  ttl: 30s
+
+first.task: 'demo.catch.all'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+      - 'model.cid -> header.cid'
+    process: 'demo.catch.all'
+    output:
+      - 'result -> model.payload'
+    description: 'Annotate the unmatched record (map, list or raw bytes)'
+    execution: sequential
+    next:
+      - 'simple.kafka.notification'
+
+  - input:
+      - 'text(demo.outbound) -> header.topic'
+      - 'model.cid -> header.cid'
+      - 'model.payload -> *'
+    process: 'simple.kafka.notification'
+    output: []
+    description: 'Publish the annotated record - a map, auto-serialized to JSON bytes'
+    execution: end

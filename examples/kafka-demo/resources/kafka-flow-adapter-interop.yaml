@@ -1,0 +1,15 @@
+#
+# The 'interop' profile's bindings - the chained-hop legs against the JAVA kafka-demo, which runs
+# unchanged on the same broker (see the README's "Interop" section). This instance does not touch
+# the topics the plain demo consumes, so only ONE engine processes each hop:
+#
+#   Rust producer -> Java flow adapter:  demo.interop.in -> (this engine) -> demo.inbound -> Java
+#   Java producer -> Rust flow adapter:  Java -> demo.outbound -> (this engine) -> demo.interop.out
+#
+consumer:
+  - topic: 'demo.interop.in'
+    flow: 'interop-to-java-flow'
+    group: '${KAFKA_DEMO_INTEROP_IN_GROUP:kafka-demo-interop-in}'
+  - topic: 'demo.outbound'
+    flow: 'interop-from-java-flow'
+    group: '${KAFKA_DEMO_INTEROP_OUT_GROUP:kafka-demo-interop-out}'

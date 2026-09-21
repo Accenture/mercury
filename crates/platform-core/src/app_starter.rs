@@ -367,22 +367,26 @@ pub struct AutoStart;
 
 impl AutoStart {
     /// Build a Tokio runtime, boot the application, then — when serving (REST
-    /// automation on, or any websocket service registered) — stay alive until
-    /// Ctrl-C (Java: the JVM stays up on non-daemon threads). This is the whole
-    /// `fn main()` body; the `auto_start_main!` macro wraps exactly this plus
-    /// the app's resource root.
+    /// automation on, or any websocket service registered) or when a component
+    /// declared [`Platform::keep_running`](crate::Platform::keep_running) (a
+    /// headless app whose Kafka flow adapter consumes topics, say) — stay alive
+    /// until Ctrl-C (Java: the JVM stays up on non-daemon threads). This is the
+    /// whole `fn main()` body; the `auto_start_main!` macro wraps exactly this
+    /// plus the app's resource root.
     pub fn run() -> Result<(), AppError> {
         let runtime = tokio::runtime::Runtime::new()
             .map_err(|e| AppError::new(500, format!("Unable to start runtime: {e}")))?;
         runtime.block_on(async {
             Self::main(std::env::args().collect()).await?;
-            // HTTP/websocket serving: stay alive until Ctrl-C. This blocking
-            // wait lives here (the standalone-process entry point), NOT in
-            // `main`, so an embedder that awaits `main` gets control back once
-            // the app is booted instead of hanging on the signal.
+            // HTTP/websocket serving, or a component that runs background work
+            // for the life of the process: stay alive until Ctrl-C. This
+            // blocking wait lives here (the standalone-process entry point),
+            // NOT in `main`, so an embedder that awaits `main` gets control
+            // back once the app is booted instead of hanging on the signal.
             let config = AppConfigReader::get_instance();
             if config.get_property_or("rest.automation", "false") == "true"
                 || crate::automation::ws_server::has_ws_services()
+                || crate::Platform::is_kept_running()
             {
                 log::info!("Application running - press Ctrl-C to stop");
                 let _ = tokio::signal::ctrl_c().await;

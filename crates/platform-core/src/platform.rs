@@ -114,6 +114,9 @@ type ShutdownHook = Box<dyn FnOnce() + Send + 'static>;
 /// shutdown hook and a list of callbacks behind it — here the process has one
 /// exit path, `AutoStart::run`, and this list behind it).
 static SHUTDOWN_HOOKS: std::sync::Mutex<Vec<ShutdownHook>> = std::sync::Mutex::new(Vec::new());
+/// Set by a component that runs background work for the life of the process
+/// (see [`Platform::keep_running`]); read by [`AutoStart::run`](crate::AutoStart::run).
+static KEEP_RUNNING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// The service registry: route name → manager + worker pool. Cheap to clone.
 #[derive(Clone, Default)]
@@ -190,6 +193,27 @@ impl Platform {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .push(Box::new(hook));
+    }
+
+    /// Declare that this process must stay up until it is told to stop — the
+    /// Rust analog of a Java component holding a **non-daemon thread**. A
+    /// standalone process ([`AutoStart::run`](crate::AutoStart::run)) stays
+    /// alive until Ctrl-C when it serves HTTP or websockets; a headless
+    /// application — a Kafka flow adapter consuming topics, a scheduler — has
+    /// nothing else holding it open and would exit as soon as its
+    /// main-application hooks returned. The component that starts such
+    /// background work calls this once, naming itself for the startup log.
+    /// Embedders that await `AutoStart::main` are unaffected (they own their
+    /// exit).
+    pub fn keep_running(&self, reason: &str) {
+        if !KEEP_RUNNING.swap(true, std::sync::atomic::Ordering::AcqRel) {
+            log::info!("{reason} keeps the application running until it is stopped");
+        }
+    }
+
+    /// Whether a component declared [`Platform::keep_running`].
+    pub fn is_kept_running() -> bool {
+        KEEP_RUNNING.load(std::sync::atomic::Ordering::Acquire)
     }
 
     /// Run every registered shutdown hook once, newest first, each isolated
@@ -1051,6 +1075,16 @@ async fn emit_telemetry(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A component that runs background work declares it once; the
+    /// standalone entry point reads the flag to stay alive until Ctrl-C.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn keep_running_is_declared_once_and_read_by_the_entry_point() {
+        let platform = Platform::new();
+        platform.keep_running("test component");
+        platform.keep_running("test component again");
+        assert!(Platform::is_kept_running());
+    }
 
     /// Java `Platform.onShutdown` contract: hooks run once, newest first, and
     /// one hook's failure never stops the others.

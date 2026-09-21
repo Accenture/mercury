@@ -1,0 +1,10 @@
+#
+# Event Script flow manifest for the minimalist-kafka worked example.
+# The two interop-* flows are bound only by the 'interop' profile's adapter YAML.
+#
+flows:
+  - 'kafka-demo-flow.yml'
+  - 'demo-order-flow.yml'
+  - 'demo-catch-all-flow.yml'
+  - 'interop-to-java-flow.yml'
+  - 'interop-from-java-flow.yml'
