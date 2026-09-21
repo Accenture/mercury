@@ -1,0 +1,17 @@
+flow:
+  id: 'kafka-routed'
+  description: 'records a message selected by a second-level routing rule'
+  ttl: 10s
+
+first.task: 'kafka.sink.task'
+
+tasks:
+  - name: 'kafka.sink.task'
+    input:
+      - 'input.header -> record_header'
+      - 'input.header.type -> type'
+      - 'input.body -> body'
+    process: 'kafka.sink.task'
+    output: []
+    description: 'capture the routed dataset (the type header names the rule that matched)'
+    execution: end

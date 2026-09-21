@@ -906,6 +906,7 @@ dependencies = [
  "mercury-event-script",
  "mercury-platform-core",
  "rdkafka",
+ "regex",
  "rmpv",
  "serde_json",
  "tokio",

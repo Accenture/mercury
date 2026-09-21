@@ -2,3 +2,4 @@ flows:
   - 'kafka-ingest.yml'
   - 'kafka-flaky.yml'
   - 'kafka-poison.yml'
+  - 'kafka-routed.yml'

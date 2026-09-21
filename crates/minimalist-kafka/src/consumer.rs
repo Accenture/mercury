@@ -15,37 +15,75 @@
 //
 
 //! One consumer task per binding (Java `KafkaFlowConsumer`): poll a record,
-//! decode it into the flow dataset (`header` + `metadata` + `body`), launch
-//! the bound Event Script flow, and — only after the flow finishes — commit
-//! the offset (**at-least-once, commit-after-process**). On flow failure the
-//! record retries per the policy, then parks on the binding's `dlq-topic`
-//! with a **confirmed** write before committing, so a poison message is
-//! neither lost nor reprocessed forever.
+//! decode it into the flow dataset (`header` + `metadata` + `body`), select
+//! the target — the binding's one flow, or per record through its
+//! second-level routing rules ([`crate::routing`]) — deliver it, and only
+//! after it finishes commit the offset (**at-least-once,
+//! commit-after-process**; a binding with `auto-commit: true` leaves the
+//! commit to the client's own timer instead). On failure the record retries
+//! per the policy, then parks on the binding's `dlq-topic` with a
+//! **confirmed** write before committing, so a poison message is neither lost
+//! nor reprocessed forever.
 //!
-//! Trace continuity: the record's W3C `traceparent` always wins (the
-//! configured legacy trace-id header is a fallback), the flow chains onto the
-//! upstream span, and the trace path is `KAFKA /<topic>`. The business
-//! correlation-id comes from the configured header (`cid` by default), with a
-//! fresh id minted when absent.
+//! **Subscription modes.** Group-managed `subscribe` by default; manual
+//! `assign` of the one topic-partition when `partition` is set — bypassing
+//! group rebalancing, so the operator owns the deployment model (one consumer
+//! per partition, or each pod pinning a distinct partition via
+//! `partition: ${POD_PARTITION}`); offsets still commit under the configured
+//! group, and the pinned consumer resumes from the group's committed offset
+//! (else `auto.offset.reset`). A `topic-pattern` binding subscribes with the
+//! anchored regex: the client re-matches the cluster's topic list on every
+//! metadata refresh (`topic.metadata.refresh.interval.ms`), so a new matching
+//! topic joins without a restart, as the Java client's `subscribe(Pattern)`
+//! does on its `metadata.max.age.ms`.
 //!
-//! Threading (the Java module runs one kernel thread per binding): the loop
-//! is a tokio task using the client's async stream; the one blocking step —
-//! the synchronous offset commit — runs under `block_in_place`, the
+//! **`serializer: 'json'`** tries to decode the record value before routing —
+//! a JSON object or array becomes a map or list body (so `input.body.*` rules
+//! match and the target receives the decoded value); anything else, malformed
+//! text included, keeps the raw bytes and simply passes to the selected
+//! target (best-effort by design: a target that cannot digest the bytes fails
+//! normally into the retry/DLQ path).
+//!
+//! **`task://` targets** (Java `toTaskRequest`): the whole payload is the body
+//! (raw bytes, or the decoded value), every record header is copied onto the
+//! envelope headers, the business correlation-id rides the engine-managed
+//! `my_cid` tag so the worker injects `my_correlation_id` at delivery, and the
+//! deadline is the binding's `ttl` (default 30 s) — a bare function has no
+//! flow ttl. There is no `metadata` map on this path; a function that needs
+//! the record's envelope facts should be fronted by a flow.
+//!
+//! **Trace continuity.** The record's standard W3C `traceparent` always wins;
+//! the effective traceparent-header override (per-binding, else the global
+//! `kafka.traceparent.header`) is read only when the standard one is absent.
+//! The flow chains onto the upstream span and the trace path is
+//! `KAFKA /<topic>`. The business correlation-id comes from the effective
+//! correlation-id header (per-binding `correlation.id.header`, else the global
+//! `kafka.correlation.id.header`, default `cid`), with a fresh id minted when
+//! absent; the effective trace-id header is the fallback trace-id source for
+//! an upstream that sends no traceparent.
+//!
+//! **Threading** (the Java module runs one kernel thread per binding): the
+//! loop is a tokio task using the client's async stream; the one blocking step
+//! — the synchronous offset commit — runs under `block_in_place`, the
 //! async-correct home for a short blocking round trip.
 
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Duration;
 
+use platform_core::post_office::BUSINESS_CID_TAG;
 use platform_core::{w3c_trace, AppConfigReader, AppError, EventEnvelope, Platform, PostOffice};
 use rdkafka::consumer::{CommitMode, Consumer, StreamConsumer};
 use rdkafka::message::{BorrowedMessage, Headers, Message};
+use rdkafka::TopicPartitionList;
 use rmpv::Value;
 use tokio::sync::watch;
 
 use crate::adapter::KafkaConsumerBinding;
+use crate::client_config::DEFAULT_TASK_TTL_MS;
 use crate::headers::CORRELATION_ID;
 use crate::publisher::KafkaRequestPublisher;
+use crate::routing::RoutingTarget;
 
 const ADAPTER_ROUTE: &str = "kafka.flow.adapter";
 const FLOW_ID_HEADER: &str = "flow_id";
@@ -65,36 +103,43 @@ pub struct RetryPolicy {
     pub dead_letter_publisher: Option<Arc<KafkaRequestPublisher>>,
 }
 
-/// Inbound header names (globals; per-binding overrides arrive with K3).
+/// The effective inbound header names for one binding: the per-binding
+/// override, else the global `kafka.*.header` setting, else the convention.
+#[derive(Clone, Debug)]
 struct InboundNames {
     correlation_id: String,
     trace_id: Option<String>,
     traceparent: String,
 }
 
-fn inbound_names() -> &'static InboundNames {
-    static NAMES: OnceLock<InboundNames> = OnceLock::new();
-    NAMES.get_or_init(|| {
+impl InboundNames {
+    fn for_binding(binding: &KafkaConsumerBinding) -> Self {
         let config = AppConfigReader::get_instance();
         InboundNames {
-            correlation_id: config.get_property_or("kafka.correlation.id.header", CORRELATION_ID),
-            trace_id: config.get_property("kafka.trace.id.header"),
-            traceparent: config.get_property_or("kafka.traceparent.header", w3c_trace::TRACEPARENT),
+            correlation_id: binding.correlation_id_header.clone().unwrap_or_else(|| {
+                config.get_property_or("kafka.correlation.id.header", CORRELATION_ID)
+            }),
+            trace_id: binding
+                .trace_id_header
+                .clone()
+                .or_else(|| config.get_property("kafka.trace.id.header")),
+            traceparent: binding.traceparent_header.clone().unwrap_or_else(|| {
+                config.get_property_or("kafka.traceparent.header", w3c_trace::TRACEPARENT)
+            }),
         }
-    })
+    }
 }
 
 /// A running binding consumer; dropping the handle does not stop it — call
 /// [`KafkaFlowConsumer::close`].
 pub struct KafkaFlowConsumer {
     shutdown: watch::Sender<bool>,
-    binding_topic: String,
+    binding_label: String,
 }
 
 impl KafkaFlowConsumer {
     /// Start the poll loop for one binding on the given consumer (already
-    /// carrying the binding's `group.id` and the pinned delivery-mode
-    /// overlay).
+    /// carrying the binding's `group.id` and its delivery-mode overlay).
     pub fn start(
         platform: Platform,
         consumer: StreamConsumer,
@@ -102,16 +147,12 @@ impl KafkaFlowConsumer {
         retry_policy: RetryPolicy,
         dlq_timeout: Duration,
     ) -> Result<KafkaFlowConsumer, AppError> {
-        consumer.subscribe(&[&binding.topic]).map_err(|e| {
-            AppError::new(
-                500,
-                format!("Unable to subscribe to '{}' - {e}", binding.topic),
-            )
-        })?;
+        subscribe_or_assign(&consumer, &binding)?;
+        log_binding(&binding);
         let (shutdown, shutdown_rx) = watch::channel(false);
         let handle = KafkaFlowConsumer {
             shutdown,
-            binding_topic: binding.topic.clone(),
+            binding_label: binding.label(),
         };
         tokio::spawn(poll_loop(
             platform,
@@ -129,8 +170,71 @@ impl KafkaFlowConsumer {
     /// abandoned mid-flow).
     pub fn close(&self) {
         let _ = self.shutdown.send(true);
-        log::info!("Kafka flow consumer for {} stopping", self.binding_topic);
+        log::info!("Kafka flow consumer for {} stopping", self.binding_label);
     }
+}
+
+/// Group-managed `subscribe` by default; manual `assign` of the single pinned
+/// topic-partition when a `partition` was configured (the client translates
+/// the unset offset to the group's stored offset); the anchored regex
+/// `subscribe` for a `topic-pattern` binding.
+fn subscribe_or_assign(
+    consumer: &StreamConsumer,
+    binding: &KafkaConsumerBinding,
+) -> Result<(), AppError> {
+    let result = if let Some(partition) = binding.partition {
+        let mut assignment = TopicPartitionList::new();
+        assignment.add_partition(&binding.topic_or_pattern, partition);
+        consumer.assign(&assignment)
+    } else if binding.pattern {
+        consumer.subscribe(&[binding.subscription_regex().as_str()])
+    } else {
+        consumer.subscribe(&[binding.topic_or_pattern.as_str()])
+    };
+    result.map_err(|e| {
+        AppError::new(
+            500,
+            format!("Unable to subscribe to {} - {e}", binding.label()),
+        )
+    })
+}
+
+/// One-line summary of a resolved binding (Java `logBinding`).
+fn log_binding(binding: &KafkaConsumerBinding) {
+    let destination = match &binding.routing {
+        Some(rules) => format!("second-level routing ({} rules + default)", rules.size()),
+        None => format!("flow '{}'", binding.flow_id.as_deref().unwrap_or_default()),
+    };
+    let mut extras = String::new();
+    if let Some(partition) = binding.partition {
+        extras.push_str(&format!(", pinned to partition {partition}"));
+    }
+    if binding.json_serializer {
+        extras.push_str(", serializer 'json'");
+    }
+    if let Some(ttl) = binding.task_ttl_ms {
+        extras.push_str(&format!(", task ttl {}s", ttl / 1000));
+    }
+    if let Some(dlq) = &binding.dlq_topic {
+        extras.push_str(&format!(", dlq-topic '{dlq}'"));
+    }
+    if binding.auto_commit {
+        extras.push_str(", auto-commit on");
+    }
+    if let Some(header) = &binding.trace_id_header {
+        extras.push_str(&format!(", trace-id header '{header}'"));
+    }
+    if let Some(header) = &binding.correlation_id_header {
+        extras.push_str(&format!(", correlation-id header '{header}'"));
+    }
+    if let Some(header) = &binding.traceparent_header {
+        extras.push_str(&format!(", traceparent header '{header}'"));
+    }
+    log::info!(
+        "Kafka flow adapter binding: {} -> {destination} (consumer group '{}'{extras})",
+        binding.label(),
+        binding.group_id
+    );
 }
 
 async fn poll_loop(
@@ -141,12 +245,8 @@ async fn poll_loop(
     dlq_timeout: Duration,
     mut shutdown: watch::Receiver<bool>,
 ) {
-    log::info!(
-        "Kafka flow consumer started - topic '{}' -> flow '{}' (group {})",
-        binding.topic,
-        binding.flow_id,
-        binding.group_id
-    );
+    let names = InboundNames::for_binding(&binding);
+    let label = binding.label();
     let mut consecutive_failures = 0u32;
     loop {
         if *shutdown.borrow() {
@@ -158,10 +258,22 @@ async fn poll_loop(
         };
         match received {
             Ok(message) => {
-                if route_to_flow(&platform, &binding, &retry_policy, dlq_timeout, &message).await {
-                    // commit only after the flow finished -> at-least-once.
-                    // The synchronous commit is one short blocking round trip;
-                    // block_in_place keeps it off the async reactor correctly.
+                let delivered = deliver_record(
+                    &platform,
+                    &binding,
+                    &names,
+                    &retry_policy,
+                    dlq_timeout,
+                    &message,
+                )
+                .await;
+                if delivered && !binding.auto_commit {
+                    // commit only after the target finished -> at-least-once.
+                    // (auto-commit mode leaves the offset to the client's own
+                    // timer, regardless of processing outcome - the documented
+                    // throughput-for-redelivery trade.) The synchronous commit
+                    // is one short blocking round trip; block_in_place keeps it
+                    // off the async reactor correctly.
                     let commit = tokio::task::block_in_place(|| {
                         consumer.commit_message(&message, CommitMode::Sync)
                     });
@@ -171,8 +283,7 @@ async fn poll_loop(
                         // partition (at-least-once holds; flows are idempotent
                         // by contract) and the next poll rejoins the group
                         log::warn!(
-                            "Offset commit for {} failed; records will redeliver - {e}",
-                            binding.topic
+                            "Offset commit for {label} failed; records will redeliver - {e}"
                         );
                     }
                 }
@@ -186,9 +297,8 @@ async fn poll_loop(
                 let pause = MAX_FAILURE_BACKOFF_MS
                     .min(INITIAL_FAILURE_BACKOFF_MS << (consecutive_failures - 1).min(5));
                 log::error!(
-                    "Kafka flow consumer for {} caught an error (failure #{consecutive_failures}); \
-                     pausing {pause} ms before it continues - {error}",
-                    binding.topic
+                    "Kafka flow consumer for {label} caught an error (failure #{consecutive_failures}); \
+                     pausing {pause} ms before it continues - {error}"
                 );
                 tokio::select! {
                     _ = shutdown.changed() => break,
@@ -197,39 +307,36 @@ async fn poll_loop(
             }
         }
     }
-    log::info!("Kafka flow consumer for {} stopped", binding.topic);
+    log::info!("Kafka flow consumer for {label} stopped");
 }
 
-/// Route one record into the bound flow, blocking until it finishes. Returns
-/// whether the offset may be committed: the flow completed, or the message
-/// was durably dead-lettered (or dropped-with-ERROR to protect partition
-/// liveness).
-async fn route_to_flow(
+/// Deliver one record to its target — the binding's flow, or the rule-selected
+/// flow or task — blocking until it finishes. Returns whether the offset may
+/// be committed: the target completed, or the message was durably
+/// dead-lettered (or dropped-with-ERROR to protect partition liveness).
+async fn deliver_record(
     platform: &Platform,
     binding: &KafkaConsumerBinding,
+    names: &InboundNames,
     retry_policy: &RetryPolicy,
     dlq_timeout: Duration,
     message: &BorrowedMessage<'_>,
 ) -> bool {
-    let names = inbound_names();
     let headers = record_headers(message);
+    // serializer: 'json' - best-effort decode BEFORE routing, so input.body
+    // rules see the decoded value and the target receives it
+    let decoded = if binding.json_serializer {
+        best_effort_json(message.payload())
+    } else {
+        None
+    };
+    let target = match &binding.routing {
+        Some(rules) => rules.select(&headers, decoded.as_ref()).clone(),
+        None => RoutingTarget::flow(binding.flow_id.as_deref().unwrap_or_default()),
+    };
     // trace-id precedence: W3C traceparent > configured trace-id header
-    // (legacy upstream) > fresh UUID; the flow chains onto the upstream span
-    let trace = headers
-        .get(w3c_trace::TRACEPARENT)
-        .and_then(|value| w3c_trace::parse(value))
-        .or_else(|| {
-            if names
-                .traceparent
-                .eq_ignore_ascii_case(w3c_trace::TRACEPARENT)
-            {
-                None
-            } else {
-                headers
-                    .get(&names.traceparent)
-                    .and_then(|value| w3c_trace::parse(value))
-            }
-        });
+    // (legacy upstream) > fresh UUID; the target chains onto the upstream span
+    let trace = parse_inbound_traceparent(&headers, names);
     let trace_id = trace.as_ref().map(|(id, _)| id.clone()).unwrap_or_else(|| {
         names
             .trace_id
@@ -239,30 +346,40 @@ async fn route_to_flow(
     });
     let trace_path = format!("KAFKA /{}", message.topic());
     let business_cid = resolve_business_cid(&headers, names, &trace_id);
-    let dataset = to_dataset(message, &headers);
-    let ttl_ms = event_script::flows::get_flow(&binding.flow_id)
-        .map(|flow| flow.ttl)
-        .unwrap_or(30_000);
+    let body = match &decoded {
+        Some(json) => json_to_value(json),
+        None => raw_body(message),
+    };
+    let ttl_ms = if target.task {
+        binding.task_ttl_ms.unwrap_or(DEFAULT_TASK_TTL_MS)
+    } else {
+        event_script::flows::get_flow(&target.destination)
+            .map(|flow| flow.ttl)
+            .unwrap_or(DEFAULT_TASK_TTL_MS)
+    };
+    let dataset = if target.task {
+        None
+    } else {
+        Some(to_dataset(message, &headers, body.clone()))
+    };
+    let label = target.label();
     let mut attempt = 0u32;
     loop {
-        let forward = EventEnvelope::new()
-            .set_to(event_script::manager::SERVICE_NAME)
-            .set_header(FLOW_ID_HEADER, &binding.flow_id)
-            .set_header(
-                event_script::manager::BUSINESS_CORRELATION_ID,
-                &business_cid,
-            )
-            .set_correlation_id(&business_cid)
+        // a fresh envelope per attempt (its own event id) - the same content
+        let request = match &dataset {
+            Some(dataset) => flow_request(&target.destination, dataset.clone(), &business_cid),
+            None => task_request(&target.destination, body.clone(), &headers, &business_cid),
+        };
+        let request = request
             .set_from(ADAPTER_ROUTE)
-            .set_trace(&trace_id, &trace_path)
-            .set_raw_body(dataset.clone());
-        let forward = match &trace {
-            Some((_, span)) => forward.set_span_id(span), // chain onto the upstream span
-            None => forward,
+            .set_trace(&trace_id, &trace_path);
+        let request = match &trace {
+            Some((_, span)) => request.set_span_id(span), // chain onto the upstream span
+            None => request,
         };
         let po = PostOffice::new(platform);
         let outcome = po
-            .request(forward, Duration::from_millis(ttl_ms))
+            .request(request, Duration::from_millis(ttl_ms))
             .await
             .and_then(|response| {
                 if response.status() < 400 {
@@ -270,22 +387,17 @@ async fn route_to_flow(
                 } else {
                     Err(AppError::new(
                         response.status(),
-                        format!(
-                            "flow '{}' returned status {}",
-                            binding.flow_id,
-                            response.status()
-                        ),
+                        format!("{label} returned status {}", response.status()),
                     ))
                 }
             });
         let cause = match outcome {
-            Ok(()) => return true, // the flow finished normally -> commit
+            Ok(()) => return true, // the target finished normally -> commit
             Err(e) => e,
         };
         if attempt >= retry_policy.max_retries {
             log::warn!(
-                "flow '{}' failed for a '{}' message after {} attempt(s); routing to {:?} - {}",
-                binding.flow_id,
+                "{label} failed for a '{}' message after {} attempt(s); routing to {:?} - {}",
                 message.topic(),
                 attempt + 1,
                 binding.dlq_topic,
@@ -295,8 +407,7 @@ async fn route_to_flow(
         }
         attempt += 1;
         log::warn!(
-            "flow '{}' failed for a '{}' message (attempt {attempt}/{}); retrying - {}",
-            binding.flow_id,
+            "{label} failed for a '{}' message (attempt {attempt}/{}); retrying - {}",
             message.topic(),
             retry_policy.max_retries,
             cause.message()
@@ -304,6 +415,68 @@ async fn route_to_flow(
         if retry_policy.backoff_ms > 0 {
             tokio::time::sleep(Duration::from_millis(retry_policy.backoff_ms)).await;
         }
+    }
+}
+
+/// The flow-engine request: the per-record flow id, the business
+/// correlation-id (seeded into `model.cid` by the engine) and the dataset.
+fn flow_request(flow_id: &str, dataset: Value, business_cid: &str) -> EventEnvelope {
+    EventEnvelope::new()
+        .set_to(event_script::manager::SERVICE_NAME)
+        .set_header(FLOW_ID_HEADER, flow_id)
+        .set_header(event_script::manager::BUSINESS_CORRELATION_ID, business_cid)
+        .set_correlation_id(business_cid)
+        .set_raw_body(dataset)
+}
+
+/// A direct function invocation for a `task://` target (Java `toTaskRequest`):
+/// every inbound record header copied onto the envelope headers, the whole
+/// payload as the body, and the business correlation-id on the engine-managed
+/// `my_cid` tag — never an envelope header — so the worker injects
+/// `my_correlation_id` at delivery.
+fn task_request(
+    route: &str,
+    body: Value,
+    headers: &HashMap<String, String>,
+    business_cid: &str,
+) -> EventEnvelope {
+    let mut request = EventEnvelope::new()
+        .set_to(route)
+        .set_raw_body(body)
+        .add_tag(BUSINESS_CID_TAG, business_cid);
+    for (key, value) in headers {
+        request = request.set_header(key, value);
+    }
+    request
+}
+
+/// Best-effort JSON decode for a `serializer: 'json'` binding: a JSON object
+/// or array decodes; a scalar or malformed text is `None` (the raw bytes stay
+/// the body). The shape sniff + parse fallback is the same idiom the platform
+/// uses for JSON HTTP content.
+fn best_effort_json(payload: Option<&[u8]>) -> Option<serde_json::Value> {
+    let text = std::str::from_utf8(payload?).ok()?.trim();
+    let shaped = (text.starts_with('{') && text.ends_with('}'))
+        || (text.starts_with('[') && text.ends_with(']'));
+    if !shaped {
+        return None;
+    }
+    serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .filter(|value| value.is_object() || value.is_array())
+}
+
+/// A decoded JSON value as the dynamic body (maps and lists nest; numbers keep
+/// their width).
+fn json_to_value(json: &serde_json::Value) -> Value {
+    rmpv::ext::to_value(json).unwrap_or(Value::Nil)
+}
+
+/// The raw payload bytes as the body; a tombstone is null.
+fn raw_body(message: &BorrowedMessage<'_>) -> Value {
+    match message.payload() {
+        Some(bytes) => Value::Binary(bytes.to_vec()),
+        None => Value::Nil,
     }
 }
 
@@ -405,6 +578,32 @@ fn record_headers(message: &BorrowedMessage<'_>) -> HashMap<String, String> {
     headers
 }
 
+/// The inbound W3C trace context. The standard `traceparent` header always
+/// wins; the effective custom name is read only when the standard header is
+/// absent or malformed — a well-formed standard traceparent means the
+/// upstream already speaks the W3C standard, so a proprietary header alongside
+/// it is residual and safely ignored.
+fn parse_inbound_traceparent(
+    headers: &HashMap<String, String>,
+    names: &InboundNames,
+) -> Option<(String, String)> {
+    headers
+        .get(w3c_trace::TRACEPARENT)
+        .and_then(|value| w3c_trace::parse(value))
+        .or_else(|| {
+            if names
+                .traceparent
+                .eq_ignore_ascii_case(w3c_trace::TRACEPARENT)
+            {
+                None
+            } else {
+                headers
+                    .get(&names.traceparent)
+                    .and_then(|value| w3c_trace::parse(value))
+            }
+        })
+}
+
 /// The upstream business correlation-id from the effective header; a fresh
 /// one when absent — unless the trace-id and correlation-id share ONE header
 /// name (legacy conflation), where the resolved trace id is authoritative so
@@ -433,8 +632,13 @@ fn resolve_business_cid(
 /// Decode a record into the flow dataset — `header` (the record's Kafka
 /// headers), `metadata` (the record's OWN envelope facts: actual topic,
 /// partition, offset, timestamp epoch-ms, and key when present), and `body`
-/// (the raw payload bytes; a tombstone is null).
-fn to_dataset(message: &BorrowedMessage<'_>, headers: &HashMap<String, String>) -> Value {
+/// (the raw payload bytes, or the decoded value under `serializer: 'json'`; a
+/// tombstone is null).
+fn to_dataset(
+    message: &BorrowedMessage<'_>,
+    headers: &HashMap<String, String>,
+    body: Value,
+) -> Value {
     let header_entries: Vec<(Value, Value)> = headers
         .iter()
         .map(|(k, v)| (Value::from(k.as_str()), Value::from(v.as_str())))
@@ -454,10 +658,6 @@ fn to_dataset(message: &BorrowedMessage<'_>, headers: &HashMap<String, String>) 
             Value::from(String::from_utf8_lossy(key).to_string()),
         ));
     }
-    let body = match message.payload() {
-        Some(bytes) => Value::Binary(bytes.to_vec()),
-        None => Value::Nil,
-    };
     Value::Map(vec![
         (Value::from("header"), Value::Map(header_entries)),
         (Value::from("metadata"), Value::Map(metadata)),
@@ -467,4 +667,45 @@ fn to_dataset(message: &BorrowedMessage<'_>, headers: &HashMap<String, String>) 
 
 fn new_id() -> String {
     uuid::Uuid::new_v4().simple().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A JSON object or array decodes; anything else keeps the raw bytes.
+    #[test]
+    fn best_effort_json_parses_objects_and_arrays_and_keeps_bytes_otherwise() {
+        assert!(best_effort_json(Some(br#" {"a":1} "#)).is_some_and(|v| v.is_object()));
+        assert!(best_effort_json(Some(br#"[{"type":"x"}]"#)).is_some_and(|v| v.is_array()));
+        assert!(best_effort_json(Some(b"not-json")).is_none());
+        assert!(
+            best_effort_json(Some(b"{broken")).is_none(),
+            "malformed keeps the bytes"
+        );
+        assert!(best_effort_json(Some(b"\"scalar\"")).is_none());
+        assert!(best_effort_json(Some(&[0xff, 0xfe])).is_none(), "not UTF-8");
+        assert!(best_effort_json(None).is_none(), "a tombstone has no body");
+    }
+
+    #[test]
+    fn decoded_json_becomes_a_nested_dynamic_body() {
+        let json = serde_json::json!({"event": {"kind": "refund"}, "amount": 10, "tags": ["a"]});
+        let value = json_to_value(&json);
+        let Value::Map(entries) = value else {
+            panic!("a JSON object is a map body");
+        };
+        let event = entries
+            .iter()
+            .find(|(k, _)| k.as_str() == Some("event"))
+            .map(|(_, v)| v.clone())
+            .expect("event");
+        assert!(matches!(event, Value::Map(_)));
+        let amount = entries
+            .iter()
+            .find(|(k, _)| k.as_str() == Some("amount"))
+            .map(|(_, v)| v.clone())
+            .expect("amount");
+        assert_eq!(Some(10), amount.as_i64());
+    }
 }
