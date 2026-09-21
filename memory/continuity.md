@@ -13,14 +13,14 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is being ported under `ot-minimalist-kafka-port` (K1–K3 done). The current release is the `latest_release` field below. History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
+- **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included; v4.12.14 — one number on both engines — pending the PR merges). The current release is the `latest_release` field below. History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
 - **latest_release:** v4.12.12 (2026-09-21 — **the catch-up release**, PR #296 `13744c77` merged as `983e7550`;
   tag `v4.12.12` → `1ef183cb`, one memory-only commit past the merge, workspace version verified at the tag; GitHub
   release published 00:53Z, body = the CHANGELOG entry). Adopts the Java number per the Java-side
   `conv-ports-adopt-java-release-number`: 4.12.7 → 4.12.12 in one step, carrying Increments 118–124 plus the
   sync-over-async R1–R4 and minimalist-kafka K1–K2 gates. Crates.io publication still held until K5. Not yet
   ported (stated in the entry, backlog P8–P10): the CompileGraph task↔skill gate, the case-insensitive
-  `input.header.*` fallback for Kafka headers, dev mode in the starter-graph template. Prior: v4.12.7 (2026-09-11).
+  `input.header.*` fallback for Kafka headers, dev mode in the starter-graph template — the first two ported on `feat/lockstep-4-12-13` (2026-09-21), the third awaits a ruling. **Next: v4.12.14** (Eric, 2026-09-21: one number on both engines after the lock-step round) — the K5 branches, the docs twin and the lock-step branch are pushed, PRs pending; the Rust release branch (4.12.12 → 4.12.14 in one step) and the crates.io publication follow their merge. Prior: v4.12.7 (2026-09-11).
 - **last_enabled:** 2026-07-15
 - **last_review:** 2026-09-21 | through 2026-09-21-025547.md (cadence — 10 sessions since; archived 0, swept 0 —
   the six closed threads sit at sslu 9–15, inside the 20-session window; tier changes 14 (refresh-metadata:
@@ -276,6 +276,23 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   timeout. Report: `docs/test-reports/minimalist-kafka-interop.md` Findings 1–2; Increment 126. Relates [[port-bottom-up-faithful]]
   (an implicit JVM property mapped to an explicit Rust declaration).
   <!-- id: headless-app-keep-running | created: 2026-09-21 | last_used: 2026-09-21 | uses: 3 | tier: active | origin: 2026-09-21-175430 -->
+
+- **The Schema Registry codec is this engine's own, and what it cannot delegate it refuses (Eric's viability
+  ruling, 2026-09-21; K5a).** Java speaks the Confluent wire format through Confluent's own serializers; there is
+  no Confluent client for Rust, so `crates/minimalist-kafka/src/schema` implements the frame
+  (`[0x00][4-byte id][payload]`), subject/version resolution, the positive-only id cache + the pinned-version
+  cache (`ManagedCache`), and the two codecs — JSON Schema (the document; validation only under
+  `json.fail.invalid.schema`) and Avro (`apache-avro`; JSON→datum walks the writer schema: defaults for absent
+  fields, fail-fast on a missing no-default field, unions in order) — over the platform's own
+  `async.http.request`. The `schema-registry.yml` template is INTERPRETED by name (OAuth 2.0 client credentials,
+  STATIC_TOKEN, SASL_OAUTHBEARER_INHERIT, basic USER_INFO/URL/SASL_INHERIT, the Confluent Cloud headers; every
+  other key logged as ignored; TLS trust from the OS store). **CSFLE, data-contract `ruleSet`s and schema
+  `references` are refused with a 501** — the alternative, plaintext where the schema declares encryption, is a
+  silent security regression; Protobuf stays recognized-and-refused as on Java. One shared, thread-safe codec
+  per registry (a second registry = a second key prefix, because global ids are only unique within one
+  registry). Proven byte-compatible live: Confluent's serializers ⇄ this codec in both directions
+  (`docs/test-reports/minimalist-kafka-interop.md`, K5 addendum). Spec §7 items 12–16.
+  <!-- id: schema-registry-native-codec | created: 2026-09-21 | last_used: 2026-09-21 | uses: 1 | tier: working | origin: 2026-09-21-233114 -->
 
 ## Conventions
 

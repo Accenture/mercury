@@ -44,12 +44,26 @@
   both engines ship `auto` in the bundled template (Java `feat/kafka-group-protocol-auto-default`
   `ee37b907`, PR #436 MERGED squash `7def2bb4`). Proven live both ways on the standalone broker (spec §7 item 7; report addendum).
   P11 (`SIGTERM`) closed on `fix/sigterm-graceful-stop` `5688e643` = PR #301, MERGED 2026-09-21 (`922e13c7`).
-  Next gate: K5 — the held items close: sync-over-async facade tasks (`sync.prepare` / `sync.await`
-  / `soa.reply`) over this transport + the demo's Kafka request leg (the Java `RestFlowMvpTest`
-  analog green in Rust); then the release gate publishes `mercury-sync-over-async` + this crate
-  together. **K5 docs items:** the `docs/guides/minimalist-kafka.md` twin for the AI contract, the
-  root README non-goals paragraph (still says minimalist-kafka is "planned"), one INCREMENTS entry
-  for the whole port (K1–K5 record in spec §8 until then).
+  **K5 RULED and DONE 2026-09-21** (origin: 2026-09-21-233114.md; Eric: port the Schema Registry if viable, mirror the Java
+  demo, v4.12.14 on both engines after the lock-step round). **K5a** `feat/minimalist-kafka-schema-registry`
+  `0da85068` — the Confluent wire format for JSON Schema and Avro on this engine's own codec (`apache-avro`,
+  `jsonschema`), subject-driven produce, decode by embedded id, positive-only caches, the interpreted
+  `schema-registry.yml` (OAuth 2.0 client credentials); CSFLE / rules / references / Protobuf refused with a
+  501 (spec §7 items 12–16, §9 Q2 re-ruled; [[schema-registry-native-codec]]). **K5c docs**
+  `docs/minimalist-kafka-guide` `424e1515` (stacked) — the guide twin, nav, llms, files.list, the config
+  reference's Kafka section, two claims, README + port-scope. **K5b** `feat/sync-over-async-facade`
+  `cca0c1bf` (stacked) — `sync.prepare`/`sync.await`/`soa.reply` + the extension's auto-start, the
+  `RestFlowMvpTest` twin, the demo mirrored (facade/backend, raw/JSON/Avro legs), the live drive with the Java
+  demo (report addendum Scenarios 8–13: frames decoded both ways by both engines, a mixed backend group, the
+  Java facade delivering replies to the waiting Rust facade through the Redis return route). Finding 5: the
+  configuration-only link line applies to every crate (the demo shipped without `http.flow.adapter`).
+  **Lock-step round** `feat/lockstep-4-12-13` `48506b99` (from main; Increment 128): the task↔skill gate,
+  the case-insensitive `input.header.*` fallback, snake_case log-context keys + automatic timestamp; P2
+  confirmed no change; **P10 needs a ruling**. PRs pending (Eric opens: K5a → docs → K5b; lock-step
+  independent). Increment 127 records the whole port.
+  Next gate: **the release** — after the four Rust PRs and the Java `release/v4.12.14` PR merge, the Rust
+  release branch (4.12.12 → 4.12.14 in one step) and the crates.io publication of `mercury-sync-over-async`
+  + `mercury-minimalist-kafka` (Eric publishes).
   Client decision: `rdkafka` (only maintained Rust client with the full group protocol;
   vendored librdkafka builds with cc+make, no CMake — verified). Unit tests:
   `rdkafka::mocking::MockCluster` (mockforge-kafka 0.3.221 investigated head-to-head and

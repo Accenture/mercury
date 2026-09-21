@@ -8,9 +8,10 @@
   config defaults) plus map-don't-mirror deltas (§5: MULTI/EXEC for Lua, explicit
   resubscribe, edge-grace headroom) is what makes two engines drop-in peers — and porting
   the suites is a test review of the canon (two latent Java flakes found, #378/#379).
-  Deferred: crates.io publication AND the Q1 facade tasks are HELD until minimalist-kafka
-  lands (Eric 2026-09-14; [[ot-minimalist-kafka-port]] K5 closes both — the path-only
-  dev-dep check rides that release). Bounce-path retry: RULED 2026-09-14 and implemented —
+  Q1 facade tasks: **DONE 2026-09-21** (K5b, `feat/sync-over-async-facade` `cca0c1bf`, origin
+  2026-09-21-233114.md — `sync.prepare`/`sync.await`/`soa.reply` + the extension's own auto-start, the
+  `RestFlowMvpTest` twin, the demo mirrored, the live two-engine drive); crates.io publication
+  rides v4.12.14 with [[ot-minimalist-kafka-port]] (the path-only dev-dep check at that release). Bounce-path retry: RULED 2026-09-14 and implemented —
   idempotent-only retry-once keyed on the manager's own reconnect trigger (spec §5 item 6);
   append/pop/publish stay fail-fast.
   origin: 2026-09-13-161430 (spec) → R4 close: 2026-09-14-010743.
