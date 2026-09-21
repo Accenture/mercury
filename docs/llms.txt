@@ -112,6 +112,20 @@ Reach for these when you need an exact value rather than a how-to: a macro param
 configuration key, a reserved name, the envelope shape. Every page here was enumerated from this
 repo's own source, so it answers the question without opening `crates/`.
 
+- [Minimalist Kafka](guides/minimalist-kafka.md) — the opt-in `mercury-minimalist-kafka` crate, the
+  lock-step twin of the Java `minimalist-kafka` module: an inbound Kafka Flow Adapter routing topics into
+  Event Script flows (`kafka-flow-adapter.yaml`: literal or regex topics, consumer groups, partition
+  pinning, second-level routing per record to `flow://` or `task://` targets, `serializer: 'json'`,
+  bounded retry then a per-binding `dlq-topic`, manual commit-after-process or `auto-commit`, the derived
+  `max.poll.interval.ms`, `group.protocol=auto` for KIP-848), the outbound `simple.kafka.notification`
+  function (bytes or map/list body, explicit `partition`, the auto-stamped `cid`, a fresh W3C
+  `traceparent` per hop, `murmur2_random` default partitioner), `kafka.health`, externalized
+  `kafka-producer.yml` / `kafka-consumer.yml` templates with `${ENV}` substitution, and the Confluent
+  Schema Registry wire format for JSON Schema and Avro (subject-driven produce with `subject`/`version`
+  headers, `schema.enabled` decode by embedded id, positive-only schema caches, the interpreted
+  `schema-registry.yml` template with OAuth 2.0 client credentials; CSFLE, data-contract rules, schema
+  references and Protobuf refused, never degraded). Stated deltas from the Java engine in its own
+  section. NOT the Kafka service mesh.
 - [Macros reference](guides/macros-reference.md) — the Rust carrier surface, analog of the Java
   annotations: `#[preload]`, `#[main_application]`, `#[before_application]`, `#[optional_service]`,
   `#[websocket_service]`, `#[simple_plugin]`, `#[fetch_feature]` — parameters, the crate each

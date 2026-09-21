@@ -49,11 +49,14 @@ These are **scope decisions**, not gaps — they will not be ported:
 
 Present in the Java platform, absent here today, and candidates for future increments:
 
-- **`minimalist-kafka` and `twin-kafka`** — the **lightweight, cloud-native Kafka
-  connectors**. Unlike the mesh above, these are planned ports: they carry events between
-  runtimes without the mesh's discovery layer. (This is why HTTP-specific configuration keys
-  keep their `http.` prefix — connector-specific counterparts arrive with them.)
-- **sync-over-async** — the request/response bridge over asynchronous transports.
+- **`twin-kafka`** — the second-cluster Kafka bridge, deferred until a bridge need exists.
+  Its sibling **`minimalist-kafka`** — the lightweight, cloud-native Kafka connector (the flow
+  adapter, `simple.kafka.notification`, `kafka.health`, the Confluent Schema Registry wire
+  format) — **is ported**: `crates/minimalist-kafka`, guide
+  [`minimalist-kafka.md`](../guides/minimalist-kafka.md). So is **sync-over-async** (the
+  request/response bridge over asynchronous transports and the streaming return route):
+  `extensions/sync-over-async`. (Connector-specific configuration keys carry the `kafka.` prefix
+  next to the HTTP adapter's `http.` keys, as planned.)
 - HTTPS in the async HTTP client (a TLS stack), HTTP relay / `url_rewrite`, A/B dual service.
 - Multipart file upload and request/response streaming at the REST boundary.
 - `/info/lib` and `/info/routes` actuators; the ready-made OpenTelemetry OTLP forwarder

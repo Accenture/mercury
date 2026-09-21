@@ -20,8 +20,8 @@ files themselves merge in the manifest order described below.
     are therefore absent from this page: the Spring Boot integration keys (`spring.*`,
     `server.port`), TLS and server extras (`rest.server.ssl*`, `api.origin`, `hsts.feature`,
     `oversize.http.response.header`, `websocket.binary.size`, `websocket.server.port`),
-    the service mesh / cloud connector and all Kafka keys, the scheduler, PostgreSQL,
-    sync-over-async/Redis, the OpenTelemetry forwarder (`otel.*`), classpath scanning
+    the service mesh / cloud connector and the `twin-kafka` (second cluster) keys, the scheduler,
+    PostgreSQL, the OpenTelemetry forwarder (`otel.*`), classpath scanning
     (`web.component.scan`, `modules.autostart`), threading
     (`kernel.thread.pool`, `deferred.commit.log`), event-script extras
     (`yaml.journal`, `yaml.multicast`),
@@ -500,6 +500,115 @@ capped (same as the Java engine). Read once by `crates/event-script` (task execu
     Added in increment 52 (parity remediation): the key existed in the Java engine from
     the start, and the syntax guide already described it — the Rust executor now enforces
     it.
+
+## Kafka flow adapter and notification {#kafka-flow-adapter}
+
+The opt-in `mercury-minimalist-kafka` crate — see the [Minimalist Kafka guide](minimalist-kafka.md).
+Every key is read by `crates/minimalist-kafka`.
+
+#### `yaml.kafka.flow.adapter`
+
+| Type | Default |
+|---|---|
+| string (location) | — |
+
+Location of the inbound adapter YAML (`kafka-flow-adapter.yaml`: the `consumer:` binding list).
+Unset = no adapter consumer starts. The file's values support `${ENV_VAR:default}` substitution.
+
+#### `kafka.producer.enabled`, `kafka.consumer.enabled`
+
+| Type | Default |
+|---|---|
+| boolean | `true` |
+
+Vetoes, not triggers: only the literal `false` switches a client off. A binding with `dlq-topic`
+while the producer is off fails the deployment at startup; with the consumer off, `kafka.health`
+probes through the producer template.
+
+#### `kafka.producer.properties`, `kafka.consumer.properties`
+
+| Type | Default |
+|---|---|
+| string (comma-separated locations) | `classpath:/kafka-producer.yml, classpath:/kafka-producer.properties` / the consumer twin |
+
+The client templates: librdkafka parameter names (`bootstrap.servers`, `security.protocol`,
+`sasl.*`, `ssl.*`, `acks`, `auto.offset.reset`, `group.protocol`), `${ENV_VAR:default}`
+substitution. A single location is normal; a comma-separated list is a fallback chain. JVM-only keys
+are ignored with a startup log line naming each one.
+
+#### `kafka.dlq.timeout.ms`
+
+| Type | Default |
+|---|---|
+| integer (milliseconds) | `10000` |
+
+Confirm-write deadline for the dead-letter publish. Flow processing has no timeout knob — the flow's
+own `ttl` is the deadline.
+
+#### `kafka.flow.max.retries`, `kafka.flow.retry.backoff.ms`
+
+| Type | Default |
+|---|---|
+| integer | `3` / `500` |
+
+Retry attempts before dead-lettering, and the pause between attempts. Together with the slowest
+reachable flow/task `ttl` they derive each binding's `max.poll.interval.ms`.
+
+#### `kafka.correlation.id.header`, `kafka.trace.id.header`, `kafka.traceparent.header`
+
+| Type | Default |
+|---|---|
+| string (header name) | `cid` / — / `traceparent` |
+
+The record headers carrying the business correlation id, an optional legacy trace id, and the W3C
+trace context — both directions. Each has a per-binding override in the adapter YAML
+(`correlation.id.header`, `trace.id.header`, `traceparent.header`).
+
+#### `kafka.health.timeout`, `kafka.health.startup.grace`
+
+| Type | Default |
+|---|---|
+| duration | `5s` / `30s` |
+
+The `kafka.health` probe's round-trip deadline, and how long `/health` reports the placeholder
+status while the client warms up.
+
+#### `schema.registry.url`
+
+| Type | Default |
+|---|---|
+| string (URL) | — |
+
+The Confluent Schema Registry; unset = schema features off (raw bytes on the wire). The feature
+switch for `schema.enabled` bindings and the `subject` header of `simple.kafka.notification`.
+
+#### `schema.registry.properties`
+
+| Type | Default |
+|---|---|
+| string (comma-separated locations) | `classpath:/schema-registry.yml, classpath:/schema-registry.properties` |
+
+The registry client template: authentication (`bearer.auth.*`, `basic.auth.*`) and the Confluent
+Cloud headers, interpreted by name; unknown keys are logged as ignored.
+
+#### `schema.registry.cache.ttl`, `schema.registry.version.cache.ttl`
+
+| Type | Default |
+|---|---|
+| duration | `30m` / `10d` |
+
+TTLs of the id→schema cache (positive results only, cleared at startup) and of the pinned
+subject+version resolutions (bounded to 3000 entries).
+
+#### `schema.registry.serde.json.fail.invalid.schema`
+
+| Type | Default |
+|---|---|
+| boolean | `false` |
+
+Validate JSON documents against their registered schema on both produce and consume (Confluent's
+`json.fail.invalid.schema`). Other `schema.registry.serde.*` keys have no analog here (CSFLE is not
+supported) and are logged as unsupported.
 
 ## Knowledge graph and Playground
 
