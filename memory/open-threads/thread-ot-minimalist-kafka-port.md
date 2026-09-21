@@ -38,12 +38,12 @@
   platform-core: [[headless-app-keep-running]] (a headless app exited after boot). Follow-up
   recorded, platform-wide: `SIGTERM` not handled by `AutoStart::run` (backlog P11). Rulings at the
   gate (Eric): `auto` = classic accepted (spec §7 item 7), helpers copied, chained-hop shape.
-  **Open (Eric, 2026-09-21 evening; origin 2026-09-21-183033.md):** re-ruling on `group.protocol=auto` — the
-  standalone broker finalizes `group.version=1`, `consumer` works on this engine live, and librdkafka
-  raises a fatal `ConsumerGroupHeartbeat` error where a broker lacks the protocol, so an optimistic
-  `auto` (start as `consumer`, rebuild once as `classic` on that error) is feasible with no probe;
-  and whether the templates should ship `auto` by default (Java parity today: commented opt-in).
-  P11 (`SIGTERM`) closed on `fix/sigterm-graceful-stop` `5688e643`.
+  **`group.protocol=auto` RE-RULED and IMPLEMENTED 2026-09-21** (origin 2026-09-21-184821.md; branch
+  `feat/kafka-group-protocol-auto` `0beba0f8`, stacked on PR #301, PR pending): optimistic `auto` —
+  `consumer` first, rebuilt once as `classic` on librdkafka's fatal `ConsumerGroupHeartbeat` refusal;
+  both engines ship `auto` in the bundled template (Java `feat/kafka-group-protocol-auto-default`
+  `ee37b907`). Proven live both ways on the standalone broker (spec §7 item 7; report addendum).
+  P11 (`SIGTERM`) closed on `fix/sigterm-graceful-stop` `5688e643` = PR #301.
   Next gate: K5 — the held items close: sync-over-async facade tasks (`sync.prepare` / `sync.await`
   / `soa.reply`) over this transport + the demo's Kafka request leg (the Java `RestFlowMvpTest`
   analog green in Rust); then the release gate publishes `mercury-sync-over-async` + this crate
@@ -60,4 +60,4 @@
   crates.io publication and the sync-over-async Q1 facade tasks both wait for K5.
   → serves: vision-mercury (the connectors Blueprint gap closed at the 2026-09-17 gate; this port is
   the live Vision-serving work — Eric: minimal-kafka is in scope, the Kafka service mesh is not)
-  <!-- id: ot-minimalist-kafka-port | created: 2026-09-14 | last_used: 2026-09-21 | uses: 6 | tier: working | origin: 2026-09-14-015014 -->
+  <!-- id: ot-minimalist-kafka-port | created: 2026-09-14 | last_used: 2026-09-21 | uses: 9 | tier: working | origin: 2026-09-14-015014 -->

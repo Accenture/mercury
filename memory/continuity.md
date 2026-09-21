@@ -214,7 +214,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   racing Lettuce's command timeout — fixed in lock-step. Recorded asymmetry, since CLOSED (2026-09-20): an in-function RPC timeout is **408** here (`Result`)
   and WAS **500** on Java — a Java platform-core mapping gap (status from the outermost exception), fixed there
   with a cause-chain rule; 408 on both engines now, this engine unchanged. Applies to every PostOffice caller, not only the cache. Relates [[rest-error-body-standard-shape]].
-  <!-- id: l1-caller-checks-reply-status-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
+  <!-- id: l1-caller-checks-reply-status-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: active | origin: 2026-09-20-004627 -->
 
 - **The foundation's command path classifies Redis failures — a timeout is 408, an unreachable Redis 503,
   only a server answer stays 500 — so `v1.cache.redis` fails for what it is, in lock-step with Java (Eric,
@@ -232,7 +232,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   timeout). Java twin: `RedisFailure.classify` applied by `RedisCache`. Behaviour change to READ: a caller
   that keyed on 500 for a Redis outage now sees 408/503. Relates [[redis-connection-foundation-rust]],
   [[l1-caller-checks-reply-status-rust]].
-  <!-- id: redis-failure-classification-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
+  <!-- id: redis-failure-classification-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: active | origin: 2026-09-20-004627 -->
 
 - **A function's failure reaches a REST client as the standard error body `{status, message, type:
   error}` — never as bare text (found and fixed 2026-09-19 by the cache example's Layer 1 miss).** Java
@@ -275,7 +275,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   proven live: explicit `LeaveGroup` 22 ms after the signal, where a hard kill waits the 45 s session
   timeout. Report: `docs/test-reports/minimalist-kafka-interop.md` Findings 1–2; Increment 126. Relates [[port-bottom-up-faithful]]
   (an implicit JVM property mapped to an explicit Rust declaration).
-  <!-- id: headless-app-keep-running | created: 2026-09-21 | last_used: 2026-09-21 | uses: 1 | tier: working | origin: 2026-09-21-175430 -->
+  <!-- id: headless-app-keep-running | created: 2026-09-21 | last_used: 2026-09-21 | uses: 3 | tier: active | origin: 2026-09-21-175430 -->
 
 ## Conventions
 
@@ -330,7 +330,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   or appends its resource root explicitly. Applied to `templates/starter-graph` and
   `examples/minigraph-playground` on 2026-09-20 at Eric's direction (branch `chore/cargo-declare-what-you-name`,
   `8868613c`, PR #291 MERGED 2026-09-20, merge `548ce651`; the root README, the template README and the getting-started guide now state the rule).
-  <!-- id: conv-cargo-declare-what-you-name | created: 2026-09-20 | last_used: 2026-09-21 | uses: 2 | tier: active | origin: 2026-09-20-004627 -->
+  <!-- id: conv-cargo-declare-what-you-name | created: 2026-09-20 | last_used: 2026-09-21 | uses: 3 | tier: active | origin: 2026-09-20-004627 -->
 
 - **A `rest.yaml` entry whose service is not registered is SKIPPED at load, and `/` falls back to the `/index.html`
   entry — Java REST semantics the port lacked until Increment 122 (Eric found both running the Playground with
@@ -381,7 +381,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `skills-reference.md` (graph.task), the in-Playground help and the AI agent guide's pre-send checklist,
   pinned by `unit-test-task-9` (`graph_runtime.rs`) in lockstep with the Java repo. Extends
   [[conventions-rust-baseline]] (docs and fixtures stay byte-aligned with the reference).
-  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-152809 -->
+  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: active | origin: 2026-09-20-152809 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
