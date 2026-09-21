@@ -276,20 +276,23 @@ return route's R4.
    that activates the module purely by configuration must carry a single
    `use mercury_minimalist_kafka as _;` where the Java jar needs only the dependency.
    Documented in the crate docs; the K4 demo shows it.
-7. **`group.protocol=auto` resolves to `classic` on this engine** (K3, replacing the K2
-   note): the Java module probes the cluster's finalized `group.version` feature through the
-   Admin client's `describeFeatures`; librdkafka exposes no feature probe, and the
-   alternatives examined were rejected — a broker config
-   (`group.coordinator.rebalance.protocols`) is not the feature flag and needs a
-   DescribeConfigs grant; a trial join with `consumer` churns a real group, or hits group
-   ACLs with a synthetic one. So `auto` → `classic` with a WARN (stated once per process)
-   naming the explicit setting: `group.protocol=consumer` on Apache Kafka 4.0+ with
-   `group.version >= 1`, which this client supports natively and passes through verbatim.
-   The Java conflict guard is kept — a template that also sets `session.timeout.ms`,
-   `heartbeat.interval.ms` or `partition.assignment.strategy` resolves to `classic` naming
-   the keys. **ACCEPTED as the delta (Eric, 2026-09-21, at the K4 gate):** `auto` = `classic` on
-   this engine; a trial-join probe was considered and not taken (production side effects on a
-   real group, or group-ACL denials with a synthetic one).
+7. **`group.protocol=auto` is resolved OPTIMISTICALLY — `consumer` first, `classic` on refusal**
+   (K3 shipped `auto` = `classic`; re-ruled by Eric at K4, 2026-09-21, after the live check that the
+   `kafka-standalone` broker finalizes `group.version=1` and that `consumer` works on this engine).
+   The Java module probes the cluster's finalized `group.version` feature through the Admin
+   client's `describeFeatures`; librdkafka exposes no feature probe, and every side-effect-free
+   alternative was rejected (a broker config is not the feature flag; a trial join with a synthetic
+   group hits ACLs). What librdkafka DOES give is a **fatal `ConsumerGroupHeartbeat` error** when a
+   broker lacks the protocol — `_UNSUPPORTED_FEATURE` when the API is not advertised (before 4.0),
+   `UNSUPPORTED_VERSION` when the coordinator has it disabled — so `auto` starts each binding's
+   consumer with `consumer` and, on that error at the first join, rebuilds it once with `classic`
+   (`consumer_protocol_rejected` in `consumer.rs`; other fatal errors such as a group
+   authorization failure are the consumer's own and are not masked). Same semantics as the Java
+   probe, resolved per binding, with no synthetic group and no extra member; the Java conflict
+   guard is kept (`session.timeout.ms`, `heartbeat.interval.ms`, `partition.assignment.strategy`
+   with `auto` → `classic` naming the keys). **Both engines ship `auto` uncommented in their
+   bundled consumer templates** (`${KAFKA_GROUP_PROTOCOL:auto}`, Eric 2026-09-21), so a KIP-848
+   cluster gets the incremental protocol by default and an older one still works.
 8. Anything else discovered at implementation joins this list; wire-visible behavior
    (headers, DLQ headers, dataset shape) is normative parity, never a delta.
 9. **Regex subscriptions are anchored with a capturing group** (K3): a `topic-pattern` is

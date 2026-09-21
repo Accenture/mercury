@@ -285,6 +285,10 @@ The permanent record of this drive — evidence, defects found and their fixes �
 
 - Point at a different broker with `export KAFKA_BOOTSTRAP_SERVERS=host:port` (both the app and the
   Node programs honor it).
+- The bundled consumer template ships `group.protocol=${KAFKA_GROUP_PROTOCOL:auto}`: on a Kafka 4.0+
+  broker with the `group.version` feature the bindings join with the KIP-848 consumer protocol (the
+  broker logs `joins the consumer group using the consumer protocol`); a broker without it refuses the
+  first join and the binding rejoins with the classic protocol — one `WARN` names the resolution.
 - On repeated processing failure, a message is dead-lettered to the binding's configured `dlq-topic`
   (`demo.inbound.dlq` / `demo.orders.dlq` in `kafka-flow-adapter.yaml`); `create-topics.js` pre-creates
   both, and the failure handling applies identically to `flow://` and `task://` targets — see
