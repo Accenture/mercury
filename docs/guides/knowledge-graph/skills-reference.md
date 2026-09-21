@@ -281,6 +281,12 @@ input[]=input.body.id -> model.id        # 'model.{key}' stages a state-machine 
 output[]=result -> output.body
 ```
 
+**The deployment gate holds the pair together.** A `task` route names a composable function the author
+means to call, so CompileGraph rejects — as a hard error naming the node — a node carrying `task` with no
+`skill`, a `task` under a skill that never calls one (only `graph.task`, `graph.suspend` and
+`graph.resume` consume a task route), and a `graph.task` node with no `task`: each is an inert node the
+graph would traverse while nothing runs.
+
 Worked example (tutorial-13 — any registered route is callable, so `async.http.request` turns
 the node into an HTTP client by configuration):
 

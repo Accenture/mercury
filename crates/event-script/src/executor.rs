@@ -1487,6 +1487,17 @@ fn perform_input_mapping(
         } else {
             get_constant_value(&lhs)
         };
+        // Java 4.12.12: the Kafka flow adapter delivers record headers in the
+        // producer's wire casing, so the lowercased reference above misses a
+        // `Content-Type` header a producer sent - scan case-insensitively, and
+        // only on a miss (the HTTP path, whose headers arrive lowercased, pays
+        // nothing); normalizing at the adapter would change what the `*`
+        // passthrough hands a function (Eric's ruling, 2026-09-16)
+        if value.is_none() {
+            if let Some(name) = lhs.strip_prefix("input.header.") {
+                value = header_ignoring_case(dataset, name);
+            }
+        }
         // dynamic fork iteration (Java getInputDataMappingLhsValue): the
         // pseudo keys <source>.ITEM / <source>.INDEX resolve per branch
         if value.is_none() {
@@ -1791,5 +1802,18 @@ impl FlowExecutor {
             event = event.set_trace(trace_id, trace_path);
         }
         event
+    }
+}
+
+/// The case-insensitive header scan (Java `TaskExecutor.headerIgnoringCase`):
+/// the value under the first `input.header` key equal to `name` regardless of
+/// case, or `None` when absent.
+pub(crate) fn header_ignoring_case(dataset: &MultiLevelMap, name: &str) -> Option<Value> {
+    match dataset.get_element("input.header") {
+        Some(Value::Map(entries)) => entries
+            .iter()
+            .find(|(key, _)| key.as_str().is_some_and(|k| k.eq_ignore_ascii_case(name)))
+            .map(|(_, value)| value.clone()),
+        _ => None,
     }
 }

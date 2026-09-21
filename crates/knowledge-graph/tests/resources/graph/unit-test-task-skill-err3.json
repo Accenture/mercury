@@ -1,0 +1,55 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "graph.task calls a composable function, so a task route is required",
+        "name": "unit-test-task-skill-err3"
+      }
+    },
+    {
+      "alias": "worker",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "input": [
+          "input.body -> body"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "worker",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "worker",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

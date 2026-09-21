@@ -50,6 +50,26 @@ pub const RESERVED_KEYS: [&str; 7] = [
     "utc",
 ];
 
+/// The output keys `PostOffice::update_context` refuses — the reserved
+/// tokens' names in both spellings (Java 4.12.13: the default template emits
+/// snake_case, older templates camelCase, and a developer key under either
+/// spelling would shadow the real trace context).
+pub const RESERVED_OUTPUT_KEYS: [&str; 13] = [
+    "cid",
+    "traceId",
+    "trace_id",
+    "tracePath",
+    "trace_path",
+    "spanId",
+    "span_id",
+    "parentSpanId",
+    "parent_span_id",
+    "service",
+    "utc",
+    "timestamp",
+    "time",
+];
+
 /// Per-execution trace state (Java `TraceInfo` + `LogContext`, combined —
 /// one task-local anchor holds both the trace identity and the log context).
 #[derive(Clone, Debug)]

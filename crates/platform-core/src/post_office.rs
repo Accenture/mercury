@@ -248,10 +248,13 @@ impl PostOffice {
     /// Attach business context to the **application log** stream only (Java
     /// `updateContext`) — appears in the `context` block of every subsequent
     /// structured log line of this request. A `null` value removes the key.
-    /// The reserved keys (cid, traceId, tracePath, spanId, parentSpanId,
-    /// service, utc) are rejected; outside a trace the call is a silent no-op.
+    /// The reserved keys — the trace-context names in both spellings (`cid`,
+    /// `traceId` / `trace_id`, `tracePath` / `trace_path`, `spanId` / `span_id`,
+    /// `parentSpanId` / `parent_span_id`, `service`, `utc`, `timestamp`) — are
+    /// rejected with a 400; outside a trace the call is a silent no-op. A key
+    /// the template also emits never shadows the template: the template wins.
     pub fn update_context(&self, key: &str, value: impl serde::Serialize) -> Result<(), AppError> {
-        if crate::trace::RESERVED_KEYS.contains(&key) {
+        if crate::trace::RESERVED_OUTPUT_KEYS.contains(&key) {
             return Err(AppError::new(
                 400,
                 format!("'{key}' is a reserved log context key"),

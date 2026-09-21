@@ -64,9 +64,76 @@ const MAPPING_PROPERTIES: [&str; 4] = ["mapping", "input", "output", "for_each"]
 /// metadata immutability (Java `GraphModelValidator.validate`), returning
 /// the first violated rule.
 pub fn validate(graph: &MiniGraph) -> Result<(), String> {
+    validate_working_node_has_skill(graph)?;
     validate_suspend_resume(graph)?;
     validate_node_ttl(graph)?;
     validate_model_metadata_immutability(graph)
+}
+
+/// The skills that call a composable function named by `task` (Java
+/// `GraphModelValidator.TASK_CONSUMING_SKILLS`): `graph.task`, and the two
+/// documented supersets whose `task` names the pluggable state-store function.
+const TASK_CONSUMING_SKILLS: [&str; 3] = [crate::skills::TASK_ROUTE, SUSPEND_ROUTE, RESUME_ROUTE];
+
+/// The task↔skill gate (Java `GraphModelValidator.validateWorkingNodeHasSkill`,
+/// 4.12.12, lock-step). A node carrying a `task` route with no `skill` was
+/// accepted and treated as a structural node: the graph traversed it, the
+/// function was never called, nothing was reported — the model looked correct
+/// and did nothing. The gate rejects that node by name as a hard error, and
+/// the rule is bidirectional: a `task` under a skill that never reads one is
+/// equally unreachable, and one of the task-consuming skills *without* a task
+/// is the same inert node arrived at from the other side. Only `task` is the
+/// signal — never `input` / `output`, which are descriptor fields on
+/// non-executing node types (a Provider's request shape, a Dictionary's
+/// projection).
+fn validate_working_node_has_skill(graph: &MiniGraph) -> Result<(), String> {
+    for node in graph.get_nodes() {
+        let alias = node.get_alias();
+        let task = node
+            .get_property(TASK)
+            .map(|v| display(&v))
+            .filter(|t| !t.trim().is_empty());
+        let skill = node
+            .get_property(SKILL)
+            .map(|v| display(&v))
+            .filter(|s| !s.trim().is_empty());
+        let consumes_task = skill
+            .as_deref()
+            .is_some_and(|s| TASK_CONSUMING_SKILLS.contains(&s));
+        match (&task, &skill) {
+            (Some(task), None) => {
+                return Err(format!(
+                    "{NODE_NAME}{alias} has task '{task}' but no '{SKILL}' - a node that names a \
+                     composable function must name the skill that calls it, or the graph traverses \
+                     the node and nothing runs"
+                ))
+            }
+            (Some(task), Some(skill)) if !consumes_task => {
+                let skills = task_consuming_skills();
+                return Err(format!(
+                    "{NODE_NAME}{alias} has task '{task}' but skill '{skill}' does not call a task - \
+                     use {skills}; the route would be ignored"
+                ));
+            }
+            (None, Some(skill)) if consumes_task => {
+                let skills = task_consuming_skills();
+                return Err(format!(
+                    "{NODE_NAME}{alias} uses skill '{skill}' but has no '{TASK}' - {skills} each call a \
+                     composable function, so the route is required"
+                ));
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+/// The task-consuming skills, rendered for an error message.
+fn task_consuming_skills() -> String {
+    format!(
+        "{} (or {SUSPEND_ROUTE} / {RESUME_ROUTE}, whose task names the state-store function)",
+        crate::skills::TASK_ROUTE
+    )
 }
 
 /// The per-node `ttl` is grammar-validated on the deadline skills and

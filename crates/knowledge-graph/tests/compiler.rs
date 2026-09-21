@@ -272,3 +272,39 @@ fn help_files_follow_naming_convention() {
         );
     }
 }
+
+/// The task↔skill gate (Java 4.12.12 `unit-test-task-skill-err1..3`, byte-identical
+/// fixtures): a task with no skill, a task under a skill that never calls one, and a
+/// `graph.task` node with no task are each rejected by name at deploy — hard errors,
+/// never a traversed node that silently does nothing.
+#[test]
+fn static_validator_rejects_a_task_without_its_skill_in_both_directions() {
+    compile_once();
+    let expectations = [
+        (
+            "unit-test-task-skill-err1",
+            "has task 'v1.hello.world' but no 'skill'",
+        ),
+        (
+            "unit-test-task-skill-err2",
+            "has task 'v1.hello.world' but skill 'graph.math' does not call a task",
+        ),
+        (
+            "unit-test-task-skill-err3",
+            "uses skill 'graph.task' but has no 'task'",
+        ),
+    ];
+    for (id, expected) in expectations {
+        let reader =
+            ConfigReader::load(&format!("classpath:/graph/{id}.json")).expect("fixture loads");
+        let json = ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
+        let model = event_script::conversions::from_json(&json);
+        let graph = MiniGraph::new();
+        graph.import_graph(&model).expect("fixture is importable");
+        let error = model_validator::validate(&graph).expect_err("the gate rejects the node");
+        assert!(
+            error.contains(expected) && error.contains("node worker"),
+            "{id}: {error}"
+        );
+    }
+}
