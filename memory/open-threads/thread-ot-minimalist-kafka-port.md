@@ -60,7 +60,7 @@
   **Lock-step round** `feat/lockstep-4-12-13` `48506b99` (from main; Increment 128): the task↔skill gate,
   the case-insensitive `input.header.*` fallback, snake_case log-context keys + automatic timestamp; P2
   confirmed no change; **P10 needs a ruling**. PRs: **#303 = K5a + the docs twin** (opened 2026-09-21 from `docs/minimalist-kafka-guide`, which is
-  stacked on K5a — two commits; CI pending); **K5b = #304** (opened 2026-09-21, stacked on K5a — carries `0da85068` until #303 merges); #305 (opened from the K5a branch by mistake) CLOSED; **lock-step = #306** (opened 2026-09-21 from `feat/lockstep-4-12-13`, one commit); #303 and #304 CI green, ready to merge in that order; Java release = mercury-composable #437. Increment 127 records the whole port.
+  stacked on K5a — two commits; CI pending); **K5b = #304** (opened 2026-09-21, stacked on K5a — carries `0da85068` until #303 merges); #305 (opened from the K5a branch by mistake) CLOSED; **lock-step = #306** (opened 2026-09-21 from `feat/lockstep-4-12-13`, one commit); **#303 MERGED 2026-09-21 (merge `753eb9fe`)** — K5a + the guide twin on main; #304 and #306 open; Java release = mercury-composable #437. Increment 127 records the whole port.
   Next gate: **the release** — after the four Rust PRs and the Java `release/v4.12.14` PR merge, the Rust
   release branch (4.12.12 → 4.12.14 in one step) and the crates.io publication of `mercury-sync-over-async`
   + `mercury-minimalist-kafka` (Eric publishes).
