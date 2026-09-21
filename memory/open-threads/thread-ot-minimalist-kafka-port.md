@@ -18,9 +18,20 @@
   configuration only. New deltas: max.poll.records needs no analog (per-record recv);
   the one-use-line linker caveat for pure-config activation; group.protocol=auto
   deferred to K3 (spec §7 items 5-7).
-  Next gate: K3 — inbound completions (second-level routing, topic-pattern, partition
-  pinning, auto-commit + max-poll-records mapping, per-binding header overrides,
-  group.protocol=auto resolution).
+  **K3 DONE 2026-09-21** (origin: 2026-09-21-170607.md; branch `feat/minimalist-kafka-k3` `887bea91`,
+  PR pending): second-level routing (`flows` rules → `flow://` | `task://`, validated against
+  the live registries), `topic-pattern` (anchored regex subscribe), `partition` pinning
+  (`assign`), `auto-commit` + an explicit `max-poll-records` → `queued.min.messages`,
+  per-binding header overrides, `serializer: 'json'`, `ttl`, the derived
+  `max.poll.interval.ms`, `group.protocol=auto` → classic (WARN). The full Java validation
+  table; `schema.enabled` alone still deferred by name (Q2). 34 unit + the 14-scenario e2e
+  against MockCluster. Deltas: spec §7 items 5, 7, 9, 10. **Open (Eric):** `auto` = classic
+  on librdkafka (no feature probe) — accept as the delta, or a trial-join probe at K4?
+  Next gate: K4 — live dry-run + interop against `kafka-standalone`: port `kafka-demo` (Q4),
+  Rust↔Java flow adapters both ways, DLQ + rebalance chaos, the report kept as permanent
+  record. **K5 docs items:** the `docs/guides/minimalist-kafka.md` twin for the AI contract,
+  the README non-goals paragraph (still says minimalist-kafka is "planned"), one INCREMENTS
+  entry for the whole port (K1–K5 record in spec §8 until then).
   Client decision: `rdkafka` (only maintained Rust client with the full group protocol;
   vendored librdkafka builds with cc+make, no CMake — verified). Unit tests:
   `rdkafka::mocking::MockCluster` (mockforge-kafka 0.3.221 investigated head-to-head and
@@ -31,4 +42,4 @@
   crates.io publication and the sync-over-async Q1 facade tasks both wait for K5.
   → serves: vision-mercury (the connectors Blueprint gap closed at the 2026-09-17 gate; this port is
   the live Vision-serving work — Eric: minimal-kafka is in scope, the Kafka service mesh is not)
-  <!-- id: ot-minimalist-kafka-port | created: 2026-09-14 | last_used: 2026-09-20 | uses: 5 | tier: working | origin: 2026-09-14-015014 -->
+  <!-- id: ot-minimalist-kafka-port | created: 2026-09-14 | last_used: 2026-09-21 | uses: 6 | tier: working | origin: 2026-09-14-015014 -->

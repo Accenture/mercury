@@ -13,7 +13,7 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope. Current release **v4.12.7** (2026-09-11, lock-step with Java v4.12.7 same-day — a documentation-and-templates release, Increments 116–117: the three-layer starter template crates and the AI developer guide, plus the Mercury Family page and the IDD methodology synthesis; NO engine behavior change — the Java headline gate fix has no Rust counterpart; all seven mercury-* crates on crates.io at 4.12.7, API-verified. Prior: v4.12.6 — the sprint release, Increments 110–115). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04: the smoke test flagged this line for carrying version history against its own rule.)
+- **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is being ported under `ot-minimalist-kafka-port` (K1–K3 done). The current release is the `latest_release` field below. History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
 - **latest_release:** v4.12.12 (2026-09-21 — **the catch-up release**, PR #296 `13744c77` merged as `983e7550`;
   tag `v4.12.12` → `1ef183cb`, one memory-only commit past the merge, workspace version verified at the tag; GitHub
   release published 00:53Z, body = the CHANGELOG entry). Adopts the Java number per the Java-side
@@ -157,7 +157,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   EVERY shape the feature has — the fan-out failed it on the first run. Pinned by
   `rust-orchestrator-foreach`'s business-cid assertion. Relates [[for-each-suspend-index-key-rust]],
   [[port-bottom-up-faithful]].
-  <!-- id: fork-join-awaits-on-calling-task | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-022252 -->
+  <!-- id: fork-join-awaits-on-calling-task | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: active | origin: 2026-09-19-022252 -->
 
 - **The Redis client layer is the shared `mercury-redis-connection` foundation — `RedisConfig` with a
   configurable key prefix and the plain `redis.*` fallback, the `RedisBackend` standalone-or-cluster seam,
@@ -258,7 +258,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   PR at his direction. Pinned over REST by `typed_function_may_return_an_envelope_to_set_status_and_headers`.
   Relates [[rest-error-body-standard-shape]] (found the same day, the same "Java honours the envelope"
   family); documented in the three authoring surfaces.
-  <!-- id: typed-function-envelope-reply | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: working | origin: 2026-09-19-182617 -->
+  <!-- id: typed-function-envelope-reply | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: active | origin: 2026-09-19-182617 -->
 
 ## Conventions
 
@@ -313,7 +313,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   or appends its resource root explicitly. Applied to `templates/starter-graph` and
   `examples/minigraph-playground` on 2026-09-20 at Eric's direction (branch `chore/cargo-declare-what-you-name`,
   `8868613c`, PR #291 MERGED 2026-09-20, merge `548ce651`; the root README, the template README and the getting-started guide now state the rule).
-  <!-- id: conv-cargo-declare-what-you-name | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: working | origin: 2026-09-20-004627 -->
+  <!-- id: conv-cargo-declare-what-you-name | created: 2026-09-20 | last_used: 2026-09-21 | uses: 2 | tier: active | origin: 2026-09-20-004627 -->
 
 - **A `rest.yaml` entry whose service is not registered is SKIPPED at load, and `/` falls back to the `/index.html`
   entry — Java REST semantics the port lacked until Increment 122 (Eric found both running the Playground with
