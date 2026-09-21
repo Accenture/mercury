@@ -260,6 +260,21 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   family); documented in the three authoring surfaces.
   <!-- id: typed-function-envelope-reply | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: active | origin: 2026-09-19-182617 -->
 
+- **A headless Rust application must declare that it keeps running — `Platform::keep_running(reason)`
+  (found at the minimalist-kafka K4 live drive, 2026-09-21).** `AutoStart::run` parks the process until
+  Ctrl-C only when it serves HTTP or websockets; the JVM stays up on a component's non-daemon threads,
+  the Rust process has no implicit hold. The first live run of the Rust `kafka-demo` booted, started its
+  consumers and exited 200 ms later while the broker held the published records — invisible to the mock
+  e2e (a test function keeps the runtime alive). The component that runs background work for the life of
+  the process declares it once (the flow adapter does, when its consumers start, and registers their
+  stop as a shutdown hook); `AutoStart::run` honours the flag like serving; embedders awaiting
+  `AutoStart::main` are unaffected. **Open follow-up, platform-wide:** the entry point waits on
+  `tokio::signal::ctrl_c()` only — a Kubernetes `SIGTERM` skips the shutdown hooks and a Kafka member's
+  partitions are held until the 45 s session timeout instead of an immediate `LeaveGroup` (backlog P11).
+  Report: `docs/test-reports/minimalist-kafka-interop.md` Findings 1–2. Relates [[port-bottom-up-faithful]]
+  (an implicit JVM property mapped to an explicit Rust declaration).
+  <!-- id: headless-app-keep-running | created: 2026-09-21 | last_used: 2026-09-21 | uses: 1 | tier: working | origin: 2026-09-21-175430 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
