@@ -19,7 +19,7 @@
   the one-use-line linker caveat for pure-config activation; group.protocol=auto
   deferred to K3 (spec §7 items 5-7).
   **K3 DONE 2026-09-21** (origin: 2026-09-21-170607.md; branch `feat/minimalist-kafka-k3` `887bea91`,
-  PR pending): second-level routing (`flows` rules → `flow://` | `task://`, validated against
+  PR #299 opened 2026-09-21): second-level routing (`flows` rules → `flow://` | `task://`, validated against
   the live registries), `topic-pattern` (anchored regex subscribe), `partition` pinning
   (`assign`), `auto-commit` + an explicit `max-poll-records` → `queued.min.messages`,
   per-binding header overrides, `serializer: 'json'`, `ttl`, the derived
