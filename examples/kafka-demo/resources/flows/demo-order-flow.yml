@@ -1,0 +1,41 @@
+#
+# The SPECIFIC FLOW of the second-level routing demo: selected when a demo.orders record's 'type'
+# header matches 'order' (exact rule) or 'order-*' (wildcard rule) - see kafka-flow-adapter.yaml.
+#
+# The binding's serializer: 'json' has already decoded the JSON record, so input.body arrives here
+# as a map (no raw-bytes handling needed). The processor returns a map, and the flow publishes it
+# straight through simple.kafka.notification - which auto-serializes a map body to JSON bytes on a
+# non-schema topic. That is the OUTBOUND symmetry of serializer: 'json': a map in the producing
+# function, JSON bytes on the wire, and a map again in any consuming binding that opts in.
+#
+# input.header.type is the routing key the rule matched on, mapped from the raw record header so
+# the processor (and the outbound message) can show WHICH rule selected this flow.
+#
+flow:
+  id: 'demo-order-flow'
+  description: 'Process an order event selected by a routing rule and publish to demo.outbound'
+  ttl: 30s
+
+first.task: 'demo.order.processor'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+      - 'model.cid -> header.cid'
+      - 'input.header.type -> header.type'
+    process: 'demo.order.processor'
+    output:
+      - 'result -> model.payload'
+    description: 'Process the order event (a map, decoded by the binding''s serializer)'
+    execution: sequential
+    next:
+      - 'simple.kafka.notification'
+
+  - input:
+      - 'text(demo.outbound) -> header.topic'
+      - 'model.cid -> header.cid'
+      - 'model.payload -> *'
+    process: 'simple.kafka.notification'
+    output: []
+    description: 'Publish the processed order - a map, auto-serialized to JSON bytes'
+    execution: end

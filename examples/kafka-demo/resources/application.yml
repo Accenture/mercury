@@ -1,0 +1,28 @@
+#
+# minimalist-kafka worked example - a pure event/flow processor (no REST).
+#
+# The Kafka auto-start (a main-application hook inside mercury-minimalist-kafka) builds the
+# Kafka producer and starts the flow adapter from kafka-flow-adapter.yaml (demo.inbound ->
+# kafka-demo-flow, demo.orders -> the second-level routing rules). Kafka connection settings
+# come from the kafka-producer.yml / kafka-consumer.yml templates bundled in
+# mercury-minimalist-kafka, whose default bootstrap is ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
+# - i.e. the local kafka-standalone. To point at another broker:
+#   export KAFKA_BOOTSTRAP_SERVERS=host:port
+#
+# Pick the Java-interop relay legs with an active profile (see application-interop.yml):
+#   cargo run -p kafka-demo -- -Dapp.profiles.active=interop
+#
+application.name: kafka-demo
+log.format: text
+rest.automation: false
+
+yaml.flow.automation: 'classpath:/flows.yaml'
+yaml.kafka.flow.adapter: 'classpath:/kafka-flow-adapter.yaml'
+# dead-letter confirm-write timeout; flow processing is bounded by each flow's own ttl
+kafka.dlq.timeout.ms: 10000
+
+# Flow-failure handling. On repeated failure a message is dead-lettered to the binding's
+# configured dlq-topic (see kafka-flow-adapter.yaml); that DLQ topic must be pre-provisioned.
+# The happy path never hits it.
+kafka.flow.max.retries: 3
+kafka.flow.retry.backoff.ms: 500

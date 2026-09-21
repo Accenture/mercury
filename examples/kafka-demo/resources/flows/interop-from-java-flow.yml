@@ -1,0 +1,34 @@
+#
+# Interop leg "Java producer -> Rust flow adapter" (the 'interop' profile): the JAVA kafka-demo
+# publishes its processed records to demo.outbound; this flow consumes them on the Rust engine,
+# processes them again and publishes to demo.interop.out - so the listener there shows a record
+# processed by Java, then Rust, under the SAME trace id.
+#
+flow:
+  id: 'interop-from-java-flow'
+  description: 'Process a record the Java kafka-demo published to demo.outbound and publish to demo.interop.out'
+  ttl: 30s
+
+first.task: 'demo.processor'
+
+tasks:
+  - input:
+      - 'input.body -> *'
+      - 'model.cid -> header.cid'
+      - 'input.header.traceparent -> header.traceparent'
+    process: 'demo.processor'
+    output:
+      - 'result -> model.payload'
+    description: 'Process the record on the Rust engine (second hop)'
+    execution: sequential
+    next:
+      - 'simple.kafka.notification'
+
+  - input:
+      - 'text(demo.interop.out) -> header.topic'
+      - 'model.cid -> header.cid'
+      - 'model.payload -> *'
+    process: 'simple.kafka.notification'
+    output: []
+    description: 'Publish the twice-processed record to demo.interop.out'
+    execution: end

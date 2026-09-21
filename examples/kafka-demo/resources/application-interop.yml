@@ -1,0 +1,12 @@
+#
+# The Java-interop profile (the K4 chained-hop legs, see the README's "Interop" section):
+# this instance consumes NOTHING the plain demo consumes - it relays between the JAVA kafka-demo
+# and the interop topics instead, so one trace crosses both engines in each direction:
+#
+#   demo.interop.in -> interop-to-java-flow   Rust processes, then publishes to demo.inbound
+#                                             (the Java demo's inbound topic)   [Rust producer -> Java flow adapter]
+#   demo.outbound   -> interop-from-java-flow Rust consumes what the Java demo published,
+#                                             processes, publishes to demo.interop.out
+#                                                                                [Java producer -> Rust flow adapter]
+#
+yaml.kafka.flow.adapter: 'classpath:/kafka-flow-adapter-interop.yaml'
