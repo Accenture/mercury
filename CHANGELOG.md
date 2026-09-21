@@ -11,6 +11,118 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Version 4.12.12, 9/20/2026
+
+The catch-up release. Every port is tagged at the Java number it caught up to — a version
+identifies content, not a cadence — so this port moves from 4.12.7 to the Java engine's current
+4.12.12. Since 4.12.7 it gained the sync-over-async streaming return route, the distributed cache
+on a shared Redis foundation, per-iteration suspend/resume under `for_each`, two REST parity fixes
+for production mode, the decision-table recipe with the `lookup` simple plugin, and the first two
+gates of the minimalist-kafka port. No upgrade action for existing applications; the new modules
+are opt-in crates. Behaviour changes to read: a Redis command timeout on the cache path is now
+408 and an unreachable Redis 503 (previously 500), a REST entry whose service is not registered
+no longer answers as a live URL, and `/` is served by the `/index.html` entry when one exists.
+
+**Lock-step notes.** Five items here are also on the Java engine's main after its 4.12.12 and ship
+there in its next release (mercury-composable #426–#432): the Layer 1 cache guard, the Redis
+failure classification, the decision-table recipe, the `lookup` plugin and the null-source mapping
+rule. The Java-only items of 4.12.8–4.12.12 have no analogue in this port: the Kafka health-check
+classloader fixes (JVM classloading), the Berkeley DB elastic-queue retirement (a store this port
+never had), the OpenTelemetry forwarding switch (this port has no OTel exporter yet — a deferred
+item) and the benchmark log. Not yet ported, tracked for the next lock-step round: the CompileGraph
+task↔skill gate (a `task` route without a `skill`, or a `graph.task` node without a `task`,
+rejected at deploy), the case-insensitive fallback for `input.header.*` against Kafka headers in
+their original casing, and dev mode in the Layer 3 starter template (this port's starter runs the
+production shape and authors in the `minigraph-playground` app alongside). Crates.io publication
+of the new crates stays held until minimalist-kafka K5; this is a GitHub release.
+
+### Added
+
+- **Streaming return route — sync-over-async ported** (`extensions/sync-over-async`, R1–R4,
+  PRs #263–#271; design `draft-design-specs/sync-over-async-port.md`). Cross-pod progressive
+  rendering with Redis alone: a UI pod opens a streaming rendezvous keyed by a business
+  correlation id, any pod posts ordered segments through the responder, and the UI pod renders
+  them out its SSE edge — the `stream: true` REST endpoint, the facade and the SSE bridge, with
+  `soa.redis.health` as the health check. Wire-format parity with the Java engine is normative:
+  the cross-pod dry-run ran live against `redis-standalone` with chaos (producer killed, UI pod
+  killed, suppressed wake-ups, short-TTL orphans), and the polyglot dry-run — Rust producer to a
+  Java UI pod and the reverse on one Redis — met the acceptance gate on 2026-09-13. After a Redis
+  bounce the store retries its idempotent commands once, so both engines heal a server restart
+  equivalently (redis-rs reconnects asynchronously where Lettuce requeues).
+- **Distributed cache, lock-step with Java 4.12.9** (Increment 119, PR #285). The shared Redis
+  client foundation `extensions/redis-connection` (standalone or clustered behind one seam,
+  `redis.*` and `soa.redis.*` prefixes with the un-prefixed fallback, the health probe), the
+  `extensions/distributed-cache` composable function `v1.cache.redis` with the same action names
+  as Java and `redis.health`, `Platform::on_shutdown` (hooks run once, newest first, isolated), the
+  `extensions/redis-test-double` development double, and `examples/distributed-cache-example` —
+  one cache across all three layers. **Certified against the Java engine** (Increment 120): five
+  live interop drives over a shared `redis-standalone`, ending at 122 of 122 checks, recorded in
+  `docs/test-reports/distributed-cache-interop.md` and packaged in the AI contract.
+- **Per-iteration suspend/resume under `for_each`** (Increment 118, PR #284, lock-step with
+  Java #418): each iteration of a suspending subgraph suspends under its own store record, with
+  the positional-consistency design rules stated in the workflow-suspension guide.
+- **minimalist-kafka port, gates K1 and K2** (`crates/minimalist-kafka`, PRs #272–#274; design
+  `draft-design-specs/minimalist-kafka-port.md`, approved with rulings Q1–Q5). The outbound half —
+  `simple.kafka.notification`, `kafka.health`, externalized client templates, the Java-compatible
+  murmur2 partitioner — and the inbound flow-adapter core: literal-topic bindings, consumer groups,
+  commit-after-process, retry with a confirmed dead-letter queue, opt-out flags and start-up
+  guards, on `rdkafka` and tested against its `MockCluster`. K3 (second-level routing, topic
+  patterns, partition pinning, auto-commit mapping), K4 (the kafka-demo) and K5 follow; the crate
+  is not yet published.
+- **The `lookup` simple plugin** (Increment 124, PR #294): `f:lookup(table, value[, default])`
+  returns the rule of a static decision table that lists the value — `keys` names the rules in
+  priority order, each rule lists its values, both as lists or as JSON arrays written as text, the
+  table itself as a map or JSON text; text comparison, case-insensitive; the optional third
+  argument on a miss. The common case of a decision table therefore needs no composable function:
+  a `graph.data.mapper` decision node maps the rule out in one entry. Catalogued for Event Script
+  with a Layer 2 worked example.
+- **A typed function may return an `EventEnvelope`** to set the reply's status and headers
+  (Java parity; the typed adapter previously nested the whole envelope inside the reply body).
+
+### Changed
+
+- **A static decision table is graph data, not function code** (Increment 123, PR #293). The
+  graph.task skill reference, the Playground help and the AI-agent checklist show the pattern: a
+  skill-less `DecisionTable` node whose values are JSON arrays written as text, handed whole to a
+  generic function by one input entry (`state-rules -> table`) or resolved by `f:lookup`; the
+  product owner certifies the table on the graph and a new table is a new graph version, never a
+  code change; one table replaces a ladder of IF-THEN-ELSE. Pinned by `unit-test-task-9` and
+  `unit-test-lookup-1`, byte-identical with the Java fixtures.
+- **A null mapping source removes the target** (PR #295). The namespaces rule now matches the
+  engine: a source that resolves to null removes the target key (an indexed target is set to
+  null), so a default comes from the source side — `f:defaultValue`, or a plugin default such as
+  `f:lookup(table, value, text(unknown))` — never from default-then-overlay. Event Script differs and
+  is stated as such: a null source applies only to `model.*` targets. Registered as claim
+  `null-source-removes-target` against the probe test.
+- **Host Playground sessions with the shipped broker, not a hand-rolled client** (PR #276): the
+  AI agent guide leads with `scripts/playground-session-broker.mjs`, and the starter-graph
+  template ships the broker too, targeting the Playground app run alongside.
+- **Cargo dependencies: declare what your code names, plus your top layer's engine crate**
+  (PR #291): the starter-graph template and the Playground example drop the direct
+  `mercury-event-script` dependency, which `mercury-knowledge-graph` brings along; the README and
+  the getting-started guide state the rule.
+- Housekeeping: the Playground console assertions poll for the reply instead of racing a fixed
+  sleep (PR #290); the Redis auth test fixture generates its credential per run — no literals
+  (PR #275, the Snyk Code round); the local Java helper jars are ignored by git (PR #267).
+
+### Fixed
+
+- **Redis failures classified on the cache path** (Increment 121, PR #289): a command timeout is
+  408, an unreachable Redis (refused, dropped, I/O or cluster error) is 503 `Redis unavailable`,
+  and only a server answer stays 500 — in `RedisBackend::query` and `query_pipeline`, so every
+  consumer of the foundation's command path inherits it; a refused or timed-out connect is 503.
+  Proven by the fifth interop drive: no outage probe on any layer of either engine answers 500.
+- **Layer 1 of the cache example surfaces a cache failure, never a miss** (Increment 120,
+  PR #286, found by the interop): the example checked only the reply body, so with Redis down a
+  GET read as "not found" and a POST would have acknowledged a store; a `checked()` guard now
+  rethrows any reply of status 400 or above.
+- **REST parity for production mode** (Increment 122, PR #292): a `rest.yaml` entry whose service
+  is not registered is skipped at load with the Java warning `Skip [GET] /api/x - Service x not
+  available`, and `/` falls back to the `/index.html` entry before static content is considered —
+  so an application's home page follows `app.env` on both paths, the React Playground in dev and
+  the plain page otherwise.
+
+---
 ## Version 4.12.7, 9/11/2026
 
 A documentation-and-templates release, lock-step with the Java engine's v4.12.7 (whose

@@ -13,8 +13,8 @@ categories = ["caching", "database", "asynchronous"]
 name = "distributed_cache"
 
 [dependencies]
-mercury-platform-core = { version = "4.12.7", path = "../../crates/platform-core" }
-mercury-redis-connection = { version = "4.12.7", path = "../redis-connection" }
+mercury-platform-core = { version = "4.12.12", path = "../../crates/platform-core" }
+mercury-redis-connection = { version = "4.12.12", path = "../redis-connection" }
 async-trait = "0.1"
 log = "0.4"
 rmpv = { version = "1", features = ["with-serde"] }
