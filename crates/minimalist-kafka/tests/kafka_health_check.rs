@@ -70,18 +70,28 @@ async fn info_and_live_probe_report_the_cluster() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn outage_fails_health_with_text_and_code() {
-    // bind-and-drop: a port nobody answers metadata on
-    let dead_port = {
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
-        listener.local_addr().expect("addr").port()
-    };
+    // a port that is OURS for the whole test and never speaks Kafka: the
+    // listener stays bound (the kernel completes the TCP handshake, nobody
+    // answers the metadata request), so the probe times out into the outage
+    // path. A bind-and-drop port was racy - the tests of this binary run in
+    // parallel and a mock cluster started by a neighbour can be handed the
+    // freed port (CI, PR #302: the "dead" port answered metadata and the
+    // check reported the cluster reachable).
+    let silent = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+    let silent_port = silent.local_addr().expect("addr").port();
     let probe = KafkaHealthProbe::new(
-        move || Ok(reachable_config(&format!("127.0.0.1:{dead_port}"))),
+        move || Ok(reachable_config(&format!("127.0.0.1:{silent_port}"))),
         Duration::from_secs(2),
         Duration::ZERO,
     );
     let reply = probe.handle("health").await.expect("health reply");
-    assert_eq!(503, reply.status());
+    drop(silent);
+    assert_eq!(
+        503,
+        reply.status(),
+        "an outage is a 503, got: {}",
+        body(&reply)
+    );
     let down = body(&reply);
     assert_eq!(503, down["code"]);
     assert!(
