@@ -140,6 +140,15 @@ impl TypedFunction<AsyncHttpRequest, serde_json::Value> for GreetingApi {
                 Duration::from_secs(5),
             )
             .await?;
+        // a callee that fails replies with its error status and message - check before reading the body
+        if reply.has_error() {
+            let message = reply
+                .body()
+                .as_str()
+                .unwrap_or("greeting.demo failed")
+                .to_string();
+            return Err(AppError::new(reply.status(), message));
+        }
         let body: GreetingResponse = reply.body_as()?;
         Ok(serde_json::json!({
             "message": body.message,
