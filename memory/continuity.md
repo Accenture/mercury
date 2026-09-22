@@ -13,14 +13,14 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, PR #307 open); v4.12.14 — one number on both engines — is cut once that PR merges. The current release is the `latest_release` field below. History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
+- **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22); the v4.12.14 release — one number on both engines — is cut (`release/v4.12.14`, PR pending). The current release is the `latest_release` field below. History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
 - **latest_release:** v4.12.12 (2026-09-21 — **the catch-up release**, PR #296 `13744c77` merged as `983e7550`;
   tag `v4.12.12` → `1ef183cb`, one memory-only commit past the merge, workspace version verified at the tag; GitHub
   release published 00:53Z, body = the CHANGELOG entry). Adopts the Java number per the Java-side
   `conv-ports-adopt-java-release-number`: 4.12.7 → 4.12.12 in one step, carrying Increments 118–124 plus the
   sync-over-async R1–R4 and minimalist-kafka K1–K2 gates. Crates.io publication still held until K5. Not yet
   ported (stated in the entry, backlog P8–P10): the CompileGraph task↔skill gate, the case-insensitive
-  `input.header.*` fallback for Kafka headers, dev mode in the starter-graph template — the first two ported on `feat/lockstep-4-12-13` (2026-09-21), the third awaits a ruling. **Next: v4.12.14** (Eric, 2026-09-21: one number on both engines after the lock-step round) — **held until the OpenTelemetry forwarder PR merges** (Eric, 2026-09-21: "Open-Telemetry forwarder feature is missing in Rust"; `feat/opentelemetry-forwarder` `f6e69af5` + `27cbb0d3`, Increment 129, [[otel-forwarder-no-sdk]]; **PR #307 OPENED 2026-09-22** by Eric, build + memory checks green, the test job pending at open) so the Rust CHANGELOG at that number carries it; the Java side merged its 4.12.14 PR #437 (`dbc26f31`) on 2026-09-22 and its tag is pending. The `release/v4.12.14` cut of 2026-09-21 was discarded uncommitted; re-derive the sweep at the re-cut (origin 2026-09-22-010413.md) — the K5 branches, the docs twin and the lock-step branch are pushed, PRs pending; the Rust release branch (4.12.12 → 4.12.14 in one step) and the crates.io publication follow their merge. Prior: v4.12.7 (2026-09-11).
+  `input.header.*` fallback for Kafka headers, dev mode in the starter-graph template — the first two ported on `feat/lockstep-4-12-13` (2026-09-21), the third awaits a ruling. **Next: v4.12.14** (Eric, 2026-09-21: one number on both engines after the lock-step round) — **held until the OpenTelemetry forwarder PR merges** (Eric, 2026-09-21: "Open-Telemetry forwarder feature is missing in Rust"; `feat/opentelemetry-forwarder` `f6e69af5` + `27cbb0d3`, Increment 129, [[otel-forwarder-no-sdk]]; **PR #307 OPENED and MERGED 2026-09-22** — merge `9c56cc32`, CI green on `757f6664`; Dynatrace UI confirmation of the branch build DONE from Eric's screenshots, report Scenario 5) so the Rust CHANGELOG at that number carries it; the Java side merged its 4.12.14 PR #437 (`dbc26f31`) on 2026-09-22 and its tag is pending. **RE-CUT 2026-09-22 from `9c56cc32`: `release/v4.12.14` `00ee2181`** — sweep re-derived **13 Cargo.toml files / 24 occurrences** (the discarded 2026-09-21 cut had 15/29 by a different grep; never carry a count), CHANGELOG from `v4.12.12..HEAD`, `Cargo.lock` rebuilt, gates green, pushed; PR-open/merge/tag/`cargo publish` are Eric's gates, the publish order dependency-first (origin 2026-09-22-010413.md) — the K5 branches, the docs twin and the lock-step branch are pushed, PRs pending; the Rust release branch (4.12.12 → 4.12.14 in one step) and the crates.io publication follow their merge. Prior: v4.12.7 (2026-09-11).
 - **last_enabled:** 2026-07-15
 - **last_review:** 2026-09-21 | through 2026-09-21-025547.md (cadence — 10 sessions since; archived 0, swept 0 —
   the six closed threads sit at sslu 9–15, inside the 20-session window; tier changes 14 (refresh-metadata:
@@ -296,7 +296,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 - **The OpenTelemetry forwarder is this engine's own OTLP encoder over the platform HTTP client — no OpenTelemetry
   SDK — opt-in by `otel.forwarding`, and a late credential arrives as a runtime override (Eric, 2026-09-21 →
-  Increment 129; PR #307 opened 2026-09-22).** `extensions/opentelemetry-forwarder` (`mercury-opentelemetry-forwarder`) registers
+  Increment 129; PR #307 MERGED 2026-09-22, `9c56cc32`).** `extensions/opentelemetry-forwarder` (`mercury-opentelemetry-forwarder`) registers
   `distributed.trace.forwarder` under `#[optional_service("otel.forwarding")]` — linking the crate registers nothing,
   the Java `@OptionalService` shape, pinned by `hello-flow`, which carries the crate with the switch off — and a
   `#[before_application]` hook under the same switch validates the endpoint and announces header NAMES. The OTLP v1
@@ -314,8 +314,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   the first dataset). Declared deltas: `otel.exporter.otlp.compression` honours only `none`,
   `otel.exporter.otlp.connect.timeout` has no effect (`http.client.connection.timeout` governs), scope
   `mercury-opentelemetry-forwarder`. Certified live (`docs/test-reports/otel-dynatrace-certification.md`): A-B-A on
-  hello-flow — real token 0/5, bogus token 5/5 `HTTP 401`, real token 0/5; the UI confirmation and the field
-  acceptance on the released crate are [[otel-forwarder-certification]].
+  hello-flow — real token 0/5, bogus token 5/5 `HTTP 401`, real token 0/5; **UI confirmation DONE 2026-09-22** (Eric's
+  Dynatrace screenshots: nesting, kinds, scope 4.12.12, attributes as mapped); the field acceptance on the released
+  crate is [[otel-forwarder-certification]].
   <!-- id: otel-forwarder-no-sdk | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-010413 -->
 
 ## Conventions
