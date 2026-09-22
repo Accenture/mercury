@@ -267,6 +267,16 @@
       "quote": "The credential is re-read on every export",
       "test": "extensions/opentelemetry-forwarder::otlp_export::exporter_end_to_end",
       "since": "4.12.14+"
+    },
+    {
+      "id": "kafka-consumer-leaves-group-on-shutdown",
+      "claim": "Stopping a flow consumer makes its member leave the consumer group at once, so its partitions are reassigned to the surviving members instead of waiting for the session timeout.",
+      "pages": [
+        "docs/guides/minimalist-kafka.md"
+      ],
+      "quote": "the consumer's close sends the group coordinator a **LeaveGroup**: the member's partitions are reassigned to the surviving members at once",
+      "test": "crates/minimalist-kafka::kafka_shutdown::closing_a_flow_consumer_leaves_the_group_at_once",
+      "since": "4.12.15+"
     }
   ]
 }

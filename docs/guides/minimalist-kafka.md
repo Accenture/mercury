@@ -504,6 +504,24 @@ Migration is online: a group converts when members join with the consumer protoc
 interoperate during a rolling deploy) and reverts if all new-protocol members leave. To force the classic
 protocol regardless of cluster support, set `group.protocol: classic` explicitly.
 
+### Shutdown: leaving the group {#shutdown}
+
+On process shutdown — `SIGTERM` from an orchestrator's rolling restart, or Ctrl-C — the flow adapter stops
+every binding's consumer before the process exits, and the consumer's close sends the group coordinator a
+**LeaveGroup**: the member's partitions are reassigned to the surviving members at once. Without that,
+the broker only notices the dead member when its session expires — 45 seconds by default under the
+KIP-848 consumer protocol — and every partition it held sits unread for that long, which on a rolling
+deploy is a pause of the same length for the pod's share of the traffic. The adapter registers the stop on
+the platform's shutdown lifecycle (`Platform::on_shutdown`) when its consumers start, next to the
+[keep-running declaration](#enable), and the entry point runs the hooks once the signal arrives. Each
+consumer finishes the record in hand first — the stop is honoured between records, never mid-flow — and the
+hook waits up to ten seconds for all of them, so a stuck flow cannot hold the shutdown hostage (a record
+still in flight after the grace redelivers: at-least-once). The log confirms each step — `Kafka flow
+consumer for topic '<topic>' stopping`, then `stopped`, then `Kafka flow consumers stopped` — and the
+broker's own log shows the member leaving instead of being fenced. The shared producer is not closed at
+exit: a publish awaits its delivery report before the function replies, so only a send in flight at the
+signal is exposed. The Java engine's consumers leave the same way.
+
 ## Outbound: publishing to Kafka {#outbound}
 
 `simple.kafka.notification` is a composable function that publishes an event to a topic. Send it an
@@ -865,7 +883,8 @@ spec (`draft-design-specs/minimalist-kafka-port.md`, §7):
 | `group.protocol=auto` | one `group.version` feature probe per cluster | optimistic: `consumer` first, rebuilt once as `classic` when the broker refuses the join |
 | `topic-pattern` | `subscribe(Pattern)` | the anchored `^(<pattern>)$` handed to the client's regex subscription; a new matching topic joins at the next metadata refresh |
 | Threading | Kafka-driving functions on kernel threads; Confluent serdes owner-confined | native client threads + async tasks; one shared, thread-safe codec |
-| Headless app | the JVM stays up on non-daemon consumer threads | the adapter declares that it keeps the process running; `SIGTERM`/Ctrl-C stop the consumers gracefully |
+| Headless app | the JVM stays up on non-daemon consumer threads | the adapter declares that it keeps the process running; `SIGTERM`/Ctrl-C stop the consumers gracefully ([shutdown](#shutdown)) |
+| Shutdown | the adapter closes every consumer, then flushes and closes the producer | the adapter stops every consumer (each leaves its group on close); the producer is not flushed at exit — a publish awaits its delivery report |
 | Schema codecs | Confluent's serializers as a library | this engine's own JSON Schema and Avro codecs on `jsonschema` / `apache-avro`; the frame and payloads are byte-identical |
 | Registry template | passed verbatim to the Confluent client | interpreted by name (unknown keys logged); TLS trust from the OS store |
 | CSFLE, rules, references | delegated to the Confluent serdes and KMS drivers | refused with a 501 (never plaintext); register self-contained schemas |
