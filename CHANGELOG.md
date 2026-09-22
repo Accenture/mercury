@@ -11,6 +11,92 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Version 4.12.14, 9/21/2026
+
+The lock-step release — one number on both engines. The port moves from 4.12.12 to the Java engine's
+4.12.14 (its 4.12.13 items were already here or have no analogue), carrying the completed
+minimalist-kafka port, the OpenTelemetry trace forwarder (the last Java extension this port had
+deferred) and the two items that waited on the Kafka port: the sync-over-async facade tasks and the
+first crates.io publication of `mercury-minimalist-kafka`, `mercury-sync-over-async` and
+`mercury-opentelemetry-forwarder`. No upgrade action for existing applications beyond the
+log-context note below; the new modules are opt-in crates.
+Behaviour changes to read: the application log context's default keys are snake_case with an automatic
+`timestamp`; CompileGraph rejects a `task` route without its skill (and the reverse); `input.header.*`
+mappings find a Kafka header in any casing.
+
+**Lock-step notes.** The Java 4.12.13 items land here as: the per-iteration `for_each` suspend keys, the
+cache guard, the Redis failure classification, the decision-table recipe, the `lookup` plugin, the
+null-source rule and the guide parity round (already in 4.12.12); the snake_case log-context keys (this
+release); the `hello.rpc` idiom (`greeting.api` on this engine); the OpenTelemetry forwarder and its
+`otel.forwarding` switch (Java 4.12.11, ported in this release). Java-only, no analogue: the cause-chain
+status rule (`AppError` carries its status with no wrapper class to hide it), the Redis connection reset
+on timeout (redis-rs reconnects on the first command), BouncyCastle, the ADR/RFC packaging (this repo's
+ledger is already packaged). Java 4.12.14's one change — `group.protocol=auto` as the bundled template
+default — shipped here at 4.12.12+ (mercury #302). Still open, needing a ruling: dev mode in the Layer 3
+starter template (Java 4.12.9 #397) — this port's starter runs the production shape.
+
+### Added
+
+- **The OpenTelemetry trace forwarder** — `extensions/opentelemetry-forwarder`, crate
+  `mercury-opentelemetry-forwarder` (the Java `opentelemetry-forwarder` twin; Increment 129, mercury #307).
+  A `distributed.trace.forwarder` that maps every completed span's telemetry dataset to an OTLP span with
+  the engine's exact W3C trace/span/parent ids and exports it over OTLP/HTTP (`application/x-protobuf`)
+  to a collector or straight to Dynatrace / Splunk with the API token in a request header. **Opt-in:**
+  linking the crate registers nothing; `otel.forwarding=true` (or `-Dotel.forwarding=true` at launch)
+  turns it on — the Java `@OptionalService` shape, pinned by the `hello-flow` example, which now carries
+  the crate with the switch off. No OpenTelemetry SDK: the crate writes the frozen OTLP v1 protobuf
+  itself and sends it through the platform's `async.http.request` client, so it adds no dependency.
+  The Java exporter's retry policy (5 attempts, 1 s × 1.5 on transport failures and 408/429/502/503/504)
+  and failure diagnostics (status, bounded body, 404/401/403 hints) carried over; the credential header
+  is re-read on every export (a runtime override is the late-credential path). Declared deltas:
+  `otel.exporter.otlp.compression` honours only `none`, `otel.exporter.otlp.connect.timeout` has no
+  effect (`http.client.connection.timeout` governs), the instrumentation scope is
+  `mercury-opentelemetry-forwarder`. Certified live against Dynatrace with the A-B-A credential
+  experiment (`docs/test-reports/otel-dynatrace-certification.md`).
+- **minimalist-kafka port complete — K3, K4 and K5** (`crates/minimalist-kafka`, mercury #299, #300,
+  #302 and the K5 branches; Increment 127; design `draft-design-specs/minimalist-kafka-port.md`, the
+  Java module and its guide the canon). The inbound completions: second-level routing (`flows` rules to
+  `flow://` or `task://` targets, validated against the live registries), `topic-pattern`, partition
+  pinning, `auto-commit` with `max-poll-records` as the client's prefetch depth, per-binding header
+  overrides, `serializer: 'json'`, `ttl`, the derived `max.poll.interval.ms`, optimistic
+  `group.protocol=auto`. The `kafka-demo` twin and the live Java⇄Rust interop drive
+  (`docs/test-reports/minimalist-kafka-interop.md`). **The Schema Registry** (Q2 re-scoped in): the
+  Confluent wire format for JSON Schema and Avro on this engine's own codec (`apache-avro`, `jsonschema`)
+  — subject-driven produce, decode by embedded id on a `schema.enabled` binding, the positive-only schema
+  caches, the interpreted `schema-registry.yml` template (OAuth 2.0 client credentials, static token, SASL
+  inheritance, basic auth); CSFLE, data-contract rules, schema references and Protobuf refused with a 501,
+  never degraded. The guide twin `docs/guides/minimalist-kafka.md` with its "Differences from the Java
+  engine" table, packaged in the AI contract.
+- **sync-over-async facade tasks** (`mercury-sync-over-async`: `sync.prepare`, `sync.await`, `soa.reply`,
+  transport-neutral, the Java contracts) and the extension's own auto-start; the `sync-over-async-demo`
+  mirrored from Java (facade/backend roles with the raw, JSON Schema and Avro legs next to the streaming
+  roles). Driven live with the Java demo on one broker, one Redis and one registry: every leg on Rust alone,
+  both cross-engine pairings with the Confluent frames decoded both ways, a mixed backend group, the Java
+  facade delivering replies to the waiting Rust facade through the Redis return route.
+- **The CompileGraph task↔skill gate** (Java 4.12.12): a `task` route without a `skill`, a `task` under a
+  skill that never calls one, or `graph.task` / `graph.suspend` / `graph.resume` without a `task` is rejected
+  at deploy by node name (Increment 128).
+- **Application lifecycle**: `Platform::keep_running` for headless applications and the `SIGTERM` stop
+  (Increment 126, mercury #300, #301).
+
+### Changed
+
+- **Application log context — snake_case keys and an automatic UTC timestamp** (Java 4.12.13 #414): the
+  default template emits `cid`, `trace_id`, `trace_path`, `span_id`, `parent_span_id`, `service`,
+  `timestamp`; a template that maps `$utc` to no key gets it added; `update_context` refuses the reserved
+  names in both spellings and never shadows a template key. **Upgrade note:** a query keyed on
+  `context.traceId` moves to `trace_id`, or keeps the old names on the left side of its own
+  `app-log-context.yaml`.
+- **`input.header.*` mappings fall back to a case-insensitive scan** when the lowercased lookup misses
+  (Java 4.12.12) — a Kafka producer's `Content-Type` header is addressable; the HTTP path pays nothing.
+- **Both engines ship `group.protocol=auto`** in the bundled consumer template (mercury #302,
+  mercury-composable #436).
+
+### Fixed
+
+- The `kafka.health` outage test holds its port for the whole test (a bind-and-drop port was reused by a
+  neighbouring mock cluster) — mercury #302.
+
 ## Version 4.12.12, 9/20/2026
 
 The catch-up release. Every port is tagged at the Java number it caught up to — a version

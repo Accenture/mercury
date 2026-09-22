@@ -198,19 +198,39 @@ the collector double in `tests/otlp_export.rs` and as unit tests in `src/export.
 
 ## Scenario 5 — confirmed queryable in Dynatrace
 
-*Pending the maintainer's check in the Dynatrace non-prod UI.* What to look for, from the legs above:
-under service **`mercury-otel-cert`**, traces `f658763c71844a998d02521c033c5918` (01:18:25Z) and
-`b0ee5e2087ff495a9b8f13977620c758` (01:18:47Z); under service **`hello-flow`**, traces
-`0ad577c2bef646cba174147ebf923c01` (00:52:04Z) and `092b2a1947e54f298d5ab945aa901331` (00:52:26Z) —
-each with five spans nested as in Scenario 2, span kinds `server` (the REST edge) and `internal`, the
-`route` / `path` / `status` / `exec_time_ms` attributes, and the instrumentation scope
-`mercury-opentelemetry-forwarder` version `4.12.12`. The leg B traces
-`ababd406bfcf43c181ded9446d1c0198` and `eedf60cd9bbe47618859a1a7b5967837` must be **absent**.
+**Confirmed by the maintainer in the Dynatrace non-prod UI, 2026-09-22 (Pacific 2026-09-21 evening),
+from screenshots of both `mercury-otel-cert` traces of the repeated drive**,
+`f658763c71844a998d02521c033c5918` (start 18:18:25 Pacific = 01:18:25Z) and
+`b0ee5e2087ff495a9b8f13977620c758` (18:18:47 Pacific = 01:18:47Z):
+
+- **Service** `mercury-otel-cert`, trace titled `'http.flow.adapter' Trace`, response time 116 µs and
+  78 µs — the root span's `exec_time_ms` (0.116 / 0.078), which is what the forwarder sent as the
+  span duration.
+- **The nesting is as the engine recorded it**, reconstructed by the backend from the
+  `parent_span_id` values on the wire: `http.flow.adapter` at the root, `task.executor` as its child,
+  and `language.router` → `greeting.composer` → `async.http.response` as the other branch (the UI
+  lists the two children of the root in either order). Five spans per trace, none missing, none
+  orphaned.
+- **Span kinds** `Internal` on every child (the root is the `server` span); **Status** `OK`.
+- **Instrumentation scope** `mercury-opentelemetry-forwarder`, **scope version** `4.12.12` — the
+  workspace version of the build under test, so the spans came from this branch's build and from this
+  engine's forwarder, not from the Java module.
+- **Attributes** exactly as mapped: on the root `path: GET /api/hello/otel-cert?lang=fr`,
+  `from: http.request`, `route: http.flow.adapter`, `exec_time_ms`, `origin`, `status: 200`; on
+  `task.executor` the flow engine's annotations arrived as `annotation.execution` (`Run 2 tasks in 0
+  ms`), `annotation.flow` (`hello-flow`) and `annotation.tasks` (the task list with per-task `spent`),
+  plus `from: event.script.manager`; the trace and span ids in the UI match the engine's telemetry
+  datasets digit for digit.
+
+The leg B trace `ababd406bfcf43c181ded9446d1c0198` is not in the tenant — the 401s were real
+rejections, not deferred acceptances. With this the certification of the branch build is closed on
+both sides of the wire: the forwarder's own log on the sending side, the vendor UI on the receiving
+side.
 
 ## What remains
 
-- The UI confirmation above, then field acceptance on the released `4.12.14` crate (scope version
-  `4.12.14`), as the Java module did for its release build.
+- Field acceptance on the released `4.12.14` crate (scope version `4.12.14` in the UI), as the Java
+  module did for its release build — the UI confirmation above was of the branch build.
 - Splunk Observability Cloud: the `X-SF-Token:` header form is parsed and documented but not run
   live.
 - `otel.exporter.otlp.compression=gzip` is a declared delta (warns, exports uncompressed); a
