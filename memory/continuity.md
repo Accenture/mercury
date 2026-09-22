@@ -334,7 +334,33 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   the Playground's E0 twin (#314, merged `44bb207e`): the Rust and Java edges rendering Gemini tokens progressively through the hosts'
   `llm.stream`, four token-bearing traces, lineage from both sides' datasets, 0 export failures; Eric's Dynatrace
   lookup is the remaining gate.
+  **2026-09-22, later:** the kind rule became SERVER iff `service == http.request` — the edge's round-trip record
+  introduced by [[connected-edge-spans]]; a function execution is INTERNAL.
   <!-- id: otel-forwarder-no-sdk | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-010413 -->
+
+- **A traced HTTP request is ONE connected span tree whose root is the edge's round-trip span; a streamed
+  response is traced at its head and its tail, never per token (Eric's rulings on the Dynatrace review of
+  the v4.12.15 certification traces, 2026-09-22; Increment 133, branch `fix/connected-edge-spans` `a95e2a91`,
+  lock-step with mercury-composable `15bc19e8`).** `automation/server.rs` mints the span at receipt
+  (`EdgeTrace`), every dispatch parents onto it, and the record `service=http.request` is emitted by `handle`
+  (buffered response, edge error) or by the stream renderer at the terminal (head status, or the in-band
+  failure's status and message, or the idle 408) — `start` = receipt, `exec_time` = the round trip,
+  `parent_span_id` = the inbound traceparent span. **All four OTel forwarders map SERVER iff `service ==
+  http.request`; every function execution is INTERNAL.** The stream relay's client leg parents onto the
+  sender (`relay_event_stream` stamps `set_span_id`) because `is_zero_traced` no longer consults
+  `skip.rpc.tracing` — the list only suppresses the caller-side RPC `round_trip` record (Java `InboxBase`
+  semantics; this port had zero-traced the whole route and the RPC path masked the drift for months).
+  `EventStreamWriter` sends the first segment and the terminals traced and the data segments through
+  `PostOffice::send_untraced`; the HTTP client relays stamp the client leg's own trace (`RelayTrace`) on
+  synthesized head/eof/exception segments and forward raw token frames untraced; `StreamLaneService`
+  annotates the terminal record with `frames` = the data-segment count. **Why it was invisible until now:**
+  0 export failures in every drive; only the trace tree in the backend UI showed the orphans — and the
+  drive's fabricated `traceparent` (a random parent nobody exported) broke every root, a drive artifact that
+  looked like an engine defect (send `X-Trace-Id`, or nothing, without a real upstream span). Behaviour
+  change to READ at 4.12.15: one more span per traced request; the first function is INTERNAL; an
+  Event-over-HTTP callee edge records its own round trip between the caller's span and `event.api.service`.
+  Extends [[otel-forwarder-no-sdk]]; pinned by `event_over_http_stream::edge_relay_spans_are_connected`.
+  <!-- id: connected-edge-spans | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-200854 -->
 
 ## Conventions
 
