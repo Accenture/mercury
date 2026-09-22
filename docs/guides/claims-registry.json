@@ -243,7 +243,7 @@
       "pages": [
         "docs/guides/observability.md"
       ],
-      "quote": "linking the crate registers nothing, and the route exists only when otel.forwarding is true",
+      "quote": "the route exists only when otel.forwarding is true",
       "test": "examples/hello-flow::otel_forwarding_switch::the_forwarder_is_not_registered_when_forwarding_is_off",
       "since": "4.12.14+"
     },
@@ -264,7 +264,7 @@
         "docs/guides/observability.md",
         "docs/guides/configuration-reference.md"
       ],
-      "quote": "`otel.exporter.otlp.headers` is resolved per export",
+      "quote": "The credential is re-read on every export",
       "test": "extensions/opentelemetry-forwarder::otlp_export::exporter_end_to_end",
       "since": "4.12.14+"
     }
