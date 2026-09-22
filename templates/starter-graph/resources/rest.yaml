@@ -10,3 +10,73 @@ rest:
     flow: 'graph-executor'
     timeout: 30s
     tracing: true
+
+  # The home page (also reached at "/"). get.index.html serves the MiniGraph Playground
+  # web app when app.env=dev and a plain service page otherwise, so a production
+  # deployment never shows the Playground UI. Without this entry "/" falls through to
+  # the engine crate's static index.html, which is the same plain page in both modes.
+  - service: 'get.index.html'
+    methods: ['GET']
+    url: '/index.html'
+    timeout: 10s
+
+# Below endpoints for minigraph-playground, tutorials and AI companion.
+# They are not loaded when app.env not = dev or absent.
+  - service: 'show.graph.model'
+    methods: ['GET']
+    url: '/api/graph/model/{graph_id}/{sequence}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'get.live.graph'
+    methods: ['GET']
+    url: '/api/graph/session/{id}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'upload.json.content'
+    methods: ['POST']
+    url: '/api/json/content/{id}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'upload.mock.content'
+    methods: ['POST']
+    url: '/api/mock/{id}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'inspect.state.machine'
+    methods: ['GET']
+    url: '/api/inspect/{id}/{key}'
+    timeout: 30s
+    tracing: true
+
+  # THE companion endpoint (ADR-0008, synchronous) - returns the command outcome
+  # in-band as {ok, id, command, output, error, result} and tees every line to the
+  # session's WebSocket console.
+  - service: 'post.companion.command.sync'
+    methods: ['POST']
+    url: '/api/companion/{id}/sync'
+    timeout: 30s
+    tracing: true
+
+  # MOCK endpoints (dev-only engine services the tutorials call over HTTP)
+
+  - service: 'mock.mdm.profile'
+    methods: ['POST']
+    url: '/api/mdm/profile'
+    timeout: 10s
+    tracing: true
+
+  - service: 'mock.mdm.profile'
+    methods: ['GET']
+    url: '/api/mdm/profile/{id}'
+    timeout: 10s
+    tracing: true
+
+  - service: 'mock.account.details'
+    methods: ['POST']
+    url: '/api/account/details'
+    timeout: 10s
+    tracing: true

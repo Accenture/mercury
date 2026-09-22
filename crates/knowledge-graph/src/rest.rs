@@ -69,17 +69,26 @@ fn request_view(event: &EventEnvelope) -> (HashMap<String, String>, Value, Strin
     (path_parameters, body, method)
 }
 
-/// Java `GetIndexHtml` (`get.index.html`): the home page — `/public` when
-/// dev, `/template` otherwise.
+/// The Playground web app's entry page - deliberately OUTSIDE the static
+/// `resources/public` folder, so it is reachable only through `get_index_html`.
+pub const PLAYGROUND_PAGE: &str = "/template/playground.html";
+/// The plain service page: the home page outside dev mode.
+pub const PLAIN_PAGE: &str = "/template/index.html";
+
+/// Java `GetIndexHtml` (`get.index.html`): the home page. The Playground web app
+/// is served ONLY when `app.env=dev` - the same gate as every Playground service;
+/// any other value, or no `app.env` at all, serves the plain service page, so a
+/// production deployment never shows the Playground UI. The static
+/// `resources/public/index.html` is that same plain page, so an application that
+/// does not route this function never serves the Playground by accident either.
 pub async fn get_index_html(_event: EventEnvelope) -> Result<EventEnvelope, AppError> {
     let config = AppConfigReader::get_instance();
-    let location = if config.get_property_or("app.env", "dev") == "dev" {
-        "/public"
+    let resource = if config.get_property("app.env").as_deref() == Some("dev") {
+        PLAYGROUND_PAGE
     } else {
-        "/template"
+        PLAIN_PAGE
     };
-    let resource = format!("{location}/index.html");
-    let resolved = platform_core::resources::resolve_classpath(&resource)
+    let resolved = platform_core::resources::resolve_classpath(resource)
         .ok_or_else(|| AppError::new(404, format!("{resource} not found")))?;
     let content = std::fs::read_to_string(resolved).map_err(|e| invalid(e.to_string()))?;
     Ok(EventEnvelope::new()

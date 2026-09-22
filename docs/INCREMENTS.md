@@ -3577,3 +3577,41 @@ count, and add the round-trip span the edge never had. Lock-step with mercury-co
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
 --workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+## Increment 134 — The home page outside dev mode is a plain page: the Playground entry page leaves the static folder, and the Layer 3 starter gains dev mode (P10 closed) (2026-09-22)
+
+Eric's ruling on P10, made while surveying the backlog before v4.12.15: a production deployment
+must never show the React Playground UI as its home page — "the user would panic" — and the Layer 3
+starter template should carry the same small dev-mode wiring as the Java starter rather than keep
+the production-shape delta. Lock-step with mercury-composable (the same change on both engines):
+
+- **The Playground entry page leaves the static folder.** `resources/public/index.html` was the
+  compiled web app's `index.html`, so any application depending on this crate served the Playground
+  at `/` through the static fallback — in every environment, with the dev-only services absent
+  outside dev. It is now `resources/template/playground.html` (`knowledge_graph::rest::PLAYGROUND_PAGE`),
+  reachable only through `get.index.html`, and `resources/public/index.html` is the same plain
+  service page as `resources/template/index.html` (`PLAIN_PAGE`). `get_index_html` serves the
+  Playground page **only when `app.env=dev`** — the gate every Playground service already uses —
+  and the plain page for any other value *or no `app.env` at all* (it used to default to `dev`).
+  The webapp's `deploy.js`/`clean.js` split the bundle accordingly: hashed assets into
+  `public/assets/`, the entry page into `template/playground.html`, the plain page untouched.
+- **The starter template runs dev mode (P10).** `templates/starter-graph` gains `app.env: dev`,
+  the `get.index.html` home page route, and the dev-mode routes the Java starter ships (the
+  companion endpoint, the live-model and describe-model reads, the two uploads, the state-machine
+  inspector, the tutorial mocks), plus the README's *Dev mode is on* section, `AGENTS.md` and the
+  broker README pointing at the starter's own port 8303. Removing the one `app.env` line closes the
+  whole surface, home page included. The AI agent guide's scaffolding section now starts from the
+  template, as the Java guide does.
+- **Docs:** `configuration-reference.md` (`app.env`), `reserved-names-and-headers.md`
+  (`get.index.html`), `playground-and-companion.md`, the example's `rest.yaml` header.
+
+**Upgrade notes.** An application that never routed `get.index.html` now gets the plain page at `/`
+in dev mode too — add the route (the AI guide's `playground-enabled` profile always listed it). An
+application whose `app.env` is absent now gets the plain page where it used to get the Playground.
+
+Tests: `home_page.rs` (`home_page_follows_the_dev_mode_gate`,
+`playground_page_is_outside_the_static_folder`) and the starter's `deployed_graph_end_to_end`
+home-page case.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+--workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.

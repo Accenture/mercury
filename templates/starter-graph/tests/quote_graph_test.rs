@@ -36,6 +36,27 @@ async fn http_post(port: u16, path: &str, body: &str) -> (u16, String) {
     (status, payload.to_string())
 }
 
+async fn http_get(port: u16, path: &str) -> (u16, String) {
+    let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port))
+        .await
+        .expect("connect");
+    let request = format!(
+        "GET {path} HTTP/1.1\r\nHost: localhost\r\naccept: text/html\r\nConnection: close\r\n\r\n"
+    );
+    stream.write_all(request.as_bytes()).await.expect("write");
+    let mut raw = Vec::new();
+    stream.read_to_end(&mut raw).await.expect("read");
+    let text = String::from_utf8_lossy(&raw).to_string();
+    let (head, payload) = text.split_once("\r\n\r\n").unwrap_or((text.as_str(), ""));
+    let status: u16 = head
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .and_then(|code| code.parse().ok())
+        .unwrap_or_else(|| panic!("status code missing in: {text:?}"));
+    (status, payload.to_string())
+}
+
 // One test function on purpose: the app boots ONCE per process (AutoStart is
 // a run-once lifecycle), so all cases run in a single sequential test.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -66,4 +87,13 @@ async fn deployed_graph_end_to_end() {
     // "compiled or 404": a graph absent from the manifest behaves as nonexistent
     let (status, _) = http_post(port, "/api/graph/no-such-graph", r#"{"item": "widget"}"#).await;
     assert_eq!(status, 404);
+
+    // application.yml ships app.env: dev, so get.index.html (also reached at "/") serves the
+    // Playground web app; without that switch the same route serves the plain service page
+    let (status, page) = http_get(port, "/").await;
+    assert_eq!(status, 200, "unexpected: {page}");
+    assert!(
+        page.contains("<title>Minigraph Playground</title>"),
+        "dev mode must serve the Playground page at /: {page}"
+    );
 }

@@ -99,7 +99,7 @@ carries a keep-alive obligation, and a hand-rolled client that misses it appears
 dies silently at the server's idle timeout — typically mid-collaboration. The zero-dependency
 reference broker, `scripts/playground-session-broker.mjs` (Node ≥ 22), ships in the
 `minigraph-playground` example and in the `starter-graph` template, and the
-[scaffolding manifest](#scaffolding) carries it into projects derived from the example. It holds the session, keeps it alive with the web UI's own ping cadence,
+[scaffolding manifest](#scaffolding) carries it into projects derived from either. It holds the session, keeps it alive with the web UI's own ping cadence,
 auto-reconnects across app restarts, and exposes a localhost control API (`GET /session`,
 `GET /console`, `POST /start`, `POST /stop`) so the agent reads the session id over HTTP, hands
 it to the humans (`session subscribe {id}` in their browsers), and keeps driving commands
@@ -237,11 +237,19 @@ Because each response carries `ok`/`error`/`result`, an agent verifies and corre
 need to relay the WebSocket console. The same lines are still teed to the human's console, so a
 watcher (and any `session subscribe`d session) follows along live.
 
-## Scaffolding a project from the example {#scaffolding}
+## Scaffolding a project from the template {#scaffolding}
 
-Start every knowledge-graph project from `examples/minigraph-playground` and trim — **against
-this manifest, not against your build passing** (`cargo test` and `curl` both stay green with
-Playground UI routes missing; only the browser notices).
+**Start from `templates/starter-graph`.** It is the copy-out starter for Layer 3 and it already
+ships the whole `playground-enabled` surface below — the dev-mode endpoints, `app.env: dev`, the
+home page route, and the session broker script — so a fresh project can be co-authored with an AI
+agent from the first run. Copy the directory, rename the ids, replace the graph model, and you are
+done; the manifest and route list here are then a **checklist for what you must not delete**, not
+a trimming exercise.
+
+If you instead derive from the fuller `examples/minigraph-playground` (which additionally
+demonstrates LLM streaming and Event-over-HTTP), trim — **against this manifest, not against your
+build passing** (`cargo test` and `curl` both stay green with Playground UI routes missing; only
+the browser notices).
 
 **Boilerplate manifest** — what a derived project keeps:
 
@@ -298,7 +306,7 @@ rest:
     tracing: true
 
   # ── [playground-enabled] UI plumbing — required when a human opens the UI ─
-  # Serves the Playground web app
+  # Serves the Playground web app when app.env=dev, a plain service page otherwise
   - service: 'get.index.html'
     methods: ['GET']
     url: '/index.html'
