@@ -284,7 +284,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   (the listener registered before the wait) and the flow adapter's hook drains its consumers within a
   10 s grace, so a Kubernetes pod stop commits the record in hand and leaves the group explicitly —
   proven live: explicit `LeaveGroup` 22 ms after the signal, where a hard kill waits the 45 s session
-  timeout. Report: `docs/test-reports/minimalist-kafka-interop.md` Findings 1–2; Increment 126. Relates [[port-bottom-up-faithful]]
+  timeout. Report: `docs/test-reports/minimalist-kafka-interop.md` Findings 1–2; Increment 126. **Pinned 2026-09-22 (PR #312, merge `3a90afc6`, Increment 130):** `tests/kafka_shutdown.rs` observes the leave at the mock broker — the survivor of a two-member group holds the leaver's partitions ~3 s after the close (its next heartbeat), never the session timeout — under the consumer protocol (the mock's classic coordinator is slow after a leave; a real broker leaves in 1–2 ms under both); guide §`#shutdown` + claim `kafka-consumer-leaves-group-on-shutdown` (the same id as Java's, whose `KafkaShutdownTest` landed with the Java fix). Stated, not fixed: the producer is not flushed at exit. Relates [[port-bottom-up-faithful]]
   (an implicit JVM property mapped to an explicit Rust declaration).
   <!-- id: headless-app-keep-running | created: 2026-09-21 | last_used: 2026-09-21 | uses: 3 | tier: active | origin: 2026-09-21-175430 -->
 
