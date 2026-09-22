@@ -474,16 +474,25 @@ edge record carrying the provider's status and message and its terminal `frames:
 
 **Exports.** the forwarder reported ready in all four applications (both Playgrounds re-linked to their forwarder for the drive, as in Scenario 8) and every application exported with zero failures — the engines 4 spans per trace (edge, relay, client leg, lane terminal), the hosts 1 each.
 
-**Backend view.** pending — the maintainer's Dynatrace lookup of the four traces above, each expected as ONE tree: a SERVER root `http.request` (kind 2) with the round-trip duration, the relay and the client leg under it, the host's `llm.stream` under the relay, and the lane terminal under the host, `annotation.frames` on the terminal; no span without a parent. The Scenario 8 traces, confirmed in the UI on 2026-09-22 (two services each, the host span under the engine's relay, scopes `mercury-composable-nodejs 4.12.1`, `mercury-composable-python 4.12.1`, `org.platformlambda.opentelemetry-forwarder 4.12.14`), are the before picture: the relay's parent absent, `async.http.request` unparented.
+**Backend view — CONFIRMED (2026-09-22, the maintainer's four screenshots).** Dynatrace renders each of the four
+traces as one tree titled `'http.request' Trace`: the root is the edge span, the service's response time is the
+round trip (339 ms and 290 ms for this engine's two traces, 1.05 s and 350 ms for the Java pair — `status: 429`,
+one failure each), `llm.stream.relay` sits under it, `async.http.request` and the host's `llm.stream` (kind
+Internal, `from: llm.stream.relay`, scope `mercury-composable-python` or `mercury-composable-nodejs` 4.12.1)
+under the relay, and `async.http.response.stream.0` under the host's span — no span without a parent. The
+drive-7 token-bearing trace `86eb549f…` is not in the backend: only the hosts exported that run, and a lone child
+span without its root is not a trace the UI lists. The Scenario 8 traces, confirmed in the UI earlier the same
+day (two services each, scopes `mercury-composable-nodejs 4.12.1`, `mercury-composable-python 4.12.1`,
+`mercury-opentelemetry-forwarder 4.12.14`), are the before picture: the relay's parent absent,
+`async.http.request` unparented.
 
 ## What remains
 
-- **Scenario 9's backend view:** the maintainer's Dynatrace lookup of the four re-drive traces, each
-  expected as one connected tree rooted at the edge's `http.request` SERVER span — and a token-bearing
-  re-drive of the same shape once the provider's quota allows (the fix's token-bearing tree exists in the
-  runtimes' logs; the backend has not received one yet). Scenario 8's backend view is CONFIRMED
-  (2026-09-22, the maintainer's four screenshots): two services per trace and the scopes as predicted —
-  and the broken tree shape it revealed is what Scenario 9 fixed.
+- **A token-bearing re-drive** of the Scenario 9 shape once the provider's quota allows — the fix's
+  token-bearing tree exists in the runtimes' logs (drive 7, Rust → Python `86eb549f…`, `frames: 2`) but its
+  engine spans were not exported, so the backend has not received one yet. Scenario 9's backend view is
+  CONFIRMED (2026-09-22, the maintainer's four screenshots: one tree per trace, the edge span the root and
+  the response time), and so is Scenario 8's — the broken tree shape it revealed is what Scenario 9 fixed.
 - Nothing else for 4.12.14: with Scenarios 6 and 7 confirmed in the UI, the forwarder's certification is
   closed on both sides of the wire for the released crate — standalone and across the two engines.
 - Splunk Observability Cloud: the `X-SF-Token:` header form is parsed and documented but not run
