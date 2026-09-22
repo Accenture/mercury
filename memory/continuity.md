@@ -331,7 +331,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   [[otel-forwarder-certification]] is CLOSED (report Scenarios 6–7).
   **Extended 2026-09-22 (Eric's v4.12.15 milestone):** the no-SDK design now holds on all four runtimes — this crate's
   OTLP encoder ported to mercury-python (#33) and mercury-nodejs (#101) — and Scenario 8 certified them together with
-  the Playground's E0 twin (#314): the Rust and Java edges rendering Gemini tokens progressively through the hosts'
+  the Playground's E0 twin (#314, merged `44bb207e`): the Rust and Java edges rendering Gemini tokens progressively through the hosts'
   `llm.stream`, four token-bearing traces, lineage from both sides' datasets, 0 export failures; Eric's Dynatrace
   lookup is the remaining gate.
   <!-- id: otel-forwarder-no-sdk | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-010413 -->
