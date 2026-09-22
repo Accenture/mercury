@@ -227,10 +227,104 @@ rejections, not deferred acceptances. With this the certification of the branch 
 both sides of the wire: the forwarder's own log on the sending side, the vendor UI on the receiving
 side.
 
+## Scenario 6 — field acceptance on the published crate (2026-09-22)
+
+The certification above ran the branch build (scope version 4.12.12). After the v4.12.14 release the
+same drive was repeated from **the crates.io artifacts only**: a standalone consumer application built
+outside the workspace with registry dependencies — `mercury-platform-core = "4.12.14"` and
+`mercury-opentelemetry-forwarder = "4.12.14"`, no `path` into this repository (`cargo tree` shows both
+resolved from the registry) — one traced endpoint `GET /api/accept/{id}` calling one worker function, so
+each request is a three-span trace (`accept.api` SERVER → `accept.work`, `async.http.response`). It was
+launched with `-Dotel.forwarding=true`, the endpoint and credential from the environment, service
+`mercury-otel-cert`, and `info.app.version` deliberately unset so the instrumentation-scope version is
+the published forwarder crate's own.
+
+| Leg | Credential | Export failures | Traces (service `mercury-otel-cert`) |
+|-----|-----------|-----------------|--------------------------------------|
+| **A** — clean, two requests | real token | **0** of 6 | `580cbdc0f96441aa9afd9c6ed51bc4ce` (02:41:23Z), `5fd1cd3db9ba41a0a8b8b5de8e603b1a` (02:41:24Z) |
+| **B** — negative control | bogus token | **3** of 3, `HTTP 401 - Token Authentication failed` | `9b25cb38cb0944f786d91e9ad2e56af0` (absent) |
+
+What the UI should show for the two leg-A traces: three spans nested `accept.api` → `accept.work` and
+`accept.api` → `async.http.response`, scope `mercury-opentelemetry-forwarder` **version 4.12.14**, the
+`annotation.acceptance.id` and `annotation.acceptance` attributes. That version is the artifact check:
+the spans came from the crate a field application downloads, not from a checkout.
+
+## Scenario 7 — two engines, one trace (2026-09-22)
+
+The maintainer's suggestion, and the strongest acceptance available: the minimalist-kafka interop of the
+K5 gate re-run with the OpenTelemetry forwarder **on both engines**, so one request's spans arrive at the
+backend from two processes and two forwarders. Setup: `kafka-standalone`, `redis-standalone` and
+`schema-registry-standalone` 4.12.14 (the six demo topics, ten partitions each); the Java
+`sync-over-async-demo` 4.12.14 rebuilt with the `opentelemetry-forwarder` dependency added for the
+drive, and this repository's `sync-over-async-demo` with the crate linked for the drive (neither edit
+committed — the examples ship without the forwarder); both launched with `-Dotel.forwarding=true`, the
+same endpoint and credential from the environment, and distinct service names so the hop is visible:
+**`mercury-otel-cert-java`** and **`mercury-otel-cert-rust`**. Each request is `POST /api/sync-to-async`
+with a caller-set `traceparent`, so the trace id below is the caller's; the facade publishes the request
+to Kafka, the backend on the *other* engine consumes it and publishes the reply, and the facade's
+`sync.await` completes through the Redis return route. A fresh broker per pairing (see finding 1).
+
+| Pairing | Facade | Backend | Traces | Spans exported (failures) |
+|---------|--------|---------|--------|---------------------------|
+| **A** | Java `:8500` | Rust | `f78de6d2d9a649d425acaec09a6bba53` (02:52:59Z), `72b2e692bac8478e1e2a9c148e3d1606` (02:53:01Z) | Java 18 (0), Rust 6 (0) |
+| **B** | Rust `:8400` | Java | `ec6b3fc64b769c9f79c1f80d50371a2e` (02:53:36Z), `3481c84b80e6804849a2df2ea6967237` (02:53:37Z) | Rust 16 (0), Java 8 (0) |
+
+Every trace crosses the engine boundary **twice**, and the parent ids on the wire say so — the Kafka
+record's `traceparent` header carries the span context across the hop in both directions. For trace
+`72b2e692…` (pairing A):
+
+```text
+mercury-otel-cert-java   http.flow.adapter b3c801d640de134e            server
+├─ task.executor, sync.prepare 8808c62ce9d7da7a
+│  └─ simple.kafka.notification b97f815f845b01e7      ── Kafka: soa.request ──▶
+│     mercury-otel-cert-rust   task.executor / system.of.record 8d94bd61ca44a0a6   (parent b97f815f…)
+│                              └─ simple.kafka.notification 8ddccc5536bf7cdb  ── Kafka: soa.response ──▶
+│     mercury-otel-cert-java   task.executor / soa.reply a8024e25466d1cf1       (parent 8ddccc55…)
+└─ sync.await 93730de9cb688bc9 → async.http.response ac59e2472382cb4f
+```
+
+and for trace `3481c84b…` (pairing B) the mirror image: the Rust facade's `simple.kafka.notification`
+`a08a87cd3e5e34da` parents the Java backend's `system.of.record` `915af201c949fbc7`, and the Java
+backend's `simple.kafka.notification` `82563cebebb18192` parents the Rust facade's `soa.reply`
+`97813ba9f84bd050`. What the UI should show: **one trace, two services**, the Java spans under scope
+`org.platformlambda.opentelemetry-forwarder` 4.12.14 and the Rust spans under
+`mercury-opentelemetry-forwarder` 4.12.14. (The flow engine's `event.script.manager` records carry no
+span id of their own and are skipped by both forwarders, as designed.)
+
+### Findings of the round
+
+1. **Java consumers do not leave their groups on SIGTERM; Rust consumers do.** The first attempt at
+   pairing B answered 408 twice although the Java backend processed both requests within 40 ms and
+   published both replies: the broker log shows the Java *facade* of the previous pairing, stopped with
+   SIGTERM 4 s earlier, still a member of `soa-reply-group` holding all ten `soa.response` partitions —
+   it was **fenced by session expiry 40 s later** — so the Rust facade that had just joined the same group
+   owned nothing, and both replies landed on parked partitions. Every Java member in this drive went the
+   same way (`Member … fenced from the group because the member session expired`), every Rust member
+   `left the consumer group` on stop. On the Java side `KafkaFlowAdapter.close()` →
+   `KafkaFlowConsumer.close()` (wake-up + `consumer.close()`, which sends LeaveGroup) exists, but nothing
+   calls it at shutdown — `KafkaFlowAutoStart.start()` starts the adapter and registers no
+   `Platform.onShutdown(adapter::close)`; `KafkaRequestPublisher.close()` (a `producer.close()`, which
+   flushes) is in the same position. On Kubernetes that is a rolling restart parking the old pod's
+   partitions for the KIP-848 session timeout. Recorded for the Java engine as an open thread; the fix is
+   the platform shutdown lifecycle that already exists.
+2. **The Java demo's error handler assumes the return-route coordinator is up.** In the first attempt at
+   pairing A the first request arrived 100 ms before the facade's `Return-route subscriber listening`
+   line; the flow aborted correctly, but `SyncErrorHandler` then called
+   `SyncRuntime.coordinator().abort(cid)` on a null coordinator and the client got a 500 from the NPE
+   instead of the flow's own error. A null check (or readiness gating) is the demo-level fix.
+3. **Readiness is per component, and a stopped member is not a gone member.** The re-run waited for
+   each app's own readiness lines (Java: `Assigned partitions` for every binding and the return-route
+   subscriber; Rust: `Kafka flow adapter started`, `Return-route coordinator started` and a few seconds
+   for the joins) and gave each pairing a fresh broker — after which all four requests answered 200 and
+   all 48 spans exported. Same lesson as the earlier port-hand-off one: assert the hand-off, never assume
+   the kill.
+
 ## What remains
 
-- Field acceptance on the released `4.12.14` crate (scope version `4.12.14` in the UI), as the Java
-  module did for its release build — the UI confirmation above was of the branch build.
+- The maintainer's UI confirmation of Scenarios 6 and 7: the published-crate traces under
+  `mercury-otel-cert` at scope version 4.12.14, and the four two-engine traces under
+  `mercury-otel-cert-java` + `mercury-otel-cert-rust` joined into one trace each. That closes the
+  forwarder's certification for 4.12.14.
 - Splunk Observability Cloud: the `X-SF-Token:` header form is parsed and documented but not run
   live.
 - `otel.exporter.otlp.compression=gzip` is a declared delta (warns, exports uncompressed); a
