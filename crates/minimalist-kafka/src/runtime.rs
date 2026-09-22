@@ -47,6 +47,42 @@ pub fn clear_publisher() {
     PUBLISHER.write().expect("kafka runtime poisoned").take();
 }
 
+/// Release the shared producer on shutdown: deliver every record callers have
+/// enqueued — bounded by [`SHUTDOWN_GRACE`] — then forget the handle, so a
+/// late caller is told the producer is not started rather than handed a closed
+/// client. Registered on the platform's shutdown lifecycle where the producer
+/// is built; the flow adapter registers its consumer stop later and hooks run
+/// newest first, so the consumers have stopped (and made their last dead-letter
+/// and notification publishes) before this runs — the Java module's
+/// `KafkaRuntime.shutdown()` order. Java's producer close waits without bound;
+/// this port bounds the wait so a stopping pod never waits on a dead broker
+/// past its termination grace. Returns how many records the grace could not
+/// deliver (0 when the flush completed, or when nothing was started); a second
+/// call finds nothing to do.
+pub fn close_publisher() -> usize {
+    close_publisher_within(SHUTDOWN_GRACE)
+}
+
+/// [`close_publisher`] with an explicit grace (tests).
+pub fn close_publisher_within(grace: Duration) -> usize {
+    let Some(publisher) = PUBLISHER.write().expect("kafka runtime poisoned").take() else {
+        return 0;
+    };
+    match publisher.flush(grace) {
+        Ok(()) => {
+            log::info!("Kafka producer flushed and closed");
+            0
+        }
+        Err(incomplete) => {
+            log::warn!(
+                "Kafka producer flush incomplete after {} s - {incomplete}",
+                grace.as_secs()
+            );
+            incomplete.undelivered
+        }
+    }
+}
+
 /// Install the shared Schema Registry codec (the auto-start entry point, when
 /// `schema.registry.url` is configured; tests install their own against an
 /// embedded registry).
@@ -70,7 +106,8 @@ pub fn set_flow_consumers(consumers: Vec<KafkaFlowConsumer>) {
 }
 
 /// How long a stop waits for the binding consumers to finish their in-flight
-/// records before the process goes on shutting down (a Kubernetes pod's default
+/// records — and, after them, for the producer to deliver what callers enqueued —
+/// before the process goes on shutting down (a Kubernetes pod's default
 /// termination grace is 30 s; a record still in flight after this redelivers).
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(10);
 

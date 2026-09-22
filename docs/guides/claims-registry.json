@@ -277,6 +277,16 @@
       "quote": "the consumer's close sends the group coordinator a **LeaveGroup**: the member's partitions are reassigned to the surviving members at once",
       "test": "crates/minimalist-kafka::kafka_shutdown::closing_a_flow_consumer_leaves_the_group_at_once",
       "since": "4.12.15+"
+    },
+    {
+      "id": "kafka-producer-flushed-on-shutdown",
+      "claim": "On shutdown, after the consumers stop, the shared producer is flushed within a bounded grace so records callers already enqueued are delivered before the process exits; the handle is then forgotten.",
+      "pages": [
+        "docs/guides/minimalist-kafka.md"
+      ],
+      "quote": "the shared producer is **flushed** — every record already accepted by `simple.kafka.notification` or a dead-letter write is delivered before the process exits",
+      "test": "crates/minimalist-kafka::kafka_shutdown::close_publisher_delivers_the_lingering_records_then_forgets_the_handle",
+      "since": "4.12.15+"
     }
   ]
 }

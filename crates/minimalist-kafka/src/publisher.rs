@@ -26,6 +26,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use platform_core::AppError;
+use rdkafka::error::KafkaError;
 use rdkafka::message::{Header, OwnedHeaders};
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
 use rdkafka::util::Timeout;
@@ -40,9 +41,51 @@ pub struct KafkaRequestPublisher {
     producer: FutureProducer,
 }
 
+/// A [`KafkaRequestPublisher::flush`] that ran out of time: `undelivered`
+/// records were still waiting for the broker when the grace ended.
+#[derive(Debug)]
+pub struct FlushIncomplete {
+    pub undelivered: usize,
+    pub cause: KafkaError,
+}
+
+impl std::fmt::Display for FlushIncomplete {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} message(s) undelivered - {}",
+            self.undelivered, self.cause
+        )
+    }
+}
+
+impl std::error::Error for FlushIncomplete {}
+
 impl KafkaRequestPublisher {
     pub fn new(producer: FutureProducer) -> Self {
         KafkaRequestPublisher { producer }
+    }
+
+    /// Deliver every record accepted so far, waiting at most `timeout` for the
+    /// broker's acknowledgements — the shutdown path (`runtime::close_publisher`).
+    /// The wait runs through the client's linger (`linger.ms`, 5 ms by default):
+    /// the crate's flush cannot cut a linger short, so a template with a long
+    /// linger flushes no faster than that linger. A timeout reports how many
+    /// records were still undelivered, so the caller can decide whether a
+    /// stopping process waits any longer.
+    pub fn flush(&self, timeout: Duration) -> Result<(), FlushIncomplete> {
+        self.producer
+            .flush(Timeout::After(timeout))
+            .map_err(|cause| FlushIncomplete {
+                undelivered: self.in_flight_count(),
+                cause,
+            })
+    }
+
+    /// Records accepted by [`publish`](Self::publish) whose delivery report has
+    /// not arrived yet.
+    pub fn in_flight_count(&self) -> usize {
+        usize::try_from(self.producer.in_flight_count()).unwrap_or(0)
     }
 
     /// Publish one record and await the broker acknowledgement. `partition`
