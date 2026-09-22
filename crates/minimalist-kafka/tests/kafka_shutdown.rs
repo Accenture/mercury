@@ -18,19 +18,36 @@
 //! mock artifact; a real broker records the explicit `LeaveGroup` within milliseconds under both
 //! protocols — so the test pins the consumer protocol, which is what the bundled template's `auto`
 //! resolves to on a KIP-848 cluster.
+//!
+//! The producer half of the same contract: after the consumers, the shutdown hook flushes the shared
+//! producer within the same grace — a record a caller enqueued is delivered before the process
+//! exits — and forgets the handle; a broker that cannot take the records in time is reported as an
+//! undelivered count, never waited on past the grace (Java's producer close waits without bound).
+//! The flush waits through the client's linger (`linger.ms`, 5 ms by default) rather than cutting
+//! it short: the `rdkafka` crate's flush calls librdkafka's `rd_kafka_flush` with a zero timeout in
+//! a poll loop, so the "linger ignored while flushing" flag is never seen by the broker thread — a
+//! 5 s linger measured a 4.98 s flush. Accepted: any sane linger is far inside the grace, and the
+//! alternative is this crate's first `unsafe` FFI call.
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use minimalist_kafka::{runtime, KafkaConsumerBinding, KafkaFlowConsumer, RetryPolicy};
+use minimalist_kafka::{
+    runtime, KafkaConsumerBinding, KafkaFlowConsumer, KafkaRequestPublisher, RetryPolicy,
+};
 use platform_core::Platform;
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::mocking::MockCluster;
-use rdkafka::producer::DefaultProducerContext;
+use rdkafka::producer::{DefaultProducerContext, FutureProducer};
 
 /// Far below the mock cluster's 30 s consumer session timeout (and the 45 s broker default): a
 /// member that merely vanished would keep its partitions for the whole session.
 const WELL_INSIDE_SESSION_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// One mock heartbeat interval (3 s) plus margin: the time a freshly assigned member needs to
+/// acknowledge its assignment before it is a settled member of the group.
+const SETTLED_MEMBER: Duration = Duration::from_secs(4);
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn closing_a_flow_consumer_leaves_the_group_at_once() {
@@ -56,6 +73,11 @@ async fn closing_a_flow_consumer_leaves_the_group_at_once() {
         assigned(&survivor),
         "the two members should share the two partitions before the close"
     );
+    // ... and the leaver has acknowledged its own assignment on its next heartbeat (3 s on the mock).
+    // Measured: a member closed within that first heartbeat lost its leave in about one run in seven
+    // (the survivor then waited the mock's full 30 s session for the partition); a member closed
+    // mid-reconciliation is not the contract under test, a settled member is.
+    tokio::time::sleep(SETTLED_MEMBER).await;
 
     // the property under test: close() = LeaveGroup, observed by the coordinator at once - the
     // survivor receives the leaver's partition on its next heartbeat, not after the session timeout
@@ -105,6 +127,99 @@ async fn stop_flow_consumers_stops_every_registered_consumer_and_is_idempotent()
     // and nothing-started is fine too
     runtime::set_flow_consumers(Vec::new());
     assert_eq!(0, runtime::stop_flow_consumers());
+    std::mem::forget(cluster);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn close_publisher_delivers_the_lingering_records_then_forgets_the_handle() {
+    // --- a record held back by the client's linger is delivered by the flush ---
+    let topic = "shutdown-flush-topic";
+    let cluster = MockCluster::new(1).expect("mock cluster");
+    cluster.create_topic(topic, 1, 1).expect("topic");
+    let mut config = ClientConfig::new();
+    config
+        .set("bootstrap.servers", cluster.bootstrap_servers())
+        // a deliberately long linger (the client's default is 5 ms): the record sits in
+        // the client's queue when the close begins, and the flush waits it out - the
+        // safe rdkafka flush cannot shorten the linger (see the module doc)
+        .set("queue.buffering.max.ms", "1500")
+        .set("message.timeout.ms", "30000");
+    let producer: FutureProducer = config.create().expect("producer");
+    let publisher = Arc::new(KafkaRequestPublisher::new(producer));
+    runtime::set_publisher(publisher.clone());
+    let caller = publisher.clone();
+    let publish = tokio::spawn(async move {
+        caller
+            .publish(topic, None, HashMap::new(), Some(b"lingering".to_vec()))
+            .await
+    });
+    wait_for(|| publisher.in_flight_count() >= 1, Duration::from_secs(5)).await;
+    assert!(
+        publisher.in_flight_count() >= 1,
+        "the record should be waiting in the client's queue (the linger holds it)"
+    );
+    let started = Instant::now();
+    let undelivered = tokio::task::spawn_blocking(runtime::close_publisher)
+        .await
+        .expect("close runs");
+    assert_eq!(
+        0, undelivered,
+        "the flush must deliver the lingering record"
+    );
+    let elapsed = started.elapsed();
+    // the caller's own future resolves with the delivery report the flush served
+    let delivered = tokio::time::timeout(Duration::from_secs(1), publish)
+        .await
+        .expect("the caller's publish must complete once flushed")
+        .expect("publish task");
+    assert!(
+        delivered.is_ok(),
+        "the flushed record is acknowledged: {delivered:?}"
+    );
+    assert!(
+        elapsed < Duration::from_secs(5),
+        "the flush waited out the linger and returned in {elapsed:?} - well inside the 10 s grace"
+    );
+    eprintln!("the lingering record was delivered {elapsed:?} after the close began");
+    assert!(
+        runtime::publisher().is_none(),
+        "close_publisher forgets the handle - a late caller sees 'not started'"
+    );
+    // a second call finds nothing to do (the platform hook and a test teardown may both run it)
+    assert_eq!(0, runtime::close_publisher());
+    drop(publisher);
+
+    // --- a broker that cannot take the records is not waited on past the grace ---
+    let mut unreachable = ClientConfig::new();
+    unreachable
+        .set("bootstrap.servers", "127.0.0.1:1")
+        .set("message.timeout.ms", "60000");
+    let producer: FutureProducer = unreachable.create().expect("producer");
+    let publisher = Arc::new(KafkaRequestPublisher::new(producer));
+    runtime::set_publisher(publisher.clone());
+    let caller = publisher.clone();
+    let stuck = tokio::spawn(async move {
+        caller
+            .publish(topic, None, HashMap::new(), Some(b"stranded".to_vec()))
+            .await
+    });
+    wait_for(|| publisher.in_flight_count() >= 1, Duration::from_secs(5)).await;
+    let started = Instant::now();
+    let undelivered =
+        tokio::task::spawn_blocking(|| runtime::close_publisher_within(Duration::from_millis(500)))
+            .await
+            .expect("close runs");
+    assert_eq!(
+        1, undelivered,
+        "the grace ended with the stranded record still undelivered - reported, not waited for"
+    );
+    assert!(
+        started.elapsed() < Duration::from_secs(3),
+        "the close honours its grace against a dead broker ({:?})",
+        started.elapsed()
+    );
+    assert!(runtime::publisher().is_none());
+    stuck.abort();
     std::mem::forget(cluster);
 }
 

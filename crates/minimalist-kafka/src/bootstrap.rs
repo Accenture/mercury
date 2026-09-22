@@ -78,6 +78,14 @@ impl EntryPoint for KafkaAutoStart {
                 .create()
                 .map_err(|e| AppError::new(500, format!("Unable to build Kafka producer - {e}")))?;
             runtime::set_publisher(Arc::new(KafkaRequestPublisher::new(producer)));
+            // released on Ctrl-C/SIGTERM: a bounded flush delivers what callers
+            // enqueued, then the handle is forgotten. Registered here, before the
+            // flow adapter registers its consumer stop, so - hooks running newest
+            // first - the consumers stop before the producer flushes (the Java
+            // KafkaRuntime.shutdown() order)
+            Platform::get_instance().on_shutdown(|| {
+                runtime::close_publisher();
+            });
             log::info!(
                 "Kafka producer started - [{}] is available",
                 notification::ROUTE

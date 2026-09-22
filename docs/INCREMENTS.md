@@ -3468,3 +3468,52 @@ and the guide stated it in one sentence. Assessment first, then this increment o
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
 --workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+## Increment 131 — The producer joins the graceful shutdown: flushed within the 10 s grace after the consumers, then forgotten (2026-09-22)
+
+Eric, 2026-09-22, after Increment 130 stated the delta: "is it viable to fix the Rust producer flushing for
+graceful shutdown?" — then "please implement it with the 10 s bound". Until now the shared producer lived in a
+process-wide static and was never destroyed at exit, so a record a caller had enqueued at the moment of the
+signal died with the process; dropping it would not have helped either, because `rdkafka`'s producer drop
+*purges* queued and in-flight records before a 500 ms flush of the purge results. The Java module's
+`KafkaRuntime.shutdown()` closes the producer after the consumers and waits without bound.
+
+- **`KafkaRequestPublisher::flush(timeout)`** — the client's flush, bounded; a timeout returns
+  `FlushIncomplete` with the undelivered count (`in_flight_count`) and the client's error.
+  **`runtime::close_publisher()`** takes the handle out of the static (a late caller is told the producer is
+  not started, as in Java), flushes within `SHUTDOWN_GRACE` (10 s — the same grace the consumer stop uses) and
+  logs `Kafka producer flushed and closed`, or `Kafka producer flush incomplete after 10 s - N message(s)
+  undelivered - …` and returns N. **Registered on `Platform::on_shutdown` where the producer is built**, before
+  the flow adapter registers its consumer stop: hooks run newest first, so the consumers stop (and make their
+  last dead-letter and notification publishes) before the producer flushes — the Java order, with no coupling
+  between the two hooks, and produce-only applications get the flush too.
+- **The bound is the deliberate delta (Eric's ruling):** a stopping pod must not wait on a dead broker past
+  its termination grace (30 s by default on Kubernetes; 10 s consumers + 10 s flush leaves headroom). Java's
+  producer close waits without bound; the guide's *Differences* table says so.
+- **What the flush cannot do, measured:** the `rdkafka` crate's flush calls librdkafka's `rd_kafka_flush` with a
+  zero timeout inside a poll loop, so librdkafka's "linger is ignored while flushing" flag is set only for
+  microseconds at a time and the broker thread never sees it — a 5 s `queue.buffering.max.ms` measured a
+  4.98 s flush. So the flush waits *through* the client's linger (5 ms by default) rather than cutting it
+  short. Accepted, and stated in the guide: any sane linger is far inside the grace, and the alternative — one
+  `unsafe` FFI call to `rd_kafka_flush(rk, grace)` — would be this crate's first.
+- **Test** (`tests/kafka_shutdown.rs`, a third test): a producer with a 1.5 s linger, one publish in flight
+  (`in_flight_count ≥ 1` checked before the close), `close_publisher` returns 0, the caller's own future
+  resolves with the delivery report (1.44 s after the close began), the handle is gone, a second close is a
+  no-op; then a producer pointed at a closed port, one stranded publish, `close_publisher_within(500 ms)`
+  returns **1** within the grace — reported, not waited for. Claim `kafka-producer-flushed-on-shutdown`
+  registered against it.
+- **A flake, diagnosed, in the Increment 130 test:** with the new producer test running alongside it in the
+  same binary, `closing_a_flow_consumer_leaves_the_group_at_once` failed about one run in seven — the survivor
+  received the leaver's partition after **30.07 s**, the mock's session timeout, so the leave had been lost, not
+  delayed. Ten diagnostic runs with the leaver given one heartbeat interval to acknowledge its assignment before
+  the close: 10/10 clean at ~2 s. The test now waits for a *settled* member (`SETTLED_MEMBER`, 4 s) — a member
+  closed mid-reconciliation is not the contract under test — and the observation is recorded here: on
+  librdkafka's mock coordinator, a KIP-848 member closed within its first heartbeat after an assignment does not
+  always leave. Whether the client or the mock drops it is not established; a real broker was not measured for
+  this window.
+- **Guide** §*Shutdown: leaving the group* now describes both halves (consumers leave, producer flushed within
+  the grace, the log lines for each), and the *Differences from the Java engine* row states the bounded
+  flush against Java's unbounded close.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+--workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
