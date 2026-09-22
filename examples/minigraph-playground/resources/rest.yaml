@@ -28,6 +28,18 @@ rest:
     timeout: 30s
     tracing: true
 
+  #
+  # The AI-token streaming composition: the relay forwards its reply lane into the
+  # event-over-http mapped "llm.stream" AI node (a python/node demo app) and the
+  # provider's real token batches re-render progressively out this application's
+  # HTTP edge. See LlmStreamRelay in src/main.rs.
+  #
+  - service: 'llm.stream.relay'
+    methods: ['POST']
+    url: '/api/llm/stream'
+    timeout: 60s
+    tracing: true
+    stream: true
   - service: 'show.graph.model'
     methods: ['GET']
     url: '/api/graph/model/{graph_id}/{sequence}'

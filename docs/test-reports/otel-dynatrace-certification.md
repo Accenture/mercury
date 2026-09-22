@@ -330,9 +330,84 @@ the wire; nothing was inferred locally.
    all 48 spans exported. Same lesson as the earlier port-hand-off one: assert the hand-off, never assume
    the kill.
 
+## Scenario 8 — four runtimes, one trace: LLM tokens rendered progressively through the polyglot hosts (2026-09-22)
+
+The lock-step milestone behind v4.12.15: the forwarder now exists on all four runtimes — this crate,
+the Java `opentelemetry-forwarder` module, and the two zero-dependency ports of this crate's OTLP
+encoder merged the same day into the Python host (mercury-python #33) and the Node.js host
+(mercury-nodejs #101). The maintainer's certification scenario drives the agent-orchestration
+experiment E0 across them: a Playground edge on each engine renders **real Gemini tokens
+progressively** out its HTTP edge, the tokens produced by the `llm.stream` AI node on a wrapper host,
+and every application forwards its spans under its own service name — one trace per request across
+an engine and a polyglot function host.
+
+**Set-up.** This engine's Playground with its E0 twin ported that day (Increment 132, PR #314: the
+Java `support-triage` graph verbatim — it compiled unchanged here — and `LlmStreamRelay` on the
+`hello.remote.relay` pattern serving `POST /api/llm/stream`; this crate linked for the drive only),
+the Java Playground 4.12.14 (its forwarder module added for the drive only), the Python host
+(`mercury-serve examples/demo_app.py`, forwarder from #33, `llm.stream` since 4.12.1) and the Node.js
+host (`examples/demo-app.mjs`, forwarder from #101, the `llm.stream` node from #102 — Gemini and
+Anthropic over their REST APIs through `fetch`, no SDK). Rust on `:8090`, Java on `:8085`, Python on
+`:8086`, Node on `:8087`; every app launched with `-Dotel.forwarding=true`, the same endpoint and
+credential from the environment, and service names `mercury-otel-cert-rust`, `-java`, `-python`,
+`-node`; every request carrying a caller-set `traceparent`. The engine's peer map selects the host
+(`-Dllm.peer.port=8086|8087`), so both edges were driven against both hosts.
+
+| Edge → AI node | Trace | AI-node span start (UTC) | Token frames | Outcome |
+|----------------|-------|--------------------------|--------------|---------|
+| **Rust → Python** | `a9686f1f87327466e46cc451ff34b319` | 17:32:57.146Z | 2 + `done` | `STOP`; `llm.stream` 21.2 s |
+| **Rust → Node** | `1232ab83511f3402a519e65a80e1a144` | 17:34:56.602Z | 3 + `done` | `STOP`; `llm.stream` 8.0 s |
+| **Java → Python** | `c90af9e36d8dbd3c2390db240b406d3a` | 17:36:37.175Z | 2 + `done` | `STOP`, 34 output tokens; 5.8 s |
+| **Java → Node** | `888a3f721907d31a9b0ec9836b2e580a` | 17:32:46.862Z | 2 + `done` | `STOP`, 39 output tokens; 5.7 s |
+
+The `support-triage` graph — `llm.chat` as a `graph.task` on the host, the graph deciding the route —
+answered through the same hops: Rust → Node `6077f5f3f9d64eb4f3bd9984f0804dca` (17:35:09Z, action
+`bug-filed`) and Java → Python `372b040e245495158330fdb09b412ada` (17:32:29Z, verdict `bug`). The
+`done` frame of every stream carried the model, `stop_reason`, usage and the trace and business
+correlation ids.
+
+**The lineage, read from both sides' own datasets.** The engine's relay span is the parent of the
+host's `llm.stream` span, and the host's span is the parent of the engine's reply-lane deliveries —
+the same ids in two applications' logs:
+
+```text
+Rust → Python a9686f1f…   rust   llm.stream.relay             b05fccf48da0d67a
+                          python llm.stream                   02a46cfc25802ae5  (parent b05f…, 21.2 s)
+                          rust   async.http.response.stream.0 9f9206c70ec1e37e  (parent 02a4…)
+                          rust   async.http.response.stream.0 ad15a089c5a72849  (parent 02a4…)
+Rust → Node   1232ab83…   rust   llm.stream.relay             bb0901151c32ebc2
+                          node   llm.stream                   f26d329038c33432  (parent bb09…, 8.0 s)
+                          rust   async.http.response.stream.0 84e8fb662b27cb96  (parent f26d…)
+                          rust   async.http.response.stream.0 b292edc64bb18f87  (parent f26d…)
+Java → Node   888a3f72…   java relay a79d434676214868 → node   3a89fa459f452bce → java deliveries bc9e32cf…, b424a08c…
+Java → Python c90af9e3…   java relay babc1831e6f0d231 → python 8bd6892d99b278d8 → java deliveries 813208e5…, 902070e8…
+```
+
+**Exports.** Zero export failures in every application in every run — five drives, 24 LLM calls: this
+Playground 8–10 spans per round, the Java Playground 8–10, the Python and Node hosts 1–2 each (their
+`llm.stream` executions; the graph's `llm.chat` is an RPC leg, which folds into the caller's span on
+every runtime, so the host exports no span for it — the engines' own rule).
+
+**Observations.** (1) The provider, not the pipeline, decided which calls succeeded: Gemini answered
+`503 This model is currently experiencing high demand` on roughly half the calls across the drives,
+`429 RESOURCE_EXHAUSTED` once, and `gemini-2.5-flash` proved retired (`no longer available to new
+users` — the 404 text recommending `gemini-3.6-flash`, which then answered); the alias
+`gemini-flash-latest` was the one under demand, so the drives pinned `gemini-3.6-flash` with
+`-Dllm.model`. Every failure was itself a trace: the hosts rendered the provider's status through the
+portable error contract, the edges returned it, and all four forwarders exported those spans too.
+(2) The current flash models think before they answer: a 200-token budget was spent entirely on
+reasoning (`stop_reason: MAX_TOKENS`, `output_tokens: 0`, an empty stream); 1000 tokens rendered two
+or three token frames and a `STOP`. (3) Engine parity held without adjustment: the Java graph JSON
+compiled unchanged here, and the relay contract (the `accept: text/event-stream` opt-in, the 60 s
+idle allowance, the teaching 503 when no peer is mapped) is byte-for-byte the same on both edges.
+
 ## What remains
 
-- Nothing for 4.12.14: with Scenarios 6 and 7 confirmed in the UI, the forwarder's certification is
+- **Scenario 8's backend view:** the maintainer's Dynatrace lookup of the four traces above, each
+  expected to show two services (an engine and a host) with the parentage the datasets assert, at
+  instrumentation scopes `mercury-opentelemetry-forwarder`, `org.platformlambda.opentelemetry-forwarder`,
+  `mercury-composable-python` and `mercury-composable-nodejs`.
+- Nothing else for 4.12.14: with Scenarios 6 and 7 confirmed in the UI, the forwarder's certification is
   closed on both sides of the wire for the released crate — standalone and across the two engines.
 - Splunk Observability Cloud: the `X-SF-Token:` header form is parsed and documented but not run
   live.

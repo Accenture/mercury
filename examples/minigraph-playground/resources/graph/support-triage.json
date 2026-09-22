@@ -1,0 +1,261 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "Bounded-agency support triage (AI agent orchestration experiment E0): the LLM node classifies a user request into an enumerated category and the graph - not the model - decides the route. The AI capability is a plain wrapper-side function (llm.chat on the python demo app) reached through declarative Event-over-HTTP, so the engine stays LLM-free and the certified graph names exactly what the agent can do",
+        "name": "support-triage"
+      }
+    },
+    {
+      "alias": "check-input",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(={input.body.text}) -> model.text_probe",
+          "IF: {model.text_probe} == '=null'\nTHEN: reject\nELSE: classify"
+        ],
+        "purpose": "Input validation without spending tokens: a request must carry the user's text"
+      }
+    },
+    {
+      "alias": "reject",
+      "types": [
+        "mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "int(400) -> output.status",
+          "text(rejected) -> output.body.type",
+          "text(Missing text. Provide the user request in the 'text' field) -> output.body.message"
+        ],
+        "purpose": "Reject a request without user text before any model call"
+      }
+    },
+    {
+      "alias": "classify",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "llm.chat",
+        "ttl": "30s",
+        "input": [
+          "input.body.text -> model.request_text",
+          "input.body.text -> prompt",
+          "text(You are a support triage assistant. Classify the user request into exactly one category and give one short reason.) -> system",
+          "text(object) -> schema.type",
+          "text(string) -> schema.properties.label.type",
+          "text(question) -> schema.properties.label.enum[0]",
+          "text(bug) -> schema.properties.label.enum[1]",
+          "text(feature) -> schema.properties.label.enum[2]",
+          "text(string) -> schema.properties.reason.type",
+          "text(one short sentence explaining the classification) -> schema.properties.reason.description",
+          "text(label) -> schema.required[0]",
+          "text(reason) -> schema.required[1]",
+          "int(512) -> params.max_tokens",
+          "int(25000) -> params.timeout_ms"
+        ],
+        "output": [
+          "result.data -> model.verdict",
+          "result.usage -> model.usage",
+          "result.model -> model.llm_model"
+        ],
+        "purpose": "Ask the LLM node (llm.chat, a python wrapper function reached via Event-over-HTTP) for a schema-constrained verdict - the model advises within the graph's enumerated choices"
+      }
+    },
+    {
+      "alias": "triage",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(={model.verdict.label}) -> model.label_probe",
+          "IF: {model.label_probe} == '=bug'\nTHEN: file-bug\nELSE: next",
+          "IF: {model.label_probe} == '=feature'\nTHEN: route-feature\nELSE: answer-question"
+        ],
+        "purpose": "The graph decides: route among the enumerated branches on the model's verdict - governed nondeterminism, no open dispatch"
+      }
+    },
+    {
+      "alias": "answer-question",
+      "types": [
+        "mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(answered) -> output.body.action",
+          "model.request_text -> output.body.request",
+          "model.verdict -> output.body.verdict",
+          "model.usage -> output.body.usage",
+          "model.llm_model -> output.body.model"
+        ],
+        "purpose": "Question branch: hand the request to the knowledge-base responder"
+      }
+    },
+    {
+      "alias": "file-bug",
+      "types": [
+        "mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(bug-filed) -> output.body.action",
+          "model.request_text -> output.body.request",
+          "model.verdict -> output.body.verdict",
+          "model.usage -> output.body.usage",
+          "model.llm_model -> output.body.model"
+        ],
+        "purpose": "Bug branch: file a defect with the model's reasoning attached"
+      }
+    },
+    {
+      "alias": "route-feature",
+      "types": [
+        "mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(feature-routed) -> output.body.action",
+          "model.request_text -> output.body.request",
+          "model.verdict -> output.body.verdict",
+          "model.usage -> output.body.usage",
+          "model.llm_model -> output.body.model"
+        ],
+        "purpose": "Feature branch: route the request to product management"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "check-input",
+      "relations": [
+        {
+          "type": "run",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "check-input",
+      "target": "classify",
+      "relations": [
+        {
+          "type": "valid",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "check-input",
+      "target": "reject",
+      "relations": [
+        {
+          "type": "invalid",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "classify",
+      "target": "triage",
+      "relations": [
+        {
+          "type": "verdict",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "triage",
+      "target": "file-bug",
+      "relations": [
+        {
+          "type": "bug",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "triage",
+      "target": "route-feature",
+      "relations": [
+        {
+          "type": "feature",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "triage",
+      "target": "answer-question",
+      "relations": [
+        {
+          "type": "question",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "answer-question",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "file-bug",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "route-feature",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "reject",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

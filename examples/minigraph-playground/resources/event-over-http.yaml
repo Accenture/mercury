@@ -1,0 +1,18 @@
+#
+# Declarative Event-over-HTTP targets: routes that live on polyglot peers.
+#
+# The support-triage demo graph's AI node (llm.chat) and the /api/llm/stream relay's
+# target (llm.stream) are functions in the Node.js demo app (default port 8087) or the
+# Python demo app (port 8086) - run one with an LLM provider credential in its environment:
+#
+#     node dist/src/cli.js examples/demo-app.mjs -Dllm.provider=gemini      (mercury-nodejs)
+#     mercury-serve examples/demo_app.py -Dllm.provider=gemini             (mercury-python)
+#
+# Point at another peer with -Dllm.peer.host / -Dllm.peer.port overrides; the graph is
+# provider-neutral and does not change.
+#
+event.http:
+  - route: 'llm.chat'
+    target: 'http://${llm.peer.host:127.0.0.1}:${llm.peer.port:8087}/api/event'
+  - route: 'llm.stream'
+    target: 'http://${llm.peer.host:127.0.0.1}:${llm.peer.port:8087}/api/event'

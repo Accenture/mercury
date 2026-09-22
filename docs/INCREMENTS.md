@@ -3517,3 +3517,27 @@ signal died with the process; dropping it would not have helped either, because 
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
 --workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+## Increment 132 — The E0 twin in the Playground: the support-triage graph and the `llm.stream` relay (2026-09-22)
+
+Eric's v4.12.15 milestone: certify cross-application OpenTelemetry with the progressive rendering of LLM
+tokens — Java and Rust edges calling Gemini running in mercury-python and mercury-nodejs. The Java
+Playground had the experiment-E0 pieces (the `support-triage` graph, `LlmStreamRelay`, the
+event-over-http map to the wrapper host); this Playground had none, so a Rust edge could not drive
+the certification. Ported, the `hello.remote.relay` pattern applied to the AI node:
+
+- **`resources/graph/support-triage.json`** — the Java graph verbatim (the JSON model is shared),
+  deployed by `graphs.yaml`: bounded-agency triage where `llm.chat` (a `graph.task` on the wrapper
+  host) classifies and the graph decides the route.
+- **`LlmStreamRelay`** (`llm.stream.relay`, `POST /api/llm/stream`, `stream: true`) — forwards its
+  reply lane and correlation id into a `send` to the event-over-http mapped `llm.stream`, with the
+  `accept: text/event-stream` opt-in and a 60 s idle allowance; the teaching 503 when no peer is mapped
+  (`AI streaming demo is not configured ...`), exactly the Java relay's contract.
+- **`resources/event-over-http.yaml`** (+ `yaml.event.over.http` in `application.yml`): `llm.chat` and
+  `llm.stream` on `${llm.peer.host:127.0.0.1}:${llm.peer.port:8087}` — the Node.js demo app by default
+  (the Java Playground defaults to the Python app on 8086), `-Dllm.peer.port` selects the other.
+- Test `llm_stream_twin`: the graph compiles at boot and the relay's teaching failure names the missing
+  configuration when the peer map is absent. README section.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+--workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.

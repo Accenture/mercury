@@ -54,6 +54,11 @@ impl EntryPoint for PlaygroundApp {
             "MiniGraph Playground ready: {} graph(s) compiled — open http://127.0.0.1:8085/ in a browser",
             knowledge_graph::graphs::get_all_graphs().len()
         );
+        // referencing the library target keeps its annotation inventory (the relay) linked
+        log::info!(
+            "AI-token streaming relay: {} (POST /api/llm/stream)",
+            minigraph_playground::LLM_STREAM_RELAY_ROUTE
+        );
         log::info!(
             "Graph state store functions available: {} / {}",
             minigraph_state_redis::PERSIST_ROUTE,

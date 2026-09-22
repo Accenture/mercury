@@ -66,6 +66,32 @@ curl -X POST 'http://127.0.0.1:8085/api/graph/{graph-id}' -H 'content-type: appl
 `dev` and the workbench (command service, websocket UI, companion endpoints)
 does not register; deployed graphs still run through `POST /api/graph/{graph-id}`.
 
+## AI-token streaming and the support-triage graph (experiment E0)
+
+Two pieces of the agent-orchestration experiment ride in this Playground, both reaching an AI node
+that is a plain function on a polyglot wrapper host — the engine stays LLM-free:
+
+- **`support-triage`** (`resources/graph/support-triage.json`): bounded-agency triage — the
+  `llm.chat` node classifies a request into an enumerated category and the *graph* decides the
+  route. `POST /api/graph/support-triage` with `{"text": "..."}`.
+- **`POST /api/llm/stream`**: the `llm.stream.relay` function forwards its reply lane into the
+  event-over-http mapped `llm.stream` node, and the provider's real token batches re-render
+  progressively out this application's edge as SSE.
+
+Both routes live on a wrapper host — `resources/event-over-http.yaml` points them at the Node.js
+demo app (port 8087) by default; `-Dllm.peer.port=8086` selects the Python demo app. Start one with
+a provider credential (`GEMINI_API_KEY` with `-Dllm.provider=gemini`, or `ANTHROPIC_API_KEY`), then:
+
+```bash
+curl -N -H 'accept: text/event-stream' -H 'content-type: application/json' \
+  -d '{"prompt":"Write two sentences about event-driven design","params":{"provider":"gemini"}}' \
+  http://127.0.0.1:8085/api/llm/stream
+```
+
+Without a mapped peer the relay answers a 503 that names the missing configuration. With
+`otel.forwarding=true` on the engine and the wrapper host, one distributed trace spans the edge,
+the relay and the AI node (see the OpenTelemetry certification report).
+
 ## Where things live
 
 | File | Role |

@@ -20,6 +20,8 @@ location.graph.temp: file:/tmp/graph
 # of its own models in its 'location' entry (the flows.yaml convention —
 # location.graph.deployed is obsolete).
 graph.model.automation: 'classpath:/graphs.yaml'
+# routes that live on polyglot peers (the support-triage graph's AI node, the llm.stream relay's target)
+yaml.event.over.http: 'classpath:/event-over-http.yaml'
 
 # Stepwise traversal logging for deployed graph execution (graph.executor) —
 # the same trail the Playground dry-run narrates, as INFO structured records
