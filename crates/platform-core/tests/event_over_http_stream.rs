@@ -33,7 +33,7 @@ use platform_core::automation::http_client::AsyncHttpClientService;
 use platform_core::automation::{self, EventApiService};
 use platform_core::platform::FunctionOptions;
 use platform_core::{
-    event_stream, overrides, resources, AppConfigReader, AppError, ComposableFunction,
+    event_stream, overrides, resources, trace, AppConfigReader, AppError, ComposableFunction,
     EventEnvelope, EventStreamWriter, Platform, PostOffice,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -189,12 +189,14 @@ rest:
     methods: ['POST']
     url: "/api/event"
     timeout: 60s
+    tracing: true
 
   - service: "hello.remote.relay"
     methods: ['GET']
     url: "/api/hello/remote"
     timeout: 15s
     stream: true
+    tracing: true
 "#;
 
 /// The shared fixture: ONE platform + edge server + misbehaving-peer mock on a
@@ -408,6 +410,235 @@ fn mock_eof_frame() -> String {
             .set_body(serde_json::json!({"done": true}))
             .expect("mock eof"),
     )
+}
+
+/// Captures every telemetry dataset delivered to `distributed.tracing` on the
+/// shared platform (registered once; tests filter by their own trace id).
+struct TelemetryCapture(Arc<Mutex<Vec<serde_json::Value>>>);
+
+#[async_trait]
+impl ComposableFunction for TelemetryCapture {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        if let Ok(dataset) = input.body_as::<serde_json::Value>() {
+            self.0.lock().expect("capture mutex").push(dataset);
+        }
+        Ok(EventEnvelope::new())
+    }
+}
+
+fn telemetry_capture(platform: &Platform) -> Arc<Mutex<Vec<serde_json::Value>>> {
+    static CAPTURE: OnceLock<Arc<Mutex<Vec<serde_json::Value>>>> = OnceLock::new();
+    CAPTURE
+        .get_or_init(|| {
+            let datasets = Arc::new(Mutex::new(Vec::new()));
+            platform
+                .register(
+                    "distributed.tracing",
+                    Arc::new(TelemetryCapture(datasets.clone())),
+                    1,
+                )
+                .expect("register telemetry capture");
+            datasets
+        })
+        .clone()
+}
+
+fn trace_field<'a>(dataset: &'a serde_json::Value, key: &str) -> Option<&'a str> {
+    dataset["trace"][key].as_str()
+}
+
+fn is_lane_record(dataset: &serde_json::Value) -> bool {
+    trace_field(dataset, "service").is_some_and(|s| s.starts_with("async.http.response.stream."))
+}
+
+fn describe(records: &[serde_json::Value]) -> Vec<String> {
+    records
+        .iter()
+        .map(|d| {
+            format!(
+                "{}<-{}",
+                trace_field(d, "service").unwrap_or("?"),
+                trace_field(d, "parent_span_id").unwrap_or("-")
+            )
+        })
+        .collect()
+}
+
+/// A raw HTTP/1.1 GET against the edge (Connection: close), returning the
+/// status and the whole response body once the server ends it.
+async fn http_get(port: u16, path: &str, headers: &[(&str, &str)]) -> (u16, String) {
+    let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port))
+        .await
+        .expect("connect");
+    let mut request = format!("GET {path} HTTP/1.1\r\nHost: localhost\r\n");
+    for (name, value) in headers {
+        request.push_str(&format!("{name}: {value}\r\n"));
+    }
+    request.push_str("Connection: close\r\n\r\n");
+    stream.write_all(request.as_bytes()).await.expect("write");
+    let mut raw = Vec::new();
+    stream.read_to_end(&mut raw).await.expect("read");
+    let text = String::from_utf8_lossy(&raw).to_string();
+    let (head, payload) = text.split_once("\r\n\r\n").unwrap_or((text.as_str(), ""));
+    let status: u16 = head
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .and_then(|code| code.parse().ok())
+        .unwrap_or_else(|| panic!("status code missing in: {text:?}"));
+    (status, payload.to_string())
+}
+
+/// One connected span tree for a streamed relay (the Dynatrace finding of
+/// 2026-09-22; Java `EventOverHttpStreamTest.edgeRelaySpansAreConnected` twin):
+///   caller's traceparent span
+///   └── http.request (GET /api/hello/remote)  the edge's round-trip span, the root
+///       └── hello.remote.relay                 the first function parents onto the edge
+///           ├── async.http.request             the client leg parents onto the relay
+///           └── http.request (POST /api/event) the peer edge's round trip, under the relay
+///               └── event.api.service
+///                   └── hello.stream.remote     the producer
+///                       ├── reply lane: head    (traced, parented on the producer)
+///                       └── reply lane: eof     (traced, annotated frames=2)
+/// Data frames are never traced - a span per token would flood the backend -
+/// and no lane record is left without a parent.
+#[tokio::test]
+async fn edge_relay_spans_are_connected() {
+    let (port, platform) = shared();
+    let datasets = telemetry_capture(&platform);
+    let trace_id = trace::new_trace_id();
+    let upstream_span = "00f067aa0ba902b7";
+    let traceparent = format!("00-{trace_id}-{upstream_span}-01");
+    let (status, body) = http_get(
+        port,
+        "/api/hello/remote",
+        &[
+            ("accept", TEXT_EVENT_STREAM),
+            ("traceparent", traceparent.as_str()),
+        ],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert!(body.contains("data: beta"), "{body}");
+    let mine = |all: &[serde_json::Value]| -> Vec<serde_json::Value> {
+        all.iter()
+            .filter(|d| trace_field(d, "id") == Some(trace_id.as_str()))
+            .cloned()
+            .collect()
+    };
+    // telemetry is asynchronous - wait for the whole tree, then a little longer for stragglers
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let records = mine(&datasets.lock().expect("capture mutex"));
+        let count = |service: &str| {
+            records
+                .iter()
+                .filter(|d| trace_field(d, "service") == Some(service))
+                .count()
+        };
+        let lanes = records.iter().filter(|d| is_lane_record(d)).count();
+        if count("http.request") >= 2
+            && count("hello.remote.relay") >= 1
+            && count("async.http.request") >= 1
+            && count("event.api.service") >= 1
+            && count("hello.stream.remote") >= 1
+            && lanes >= 4
+        {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "incomplete span tree: {:?}",
+            describe(&records)
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let records = mine(&datasets.lock().expect("capture mutex"));
+    let find = |pred: &dyn Fn(&serde_json::Value) -> bool| -> serde_json::Value {
+        records
+            .iter()
+            .find(|d| pred(d))
+            .cloned()
+            .unwrap_or_else(|| panic!("record missing in {:?}", describe(&records)))
+    };
+    let root = find(&|d| {
+        trace_field(d, "service") == Some("http.request")
+            && trace_field(d, "path") == Some("GET /api/hello/remote")
+    });
+    let relay = find(&|d| trace_field(d, "service") == Some("hello.remote.relay"));
+    let client_leg = find(&|d| trace_field(d, "service") == Some("async.http.request"));
+    let peer_edge = find(&|d| {
+        trace_field(d, "service") == Some("http.request")
+            && trace_field(d, "path") == Some("POST /api/event")
+    });
+    let event_api = find(&|d| trace_field(d, "service") == Some("event.api.service"));
+    let producer = find(&|d| trace_field(d, "service") == Some("hello.stream.remote"));
+    // the round trip covers the whole stream (two 250 ms paces), under the caller's span
+    assert_eq!(trace_field(&root, "parent_span_id"), Some(upstream_span));
+    assert_eq!(root["trace"]["status"], serde_json::json!(200));
+    assert_eq!(root["trace"]["success"], serde_json::json!(true));
+    assert!(
+        root["trace"]["exec_time"].as_f64().unwrap_or(0.0) >= 450.0,
+        "round trip must span the stream: {}",
+        root["trace"]["exec_time"]
+    );
+    assert_eq!(
+        trace_field(&relay, "parent_span_id"),
+        trace_field(&root, "span_id"),
+        "the first function parents onto the edge's round-trip span"
+    );
+    assert_eq!(trace_field(&relay, "from"), Some("http.request"));
+    assert_eq!(
+        trace_field(&client_leg, "parent_span_id"),
+        trace_field(&relay, "span_id"),
+        "the client leg parents onto the relay"
+    );
+    assert_eq!(
+        trace_field(&peer_edge, "parent_span_id"),
+        trace_field(&relay, "span_id"),
+        "the peer edge parents onto the relay through the traceparent header"
+    );
+    assert_eq!(
+        trace_field(&event_api, "parent_span_id"),
+        trace_field(&peer_edge, "span_id")
+    );
+    assert_eq!(
+        trace_field(&producer, "parent_span_id"),
+        trace_field(&event_api, "span_id")
+    );
+    // reply lanes on both edges: head and eof only, every one parented on the producer
+    let lanes: Vec<&serde_json::Value> = records.iter().filter(|d| is_lane_record(d)).collect();
+    assert_eq!(
+        lanes.len(),
+        4,
+        "head + eof per lane, no data-frame spans: {:?}",
+        describe(&records)
+    );
+    for lane in &lanes {
+        assert_eq!(
+            trace_field(lane, "parent_span_id"),
+            trace_field(&producer, "span_id"),
+            "a lane record must parent onto the producer's span"
+        );
+    }
+    let tails: Vec<&&serde_json::Value> = lanes
+        .iter()
+        .filter(|d| d["annotations"]["frames"].is_string())
+        .collect();
+    assert_eq!(
+        tails.len(),
+        2,
+        "each lane's eof carries the data-frame count"
+    );
+    for tail in tails {
+        assert_eq!(tail["annotations"]["frames"], serde_json::json!("2"));
+    }
 }
 
 /// One global test guard: the pool-drain test must not race sibling tests.

@@ -142,7 +142,10 @@ async fn exporter_end_to_end() {
         assert_eq!(span.span_id, SPAN_ID);
         assert_eq!(span.parent_span_id.as_deref(), Some(PARENT_SPAN_ID));
         assert_eq!(span.name, "hello.world");
-        assert_eq!(span.kind, 2, "from=http.request -> SERVER");
+        assert_eq!(
+            span.kind, 1,
+            "a function execution is INTERNAL, even with from=http.request"
+        );
         assert_eq!(span.status_code, 1, "success -> OK");
         assert_eq!(span.flags, 0x101, "sampled, local");
         assert_eq!(span.start_unix_nano, 1_782_295_200_000_000_000);

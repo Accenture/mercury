@@ -109,7 +109,7 @@ would expect. Guarded by `otlp_export::exporter_end_to_end` (scenario 5).
 | `service` (route name) | span name |
 | `start` + `exec_time` | start / end timestamps |
 | `success` / `status` / `exception` | span status (OK / ERROR + description) |
-| `from` = `http.request` | span kind `SERVER` (else `INTERNAL`) |
+| `service` = `http.request` (the edge's round-trip record) | span kind `SERVER` (every function execution is `INTERNAL`) |
 | `path`, `from`, `origin`, `status`, `exec_time_ms`, `round_trip_ms`, `exception` | span attributes (same names) |
 | `service` (route) | `route` attribute |
 | `annotations` entries | `annotation.<key>` attributes |

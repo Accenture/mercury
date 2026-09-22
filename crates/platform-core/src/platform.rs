@@ -707,8 +707,12 @@ async fn worker_loop(
     options: FunctionOptions,
 ) {
     // a route that is itself telemetry plumbing or the RPC reply listener
-    // (or listed in skip.rpc.tracing, or registered with @ZeroTracing
-    // semantics) never traces its own executions
+    // (or registered with @ZeroTracing semantics) never traces its own
+    // executions. A route listed in skip.rpc.tracing (async.http.request) is
+    // NOT zero-traced: like Java's InboxBase, the list only suppresses the
+    // caller-side RPC round_trip record, so a callback-mode execution of the
+    // HTTP client - the Event-over-HTTP stream relay's client leg - records
+    // its own span, parented onto the sender (Java WorkerHandler parity)
     let zero_traced = options.zero_traced || is_zero_traced(&route);
     loop {
         if manager.send(MailboxMessage::Ready(instance)).await.is_err() {
@@ -981,19 +985,17 @@ fn sanitize_response_headers(response: &mut EventEnvelope) {
 
 /// Whether a route's executions are excluded from trace recording: the
 /// telemetry plumbing and the RPC reply listener (Java `@ZeroTracing` +
-/// filter — exact names only, no prefixes), and any route listed in
-/// `skip.rpc.tracing` (default `async.http.request`).
+/// filter — exact names only, no prefixes). `skip.rpc.tracing` is deliberately
+/// NOT consulted here: like Java's `InboxBase`, that list suppresses only the
+/// caller-side RPC `round_trip` record, so the HTTP client's callback-mode
+/// executions (the stream relay's client leg) still record their own span.
 fn is_zero_traced(route: &str) -> bool {
-    if crate::telemetry::ZERO_TRACING_FILTER.contains(&route) {
-        return true;
-    }
-    in_skip_rpc_tracing_list(route)
+    crate::telemetry::ZERO_TRACING_FILTER.contains(&route)
 }
 
 /// Whether a route is listed in `skip.rpc.tracing` (default
-/// `async.http.request`) — shared by the worker's zero-trace resolution above
-/// and the caller-side RPC `round_trip` record (Java `InboxBase.getSkipTracing`
-/// reads the same key).
+/// `async.http.request`) — consulted by the caller-side RPC `round_trip`
+/// record (Java `InboxBase.getSkipTracing` reads the same key).
 pub(crate) fn in_skip_rpc_tracing_list(route: &str) -> bool {
     AppConfigReader::get_instance()
         .get_property_or("skip.rpc.tracing", "async.http.request")

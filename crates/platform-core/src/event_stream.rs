@@ -188,8 +188,19 @@ impl EventStreamWriter {
             );
             return Ok(());
         }
+        // a stream is traced at its head and its tail: the first segment (it
+        // carries the head control) and the terminals ride the producer's trace
+        // and span through the traced send, so the consuming reply lane's
+        // records for them parent onto this function; the data segments in
+        // between carry no trace - one span per token would flood a tracing
+        // backend (Java EventStreamWriter parity)
+        let carries_head = !self.head_sent;
         let event = self.envelope(DATA, body, event_name)?;
-        self.po.send(event).await
+        if carries_head {
+            self.po.send(event).await
+        } else {
+            self.po.send_untraced(event).await
+        }
     }
 
     fn envelope<T: serde::Serialize>(

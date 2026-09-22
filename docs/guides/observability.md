@@ -75,9 +75,12 @@ Tracing is opt-in per entry point:
   downstream hop is traced end to end (the `hello-world` main application does exactly
   this).
 
-Two controls tune what is recorded: routes listed in `skip.rpc.tracing` (default
-`async.http.request`) are excluded, and the telemetry plumbing itself
-(`distributed.tracing` and its forwarder routes) never traces its own executions.
+Two controls tune what is recorded: an RPC to a route listed in `skip.rpc.tracing`
+(default `async.http.request`) produces no caller-side `round_trip` record — the HTTP
+client's RPC leg folds into its caller — and the telemetry plumbing itself
+(`distributed.tracing` and its forwarder routes) never traces its own executions. A
+callback-mode execution of a listed route — the Event-over-HTTP stream relay's client
+leg — still records its own span, parented onto the sender.
 
 ## Edge-started traces and W3C `traceparent`
 
@@ -93,6 +96,38 @@ Outbound, the async HTTP client injects `traceparent` (current trace id + curren
 alongside the configured trace-id and correlation-id headers on every call made inside a
 trace — so a chain of mercury applications, or a mercury application behind any
 OpenTelemetry-compliant caller, produces one continuous distributed trace.
+
+## The edge's round-trip span
+
+A traced endpoint records one more span than its functions: the **round trip** itself.
+REST automation mints a span id when the request arrives, makes it the first function's
+parent, and emits its record when the response completes — the buffered response, the
+end of a streamed response, an edge error or the edge timeout. The record's `service` is
+`http.request`, the same marker the first function carries as `from`, so the vocabulary
+stays one word: *the request came from the edge; the edge's own span is the root*.
+
+- `path` is `METHOD /path`, `start` is the receipt time and `exec_time` is the whole round
+  trip — for a streamed response, until the terminal is rendered.
+- `parent_span_id` is the inbound `traceparent` span when the caller sent one; otherwise the
+  record is the trace's root.
+- `status` is the HTTP status sent, except that a stream failing in-band after its head
+  was committed reports the failure's own status and message.
+
+An OpenTelemetry backend sees this record as the SERVER span of the request (see the
+[forwarder](https://github.com/Accenture/mercury/tree/main/extensions/opentelemetry-forwarder)),
+which is what makes a service's response time in a trace the real one — not the first
+function's own execution time.
+
+**Streamed responses are traced at their head and their tail, never per token.** The
+`EventStreamWriter` stamps the producer's trace and span on the first segment (it carries
+the head control) and on the terminal (`eof` or `exception`); the data segments in between
+carry no trace, because one span per token would flood a tracing backend. The reply lane
+that renders the stream therefore records two spans, both parented onto the producer, and
+annotates the terminal's record with `frames` — the number of data segments it rendered.
+The Event-over-HTTP stream relay follows the same rule on the consuming side: decoded
+envelope frames keep the remote producer's span, synthesized control frames parent onto the
+relay's client leg (`async.http.request`, itself parented onto the sender), and raw token
+frames are forwarded untraced.
 
 ## A span per function execution
 
@@ -148,8 +183,9 @@ flow-adapter route) keeps the parent but omits `span_id`, because the relaying
 function's span is reported by its own record. This works across an Event-over-HTTP hop
 too, which is what stitches a remote function's record into the calling application's
 span tree. **Callback**-style invocations (a `reply_to` that is a route, not an RPC
-inbox — e.g. Event Script task dispatch) keep self-recording from the worker. Routes
-listed in `skip.rpc.tracing` (default `async.http.request`) are excluded (Java parity).
+inbox — e.g. Event Script task dispatch) keep self-recording from the worker. For a route
+listed in `skip.rpc.tracing` (default `async.http.request`) the caller emits no
+`round_trip` record — the HTTP client's RPC leg folds into its caller (Java parity).
 
 By default the dataset is **logged** — that is the real-time telemetry stream. This is a
 real record from a `hello-world` run (`log.format: json`), emitted by `distributed.tracing`
