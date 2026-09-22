@@ -244,10 +244,12 @@ the published forwarder crate's own.
 | **A** — clean, two requests | real token | **0** of 6 | `580cbdc0f96441aa9afd9c6ed51bc4ce` (02:41:23Z), `5fd1cd3db9ba41a0a8b8b5de8e603b1a` (02:41:24Z) |
 | **B** — negative control | bogus token | **3** of 3, `HTTP 401 - Token Authentication failed` | `9b25cb38cb0944f786d91e9ad2e56af0` (absent) |
 
-What the UI should show for the two leg-A traces: three spans nested `accept.api` → `accept.work` and
-`accept.api` → `async.http.response`, scope `mercury-opentelemetry-forwarder` **version 4.12.14**, the
-`annotation.acceptance.id` and `annotation.acceptance` attributes. That version is the artifact check:
-the spans came from the crate a field application downloads, not from a checkout.
+**Confirmed by the maintainer in the Dynatrace UI (screenshots, 2026-09-22):** both leg-A traces under
+service `mercury-otel-cert`, titled `'accept.api' Trace`, three spans each — `accept.api` (206 µs / 217 µs,
+`path: GET /api/accept/A-1` and `A-2`, `from: http.request`, `route: accept.api`, `status: 200`,
+`annotation.acceptance.id: A-1` / `A-2`) with `accept.work` and `async.http.response` as its children.
+The scope version to read on any of those spans is `mercury-opentelemetry-forwarder` **4.12.14** — the
+artifact check: the spans came from the crate a field application downloads, not from a checkout.
 
 ## Scenario 7 — two engines, one trace (2026-09-22)
 
@@ -286,10 +288,19 @@ mercury-otel-cert-java   http.flow.adapter b3c801d640de134e            server
 and for trace `3481c84b…` (pairing B) the mirror image: the Rust facade's `simple.kafka.notification`
 `a08a87cd3e5e34da` parents the Java backend's `system.of.record` `915af201c949fbc7`, and the Java
 backend's `simple.kafka.notification` `82563cebebb18192` parents the Rust facade's `soa.reply`
-`97813ba9f84bd050`. What the UI should show: **one trace, two services**, the Java spans under scope
-`org.platformlambda.opentelemetry-forwarder` 4.12.14 and the Rust spans under
-`mercury-opentelemetry-forwarder` 4.12.14. (The flow engine's `event.script.manager` records carry no
-span id of their own and are skipped by both forwarders, as designed.)
+`97813ba9f84bd050`. (The flow engine's `event.script.manager` records carry no span id of their own and
+are skipped by both forwarders, as designed.)
+
+**Confirmed by the maintainer in the Dynatrace UI (screenshots, 2026-09-22): one trace, two services.**
+Trace `72b2e692…` opens under `mercury-otel-cert-java` as `'http.flow.adapter' Trace` (57 µs root,
+`path: POST /api/sync-to-async`, `from: http.request`, `status: 200`) and its waterfall — 22 ms end to
+end — nests the Rust service inside the Java one exactly as the wire said: under the Java facade's
+`simple.kafka.notification` sit `system.of.record`, `simple.kafka.notification` and `task.executor` of
+**`mercury-otel-cert-rust`**, and under the Rust notification sit the Java `task.executor` and
+`soa.reply`, while the Java `sync.await` runs alongside until `async.http.response` closes the request.
+The first drive's `47100c7c38ed835d34652799f6e635b9` (02:46:44Z, before the readiness rework) shows the
+same two-service nesting over 66 ms. Dynatrace reconstructed the cross-engine parentage from the ids on
+the wire; nothing was inferred locally.
 
 ### Findings of the round
 
@@ -321,10 +332,8 @@ span id of their own and are skipped by both forwarders, as designed.)
 
 ## What remains
 
-- The maintainer's UI confirmation of Scenarios 6 and 7: the published-crate traces under
-  `mercury-otel-cert` at scope version 4.12.14, and the four two-engine traces under
-  `mercury-otel-cert-java` + `mercury-otel-cert-rust` joined into one trace each. That closes the
-  forwarder's certification for 4.12.14.
+- Nothing for 4.12.14: with Scenarios 6 and 7 confirmed in the UI, the forwarder's certification is
+  closed on both sides of the wire for the released crate — standalone and across the two engines.
 - Splunk Observability Cloud: the `X-SF-Token:` header form is parsed and documented but not run
   live.
 - `otel.exporter.otlp.compression=gzip` is a declared delta (warns, exports uncompressed); a
