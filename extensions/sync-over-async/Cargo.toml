@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 readme = "../../README.md"
-keywords = ["redis", "streaming", "sse", "progressive-rendering", "mercury"]
+keywords = ["redis", "streaming", "sse", "progressive", "mercury"]
 categories = ["asynchronous", "web-programming"]
 
 [lib]
