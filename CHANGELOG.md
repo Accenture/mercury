@@ -17,9 +17,13 @@ The lock-step release — one number on both engines. The port moves from 4.12.1
 4.12.14 (its 4.12.13 items were already here or have no analogue), carrying the completed
 minimalist-kafka port, the OpenTelemetry trace forwarder (the last Java extension this port had
 deferred) and the two items that waited on the Kafka port: the sync-over-async facade tasks and the
-first crates.io publication of `mercury-minimalist-kafka`, `mercury-sync-over-async` and
-`mercury-opentelemetry-forwarder`. No upgrade action for existing applications beyond the
-log-context note below; the new modules are opt-in crates.
+first crates.io publication of five crates — `mercury-minimalist-kafka`, `mercury-sync-over-async`,
+`mercury-opentelemetry-forwarder`, `mercury-redis-connection` and `mercury-distributed-cache`. The
+4.12.12 release was GitHub-only, so the seven older crates move from 4.12.7 on the registry straight to
+4.12.14; all twelve were published on 2026-09-22 (`mercury-sync-over-async` from `d8336296`, one
+manifest-keyword fix past the tag — #309 — after crates.io rejected a 21-character keyword; the source
+is otherwise the tagged one). No upgrade action for existing applications beyond the log-context note
+below; the new modules are opt-in crates.
 Behaviour changes to read: the application log context's default keys are snake_case with an automatic
 `timestamp`; CompileGraph rejects a `task` route without its skill (and the reverse); `input.header.*`
 mappings find a Kafka header in any casing.
