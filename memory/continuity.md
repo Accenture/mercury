@@ -364,7 +364,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   #316 `251bb369`, Java #445 `3675590d`). **Token-bearing re-drive DONE (drive 9, 2026-09-22): a temporary mock
   of the Gemini REST API shadowed the quota-spent provider at its base URL (`GOOGLE_GEMINI_BASE_URL` /
   `GEMINI_API_BASE`, no host code change) — all four pairings streamed 8 token frames, every tree one tree with the
-  terminal `frames: 8`, exported by all four apps (report PR #317 `a6abb436`, Java #446 `a7abcace`).**
+  terminal `frames: 8`, exported by all four apps (report PR #317 `a6abb436`, Java #446 `a7abcace`) — and
+  CONFIRMED in Dynatrace by Eric's six screenshots (one tree per trace, the round trip as the response time,
+  `annotation.frames: 8` on the stream terminal; report branch `docs/scenario9-token-backend-view` `6dd6526d`).**
   Open: v4.12.15 on Eric's go.**
   Extends [[otel-forwarder-no-sdk]]; pinned by `event_over_http_stream::edge_relay_spans_are_connected`.
   <!-- id: connected-edge-spans | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-200854 -->
