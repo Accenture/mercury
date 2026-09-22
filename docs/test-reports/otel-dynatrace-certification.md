@@ -522,12 +522,21 @@ The mock stays a scratch tool of the drive (it is not part of any repository); t
 real provider will produce the moment quota returns, because nothing between the AI node and the edge knows which
 server answered.
 
+**Confirmed in the UI — the maintainer's six screenshots (2026-09-22).** Each of the four token-bearing traces renders
+as one `'http.request' Trace` whose response time is the round trip (1.78 s and 1.77 s for this engine's two, 2.51 s
+and 1.88 s for the Java pair; `status: 200`), with `llm.stream.relay` under the root, `async.http.request` and the
+host's `llm.stream` under the relay, and the two `async.http.response.stream.0` records under the host's span — the
+terminal carrying `annotation.frames: 8` (kind Internal, scope `mercury-opentelemetry-forwarder 4.12.14` on this
+engine, `org.platformlambda.opentelemetry-forwarder 4.12.14` on the Java edge). The two graph traces render the
+eight-record tree from the edge (5.99 ms here, 23.7 ms on Java) through `http.flow.adapter`, `task.executor`, the
+graph nodes (`annotation.node: file-bug` on the mapper) down to `async.http.response`. Scenario 9 is closed end to
+end: connected trees confirmed on error traces (drive 8) and on token streams (drive 9).
+
 ## What remains
 
-- **Nothing for Scenario 9.** The token-bearing re-drive ran with a mock provider (drive 9 above) and exported
-  from all four applications; the maintainer's look at those four traces in Dynatrace is a formality —
-  Scenario 9's backend view is CONFIRMED on the drive-8 traces (2026-09-22, the maintainer's four screenshots:
-  one tree per trace, the edge span the root and the response time), and so is Scenario 8's. A real-provider
+- **Nothing for Scenario 9.** Its backend view is CONFIRMED twice over — on the drive-8 error traces and on the
+  drive-9 token streams (2026-09-22, the maintainer's screenshots: one tree per trace, the edge span the root and
+  the response time, `annotation.frames: 8` on the stream terminal) — and so is Scenario 8's. A real-provider
   token stream of the same shape follows whenever quota returns; nothing between the AI node and the edge
   depends on which server answered.
 - Nothing else for 4.12.14: with Scenarios 6 and 7 confirmed in the UI, the forwarder's certification is
