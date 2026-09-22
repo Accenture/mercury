@@ -486,13 +486,50 @@ day (two services each, scopes `mercury-composable-nodejs 4.12.1`, `mercury-comp
 `mercury-opentelemetry-forwarder 4.12.14`), are the before picture: the relay's parent absent,
 `async.http.request` unparented.
 
+**Token-bearing re-drive — drive 9, a mock provider (2026-09-22, later).** The provider's quota being spent, the
+maintainer asked for a temporary mock of the Gemini REST API to shadow the real one: a 100-line aiohttp script
+answering `streamGenerateContent?alt=sse` with paced token chunks (eight batches of a two-sentence answer, 250 ms
+apart, `finishReason: STOP` and `usageMetadata` on the last) and `generateContent` with the triage verdict as
+schema-constrained JSON. Both hosts pointed at it with no code change — the python SDK honours
+`GOOGLE_GEMINI_BASE_URL`, the Node host `GEMINI_API_BASE` — so the tokens are canned and everything else is real:
+the hosts' AI nodes, the envelope-mode relay, the reply lanes, the edge and all four forwarders (ready everywhere,
+zero export failures). Same set-up as drive 8 otherwise: `X-Trace-Id` only, `-Dllm.model=mock-gemini-1`.
+
+| Edge → AI node | Trace (`X-Trace-Id`) | Round trip (edge span) | Host `llm.stream` | Token frames | Terminal |
+|----------------|----------------------|------------------------|-------------------|--------------|----------|
+| **Rust → Node** | `d990a65667a1c7c2a210d856b8e25685` | 1780.1 ms | 1768.4 ms | 8 + `done` | `frames: 8` |
+| **Rust → Python** | `6b02a9eedc403dc6bcc04f0e8702279e` | 1768.1 ms | 1762.4 ms | 8 + `done` | `frames: 8` |
+| **Java → Python** | `c92da95983f896537968b62e28cc53ca` | 2506.6 ms | 2368.0 ms | 8 + `done` | `frames: 8` |
+| **Java → Node** | `43c0b4c621d0a13a9700089dd5533f87` | 1881.9 ms | 1760.3 ms | 8 + `done` | `frames: 8` |
+
+The `support-triage` graph answered `bug-filed` through the same mock on both edges (Rust → Python
+`5193dd9c3d0bab31225e05c449c0a34b`, Java → Python `ebe403699fe0d85e658114275718901c`) — eight-record trees rooted
+at the edge, the graph's `llm.chat` folding into `graph.task` as the RPC rule says. Every one of the six trees
+rebuilds as a single tree from the six logs: one root, no dangling parent, the two reply-lane records under the
+host's span — the head unannotated, the terminal carrying the eight frames that were never spans:
+
+```text
+Rust → Node  d990a656…  (drive 9, exported by all four applications)
+http.request [rust]  round trip 1780.1 ms, status 200                                ← the root, SERVER
+└── llm.stream.relay [rust]  from http.request, 0.05 ms
+    ├── async.http.request [rust]  13.4 ms, destination http://127.0.0.1:8087/api/event
+    └── llm.stream [node]  1768.4 ms
+        ├── async.http.response.stream.0 [rust]  the head
+        └── async.http.response.stream.0 [rust]  the terminal, frames: 8
+```
+
+The mock stays a scratch tool of the drive (it is not part of any repository); the shape it certifies is the one the
+real provider will produce the moment quota returns, because nothing between the AI node and the edge knows which
+server answered.
+
 ## What remains
 
-- **A token-bearing re-drive** of the Scenario 9 shape once the provider's quota allows — the fix's
-  token-bearing tree exists in the runtimes' logs (drive 7, Rust → Python `86eb549f…`, `frames: 2`) but its
-  engine spans were not exported, so the backend has not received one yet. Scenario 9's backend view is
-  CONFIRMED (2026-09-22, the maintainer's four screenshots: one tree per trace, the edge span the root and
-  the response time), and so is Scenario 8's — the broken tree shape it revealed is what Scenario 9 fixed.
+- **Nothing for Scenario 9.** The token-bearing re-drive ran with a mock provider (drive 9 above) and exported
+  from all four applications; the maintainer's look at those four traces in Dynatrace is a formality —
+  Scenario 9's backend view is CONFIRMED on the drive-8 traces (2026-09-22, the maintainer's four screenshots:
+  one tree per trace, the edge span the root and the response time), and so is Scenario 8's. A real-provider
+  token stream of the same shape follows whenever quota returns; nothing between the AI node and the edge
+  depends on which server answered.
 - Nothing else for 4.12.14: with Scenarios 6 and 7 confirmed in the UI, the forwarder's certification is
   closed on both sides of the wire for the released crate — standalone and across the two engines.
 - Splunk Observability Cloud: the `X-SF-Token:` header form is parsed and documented but not run
