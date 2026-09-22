@@ -3433,3 +3433,38 @@ shared v4.12.14 cut, so the Rust CHANGELOG at that number carries it.
 
 Gates: `cargo fmt --check`, `clippy --workspace --all-targets -D warnings`, `cargo test --workspace`,
 `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+## Increment 130 — The shutdown contract pinned: a flow consumer's close is an explicit `LeaveGroup`, observed at the broker (2026-09-22)
+
+Eric, 2026-09-22: "Rust port: does it have the same shutdown behaviour check for rdkafka consumers?" The Java
+module gained `KafkaShutdownTest` with its LeaveGroup fix (mercury-composable #440) after the two-engine
+OpenTelemetry drive found Java members fenced by session expiry while this engine's members left at once. The
+behaviour here dates from Increment 126 — the flow adapter registers `stop_flow_consumers` on
+`Platform::on_shutdown`, the poll loop exits on its watch channel and the dropped consumer closes, which is
+the leave — but the only test pinned the stop path (scenario 15 of `flow_adapter_e2e` asserts that every
+consumer reports stopped within the grace); nothing observed the leave at a broker, no claim was registered,
+and the guide stated it in one sentence. Assessment first, then this increment on Eric's word.
+
+- **`tests/kafka_shutdown.rs`** — the twin of the Java test, on librdkafka's mock cluster. The mock broker
+  serves no `DescribeGroups`, so membership is observed through its consequence: two members share a
+  two-partition topic, the module's `KafkaFlowConsumer` closes, and the survivor must hold both partitions
+  well inside the session timeout (the mock's 30 s; the broker default 45 s). Measured: the mock coordinator
+  hands the partition over on the survivor's next heartbeat — **2.96 s** after the close. A second test drives
+  the shutdown hook's own routine: `stop_flow_consumers` stops a registered consumer within the grace,
+  returns 0 again on a second call, and is a no-op when nothing started. Pinned under the **consumer**
+  protocol on purpose: the mock's classic coordinator rebalances ~25 s after a leave (a mock artifact, see
+  the live check), so a classic timing assertion on the mock would measure the mock, not the port.
+- **Live check, both protocols** (kafka-standalone 4.12.14, the sync-over-async demo backend's three
+  bindings — the same drive the Java fix was verified with): consumer protocol — `SIGTERM received` at T, all
+  three members `left the consumer group` at T+1 ms, process exit at T+394 ms; classic
+  (`KAFKA_GROUP_PROTOCOL=classic`) — three `has left group through explicit LeaveGroup request` at T+2 ms,
+  the groups empty at generation 2, exit at T+346 ms. Nothing fenced in either run.
+- **Guide** `minimalist-kafka.md` §*Shutdown: leaving the group* (`#shutdown`), under Reliability and
+  mirroring the Java section, with the one honest delta stated: the shared producer is not flushed at exit
+  (a publish awaits its delivery report before the function replies, so only a send in flight at the signal
+  is exposed) — also a new *Shutdown* row in *Differences from the Java engine*. Claim
+  `kafka-consumer-leaves-group-on-shutdown` registered against the new test (the Java registry carries the
+  same id against `KafkaShutdownTest`). No engine change.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+--workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
