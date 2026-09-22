@@ -24,6 +24,9 @@ graphs:
   # runs, one business correlation id) - see 'help tutorial 14' and the
   # workflow-suspension guide
   - 'tutorial-14'
+  # the agent-orchestration experiment E0 (bounded-agency support triage): its llm.chat
+  # node is a function on a python/node wrapper host reached through event-over-http.yaml
+  - 'support-triage'
 
 # like flows.yaml, the manifest carries the location of its own models
 # (the tutorials travel with the knowledge-graph engine's resources)
