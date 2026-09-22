@@ -361,7 +361,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Event-over-HTTP callee edge records its own round trip between the caller's span and `event.api.service`.
   **MERGED 2026-09-22: PR #315 (`84f8ad66`), the Java twin #444 (`737ce503`), Python #36, Node #104; Scenario 9's
   backend view CONFIRMED in Dynatrace (one tree per trace, the edge span the root and the response time; report PR
-  #316 `251bb369`, Java #445 `3675590d`) — the open item is a token-bearing re-drive once the Gemini quota allows.**
+  #316 `251bb369`, Java #445 `3675590d`). **Token-bearing re-drive DONE (drive 9, 2026-09-22): a temporary mock
+  of the Gemini REST API shadowed the quota-spent provider at its base URL (`GOOGLE_GEMINI_BASE_URL` /
+  `GEMINI_API_BASE`, no host code change) — all four pairings streamed 8 token frames, every tree one tree with the
+  terminal `frames: 8`, exported by all four apps (report branch `docs/scenario9-token-redrive` `64ce038d`).**
+  Open: v4.12.15 on Eric's go.**
   Extends [[otel-forwarder-no-sdk]]; pinned by `event_over_http_stream::edge_relay_spans_are_connected`.
   <!-- id: connected-edge-spans | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-200854 -->
 
