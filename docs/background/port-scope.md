@@ -59,8 +59,9 @@ Present in the Java platform, absent here today, and candidates for future incre
   next to the HTTP adapter's `http.` keys, as planned.)
 - HTTPS in the async HTTP client (a TLS stack), HTTP relay / `url_rewrite`, A/B dual service.
 - Multipart file upload and request/response streaming at the REST boundary.
-- `/info/lib` and `/info/routes` actuators; the ready-made OpenTelemetry OTLP forwarder
-  extension (the `distributed.trace.forwarder` extension point itself is ported).
+- `/info/lib` and `/info/routes` actuators. (The ready-made OpenTelemetry OTLP forwarder
+  **is ported**: `extensions/opentelemetry-forwarder`, crate `mercury-opentelemetry-forwarder`,
+  opt-in by `otel.forwarding=true` — see the [observability guide](../guides/observability.md#otel-forwarder).)
 - Fork-n-join parallel RPC on `PostOffice` (Event Script `fork`/`join` and `tokio::join!`
   cover the pattern today).
 

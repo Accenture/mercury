@@ -1,0 +1,28 @@
+[package]
+name = "mercury-opentelemetry-forwarder"
+description = "OpenTelemetry trace forwarder for Mercury: exports every completed span to an OTLP/HTTP collector, preserving the W3C trace/span ids (opt-in by otel.forwarding=true)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["opentelemetry", "otlp", "tracing", "observability", "mercury"]
+categories = ["development-tools::debugging", "asynchronous"]
+
+[lib]
+name = "opentelemetry_forwarder"
+
+[dependencies]
+mercury-platform-core = { version = "4.12.12", path = "../../crates/platform-core" }
+async-trait = "0.1"
+log = "0.4"
+rmpv = { version = "1", features = ["with-serde"] }
+serde_json = "1"
+tokio = { version = "1", features = ["time"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util", "sync"] }
+# the in-process OTLP collector double (tests/support)
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"

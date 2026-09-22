@@ -37,6 +37,12 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use async_trait::async_trait;
+// link the OpenTelemetry trace forwarder: nothing here names it, so this line
+// is what collects its annotation entries. It registers
+// `distributed.trace.forwarder` ONLY when otel.forwarding=true (application.yml,
+// or `-Dotel.forwarding=true` at launch) - the Java composable-example's
+// "dependency present, feature off" shape.
+use opentelemetry_forwarder as _;
 use platform_core::automation::event_over_http_with_headers;
 use platform_core::{
     main_application, preload, AppConfigReader, AppError, ComposableFunction, EntryPoint,

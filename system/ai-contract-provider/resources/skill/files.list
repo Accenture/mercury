@@ -46,6 +46,7 @@ references/test-reports/AI-companion-test.md
 references/test-reports/distributed-cache-interop.md
 references/test-reports/event-over-http-interop.md
 references/test-reports/minimalist-kafka-interop.md
+references/test-reports/otel-dynatrace-certification.md
 references/test-reports/progressive-rendering-interop.md
 references/test-reports/streaming-return-route-cross-pod.md
 references/test-reports/streaming-return-route-polyglot.md
