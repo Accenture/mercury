@@ -328,10 +328,14 @@ Replaces the built-in log-context template entirely. Its `context:` section maps
 output key of your choice to a reserved `$token` (`$cid`, `$traceId`, `$tracePath`,
 `$spanId`, `$parentSpanId`, `$service`, `$utc` — resolved live per line), a
 `${ENV:default}` substitution (resolved once at load), or a literal. Keys that resolve to
-nothing are omitted. Business key-values added with `PostOffice::update_context` join the
-same block. When this file is absent, the built-in default template (the seven standard
-trace-context keys) applies — see `app.log.context` above to switch the feature off.
-Read by `crates/platform-core` (logging).
+nothing are omitted. A template that maps `$utc` to no key gets it added as `timestamp`
+(`utc` if `timestamp` is taken), so the block always carries a UTC time. Business
+key-values added with `PostOffice::update_context` join the same block — the reserved names
+in both spellings (`traceId` / `trace_id`, …) are refused, and a template key is never
+shadowed. When this file is absent, the built-in default template (the seven standard
+trace-context keys, in snake_case: `cid`, `trace_id`, `trace_path`, `span_id`,
+`parent_span_id`, `service`, `timestamp`) applies — see `app.log.context` above to switch the
+feature off. Read by `crates/platform-core` (logging).
 
 ## Actuators and health
 

@@ -256,8 +256,9 @@ can pivot from a span in your backend straight to the log lines that belong to i
 
 The feature is **on by default**: platform-core ships a built-in
 `default-log-context.yaml` (embedded at compile time) that emits the standard trace
-context (`cid`, `traceId`, `tracePath`, `spanId`, `parentSpanId`, `service`,
-`timestamp`) on every structured log line. You can adjust it in two ways:
+context (`cid`, `trace_id`, `trace_path`, `span_id`, `parent_span_id`, `service`,
+`timestamp`) on every structured log line — snake_case, matching the distributed-trace
+block on the same record, so a collector maps one vocabulary. You can adjust it in two ways:
 
 - **Customize** — provide your own `app-log-context.yaml` on the resource path
   (`resources/`); it replaces the built-in template entirely.
@@ -270,10 +271,10 @@ with two custom keys:
 ```yaml
 context:
   cid: $cid
-  traceId: $traceId
-  tracePath: $tracePath
-  spanId: $spanId
-  parentSpanId: $parentSpanId
+  trace_id: $traceId
+  trace_path: $tracePath
+  span_id: $spanId
+  parent_span_id: $parentSpanId
   service: $service
   timestamp: $utc
   environment: '${ENV_NAME:dev}'
@@ -289,11 +290,19 @@ The left side is the output key (your choice). The right side is one of three fo
 | **Literal** | `hello: world` | emitted verbatim |
 
 The reserved tokens are `$cid`, `$traceId`, `$tracePath`, `$spanId`, `$parentSpanId`,
-`$service` (the current function's route), and `$utc` (the log line's UTC timestamp). A
-key that resolves to nothing is **omitted**, never printed as null — a root span simply
-has no `parentSpanId` key. This is the log line the greeting function emitted for the same
-request as the telemetry record above — same `traceId` and `spanId`, so the log line and
-the span join up in the backend, with the `user` key added by `update_context`:
+`$service` (the current function's route), and `$utc` (the log line's UTC timestamp). The
+token names stay camelCase; the *output* keys are yours — the default template writes them
+in snake_case. A key that resolves to nothing is **omitted**, never printed as null — a root
+span simply has no `parent_span_id` key. **The context block always carries a UTC
+timestamp**: when your template maps `$utc` to no key, the engine adds it as `timestamp`
+(as `utc` if `timestamp` is taken) — the record's top-level `time` is a local rendering,
+and log-to-trace correlation resolves on a time window, so a line parsed in the wrong zone
+would correlate and still be invisible on its trace. `update_context` refuses the reserved
+names in **both** spellings (`traceId` and `trace_id`, …) with a 400, and a business key can
+never shadow a template key — developer keys render first, the template wins. This is the log
+line the greeting function emitted for the same request as the telemetry record above — same
+`trace_id` and `span_id`, so the log line and the span join up in the backend, with the `user`
+key added by `update_context`:
 
 ```json
 {
@@ -301,12 +310,12 @@ the span join up in the backend, with the `user` key added by `update_context`:
     "cid": "39ecf9f00aec4f4cb5dd6b4362cda0b2",
     "environment": "dev",
     "hello": "world",
-    "parentSpanId": "8bb32a631ca4beef",
+    "parent_span_id": "8bb32a631ca4beef",
     "service": "greeting.demo",
-    "spanId": "bd75e3cb9cb462a1",
+    "span_id": "bd75e3cb9cb462a1",
     "timestamp": "2026-07-20T01:33:54.763Z",
-    "traceId": "18529fd5dd4445ff8cd5bfe100f0ced3",
-    "tracePath": "GET /api/greeting/eric",
+    "trace_id": "18529fd5dd4445ff8cd5bfe100f0ced3",
+    "trace_path": "GET /api/greeting/eric",
     "user": "eric"
   },
   "level": "INFO",

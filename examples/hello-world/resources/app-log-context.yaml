@@ -10,10 +10,10 @@
 # right side = $token (live per line) | ${ENV:default} (once at load) | literal
 context:
   cid: $cid
-  traceId: $traceId
-  tracePath: $tracePath
-  spanId: $spanId
-  parentSpanId: $parentSpanId
+  trace_id: $traceId
+  trace_path: $tracePath
+  span_id: $spanId
+  parent_span_id: $parentSpanId
   service: $service
   timestamp: $utc
   environment: '${ENV_NAME:dev}'

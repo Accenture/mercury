@@ -1,0 +1,58 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "a task route with no skill is inert - the graph traverses the node and nothing runs",
+        "name": "unit-test-task-skill-err1"
+      }
+    },
+    {
+      "alias": "worker",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "task": "v1.hello.world",
+        "input": [
+          "input.body -> body"
+        ],
+        "output": [
+          "result -> model.answer"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "worker",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "worker",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

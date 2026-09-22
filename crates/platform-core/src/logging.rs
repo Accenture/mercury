@@ -154,6 +154,29 @@ impl LogContextConfig {
         }
         let enabled = !tokens.is_empty() || !constants.is_empty();
         if enabled {
+            // Java 4.12.13: the context block always carries a machine-parseable
+            // UTC time - the record's top-level `time` is what the operator's
+            // zone renders, and log-to-trace correlation resolves on a time
+            // window, so a line parsed in the wrong zone can be correctly
+            // correlated and still invisible on its trace. When the template
+            // maps `$utc` to no key, insert it as `timestamp` (falling back to
+            // `utc` if `timestamp` is taken, and leaving the template alone with
+            // a warning if both are)
+            if !tokens.iter().any(|(_, token)| token == "utc") {
+                let taken = |key: &str| {
+                    tokens.iter().any(|(k, _)| k == key) || constants.iter().any(|(k, _)| k == key)
+                };
+                if !taken("timestamp") {
+                    tokens.push(("timestamp".to_string(), "utc".to_string()));
+                } else if !taken("utc") {
+                    tokens.push(("utc".to_string(), "utc".to_string()));
+                } else {
+                    log::warn!(
+                        "Log context template maps $utc to no key and both 'timestamp' and 'utc' \
+                         are taken - no UTC timestamp is added to the context block"
+                    );
+                }
+            }
             log::info!(
                 "Application log context enabled with {} context key-value(s)",
                 tokens.len() + constants.len()
@@ -185,6 +208,13 @@ impl LogContextConfig {
         log_time: std::time::SystemTime,
     ) -> serde_json::Map<String, serde_json::Value> {
         let mut out = serde_json::Map::new();
+        // developer keys render first, so a template key can never be shadowed
+        // by `update_context` - the template wins (Java 4.12.13)
+        for (key, value) in &state.custom_log_keys {
+            if !value.is_null() {
+                out.insert(key.clone(), value.clone());
+            }
+        }
         for (output_key, token_name) in &self.tokens {
             if let Some(value) = state.token(token_name, log_time) {
                 out.insert(output_key.clone(), value);
@@ -195,11 +225,6 @@ impl LogContextConfig {
                 output_key.clone(),
                 serde_json::Value::String(constant.clone()),
             );
-        }
-        for (key, value) in &state.custom_log_keys {
-            if !value.is_null() {
-                out.insert(key.clone(), value.clone());
-            }
         }
         out
     }
@@ -379,10 +404,10 @@ mod tests {
         let token_keys: Vec<&str> = config.tokens.iter().map(|(k, _)| k.as_str()).collect();
         for expected in [
             "cid",
-            "traceId",
-            "tracePath",
-            "spanId",
-            "parentSpanId",
+            "trace_id",
+            "trace_path",
+            "span_id",
+            "parent_span_id",
             "service",
             "timestamp",
         ] {
@@ -416,9 +441,67 @@ mod tests {
         assert!(config.is_enabled());
         assert_eq!(
             config.tokens,
-            vec![("onlyKey".to_string(), "service".to_string())],
+            vec![
+                ("onlyKey".to_string(), "service".to_string()),
+                // the engine supplies the UTC timestamp when the template maps $utc to no key
+                ("timestamp".to_string(), "utc".to_string()),
+            ],
             "the application template must replace the built-in default entirely"
         );
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The automatic UTC timestamp: inserted as `timestamp`, falling back to
+    /// `utc` when `timestamp` is taken, and left out with a warning when both
+    /// are; an explicit `$utc` mapping is kept as authored (no duplicate).
+    #[test]
+    fn utc_timestamp_is_supplied_when_the_template_omits_it() {
+        let reader = |text: &str| ConfigReader::from_yaml_text(text).expect("yaml");
+        let inserted = LogContextConfig::from_reader(&reader("context:\n  svc: $service\n"));
+        assert!(inserted
+            .tokens
+            .contains(&("timestamp".to_string(), "utc".to_string())));
+        let explicit =
+            LogContextConfig::from_reader(&reader("context:\n  when: $utc\n  svc: $service\n"));
+        assert_eq!(
+            1,
+            explicit.tokens.iter().filter(|(_, t)| t == "utc").count()
+        );
+        assert!(explicit
+            .tokens
+            .contains(&("when".to_string(), "utc".to_string())));
+        let fallback = LogContextConfig::from_reader(&reader("context:\n  timestamp: $service\n"));
+        assert!(fallback
+            .tokens
+            .contains(&("utc".to_string(), "utc".to_string())));
+        let both_taken = LogContextConfig::from_reader(&reader(
+            "context:\n  timestamp: $service\n  utc: hello\n",
+        ));
+        assert!(!both_taken.tokens.iter().any(|(_, t)| t == "utc"));
+    }
+
+    /// Developer keys render first and the template wins, so a business key
+    /// can never shadow a template key.
+    #[test]
+    fn template_keys_win_over_developer_keys() {
+        let config = LogContextConfig::from_reader(
+            &ConfigReader::from_yaml_text("context:\n  service: $service\n  env: dev\n")
+                .expect("yaml"),
+        );
+        let mut state = trace::TraceState::new("greeting.demo", "t1", "GET /x", None, None);
+        state
+            .custom_log_keys
+            .insert("service".to_string(), serde_json::json!("shadow"));
+        state
+            .custom_log_keys
+            .insert("env".to_string(), serde_json::json!("shadow"));
+        state
+            .custom_log_keys
+            .insert("user".to_string(), serde_json::json!("eric"));
+        let out = config.render(&state, std::time::SystemTime::now());
+        assert_eq!("greeting.demo", out["service"]);
+        assert_eq!("dev", out["env"]);
+        assert_eq!("eric", out["user"]);
+        assert!(out.contains_key("timestamp"), "the automatic UTC timestamp");
     }
 }

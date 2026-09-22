@@ -1,0 +1,56 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "graph.math does not call a task - the route would be silently ignored",
+        "name": "unit-test-task-skill-err2"
+      }
+    },
+    {
+      "alias": "worker",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "task": "v1.hello.world",
+        "statement": [
+          "model.a = 1"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "worker",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "worker",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

@@ -3323,3 +3323,40 @@ Gates per branch: `cargo fmt --check`, `clippy --workspace --all-targets -D warn
 `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`. Release: v4.12.14 on both engines after the
 lock-step round (Eric, 2026-09-21), publishing `mercury-sync-over-async` and `mercury-minimalist-kafka`.
 
+## Increment 128 — Lock-step round with Java 4.12.12/4.12.13: the CompileGraph task↔skill gate, the case-insensitive `input.header.*` fallback, snake_case log-context keys with an automatic UTC timestamp (2026-09-21)
+
+The three Java items the 4.12.12 catch-up left "for the next lock-step round", plus one parity check,
+ahead of the shared v4.12.14 release (Eric, 2026-09-21: "wait for completion of locksteps and then
+v4.12.14 for both Java and Rust repos"):
+
+- **The task↔skill gate** (Java 4.12.12 #406, `GraphModelValidator.validateWorkingNodeHasSkill`). A node
+  carrying a `task` route with no `skill` was accepted as a structural node — traversed, the function never
+  called, nothing reported. `model_validator::validate` now runs the gate first: a `task` with no `skill`, a
+  `task` under a skill that never calls one (only `graph.task`, `graph.suspend` and `graph.resume` consume a
+  task route), and one of those skills with no `task` are each rejected by node name as hard errors, with the
+  Java messages. Pinned by the byte-identical `unit-test-task-skill-err1..3` fixtures; every shipped model
+  still compiles; the skills reference states the rule (neither engine's guide had).
+- **`input.header.*` falls back to a case-insensitive scan** (Java 4.12.12 item 3). Event Script lowercases the
+  reference, which matches the HTTP adapter (headers arrive lowercased) — but the Kafka flow adapter delivers
+  record headers in the producer's wire casing, so a `Content-Type` header could not be addressed by any
+  mapping. The scan runs only when the direct lookup missed, so the HTTP path pays nothing; normalizing at the
+  adapter was rejected on the Java side because it would change what the `*` passthrough hands a function.
+- **Application log context: snake_case keys and an automatic UTC timestamp** (Java 4.12.13 #414). The built-in
+  template's output keys are now `cid`, `trace_id`, `trace_path`, `span_id`, `parent_span_id`, `service`,
+  `timestamp` — matching the distributed-trace block on the same record, so a collector maps one vocabulary.
+  A template that maps `$utc` to no key gets it added as `timestamp` (`utc` if taken; a warning if both are),
+  so the block always carries a machine-parseable UTC time. `PostOffice::update_context` refuses the reserved
+  names in both spellings, and developer keys render first so a template key is never shadowed. **Upgrade
+  note:** a query keyed on `context.traceId` moves to `trace_id` — or keeps the old names by writing them on
+  the left side of its own `app-log-context.yaml`; the hello-world example's template and the observability
+  guide show the new default.
+- **Guarded async completion (P2): parity confirmed, no change.** The graph skills' output mapping is a
+  synchronous `Result` on this engine — an illegal `input.*` source fails the node with the #394 wording
+  already in place (`fix(knowledge-graph)` of Increment 125) — so the Java `guardedCompletion` has no gap
+  to close here.
+- **Dev mode in the Layer 3 starter template (P10): a ruling is needed** — this port's starter runs the
+  production shape and authors in the `minigraph-playground` app alongside, a deliberate delta so far.
+
+Gates: `cargo fmt --check`, `clippy --workspace --all-targets -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
