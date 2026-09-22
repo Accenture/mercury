@@ -327,7 +327,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `mercury-opentelemetry-forwarder`. Certified live (`docs/test-reports/otel-dynatrace-certification.md`): A-B-A on
   hello-flow — real token 0/5, bogus token 5/5 `HTTP 401`, real token 0/5; **UI confirmation DONE 2026-09-22** (Eric's
   Dynatrace screenshots: nesting, kinds, scope 4.12.12, attributes as mapped); the field acceptance on the released
-  crate is [[otel-forwarder-certification]].
+  crate — a registry-only consumer app and one trace across both engines — is CONFIRMED in the UI 2026-09-22, and
+  [[otel-forwarder-certification]] is CLOSED (report Scenarios 6–7).
   <!-- id: otel-forwarder-no-sdk | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-010413 -->
 
 ## Conventions
