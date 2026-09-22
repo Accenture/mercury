@@ -21,7 +21,7 @@ files themselves merge in the manifest order described below.
     `server.port`), TLS and server extras (`rest.server.ssl*`, `api.origin`, `hsts.feature`,
     `oversize.http.response.header`, `websocket.binary.size`, `websocket.server.port`),
     the service mesh / cloud connector and the `twin-kafka` (second cluster) keys, the scheduler,
-    PostgreSQL, the OpenTelemetry forwarder (`otel.*`), classpath scanning
+    PostgreSQL, classpath scanning
     (`web.component.scan`, `modules.autostart`), threading
     (`kernel.thread.pool`, `deferred.commit.log`), event-script extras
     (`yaml.journal`, `yaml.multicast`),
@@ -279,6 +279,77 @@ Overridable per endpoint with `traceparent.header` in a `rest.yaml` entry.
 Route names excluded from distributed trace recording (in addition to the telemetry
 plumbing itself, which is always excluded). Read by `crates/platform-core` (worker
 dispatch).
+
+#### `otel.forwarding` {#otel-forwarding}
+
+| Type | Default |
+|---|---|
+| boolean | `false` |
+
+**Master switch for OpenTelemetry trace forwarding.** Linking the `mercury-opentelemetry-forwarder`
+crate registers nothing: the forwarder is `#[optional_service("otel.forwarding")]`, and the
+`distributed.trace.forwarder` route exists only when this is `true`. Set it per environment in
+`application.yml`, or at launch with the runtime override `-Dotel.forwarding=true`. Read by
+`extensions/opentelemetry-forwarder`; see [Observability](observability.md#otel-forwarder).
+
+#### `otel.exporter.otlp.endpoint`
+
+| Type | Default |
+|---|---|
+| string (URL) | `http://localhost:4318/v1/traces` |
+
+The OTLP/HTTP traces endpoint the forwarder exports spans to — the full URL including the
+signal path (`.../v1/traces`; a vendor base URL alone answers 404, which the forwarder's
+diagnostic says). Read by `extensions/opentelemetry-forwarder`.
+
+#### `otel.exporter.otlp.timeout`
+
+| Type | Default |
+|---|---|
+| int (ms) | `10000` |
+
+Per-export timeout of the OTLP request. Read by `extensions/opentelemetry-forwarder`.
+
+#### `otel.exporter.otlp.headers`
+
+| Type | Default |
+|---|---|
+| string (comma-separated `key=value` or `key: value`) | — |
+
+Request headers of every export — **where the backend credential goes** (`Authorization: Api-Token …`
+for Dynatrace, `X-SF-Token: …` for Splunk). Source it from environment variables with **no default**
+so no secret is hard-coded; an unset variable resolves to nothing, which parses to no headers. Each
+pair is split on the first `=` or `:`; values are never logged. **Re-read on every export**, so a
+credential published later as a runtime override takes effect without a restart. Read by
+`extensions/opentelemetry-forwarder`.
+
+#### `otel.service.name`
+
+| Type | Default |
+|---|---|
+| string | `application.name`, else `mercury` |
+
+The `service.name` resource attribute stamped on every exported span — how traces are grouped in
+the backend. Read by `extensions/opentelemetry-forwarder`.
+
+#### `otel.exporter.otlp.compression`
+
+| Type | Default |
+|---|---|
+| string | `none` |
+
+Accepted for parity with the Java module, which also offers `gzip`. This engine honours only
+`none`: a `gzip` setting logs a warning at start-up and exports uncompressed (the payload is one
+span per request). Read by `extensions/opentelemetry-forwarder`.
+
+#### `otel.exporter.otlp.connect.timeout`
+
+| Type | Default |
+|---|---|
+| int (ms) | — |
+
+A Java-module key with **no effect on this engine** (a warning at start-up says so): the connect
+phase of every export is governed by the platform HTTP client's `http.client.connection.timeout`.
 
 ## Logging
 

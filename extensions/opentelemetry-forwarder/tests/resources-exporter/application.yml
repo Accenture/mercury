@@ -1,0 +1,14 @@
+# Configuration of the exporter suite (tests/otlp_export.rs). The switch
+# `otel.forwarding` is deliberately ABSENT: nothing auto-registers, the suite
+# drives the Exporter directly. Plain values, not ${OTEL_*} references: OTEL_*
+# variables are commonly exported machine-wide on instrumented CI agents, and a
+# leaked endpoint would silently redirect a hermetic test away from the
+# in-process collector double.
+application.name: otel-exporter-test
+log.format: text
+# the collector double's random port, published by the suite before boot
+otel.exporter.otlp.endpoint: '${OTEL_FWD_TEST_ENDPOINT:http://127.0.0.1:1/v1/traces}'
+otel.service.name: mercury-otel-demo
+# unset at boot -> no headers; the suite then publishes the credential as a
+# runtime override and the next export carries it (re-read on every export)
+otel.exporter.otlp.headers: '${OTEL_FWD_TEST_HEADERS}'

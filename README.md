@@ -43,8 +43,10 @@ mercury-knowledge-graph = "4.12"    # code: use knowledge_graph::...
 application needs only `mercury-platform-core` and `mercury-knowledge-graph`, which brings
 `mercury-event-script` along transitively. The macro crates are pulled in automatically; add `mercury-minigraph-state-redis` for
 the Redis suspend/resume state store, `mercury-distributed-cache` for the opt-in Redis L2
-cache (`v1.cache.redis`), or `mercury-sync-over-async` for the cross-pod streaming return
-route — the last two share the `mercury-redis-connection` client foundation.)
+cache (`v1.cache.redis`), `mercury-sync-over-async` for the cross-pod streaming return
+route — the last two share the `mercury-redis-connection` client foundation — or
+`mercury-opentelemetry-forwarder` to export the engine's distributed traces over OTLP/HTTP,
+off until `otel.forwarding=true`.)
 
 ## Quick start
 
@@ -94,8 +96,8 @@ Spring (`rest-spring-3/-4`) are out of scope. The lightweight cloud-native conne
 of that exclusion: `minimalist-kafka` is ported (`crates/minimalist-kafka`, crate
 `mercury-minimalist-kafka` — the Kafka flow adapter, `simple.kafka.notification`, `kafka.health`
 and the Confluent Schema Registry wire format; see
-[`docs/guides/minimalist-kafka.md`](docs/guides/minimalist-kafka.md)), as is `sync-over-async`
-(`extensions/sync-over-async`); `twin-kafka` (the second-cluster bridge) is deferred until a bridge
+[`docs/guides/minimalist-kafka.md`](docs/guides/minimalist-kafka.md)), as are `sync-over-async`
+(`extensions/sync-over-async`) and the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`); `twin-kafka` (the second-cluster bridge) is deferred until a bridge
 need exists (see [`docs/background/port-scope.md`](docs/background/port-scope.md)). `graph.js` is
 deliberately retired in this port (an arbitrary-code interpreter is an attack surface); `graph.math`
 and `graph.task` cover its use cases.

@@ -195,12 +195,109 @@ dataset to it. A companion hook, **`transaction.journal.recorder`**, receives
 request/response journals when journaling is enabled (journals may contain PII — handle
 per your organization's security policy).
 
+### The OpenTelemetry forwarder (ready-made) {#otel-forwarder}
+
+You do not have to write the forwarder for OpenTelemetry. The
+**`mercury-opentelemetry-forwarder`** crate (`extensions/opentelemetry-forwarder`, the twin of
+the Java `opentelemetry-forwarder` extension) ships a `distributed.trace.forwarder` that maps
+each dataset to an OpenTelemetry span — preserving the exact W3C trace, span and parent-span
+ids — and exports it over **OTLP/HTTP** (binary protobuf) to a collector, and on to Dynatrace,
+Splunk, Jaeger, Tempo, …. Add the dependency and one link line; no code:
+
+```toml
+[dependencies]
+mercury-opentelemetry-forwarder = "x.y.z"
+```
+
+```rust
+// nothing in the application names the crate - this line is what links it
+use opentelemetry_forwarder as _;
+```
+
+> **Note**: `x.y.z` denotes the current Mercury version shown in the root `Cargo.toml`.
+
+Configure it in `application.yml` (values support `${ENV_VAR:default}` substitution):
+
+```yaml
+# Master switch - DEFAULT OFF. Linking the crate registers nothing.
+otel.forwarding: true
+otel.exporter.otlp.endpoint: '${OTLP_API_ENDPOINT:http://localhost:4318/v1/traces}'
+otel.service.name: '${OTLP_SERVICE_NAME:my-app}'
+# Backend credentials come from the environment - no secret hard-coded:
+otel.exporter.otlp.headers: '${OTLP_AUTH_HEADER} ${OTLP_TOKEN}'
+```
+
+> **Linking the crate does not turn forwarding on.** The forwarder is gated by
+> `#[optional_service("otel.forwarding")]` with a default of **false**: linking the crate
+> registers nothing, and the route exists only when otel.forwarding is true — in the
+> environment's configuration, or `-Dotel.forwarding=true` at launch with no rebuild. That
+> separates two decisions that belong to different people: a developer adds the dependency,
+> and DevOps decides per environment whether traces leave the process. The `hello-flow`
+> example carries the crate with the switch off and pins that shape with a test.
+
+Point the endpoint at an OpenTelemetry Collector, or directly at a SaaS backend with its API
+token in the headers. Backends differ in the header **name** and in whether the value carries an
+auth scheme, so keep the vendor-specific part and the bare secret in separate variables:
+
+```bash
+# Dynatrace
+export OTLP_API_ENDPOINT="https://{env-id}.live.dynatrace.com/api/v2/otlp/v1/traces"
+export OTLP_AUTH_HEADER="Authorization: Api-Token"   # the header NAME and scheme - no token here
+export OTLP_TOKEN="<your-api-token>"
+
+# Splunk Observability Cloud
+export OTLP_API_ENDPOINT="https://ingest.{realm}.signalfx.com/v2/trace/otlp"
+export OTLP_AUTH_HEADER="X-SF-Token:"
+export OTLP_TOKEN="<your-access-token>"
+```
+
+> **A caution on `OTEL_*` variable names.** Referencing the OpenTelemetry standard variables
+> (`OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, …) is convenient and works, but those
+> names are often exported machine-wide on instrumented hosts and CI agents — so an
+> application can silently inherit a service name or, worse, an endpoint that redirects its
+> telemetry somewhere unintended. When that matters, reference your own prefixed variables
+> instead; `hello-flow` uses `OTLP_SERVICE_NAME` / `OTLP_API_ENDPOINT` / `OTLP_AUTH_HEADER` /
+> `OTLP_TOKEN` for exactly this reason, and the forwarder's own tests avoid `${OTEL_*}`
+> references so a leaked endpoint cannot redirect a hermetic test.
+
+> **The credential is re-read on every export.** `otel.exporter.otlp.headers` is resolved per
+> export, so a credential a bootstrap publishes after start-up as a runtime override
+> (`platform_core::overrides::set`, the `-D` / `System.setProperty` analog) takes effect with
+> no restart, and the log records a single `OTLP credential header resolved` line when it
+> first appears. `${ENV_VAR}` references themselves are resolved when the configuration
+> loads — the environment of a running process does not change underneath it.
+
+Each span carries the route name (`route`), `path`, `from`, `origin`, `status`, timing, and your
+`annotation.*` values as span attributes, with `service.name` on the resource and the
+instrumentation scope `mercury-opentelemetry-forwarder` at the running version. A rejected
+export is diagnosed on the forwarder's own warning line (the HTTP status, the backend's
+explanation, and a hint for a missing signal path, a rejected credential or a token without
+the ingest scope). Certified live against Dynatrace, with the A-B-A credential experiment that
+proves the exports are real:
+[Test Report — OpenTelemetry forwarder against Dynatrace](../test-reports/otel-dynatrace-certification.md).
+Full key reference: [Configuration Reference](configuration-reference.md#otel-forwarding).
+
 !!! note "Rust port"
-    Java ships a ready-made `opentelemetry-forwarder` extension that exports the datasets
-    over OTLP/HTTP. That extension has not been ported yet — the extension point is
-    identical, so an OTLP exporter is a `distributed.trace.forwarder` function you
-    register yourself. The dataset preserves the exact W3C trace/span/parent ids, so the
-    mapping to OpenTelemetry spans is direct.
+    The Java module exports through the OpenTelemetry SDK; this crate writes the OTLP protobuf
+    itself and sends it through the platform's `async.http.request` client, so it adds no
+    dependency to an application. Three keys differ: `otel.exporter.otlp.compression` honours
+    only `none` (a `gzip` setting warns and exports uncompressed — one span per request),
+    `otel.exporter.otlp.connect.timeout` has no effect (the platform's
+    `http.client.connection.timeout` governs the connect phase), and the instrumentation scope
+    is named `mercury-opentelemetry-forwarder` so a backend can tell the engines apart. The
+    retry policy (5 attempts, 1 s growing by 1.5× on transport failures and 408/429/502/503/504)
+    and the failure diagnostics are the Java module's. A late credential arrives as a runtime
+    override rather than a system property. See the crate README for the full table.
+
+> **The forwarder exports traces, not logs** — deliberately. Application logs reach your
+> backend through your platform's log forwarder, not through the engine; the `trace_id` /
+> `span_id` keys of the [log context](#log-context) are what join them to these spans.
+
+### A custom forwarder {#custom-forwarder}
+
+To target a system without an OTLP path, implement your own function at
+`distributed.trace.forwarder` and consume the dataset shown above — for example, write it to
+a metrics database or a proprietary APM API.
 
 ## Trace annotations vs. log context
 

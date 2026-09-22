@@ -153,7 +153,8 @@ repo's own source, so it answers the question without opening `crates/`.
   and the engine test that pins the behavior; an agent may treat these claims as source-verified.
 - [Observability](guides/observability.md) — tracing and telemetry, incl. the trace-context
   lifecycle: the context is task-local, torn down when the function returns, and work you
-  `tokio::spawn` from inside a function does not inherit it.
+  `tokio::spawn` from inside a function does not inherit it; the ready-made OTLP forwarder
+  (`mercury-opentelemetry-forwarder`, opt-in by `otel.forwarding=true`) and its `otel.*` keys.
 - [Actuators & HTTP client](guides/actuators-and-http-client.md) — the built-in health and
   introspection endpoints, and the async outbound HTTP client; both without extra wiring.
 - [Event over HTTP](guides/event-over-http.md) — call a function in another instance over the same
@@ -169,6 +170,8 @@ repo's own source, so it answers the question without opening `crates/`.
 - `docs/INCREMENTS.md` — the increment ledger.
 - `docs/test-reports/AI-companion-test.md` — the human+AI collaboration validation log (how these docs were
   battle-tested by fresh AI companions).
+- `docs/test-reports/otel-dynatrace-certification.md` — the live certification of the OpenTelemetry
+  forwarder against Dynatrace, with the A-B-A credential experiment that shows the exports are real.
 
 ## Canonical upstream
 `Accenture/mercury-composable` — the Java reference implementation this repo ports. Its docs describe

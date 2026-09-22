@@ -19,6 +19,9 @@ members = [
     "extensions/distributed-cache",
     "extensions/minigraph-state-redis",
     "extensions/sync-over-async",
+    # the ready-made OpenTelemetry OTLP/HTTP trace forwarder (distributed.trace.forwarder),
+    # opt-in by otel.forwarding=true
+    "extensions/opentelemetry-forwarder",
     "benchmark/benchmark-reporter",
     "system/ai-contract-provider",
 

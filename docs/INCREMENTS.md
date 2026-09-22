@@ -3360,3 +3360,76 @@ v4.12.14 for both Java and Rust repos"):
 Gates: `cargo fmt --check`, `clippy --workspace --all-targets -D warnings`, `cargo test --workspace`,
 `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
 
+
+## Increment 129 — The OpenTelemetry trace forwarder ported: `mercury-opentelemetry-forwarder` exports every span over OTLP/HTTP, opt-in by `otel.forwarding=true`, certified live against Dynatrace (2026-09-22)
+
+Eric, 2026-09-21: "Open-Telemetry forwarder feature is missing in Rust." The Java `opentelemetry-forwarder`
+extension (v4.12.11, `otel.forwarding`) had no analogue here — the port-scope page listed it as deferred and
+the observability guide told readers to write their own `distributed.trace.forwarder`. Ported ahead of the
+shared v4.12.14 cut, so the Rust CHANGELOG at that number carries it.
+
+- **The crate** — `extensions/opentelemetry-forwarder`, lib `opentelemetry_forwarder`. A `#[preload]`
+  function at `distributed.trace.forwarder` (two workers, `#[zero_tracing]`), gated by
+  `#[optional_service("otel.forwarding")]` exactly like the Java `@OptionalService`: linking the crate
+  registers nothing. A `#[before_application]` hook under the same switch validates the configuration
+  once (a non-http(s) endpoint fails the start with a message naming the key), announces the forwarder —
+  header **names**, never values — and installs the shared exporter; the function resolves it lazily on
+  its first dataset, because the lifecycle constructs every annotated function before it runs the hooks.
+  Configuration keys are the Java module's (`otel.exporter.otlp.endpoint|timeout|headers`,
+  `otel.service.name`), values `${ENV_VAR:default}`-substituted.
+- **No OpenTelemetry SDK.** The Rust OTLP stack (`opentelemetry-otlp` → `opentelemetry-proto` → `prost` +
+  `tonic`) would have been the heaviest dependency in the workspace for eight frozen message types with
+  scalar fields. `src/otlp.rs` writes the `ExportTraceServiceRequest` protobuf itself (varints, fixed64,
+  length-delimited; `oneof` members always present, proto3 defaults omitted; span `flags` = sampled +
+  local as the Java SDK writes) and reads the response's `partial_success`; the request goes as
+  `application/x-protobuf` through the platform's `async.http.request` client — the same seam the schema
+  registry client uses — so the crate adds no dependency to an application. The mapping (`src/span.rs`)
+  is `TraceMetricsSpanData` line for line: exact W3C ids or the dataset is skipped, `service` → name,
+  `from=http.request` → SERVER, `success`/`exception`/`status` → status, the attribute set and
+  `annotation.*`, float `exec_time` parsed through its text so `0.007` stays `0.007`; an ISO-8601 parser
+  inverts the engine's own formatter (no date crate).
+- **Retry and diagnostics are the Java exporter's.** Transport failures and 408/429/502/503/504 retry on
+  the SDK's default schedule (5 attempts, 1 s × 1.5); any other status is final. The platform client
+  renders its own transport failures as a 500 with no response headers — that absence is the
+  discriminator from a real server 500 (retried vs. final). A rejected export is actionable from one
+  warning line: `HTTP 401 - Token Authentication failed | the backend rejected the credential itself -
+  check otel.exporter.otlp.headers (...)`, with the 404 signal-path and 403 ingest-scope hints and a
+  256-character body bound. Header values never reach the log.
+- **Late credential, the Rust way.** `otel.exporter.otlp.headers` is re-read on every export. The Java
+  module's "vault bootstrap publishes a system property after `@PreLoad`" maps to a runtime override
+  (`overrides::set`, consulted first on every lookup); `${ENV_VAR}` references resolve once when the
+  configuration loads (`ConfigReader::new_base` → `resolve_references`), so the environment is not the
+  live path — the suite proves the override is. Recorded in the guide and the crate README.
+- **Three deltas, declared:** `otel.exporter.otlp.compression` honours only `none` (a `gzip` setting
+  warns and exports uncompressed — one span per request), `otel.exporter.otlp.connect.timeout` has no
+  effect (`http.client.connection.timeout` governs the connect phase; a warning says so), and the
+  instrumentation scope is `mercury-opentelemetry-forwarder` so a backend can tell the engines apart.
+- **Tests.** 30 unit tests (wire-format golden vectors, the mapping twins of `TraceMetricsSpanDataTest`,
+  the diagnostics twins of `ExportFailureDiagnosticsTest`, header parsing, ISO-8601 round trip with the
+  engine formatter); `tests/otlp_export.rs` against an in-process collector double that decodes the
+  protobuf (`tests/support/mock_collector.rs` — the `MockOtlpCollector` + `FlakyOtlpServer` twins):
+  round trip of the ids and the credential on both vendor paths, 503→429→200 retried, a killed first
+  connection retried, 404/401/403/400 final and diagnosed, the late credential via override, an invalid
+  endpoint refused; `tests/trace_pipeline.rs` drives the REAL forwarder registered by configuration
+  alone through a traced `fun.1 → fun.2 → fun.3` chain and asserts the lineage, resource, scope and
+  credential at the collector (the `OtlpTracePipelineTest` twin).
+- **`hello-flow` carries the crate with the switch off** (the Java composable-example shape): the
+  dependency, one `use opentelemetry_forwarder as _;` link line, the `otel.*` block reading
+  `OTLP_API_ENDPOINT` / `OTLP_AUTH_HEADER` / `OTLP_TOKEN` / `OTLP_SERVICE_NAME`, and
+  `tests/otel_forwarding_switch.rs` pinning "dependency present, feature off".
+- **Certified live against Dynatrace** (`docs/test-reports/otel-dynatrace-certification.md`): hello-flow
+  launched with `-Dotel.forwarding=true`, one `GET /api/hello/{user}?lang=fr` per leg — five spans
+  (`http.flow.adapter` SERVER, `task.executor`, `language.router`, `greeting.composer`,
+  `async.http.response`) — and the A-B-A credential experiment: real token 0/5 failures, bogus token 5/5
+  `HTTP 401 - Token Authentication failed`, real token 0/5 again. The first drive was itself a lesson:
+  its legs B and A′ hit leg A's process, still holding port 8100 after SIGTERM, and reported 0 failures
+  for the wrong reason — the redriven script waits for the port to change hands and hard-kills after
+  10 s. Eric verifies the traces in the Dynatrace UI.
+- **Docs.** Observability guide §"The OpenTelemetry forwarder (ready-made)" replaces the "not ported"
+  note (Rust-port box with the deltas); the `otel.*` keys join the configuration reference; port-scope,
+  README and `llms.txt` updated; three claims registered (`otel-forwarding-default-off`,
+  `otel-forwarder-preserves-w3c-ids`, `otel-forwarder-credential-per-export`); the report packaged in the
+  AI contract.
+
+Gates: `cargo fmt --check`, `clippy --workspace --all-targets -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.

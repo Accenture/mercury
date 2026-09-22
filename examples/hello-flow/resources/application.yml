@@ -30,3 +30,28 @@ peer.demo.port: 8085
 # credential is ever hard-coded ("demo" is the fallback for local development
 # only). The declarative side reads the same variable in event-over-http.yaml.
 demo.peer.token: '${DEMO_PEER_TOKEN:demo}'
+
+# --- OpenTelemetry trace forwarder (mercury-opentelemetry-forwarder) ---
+# Master switch - DEFAULT OFF. The crate is linked, but with this false the route
+# `distributed.trace.forwarder` does not exist and the app runs exactly as before.
+# DevOps turns it on per environment, or at launch without a rebuild:
+#   cargo run -p hello-flow -- -Dotel.forwarding=true
+otel.forwarding: false
+# The endpoint and the credential come from the environment - nothing hard-coded.
+# Backends differ in the header NAME and in whether the value carries an auth
+# scheme. OTLP_AUTH_HEADER carries both vendor-specific parts in literal HTTP
+# header syntax, so OTLP_TOKEN stays the bare secret. Dynatrace:
+#   export OTLP_API_ENDPOINT="https://<tenant>/api/v2/otlp/v1/traces"
+#   export OTLP_AUTH_HEADER="Authorization: Api-Token"   # lint:allow-secret-material - header NAME and scheme only, no token
+#   export OTLP_TOKEN="<your-api-token>"
+# Splunk Observability Cloud:
+#   export OTLP_API_ENDPOINT="https://ingest.<realm>.signalfx.com/v2/trace/otlp"
+#   export OTLP_AUTH_HEADER="X-SF-Token:"
+#   export OTLP_TOKEN="<your-access-token>"
+# Unset variables resolve to nothing: the built-in default endpoint and no header.
+otel.exporter.otlp.endpoint: '${OTLP_API_ENDPOINT}'
+otel.exporter.otlp.headers: '${OTLP_AUTH_HEADER} ${OTLP_TOKEN}'
+# How traces are grouped in the backend. Deliberately OTLP_-prefixed, not the
+# OpenTelemetry standard OTEL_SERVICE_NAME, which instrumented hosts often export
+# machine-wide (a leaked value would rename this app's traces).
+otel.service.name: '${OTLP_SERVICE_NAME:hello-flow}'
