@@ -41,7 +41,7 @@ collector double the unit and integration suites use:
 |---------|-------|
 | Subject application | `examples/hello-flow`, the `hello-flow` flow behind `GET /api/hello/{user}?lang=fr` |
 | Backend | Dynatrace SaaS OTLP/HTTP traces endpoint (non-prod tenant), the `.../v1/traces` signal path |
-| Service name | `hello-flow` (the `${OTLP_SERVICE_NAME:hello-flow}` default) |
+| Service name | `hello-flow` (the `${OTLP_SERVICE_NAME:hello-flow}` default); the drive was then repeated under `mercury-otel-cert`, the Java certification's service name, for the UI check (Scenario 3) |
 | Credential | `Authorization: Api-Token` + token, composed from `OTLP_AUTH_HEADER` and `OTLP_TOKEN` |
 | Compression | none (this engine honours `none` only) |
 | Instrumentation scope | `mercury-opentelemetry-forwarder`, version `4.12.12` (the workspace version of the build) |
@@ -137,6 +137,18 @@ Three conclusions follow, none of which the clean run alone could support:
 Legs A and A′ bracket B, so the zero in each is not a token that happened to be unset — the bracket
 shows the credential was live before and after the failure was induced.
 
+**Repeated under the Java certification's service name.** The maintainer's UI check looks for the
+service the Java module certified under, `mercury-otel-cert` (its `OTLP_SERVICE_NAME`), while this
+example's default is `hello-flow`. The same three legs were driven again with
+`OTLP_SERVICE_NAME=mercury-otel-cert` exported for the run — same binary, same endpoint, the
+service name being the only change — with the same outcome:
+
+| Leg | Credential | Export failures | App response | Trace |
+|-----|-----------|-----------------|--------------|-------|
+| **A** — clean | real token | **0** of 5 | HTTP 200 | `f658763c71844a998d02521c033c5918` at 01:18:25Z |
+| **B** — negative control | bogus token | **5** of 5 | HTTP 200 | `ababd406bfcf43c181ded9446d1c0198` at 01:18:36Z |
+| **A′** — restored | real token | **0** of 5 | HTTP 200 | `b0ee5e2087ff495a9b8f13977620c758` at 01:18:47Z |
+
 ## Scenario 4 — failures that name their own cause
 
 The Java certification met a dead end on its first live run: the SDK's HTTP failure exception
@@ -162,7 +174,13 @@ the collector double in `tests/otlp_export.rs` and as unit tests in `src/export.
   (traces `20cf869c977745c3b03bdf62eafdb096`, `b21f2e68e6714802a01a51f5ac870e31`,
   `d62a0e41fef240339c909368103631b9` at 00:44Z, and `973bae01628f473c9156aa8fd03a538f`,
   `54ab25e716474febbaa19957e0ddacd6` from the second run at 00:47Z, with its own bogus-token leg
-  rejected 5 of 5), so the tenant holds seven `hello-flow` traces from this session, all accepted.
+  rejected 5 of 5), so the tenant holds seven `hello-flow` traces from this session, all accepted —
+  plus the two accepted traces of the `mercury-otel-cert` repeat.
+- **Name the service the reviewer will look under before the drive.** The first drives used the
+  example's default service name; the maintainer's UI check expected the Java certification's
+  `mercury-otel-cert`. One environment variable and a 45-second re-drive fixed it, but the report's
+  Scenario 5 had pointed the reviewer at the wrong service — agree the service name (or pass it
+  explicitly) as part of the drive's set-up, exactly as the endpoint and the token are.
 - **HTTPS from the platform client, first live use in this role.** The endpoint is TLS; the client's
   rustls stack with the OS trust store negotiated it without any configuration — the same path the
   schema registry client uses, now against a public SaaS certificate.
@@ -181,11 +199,13 @@ the collector double in `tests/otlp_export.rs` and as unit tests in `src/export.
 ## Scenario 5 — confirmed queryable in Dynatrace
 
 *Pending the maintainer's check in the Dynatrace non-prod UI.* What to look for, from the legs above:
-service `hello-flow`, traces `0ad577c2bef646cba174147ebf923c01` (00:52:04Z) and
-`092b2a1947e54f298d5ab945aa901331` (00:52:26Z), each with five spans nested as in Scenario 2, span
-kinds `server` (the REST edge) and `internal`, the `route` / `path` / `status` / `exec_time_ms`
-attributes, and the instrumentation scope `mercury-opentelemetry-forwarder` version `4.12.12`. Trace
-`eedf60cd9bbe47618859a1a7b5967837` (leg B) must be **absent**.
+under service **`mercury-otel-cert`**, traces `f658763c71844a998d02521c033c5918` (01:18:25Z) and
+`b0ee5e2087ff495a9b8f13977620c758` (01:18:47Z); under service **`hello-flow`**, traces
+`0ad577c2bef646cba174147ebf923c01` (00:52:04Z) and `092b2a1947e54f298d5ab945aa901331` (00:52:26Z) —
+each with five spans nested as in Scenario 2, span kinds `server` (the REST edge) and `internal`, the
+`route` / `path` / `status` / `exec_time_ms` attributes, and the instrumentation scope
+`mercury-opentelemetry-forwarder` version `4.12.12`. The leg B traces
+`ababd406bfcf43c181ded9446d1c0198` and `eedf60cd9bbe47618859a1a7b5967837` must be **absent**.
 
 ## What remains
 
