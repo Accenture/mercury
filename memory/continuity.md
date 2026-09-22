@@ -23,11 +23,7 @@
   [[otel-forwarder-no-sdk]], Dynatrace-certified), the sync-over-async facade tasks + the demo mirror, the lock-step round
   with Java 4.12.12/4.12.13 (Increment 128), `Platform::keep_running` + the SIGTERM stop (126), `group.protocol=auto` in
   the bundled template, the port-holding `kafka.health` test fix. Sweep: **13 Cargo.toml files / 24 occurrences**,
-  re-derived ([[conv-template-version-sweep-rust]]). **crates.io publication PENDING at release time** — Eric's
-  `cargo publish` after the tag, dependency-first (platform-macros → platform-core → event-script-macros → event-script →
-  knowledge-graph-macros → knowledge-graph → redis-connection → the rest); the registry held 4.12.7 of seven crates and
-  five (`redis-connection`, `minimalist-kafka`, `distributed-cache`, `sync-over-async`, `opentelemetry-forwarder`) had
-  never been published — both CHANGELOG entries under-state that (a docs follow-up). Still open, needing a ruling: dev
+  re-derived ([[conv-template-version-sweep-rust]]). **crates.io: 11 of 12 crates PUBLISHED 2026-09-22** by Eric's single `cargo publish --workspace` from the tag (cargo 1.98 orders the workspace dependency-first and waits for index propagation itself); the registry had held 4.12.7 of seven crates, and `redis-connection`, `minimalist-kafka`, `distributed-cache`, `opentelemetry-forwarder` publish for the first time — both CHANGELOG entries under-state that (a docs follow-up). **`mercury-sync-over-async` REJECTED at upload** — keyword `progressive-rendering` is 21 chars, over crates.io's 20-char cap, which cargo does not validate locally (its first publish, so the first time the cap was hit); fixed to `progressive` on `fix/sync-over-async-keyword` `52cb3b70` (+ the minigraph-state-redis readme path that cargo warned about), package-verified against the live registry, PR pending; then ONE `cargo publish -p mercury-sync-over-async` from main at the unchanged version 4.12.14 completes the twelve. Still open, needing a ruling: dev
   mode in the Layer 3 starter template. Origin 2026-09-22-010413.md.
   Prior: v4.12.12 (2026-09-21 — **the catch-up release**, PR #296 `13744c77` merged as `983e7550`;
   tag `v4.12.12` → `1ef183cb`, one memory-only commit past the merge, workspace version verified at the tag; GitHub
@@ -348,6 +344,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `templates/*/Cargo.toml` carries an EXPLICIT `version = "<version>"` and mercury-* dep
   pins (deliberately NOT workspace-inherited, so a copied-out template builds as-is after
   deleting the in-repo `path` keys) — the release edit list grows from 5 manifests to 8.
+  **Extended 2026-09-22 (the v4.12.14 publish):** before a crate's FIRST publish, audit its manifest metadata as part of the release sweep — `keywords` ≤ 5 and each ≤ 20 characters, valid `categories`, a `readme` path inside the package — because cargo validates none of it locally and crates.io rejects at upload, after the dependency-ordered run has already published everything before it (`progressive-rendering`, 21 chars, cost `mercury-sync-over-async` its place in the 4.12.14 run).
   <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-20 | uses: 4 | tier: active | origin: 2026-09-11-005808 -->
 - Each ported module's `//!` doc names the **Java class it ports** (e.g.
   `org.platformlambda.core.util.ConfigReader`) so reviewers can diff behavior side-by-side.
