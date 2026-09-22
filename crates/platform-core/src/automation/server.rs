@@ -41,7 +41,7 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::task::{Context, Poll};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use http_body_util::combinators::BoxBody;
@@ -128,12 +128,117 @@ pub fn available_lanes() -> usize {
     lane_pool().lock().expect("lane pool poisoned").len()
 }
 
+/// One in-flight streaming HTTP context: the channel from the request's reply
+/// lane to its renderer task, and the count of data segments the lane has
+/// forwarded (the lane annotates the stream's terminal record with it).
+struct StreamContext {
+    sender: mpsc::Sender<EventEnvelope>,
+    data_frames: u64,
+}
+
 /// In-flight streaming HTTP contexts — each entry forwards segment events
 /// from the request's reply lane to its renderer task (Java: the
 /// AsyncContextHolder + EventStreamState pair).
-fn pending_streams() -> &'static Mutex<HashMap<String, mpsc::Sender<EventEnvelope>>> {
-    static PENDING: OnceLock<Mutex<HashMap<String, mpsc::Sender<EventEnvelope>>>> = OnceLock::new();
+fn pending_streams() -> &'static Mutex<HashMap<String, StreamContext>> {
+    static PENDING: OnceLock<Mutex<HashMap<String, StreamContext>>> = OnceLock::new();
     PENDING.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// The edge's round-trip span of one traced request (Java `AsyncContextHolder`
+/// trace fields): minted at receipt, the first function's parent, and recorded
+/// when the response completes — by `handle` for a buffered response or an edge
+/// error, by the stream renderer when a streamed response ends.
+struct EdgeTrace {
+    platform: Platform,
+    trace_id: String,
+    trace_path: String,
+    span_id: String,
+    parent_span: Option<String>,
+    start: String,
+    started: Instant,
+}
+
+impl EdgeTrace {
+    fn new(
+        platform: &Platform,
+        trace_id: &str,
+        trace_path: &str,
+        span_id: &str,
+        parent_span: &Option<String>,
+    ) -> Self {
+        EdgeTrace {
+            platform: platform.clone(),
+            trace_id: trace_id.to_string(),
+            trace_path: trace_path.to_string(),
+            span_id: span_id.to_string(),
+            parent_span: parent_span.clone(),
+            start: trace::iso8601_utc_now(),
+            started: Instant::now(),
+        }
+    }
+
+    /// Emit the round-trip record. Its service name is the edge itself —
+    /// `http.request`, the same marker the first function carries as `from` —
+    /// so a trace's root span covers the whole request rather than the first
+    /// function's own execution, and OpenTelemetry forwarders map this record
+    /// (and only this record) to a SERVER span. An in-band stream failure keeps
+    /// the committed HTTP status on the wire but reports its own status here.
+    async fn record(self, status: i32, error: Option<String>) {
+        if !self
+            .platform
+            .has_route(crate::telemetry::DISTRIBUTED_TRACING)
+        {
+            return; // no telemetry sink on this platform
+        }
+        let elapsed_ms = self.started.elapsed().as_secs_f64() * 1000.0;
+        let mut metrics = serde_json::Map::new();
+        let mut put = |k: &str, v: serde_json::Value| {
+            metrics.insert(k.to_string(), v);
+        };
+        put(
+            "origin",
+            serde_json::Value::String(Platform::origin().to_string()),
+        );
+        put("id", serde_json::Value::String(self.trace_id.clone()));
+        put(
+            "service",
+            serde_json::Value::String("http.request".to_string()),
+        );
+        put("path", serde_json::Value::String(self.trace_path.clone()));
+        put("start", serde_json::Value::String(self.start.clone()));
+        put(
+            "exec_time",
+            serde_json::Value::from((elapsed_ms * 1000.0).round() / 1000.0),
+        );
+        put("status", serde_json::Value::from(status));
+        if status >= 400 {
+            put("success", serde_json::Value::Bool(false));
+            put(
+                "exception",
+                serde_json::Value::String(error.unwrap_or_else(|| format!("status={status}"))),
+            );
+        } else {
+            put("success", serde_json::Value::Bool(true));
+        }
+        put("span_id", serde_json::Value::String(self.span_id.clone()));
+        if let Some(parent) = &self.parent_span {
+            put("parent_span_id", serde_json::Value::String(parent.clone()));
+        }
+        let mut dataset = serde_json::Map::new();
+        dataset.insert("trace".to_string(), serde_json::Value::Object(metrics));
+        match EventEnvelope::new()
+            .set_to(crate::telemetry::DISTRIBUTED_TRACING)
+            .set_body(serde_json::Value::Object(dataset))
+        {
+            Ok(event) => {
+                let _ = self
+                    .platform
+                    .deliver(crate::telemetry::DISTRIBUTED_TRACING, event)
+                    .await;
+            }
+            Err(e) => log::error!("Unable to send to distributed.tracing - {e}"),
+        }
+    }
 }
 
 /// Remove a streaming context and return its lane to the pool. The map
@@ -164,11 +269,32 @@ impl ComposableFunction for StreamLaneService {
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
         if let Some(context_id) = input.correlation_id().map(str::to_string) {
-            let sender = pending_streams()
-                .lock()
-                .expect("pending streams poisoned")
-                .get(&context_id)
-                .cloned();
+            let marker = stream_marker(&input).ok().flatten();
+            let sender = {
+                let mut pending = pending_streams().lock().expect("pending streams poisoned");
+                match pending.get_mut(&context_id) {
+                    Some(context) => {
+                        match marker {
+                            Some(event_stream::DATA) => context.data_frames += 1,
+                            Some(_) => {
+                                // a stream is traced at its head and its tail, never per
+                                // token: the terminal's record carries the count of data
+                                // segments this lane rendered (Java AsyncHttpResponse parity)
+                                let frames = context.data_frames.to_string();
+                                trace::with_current_mut(|state| {
+                                    state.annotations.insert(
+                                        "frames".to_string(),
+                                        serde_json::Value::String(frames),
+                                    );
+                                });
+                            }
+                            None => {}
+                        }
+                        Some(context.sender.clone())
+                    }
+                    None => None,
+                }
+            };
             if let Some(sender) = sender {
                 // bounded back-pressure toward the renderer; a dropped
                 // receiver (client gone) turns this into a no-op drop
@@ -483,14 +609,24 @@ async fn handle(
         }
         return Ok(response.body(full(Bytes::new())).expect("static response"));
     }
-    match process(
-        &state, assigned, method, path, query_text, headers, body_bytes, peer,
+    let mut edge: Option<EdgeTrace> = None;
+    let (response, error) = match process(
+        &state, assigned, method, path, query_text, headers, body_bytes, peer, &mut edge,
     )
     .await
     {
-        Ok(response) => Ok(response),
-        Err(e) => Ok(error_response(e.status(), e.message())),
+        Ok(response) => (response, None),
+        Err(e) => (
+            error_response(e.status(), e.message()),
+            Some(e.message().to_string()),
+        ),
+    };
+    // a buffered response or an edge error completes the round trip here; a
+    // streamed response handed its record to the renderer (edge is None then)
+    if let Some(edge) = edge {
+        edge.record(response.status().as_u16() as i32, error).await;
     }
+    Ok(response)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -503,6 +639,7 @@ async fn process(
     mut headers: HashMap<String, String>,
     body_bytes: Bytes,
     peer: SocketAddr,
+    edge: &mut Option<EdgeTrace>,
 ) -> Result<Response<HttpBody>, AppError> {
     let info = assigned.info;
     // request-header transforms
@@ -697,6 +834,20 @@ async fn process(
     } else {
         format!("{method} {path}?{query_text}")
     };
+    // the edge's round-trip span: minted at receipt, closed when the response
+    // completes, with the inbound traceparent's span as ITS parent - so the
+    // first function parents onto the edge and the whole request is one span
+    // tree whose root covers the round trip (Java HttpRouter parity)
+    let edge_span = trace_id.as_ref().map(|_| trace::new_span_id());
+    if let (Some(id), Some(span)) = (&trace_id, &edge_span) {
+        *edge = Some(EdgeTrace::new(
+            &state.platform,
+            id,
+            &trace_path,
+            span,
+            &parent_span,
+        ));
+    }
     // optional authentication before dispatch (simple route form) — an RPC,
     // so the auth verdict reports as a round_trip record (Java parity)
     if let Some(auth_route) = &info.authentication {
@@ -706,7 +857,7 @@ async fn process(
             &cid,
             &trace_id,
             &trace_path,
-            &parent_span,
+            &edge_span,
         )?;
         let verdict = po.request(auth_event, info.timeout).await?;
         if verdict.has_error() {
@@ -744,9 +895,10 @@ async fn process(
             &cid_header,
             &trace_id,
             &trace_path,
-            &parent_span,
+            &edge_span,
             accept.clone(),
             envelope_stream,
+            edge,
         )
         .await?
         {
@@ -771,7 +923,7 @@ async fn process(
             &cid,
             &trace_id,
             &trace_path,
-            &parent_span,
+            &edge_span,
         )?
         .set_correlation_id(&context_id)
         .set_reply_to(ASYNC_HTTP_RESPONSE);
@@ -1072,6 +1224,7 @@ async fn stream_dispatch(
     parent_span: &Option<String>,
     accept: Option<String>,
     envelope_mode: bool,
+    edge: &mut Option<EdgeTrace>,
 ) -> Result<StreamOutcome, AppError> {
     // a streaming endpoint borrows a dedicated ordered reply lane for the
     // lifetime of the request - an empty pool means full streaming capacity
@@ -1084,7 +1237,13 @@ async fn stream_dispatch(
     pending_streams()
         .lock()
         .expect("pending streams poisoned")
-        .insert(context_id.clone(), tx);
+        .insert(
+            context_id.clone(),
+            StreamContext {
+                sender: tx,
+                data_frames: 0,
+            },
+        );
     let event = build_event(
         &info.service,
         http_request,
@@ -1238,6 +1397,9 @@ async fn stream_dispatch(
     let response = builder
         .body(BoxBody::new(ChannelBody { rx: body_rx }))
         .map_err(|e| AppError::new(500, e.to_string()))?;
+    // the renderer owns the round-trip record now: a streamed response
+    // completes when its terminal is rendered, not when the head is committed
+    let head_status = first.status();
     tokio::spawn(render_stream(
         rx,
         body_tx,
@@ -1248,6 +1410,8 @@ async fn stream_dispatch(
         first,
         marker,
         envelope_mode,
+        head_status,
+        edge.take(),
     ));
     Ok(StreamOutcome::Streaming(response))
 }
@@ -1349,9 +1513,14 @@ async fn render_stream(
     first: EventEnvelope,
     first_marker: &'static str,
     envelope_mode: bool,
+    head_status: i32,
+    edge: Option<EdgeTrace>,
 ) {
     let mut pending = Some((first, first_marker));
     let mut first_frame = true;
+    // the round-trip outcome: the committed head status unless the stream
+    // fails in-band or idles out
+    let mut outcome: (i32, Option<String>) = (head_status, None);
     loop {
         let (event, marker) = match pending.take() {
             Some(next) => next,
@@ -1368,6 +1537,7 @@ async fn render_stream(
                 },
                 Waited::Idle => {
                     // fail the stream in-band (Java housekeeper parity)
+                    outcome = (408, Some(format!("Timeout for {} seconds", idle.as_secs())));
                     if envelope_mode {
                         let frame = idle_timeout_envelope_frame(idle);
                         let _ = push_frame(&body_tx, idle, &context_id, frame).await;
@@ -1422,6 +1592,14 @@ async fn render_stream(
                 // in-band failure after the head is committed: envelope mode
                 // frames the exact envelope; SSE renders an error event;
                 // chunked mode truncates (Java parity)
+                outcome = (
+                    if event.status() >= 400 {
+                        event.status()
+                    } else {
+                        500
+                    },
+                    Some(stream_error_message(&event)),
+                );
                 if envelope_mode {
                     let frame = envelope_wire_frame(&event);
                     let _ = push_frame(&body_tx, idle, &context_id, frame).await;
@@ -1444,6 +1622,9 @@ async fn render_stream(
         }
     }
     cleanup_stream(&context_id, &lane);
+    if let Some(edge) = edge {
+        edge.record(outcome.0, outcome.1).await;
+    }
 }
 
 /// One envelope-mode data frame: the first event always rides an envelope

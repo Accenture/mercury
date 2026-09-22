@@ -698,6 +698,12 @@ fn relay_event_stream(
         }
         if let (Some(id), Some(path)) = (&trace_id, &trace_path) {
             http_event = http_event.set_trace(id, path);
+            // the client leg is a traced callback-mode execution: it parents
+            // onto the sender's span - the same span the traceparent header
+            // carries to the peer (Java EventEmitter.sendWithEventHttp parity)
+            if let Some(span) = &span_id {
+                http_event = http_event.set_span_id(span);
+            }
         }
         let po = PostOffice::new(&platform);
         if let Err(e) = po.send(http_event).await {

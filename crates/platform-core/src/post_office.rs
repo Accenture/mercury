@@ -133,7 +133,19 @@ impl PostOffice {
     /// route from a local one. The `x-event-api` envelope header marks an
     /// event that already crossed the wire, so it is never re-forwarded.
     pub async fn send(&self, event: EventEnvelope) -> Result<(), AppError> {
-        let event = apply_current_trace(event);
+        self.dispatch(apply_current_trace(event)).await
+    }
+
+    /// Send WITHOUT stamping the current trace — the stream writer's data
+    /// segments: a stream is traced at its head and its tail, never per token
+    /// (one span per token would flood a tracing backend). Same routing as
+    /// [`send`](Self::send) — a mapped route still forwards over Event-over-HTTP.
+    /// Crate-visible: user code has no untraced send.
+    pub(crate) async fn send_untraced(&self, event: EventEnvelope) -> Result<(), AppError> {
+        self.dispatch(event).await
+    }
+
+    async fn dispatch(&self, event: EventEnvelope) -> Result<(), AppError> {
         let Some(route) = event.to().map(str::to_string) else {
             return Err(AppError::new(400, "Missing routing path ('to')"));
         };

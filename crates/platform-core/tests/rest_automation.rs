@@ -1072,26 +1072,47 @@ async fn edge_starts_trace_and_traceparent_parent_is_adopted() {
     // Java appends the query string to the trace path (increment 56)
     assert_eq!(seen.1.as_deref(), Some("GET /api/traced?flag=on"));
     assert_eq!(seen.2.as_deref(), Some("biz-9"));
-    // and the telemetry span adopted the caller's span as parent
+    // the edge's round-trip record (service http.request) is the root - parented on the
+    // caller's span - and the first function parents onto the edge, so one span covers
+    // the whole request and the tree is connected from the caller down
     let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
     loop {
         let all = datasets.lock().unwrap().clone();
-        if let Some(dataset) = all.iter().find(|d| d["trace"]["service"] == "trace.probe") {
-            assert_eq!(dataset["trace"]["id"], serde_json::json!(upstream_trace));
+        let edge = all.iter().find(|d| d["trace"]["service"] == "http.request");
+        let probe = all.iter().find(|d| d["trace"]["service"] == "trace.probe");
+        if let (Some(edge), Some(probe)) = (edge, probe) {
+            assert_eq!(edge["trace"]["id"], serde_json::json!(upstream_trace));
             assert_eq!(
-                dataset["trace"]["parent_span_id"],
-                serde_json::json!(upstream_span)
+                edge["trace"]["parent_span_id"],
+                serde_json::json!(upstream_span),
+                "the edge's round-trip span parents onto the caller's span"
             );
             assert_eq!(
-                dataset["trace"]["path"],
+                edge["trace"]["path"],
                 serde_json::json!("GET /api/traced?flag=on")
             );
-            assert_eq!(dataset["trace"]["from"], serde_json::json!("http.request"));
+            assert_eq!(edge["trace"]["status"], serde_json::json!(200));
+            assert_eq!(edge["trace"]["success"], serde_json::json!(true));
+            assert!(
+                edge["trace"].get("from").is_none(),
+                "the edge record has no caller route"
+            );
+            assert_eq!(probe["trace"]["id"], serde_json::json!(upstream_trace));
+            assert_eq!(
+                probe["trace"]["parent_span_id"], edge["trace"]["span_id"],
+                "the first function parents onto the edge's round-trip span"
+            );
+            // Java appends the query string to the trace path (increment 56)
+            assert_eq!(
+                probe["trace"]["path"],
+                serde_json::json!("GET /api/traced?flag=on")
+            );
+            assert_eq!(probe["trace"]["from"], serde_json::json!("http.request"));
             break;
         }
         assert!(
             tokio::time::Instant::now() < deadline,
-            "telemetry span not seen"
+            "telemetry spans not seen: {all:?}"
         );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }

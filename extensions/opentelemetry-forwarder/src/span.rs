@@ -31,7 +31,7 @@
 //! | `service` (route name) | span name (`path`, then `task`, when absent) |
 //! | `start` + `exec_time` | start / end timestamps |
 //! | `success` / `status` / `exception` | status OK, or ERROR with a description |
-//! | `from` = `http.request` | kind SERVER (else INTERNAL) |
+//! | `service` = `http.request` (the edge's round-trip record) | kind SERVER (every function execution is INTERNAL) |
 //! | `path`, `from`, `origin`, `status`, `exec_time_ms`, `round_trip_ms`, `exception` | attributes (same names) |
 //! | `service` | the `route` attribute |
 //! | `annotations` entries | `annotation.<key>` attributes |
@@ -136,8 +136,12 @@ impl Span {
             .clone()
             .or_else(|| path.clone())
             .unwrap_or_else(|| "task".to_string());
-        let kind = match field(trace, "from").and_then(display) {
-            Some(from) if from == HTTP_REQUEST => SpanKind::Server,
+        // the edge's round-trip record (service "http.request", emitted by REST
+        // automation when the response completes) is the SERVER span; every
+        // function execution - including the first one, whose `from` is
+        // http.request - is an INTERNAL hop under it
+        let kind = match service.as_deref() {
+            Some(HTTP_REQUEST) => SpanKind::Server,
             _ => SpanKind::Internal,
         };
 
@@ -431,7 +435,8 @@ mod tests {
         assert_eq!(span.span_id_hex(), SPAN_ID);
         assert_eq!(span.parent_span_id_hex().as_deref(), Some(PARENT_SPAN_ID));
         assert_eq!(span.name, "hello.world");
-        assert_eq!(span.kind, SpanKind::Server);
+        // a function execution is an INTERNAL hop, even the first one (from=http.request)
+        assert_eq!(span.kind, SpanKind::Internal);
         assert_eq!(span.start_unix_nano, 1_782_295_200 * 1_000_000_000);
         assert_eq!(span.end_unix_nano - span.start_unix_nano, 12_500_000);
         assert_eq!(span.status.code, StatusCode::Ok);
@@ -532,6 +537,24 @@ mod tests {
         let span = map(&ds).unwrap();
         assert_eq!(span.status.code, StatusCode::Error);
         assert_eq!(span.status.message, "status=500");
+    }
+
+    #[test]
+    fn edge_round_trip_record_is_the_server_span() {
+        // REST automation emits one record per traced request with service
+        // "http.request" - the round trip from receipt to the completed response;
+        // it is the SERVER span and the first function's parent
+        let mut ds = dataset(true);
+        ds["trace"]["service"] = serde_json::json!("http.request");
+        ds["trace"]["path"] = serde_json::json!("GET /api/hello");
+        ds["trace"].as_object_mut().unwrap().remove("from");
+        ds["trace"]["exec_time"] = serde_json::json!(2016.0);
+        let span = map(&ds).expect("the edge record maps");
+        assert_eq!(span.name, "http.request");
+        assert_eq!(span.kind, SpanKind::Server);
+        assert_eq!(span.end_unix_nano - span.start_unix_nano, 2_016_000_000);
+        assert_eq!(span.attribute_str("path"), Some("GET /api/hello"));
+        assert!(span.attribute_str("from").is_none());
     }
 
     #[test]

@@ -653,6 +653,45 @@ struct StreamTarget {
     reply_to: String,
     cid: String,
     envelope_mode: bool,
+    /// the client execution's own trace - the relay task outlives the worker
+    trace: Option<RelayTrace>,
+}
+
+/// The client execution's own trace, captured on the worker thread (the relay
+/// task outlives it): the head, eof and exception segments a relay synthesizes
+/// ride it, so the caller's reply-lane records for them parent onto this client
+/// leg. Decoded envelope frames keep the producer's own span, and raw data
+/// frames carry no trace at all - a stream is traced at its head and its tail,
+/// never per token (Java AsyncHttpClient parity).
+#[derive(Clone)]
+struct RelayTrace {
+    trace_id: String,
+    trace_path: String,
+    span_id: Option<String>,
+}
+
+impl RelayTrace {
+    fn capture(po: &PostOffice) -> Option<Self> {
+        Some(RelayTrace {
+            trace_id: po.my_trace_id()?,
+            trace_path: po.my_trace_path()?,
+            span_id: po.my_span_id(),
+        })
+    }
+
+    /// Stamp the trace (and the client leg's span) onto a synthesized segment
+    fn stamp(trace: &Option<RelayTrace>, segment: EventEnvelope) -> EventEnvelope {
+        match trace {
+            Some(t) => {
+                let segment = segment.set_trace(&t.trace_id, &t.trace_path);
+                match &t.span_id {
+                    Some(span) => segment.set_span_id(span),
+                    None => segment,
+                }
+            }
+            None => segment,
+        }
+    }
 }
 
 pub(crate) async fn handle(
@@ -676,6 +715,7 @@ pub(crate) async fn handle(
         reply_to: reply_to.clone(),
         cid: cid.clone(),
         envelope_mode,
+        trace: RelayTrace::capture(&po),
     });
     let response = match process_request(platform, &po, &_headers, &event, stream_target).await {
         // a progressive SSE relay was spawned - it owns the reply route now
@@ -824,6 +864,7 @@ async fn process_request(
                     target.reply_to,
                     target.cid,
                     idle,
+                    target.trace,
                 ));
             } else {
                 let idle = Duration::from_secs(request.timeout_seconds().max(1));
@@ -834,6 +875,7 @@ async fn process_request(
                     target.reply_to,
                     target.cid,
                     idle,
+                    target.trace,
                 ));
             }
             return Ok(None);
@@ -957,6 +999,7 @@ impl SseParser {
 /// the first), eof on a clean end, in-band exception on idle expiry or a
 /// mid-stream transport error. The per-read idle allowance is the request
 /// TTL - any upstream bytes, keep-alive comments included, reset it (D4).
+#[allow(clippy::too_many_arguments)]
 async fn relay_sse(
     platform: Platform,
     mut body: hyper::body::Incoming,
@@ -964,6 +1007,7 @@ async fn relay_sse(
     reply_to: String,
     cid: String,
     idle: Duration,
+    trace: Option<RelayTrace>,
 ) {
     let po = PostOffice::new(&platform);
     let mut parser = SseParser::default();
@@ -985,10 +1029,15 @@ async fn relay_sse(
                         if !head_sent {
                             head_sent = true;
                             // head control rides the first envelope: upstream
-                            // status + the SSE content type
-                            segment = segment
-                                .set_status(status)
-                                .set_header("content-type", "text/event-stream");
+                            // status + the SSE content type - and the trace:
+                            // a stream is traced at its head and its tail, so
+                            // only this segment and the terminal carry it
+                            segment = RelayTrace::stamp(
+                                &trace,
+                                segment
+                                    .set_status(status)
+                                    .set_header("content-type", "text/event-stream"),
+                            );
                         }
                         if send_segment(&po, segment, &reply_to, &cid).await.is_err() {
                             return;
@@ -1006,17 +1055,17 @@ async fn relay_sse(
                         .set_status(status)
                         .set_header("content-type", "text/event-stream");
                 }
-                let _ = send_segment(&po, eof, &reply_to, &cid).await;
+                let _ = send_segment(&po, RelayTrace::stamp(&trace, eof), &reply_to, &cid).await;
                 return;
             }
             Ok(Some(Err(e))) => {
-                fail_in_band(&po, &reply_to, &cid, 500, &e.to_string(), head_sent).await;
+                fail_in_band(&po, &reply_to, &cid, 500, &e.to_string(), head_sent, &trace).await;
                 return;
             }
             Err(_) => {
                 // idle expiry - the connection closes when the body is dropped
                 let message = format!("Timeout for {} seconds", idle.as_secs());
-                fail_in_band(&po, &reply_to, &cid, 408, &message, head_sent).await;
+                fail_in_band(&po, &reply_to, &cid, 408, &message, head_sent, &trace).await;
                 return;
             }
         }
@@ -1037,6 +1086,7 @@ async fn relay_envelope_sse(
     reply_to: String,
     cid: String,
     idle: Duration,
+    trace: Option<RelayTrace>,
 ) {
     let po = PostOffice::new(&platform);
     let mut parser = SseParser::default();
@@ -1046,8 +1096,16 @@ async fn relay_envelope_sse(
             Ok(Some(Ok(frame))) => {
                 if let Some(data) = frame.data_ref() {
                     for (name, text) in parser.feed(data) {
-                        match relay_envelope_event(&po, name, text, &reply_to, &cid, &mut head_seen)
-                            .await
+                        match relay_envelope_event(
+                            &po,
+                            name,
+                            text,
+                            &reply_to,
+                            &cid,
+                            &mut head_seen,
+                            &trace,
+                        )
+                        .await
                         {
                             RelayFlow::Next => {}
                             // a decoded terminal ends the logical stream -
@@ -1068,17 +1126,18 @@ async fn relay_envelope_sse(
                     500,
                     "Event stream ended without eof",
                     head_seen,
+                    &trace,
                 )
                 .await;
                 return;
             }
             Ok(Some(Err(e))) => {
-                fail_in_band(&po, &reply_to, &cid, 500, &e.to_string(), head_seen).await;
+                fail_in_band(&po, &reply_to, &cid, 500, &e.to_string(), head_seen, &trace).await;
                 return;
             }
             Err(_) => {
                 let message = format!("Timeout for {} seconds", idle.as_secs());
-                fail_in_band(&po, &reply_to, &cid, 408, &message, head_seen).await;
+                fail_in_band(&po, &reply_to, &cid, 408, &message, head_seen, &trace).await;
                 return;
             }
         }
@@ -1098,6 +1157,7 @@ async fn relay_envelope_event(
     reply_to: &str,
     cid: &str,
     head_seen: &mut bool,
+    trace: &Option<RelayTrace>,
 ) -> RelayFlow {
     use base64::Engine as _;
     if name.as_deref() == Some(event_stream::ENVELOPE) {
@@ -1113,6 +1173,7 @@ async fn relay_envelope_event(
                 500,
                 "Invalid event stream - malformed envelope frame",
                 *head_seen,
+                trace,
             )
             .await;
             return RelayFlow::End;
@@ -1138,6 +1199,7 @@ async fn relay_envelope_event(
             500,
             "Invalid event stream - missing envelope head",
             false,
+            trace,
         )
         .await;
         RelayFlow::End
@@ -1162,6 +1224,7 @@ async fn fail_in_band(
     status: i32,
     message: &str,
     head_sent: bool,
+    trace: &Option<RelayTrace>,
 ) {
     // the standard error key-values: '{"type": "error", "status": n, "message": text}'
     let body = serde_json::json!({"type": "error", "status": status, "message": message});
@@ -1175,7 +1238,8 @@ async fn fail_in_band(
     if !head_sent {
         error = error.set_header("content-type", "text/event-stream");
     }
-    let _ = send_segment(po, error, reply_to, cid).await;
+    // a synthesized terminal parents onto this client leg's own span
+    let _ = send_segment(po, RelayTrace::stamp(trace, error), reply_to, cid).await;
 }
 
 async fn send_segment(
@@ -1378,10 +1442,12 @@ fn apply_headers(
     if !merged.iter().any(|(k, _)| k.eq_ignore_ascii_case("accept")) {
         builder = builder.header("accept", "*/*");
     }
-    // distributed trace propagation: this route is untraced by default
-    // (skip.rpc.tracing, Java parity), so the trace rides the ENVELOPE and
-    // the injected invocation headers, not the ambient trace state — exactly
-    // like Java's PostOffice.trackable(headers).
+    // distributed trace propagation: the trace rides the ENVELOPE and the
+    // injected invocation headers, not the ambient trace state — exactly like
+    // Java's PostOffice.trackable(headers). (An RPC-served execution of this
+    // route is folded into the caller's record and skip.rpc.tracing suppresses
+    // that round_trip record; a callback-mode execution - the stream relay's
+    // client leg - records its own span, parented onto the sender.)
     // The engine's own stamps use INSERT semantics (Java `http.set`): a
     // same-named header forwarded from the request object above is replaced,
     // never duplicated (append-vs-insert wire hygiene — the Event-over-HTTP

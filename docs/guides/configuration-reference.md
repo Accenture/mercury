@@ -276,9 +276,11 @@ Overridable per endpoint with `traceparent.header` in a `rest.yaml` entry.
 |---|---|
 | string (comma/space-separated routes) | `async.http.request` |
 
-Route names excluded from distributed trace recording (in addition to the telemetry
-plumbing itself, which is always excluded). Read by `crates/platform-core` (worker
-dispatch).
+Route names whose RPC calls produce no caller-side `round_trip` trace record — an RPC to a
+listed route folds into the calling function's span (the telemetry plumbing itself is always
+excluded from recording). A callback-mode execution of a listed route — the Event-over-HTTP
+stream relay's client leg — still records its own span, parented onto the sender. Read by
+`crates/platform-core` (the caller-side RPC record).
 
 #### `otel.forwarding` {#otel-forwarding}
 

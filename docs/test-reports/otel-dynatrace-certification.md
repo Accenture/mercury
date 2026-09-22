@@ -401,12 +401,89 @@ or three token frames and a `STOP`. (3) Engine parity held without adjustment: t
 compiled unchanged here, and the relay contract (the `accept: text/event-stream` opt-in, the 60 s
 idle allowance, the teaching 503 when no peer is mapped) is byte-for-byte the same on both edges.
 
+## Scenario 9 — one connected tree per request: the round-trip span, the parented client leg, head-and-tail stream tracing (2026-09-22)
+
+The maintainer read the four Scenario 8 traces in the Dynatrace UI and found the trees broken: no first leg
+above the relay, `async.http.request` floating without a parent, and — invisible in the UI but present in
+the datasets — one reply-lane span per relayed token with no parent. Read from both sides' datasets, the
+causes were three: the drive's caller-set `traceparent` named a random parent span that no application had
+exported, so every root pointed at a span the backend never received; the Java stream relay's client leg
+copied the trace onto its `async.http.request` event but not the sender's span; and the Java relay stamped
+the trace onto the raw token frames it synthesized, without a span. The design gap behind the first
+symptom was the one worth fixing: **no span covered the HTTP round trip** — the SERVER span was the first
+function's own execution, so a backend showed a 0.5 ms response time for a 6 s stream.
+
+**The fix, on both engines** (this repository and the Java engine, both `fix/connected-edge-spans`; the Python and
+Node.js forwarders `fix/otel-span-kind-edge`):
+
+- REST automation mints the edge's **round-trip span** at receipt and every dispatch parents onto it; the
+  record — `service: http.request`, the marker the first function already carried as `from` — is emitted
+  when the response completes, with `start` the receipt time, `exec_time` the round trip and
+  `parent_span_id` the inbound `traceparent` span. All four forwarders map this record, and only this
+  record, to a SERVER span; every function execution is INTERNAL.
+- The stream relay's client leg parents onto the sender (the Rust port stopped zero-tracing the HTTP
+  client route: `skip.rpc.tracing` only suppresses the caller-side RPC `round_trip` record, as in Java).
+- **A stream is traced at its head and its tail, never per token**: the producer's writer stamps its trace
+  and span on the first segment and the terminal, data segments carry no trace, the consuming relay
+  forwards raw token frames untraced and parents its synthesized control frames on its own span, and the
+  reply lane annotates the terminal's record with `frames` — the number of data segments it rendered.
+
+**Re-drive** (the same four-runtime set-up as Scenario 8; `gemini-3.6-flash`; the caller sent only
+`X-Trace-Id`, no `traceparent`, so the edge span is a true root; stream calls only):
+
+| Edge → AI node | Trace (`X-Trace-Id`) | Round trip (edge span) | Outcome | Terminal |
+|----------------|----------------------|------------------------|---------|----------|
+| **Java → Python** | `f539673bcb798dd541c49f6553c0fb42` | 1051.9 ms, status 429 | provider quota exhausted (`429`) | `frames: 0` |
+| **Java → Node** | `a3cc25d9782826b32b67191c82e27537` | 349.8 ms, status 429 | provider quota exhausted (`429`) | `frames: 0` |
+| **Rust → Node** | `45e022338a474efaf4b607f08a53b93c` | 289.8 ms, status 429 | provider quota exhausted (`429`) | `frames: 0` |
+| **Rust → Python** | `d1a0957ce0194c42142ac8fab54483a4` | 338.8 ms, status 429 | provider quota exhausted (`429`) | `frames: 0` |
+
+Gemini answered `429 You exceeded your current quota` on all four calls of this run (the day's quota on the
+certification key was spent by the earlier drives); the run immediately before it — the same fix, the
+engines not yet re-linked to their forwarders — carried one token-bearing stream, Rust → Python
+`86eb549fa3efd143ec7cb23559599dfe` (round trip 3427.8 ms, 3 token frames, terminal `frames: 2`),
+whose tree is the second one below. Its engine spans were logged but not exported (only the hosts
+exported that run), so the backend view of the token-bearing shape waits for the next drive with quota.
+
+Every trace reconstructs as one tree from the runtimes' own datasets — exactly one root, the edge; no
+record with a parent outside the trace; the host's `llm.stream` span under the relay; the engine's
+reply-lane records under the host's span, the head unannotated and the terminal carrying `frames`
+(the check is mechanical: a script rebuilds each tree from the six logs and fails on a dangling parent):
+
+```text
+Java → Python  f539673b…  (drive 8, exported by all four applications)
+http.request [java]  round trip 1051.9 ms, status 429, exception "LLM provider error - 429 …"   ← the root, SERVER
+└── llm.stream.relay [java]  from http.request, 0.5 ms
+    ├── async.http.request [java]  64.3 ms, destination http://127.0.0.1:8086/api/event
+    └── llm.stream [python]  928.1 ms
+        └── async.http.response.stream.0 [java]  the terminal, frames: 0
+
+Rust → Python  86eb549f…  (drive 7, the token-bearing shape; engine spans logged, not exported)
+http.request [rust]  round trip 3427.8 ms, status 200                                              ← the root, SERVER
+└── llm.stream.relay [rust]  from http.request, 0.1 ms
+    ├── async.http.request [rust]  3346.2 ms, destination http://127.0.0.1:8086/api/event
+    └── llm.stream [python]  3420.7 ms
+        ├── async.http.response.stream.0 [rust]  the head
+        └── async.http.response.stream.0 [rust]  the terminal, frames: 2   (the two token frames: no span)
+```
+
+Two things worth reading from the shape. The round trip now bounds the request — the edge span is the
+one a backend should use for the service's response time, and it is the only SERVER span. And the
+provider's failures are traces too: a stream the host could not start still yields a complete tree, its
+edge record carrying the provider's status and message and its terminal `frames: 0`.
+
+**Exports.** the forwarder reported ready in all four applications (both Playgrounds re-linked to their forwarder for the drive, as in Scenario 8) and every application exported with zero failures — the engines 4 spans per trace (edge, relay, client leg, lane terminal), the hosts 1 each.
+
+**Backend view.** pending — the maintainer's Dynatrace lookup of the four traces above, each expected as ONE tree: a SERVER root `http.request` (kind 2) with the round-trip duration, the relay and the client leg under it, the host's `llm.stream` under the relay, and the lane terminal under the host, `annotation.frames` on the terminal; no span without a parent. The Scenario 8 traces, confirmed in the UI on 2026-09-22 (two services each, the host span under the engine's relay, scopes `mercury-composable-nodejs 4.12.1`, `mercury-composable-python 4.12.1`, `org.platformlambda.opentelemetry-forwarder 4.12.14`), are the before picture: the relay's parent absent, `async.http.request` unparented.
+
 ## What remains
 
-- **Scenario 8's backend view:** the maintainer's Dynatrace lookup of the four traces above, each
-  expected to show two services (an engine and a host) with the parentage the datasets assert, at
-  instrumentation scopes `mercury-opentelemetry-forwarder`, `org.platformlambda.opentelemetry-forwarder`,
-  `mercury-composable-python` and `mercury-composable-nodejs`.
+- **Scenario 9's backend view:** the maintainer's Dynatrace lookup of the four re-drive traces, each
+  expected as one connected tree rooted at the edge's `http.request` SERVER span — and a token-bearing
+  re-drive of the same shape once the provider's quota allows (the fix's token-bearing tree exists in the
+  runtimes' logs; the backend has not received one yet). Scenario 8's backend view is CONFIRMED
+  (2026-09-22, the maintainer's four screenshots): two services per trace and the scopes as predicted —
+  and the broken tree shape it revealed is what Scenario 9 fixed.
 - Nothing else for 4.12.14: with Scenarios 6 and 7 confirmed in the UI, the forwarder's certification is
   closed on both sides of the wire for the released crate — standalone and across the two engines.
 - Splunk Observability Cloud: the `X-SF-Token:` header form is parsed and documented but not run

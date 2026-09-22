@@ -3541,3 +3541,39 @@ the certification. Ported, the `hello.remote.relay` pattern applied to the AI no
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
 --workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+## Increment 133 — Connected edge spans: the round-trip span, the parented client leg, head-and-tail stream tracing (2026-09-22)
+
+Eric's Dynatrace review of the four-runtime certification traces found the span trees broken in
+three places: the root's parent pointed at a span nobody exported, the stream relay's client leg
+(`async.http.request`, Java only) floated without a parent, and every relayed token frame became an
+unparented reply-lane span (Java only — this port emitted none). His rulings: fix the client leg in
+both engines, trace the head and the tail of a token stream and annotate the tail with the frame
+count, and add the round-trip span the edge never had. Lock-step with mercury-composable:
+
+- **`http.request`, the edge's round-trip record** (`automation/server.rs`, `EdgeTrace`): REST
+  automation mints a span at receipt, every dispatch (`build_event`, the auth RPC, the stream lane)
+  parents onto it instead of the inbound `traceparent` span, and the record is emitted when the
+  response completes — `handle` for a buffered response or an edge error, the stream renderer at
+  the terminal (its outcome: the head status, or the in-band failure's status and message, or the
+  408 of an idle timeout). The forwarder maps this record, and only this record, to a SERVER span;
+  every function execution is INTERNAL (`from: http.request` no longer decides the kind).
+- **The client leg is parented and traced** (`event_api::relay_event_stream` stamps the sender's
+  span on the `async.http.request` event; `platform::is_zero_traced` no longer consults
+  `skip.rpc.tracing`, which — like Java's `InboxBase` — only suppresses the caller-side RPC
+  `round_trip` record; the RPC path stays folded because the worker already skips RPC-served
+  records).
+- **Head and tail, never per token**: `EventStreamWriter` sends the first segment and the terminals
+  through the traced `po.send` and the data segments through the new crate-visible
+  `PostOffice::send_untraced`; the HTTP client relays (`relay_sse`, `relay_envelope_sse`) stamp the
+  client leg's own trace (`RelayTrace`, captured on the worker) on the synthesized head, eof and
+  exception segments while raw token frames stay untraced; the reply lane (`StreamLaneService`)
+  counts data segments per context and annotates the terminal's record with `frames`.
+- Tests: `rest_automation::edge_starts_trace_and_traceparent_parent_is_adopted` (the edge record is
+  the root, the probe parents onto it), `event_over_http_stream::edge_relay_spans_are_connected`
+  (the whole tree above, four lane records, two tails annotated `frames=2`), the forwarder's
+  `edge_round_trip_record_is_the_server_span`. Guide: `observability.md` — *The edge's round-trip
+  span*.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+--workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
