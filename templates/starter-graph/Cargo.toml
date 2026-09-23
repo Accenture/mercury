@@ -4,7 +4,7 @@
 [package]
 name = "starter-graph"
 description = "Layer 3 starter - Active Knowledge Graph as the application"
-version = "4.12.15"
+version = "4.12.16"
 edition = "2021"
 license = "Apache-2.0"
 publish = false
@@ -16,8 +16,8 @@ publish = false
 # preload/main_application macros, AppError, EventEnvelope, PostOffice) and
 # knowledge-graph, the Layer 3 engine, which brings event-script and the flow
 # engine transitively - nothing here names event_script:: directly.
-mercury-platform-core = { path = "../../crates/platform-core", version = "4.12.15" }
-mercury-knowledge-graph = { path = "../../crates/knowledge-graph", version = "4.12.15" }
+mercury-platform-core = { path = "../../crates/platform-core", version = "4.12.16" }
+mercury-knowledge-graph = { path = "../../crates/knowledge-graph", version = "4.12.16" }
 async-trait = "0.1"
 log = "0.4"
 

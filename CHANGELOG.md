@@ -11,6 +11,44 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Version 4.12.16, 9/23/2026
+
+The lock-step twin of Java 4.12.16 (Increment 136): the null-source mapping rule is now the same in Layer 2 and
+Layer 3, a graph.math failure names the variable it could not resolve, and every dry-run abort carries its reason.
+Upgrade action: read the *Changed* items; nothing to configure. Publication: the twelve crates at 4.12.16 on
+crates.io (`cargo publish --workspace` from the tag).
+
+**Lock-step notes.** Java 4.12.16's three engine items land here as twins (#323, Increment 136). Java's two other
+items — the embedded-Redis OpenSSL build prerequisite and the JaCoCo bump — are Java build-time notes with no
+analogue here.
+
+### Changed
+
+- **A null mapping source clears a `model.*` target and leaves any other target untouched** (#323, Increment 136;
+  mercury-composable #453). Until 4.12.15 the engine removed any target whose source resolved to null.
+  `common::apply_null_source` now applies Event Script's rule at the mapping entry, `for_each`, the `model.*` half of
+  fetcher and task parameters (a parameter from a null source is not supplied, as before) and the fetcher/task/
+  extension output mapping, which used to skip a null result even for a `model.*` target: a `model.*` target is
+  removed (set to null when the source key exists with a null value or the target is indexed); an `output.*` or
+  node-alias target is left as it was. The command reference, the command JSON, the data-mapper help and the claim
+  `null-source-removes-target` state the rule. **Upgrade action:** read — a null source no longer removes an
+  `output.*` or node-alias target; an output mapping to `model.*` with a null result now clears the variable; a
+  default for a model variable comes from the source side (`f:defaultValue(...)` or a plugin's own default),
+  never from default-then-overlay.
+- **A graph.math COMPUTE or IF over an unresolved variable names it** (#323, Increment 136). A `{selector}` is
+  rendered as the text `null` before the math package sees the expression, so the failure could only read
+  `Unknown identifier: null`. `assert_variables_resolved` names every unresolved selector before evaluation —
+  `Unknown identifier: model.threshold or model.factor (unresolved variable in …)` — and `name_null_identifier`
+  pinpoints the culprit when the evaluator itself meets `null`. RESET, DELAY, jump targets and MAPPING keep the
+  documented `null` rendering. **Upgrade action:** none.
+- **Every dry-run abort carries its reason** (#323, Increment 136; mercury-composable #454). The traveler's terminal
+  follows the executor's log record — `Graph traversal aborted: <reason>` — on every failure path: a node's thrown
+  error (naming the node), a node's staged error, the run deadline (`timed out after N ms`), a failure before the
+  walk starts, the pre-run gate (`Unable to run - …`). The synchronous companion drains on the prefix; the Playground
+  web app classifies the terminal by prefix (bundle rebuilt); `help run` states the shape. **Upgrade action:** read —
+  a script or companion that matched the bare `Graph traversal aborted` line by equality must match the prefix.
+
+---
 ## Version 4.12.15, 9/22/2026
 
 The lock-step round after the four-runtime certification: the same number on both engines and on the python and
