@@ -446,10 +446,9 @@ impl UiPod {
     }
 
     async fn store(&self) -> ReturnRouteStore {
-        ReturnRouteStore::new(
-            self.settings.manager().await.expect("store connects"),
-            self.settings.timeout(),
-        )
+        ReturnRouteStore::connect(&self.settings)
+            .await
+            .expect("store connects")
     }
 
     /// Poll until the route key is gone — the rendezvous is fully closed.

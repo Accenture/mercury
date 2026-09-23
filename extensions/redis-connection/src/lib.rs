@@ -24,6 +24,7 @@
 //! |---|---|---|
 //! | [`RedisConfig`] | `RedisConfig` | discrete connection parameters from a configurable key prefix, each falling back to the plain `redis.*` form |
 //! | [`RedisBackend`] | `RedisBackend` + `RedisBackendFactory` | the standalone-or-cluster seam: two-key selection, `INFO` auto-detect, one multiplexed connection, one `query` |
+//! | [`ConnectionLifecycle`] | — (Lettuce requeues unwritten commands across a reconnect) | the restart-aware retry: a heartbeat monitor plus one retry per lost connection for idempotent commands (`backend` module docs, *Lifecycle*) |
 //! | [`RedisHealthProbe`] | `RedisHealthProbe` | the reusable `/health` PING probe a module binds to its own route |
 //!
 //! Nothing here registers a route by itself (the Java class is deliberately
@@ -40,7 +41,8 @@ mod config;
 mod health;
 
 pub use backend::{
-    classify_command_error, command_timeout, ConnectError, RedisBackend, RedisConnection,
+    classify_command_error, command_timeout, is_connection_loss, CommandError, ConnectError,
+    ConnectionLifecycle, RedisBackend, RedisConnection, Replay,
 };
 pub use config::{RedisConfig, BASE_PREFIX, SOA_PREFIX};
 pub use health::{duration_seconds, resolve_duration, RedisHealthProbe};

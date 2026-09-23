@@ -3615,3 +3615,55 @@ home-page case.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
 --workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+## Increment 135 — The restart-aware Redis retry: a heartbeat monitor and one retry per lost connection, in the shared foundation (2026-09-22)
+
+The polyglot return-route report's note 3 recorded the last behavioural delta of the R-series: after
+a Redis restart the Rust pods' **first** command failed (`broken pipe`) and healed on the next call,
+because the `redis` crate's `ConnectionManager` arms its reconnect when a command fails but returns
+that command's error, where Lettuce requeues commands it has not yet written. The store had already
+taken the idempotent-only retry-once (spec §5 item 6). Eric's ruling of 2026-09-22 — retry
+*intelligently*, only when the broken pipe is a Redis restart or reconnection, which requires some
+simple lifecycle monitoring — moves the mechanism into `extensions/redis-connection`, where every
+consumer inherits it:
+
+- **`ConnectionLifecycle`** on every `RedisBackend` (shared by its clones): healthy/lost, with
+  `drops`, `retries` and `recoveries` counters; a loss and a recovery are each logged once, the
+  recovery with how long the connection was gone.
+- **The heartbeat monitor** (`{prefix}heartbeat.ms`, fallback `redis.heartbeat.ms`, default 1000,
+  `0` = off; standalone/managed connections only): one `PING` per interval. The failed `PING` is what
+  makes the manager reconnect *eagerly*, so a command issued after it — a non-idempotent `RPUSH`
+  included — awaits the fresh connection and succeeds on its first attempt: the producer's first
+  append after a restart, this note's symptom, now heals before it is sent.
+- **One retry per transition, idempotent commands only.** `RedisBackend::attempt(replay, operation)`
+  runs one attempt under the deadline; a connection-loss failure of a command *issued while the
+  connection was believed healthy* is the restart itself, and a `Replay::Idempotent` command is
+  retried exactly once on the manager's swapped-in reconnection future. A command issued while the
+  connection is already known down makes one attempt, bounded by the command deadline (408 while the
+  manager is still reconnecting, 503 on an outright refusal) — never a second one, so an outage never
+  doubles the deadline. Non-idempotent commands are never replayed — the crate reports `broken pipe` both for a
+  command it never sent and for one whose reply was lost (`closed_connection_error`), so non-delivery
+  cannot be proven on RESP2 (the `Disconnection` push that would tell needs RESP3). A timeout is never
+  a lifecycle signal. New API: `query_idempotent`, `query_pipeline_idempotent`, `attempt`,
+  `connect_standalone`, `lifecycle()`; `is_connection_loss`, `Replay`, `CommandError`.
+- **Consumers.** The distributed cache marks `GET`/`MGET`/`SETEX`/`MPUT`/`DEL`/`LLEN` idempotent
+  (`SET NX`, `RPUSH`, `LPOP` are not). The sync-over-async `ReturnRouteStore` now runs on a
+  `RedisBackend` (`ReturnRouteStore::connect(&settings)` → `RedisBackend::connect_standalone`, the
+  two-key `DEL` keeps it off the cluster path) through `attempt`, keeping its own 500 mapping as the
+  Java store does; `append_segment`/`pop_segment`/`publish` stay unreplayed (D7). The
+  `minigraph-state-redis` store still drives its own manager — a follow-up.
+- **Tests.** `redis-connection/tests/bounce_recovery.rs` through a severable relay (`BounceProxy`,
+  now shared from `redis-test-double`): an idempotent `GET` heals with exactly one retry; a
+  non-idempotent `RPUSH` is not replayed and the caller's next call lands on the healed connection
+  with nothing pushed twice; the heartbeat heals the connection ahead of the next command (a
+  non-idempotent command succeeds on its first attempt, zero retries); a known outage fails fast with a
+  single deadline-bounded attempt; the loss classification. The store's `store_bounce_recovery.rs` keeps its three
+  cases with the heartbeat off.
+- **Docs:** `configuration-reference.md` (`redis.heartbeat.ms`, Rust engine only),
+  `distributed-cache.md` *Redis restarts*, the polyglot report's *What remains* (note 3 closed).
+
+**Upgrade note.** Nothing to configure: the heartbeat is on by default (`redis.heartbeat.ms=0` turns
+it off). A caller that keyed on the first post-restart failure now sees it heal; statuses are unchanged.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+--workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.

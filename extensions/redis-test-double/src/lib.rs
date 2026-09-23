@@ -49,8 +49,10 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{self, UnboundedSender};
+use tokio::sync::watch;
+use tokio::task::JoinHandle;
 
 /// One stored key: its payload plus the optional native expiry.
 #[derive(Clone)]
@@ -662,4 +664,99 @@ fn message_frame(channel: &[u8], payload: &[u8]) -> Vec<u8> {
     frame.extend(bulk(channel));
     frame.extend(bulk(payload));
     frame
+}
+
+/// A TCP relay in front of the double (or any server) whose links a test can
+/// sever on demand — the wire shape of a **server bounce** (every connection
+/// dropped, the port back at once) or a **full outage** (reconnects refused).
+/// Shared by the crates that prove their bounce-recovery behaviour: the Redis
+/// foundation's lifecycle-aware retry and the sync-over-async store's
+/// idempotent-only retry both drive their client through it.
+pub struct BounceProxy {
+    port: u16,
+    links: Arc<Mutex<Vec<JoinHandle<()>>>>,
+    stop_accepting: watch::Sender<bool>,
+}
+
+impl BounceProxy {
+    /// Bind an ephemeral port and relay every accepted connection to
+    /// `127.0.0.1:target_port`.
+    pub async fn start(target_port: u16) -> BounceProxy {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("proxy bind");
+        let port = listener.local_addr().expect("proxy addr").port();
+        let links: Arc<Mutex<Vec<JoinHandle<()>>>> = Arc::new(Mutex::new(Vec::new()));
+        let (stop_accepting, mut stopped) = watch::channel(false);
+        let live = links.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = stopped.changed() => return, // refuse(): drop the listener
+                    accepted = listener.accept() => {
+                        let Ok((inbound, _)) = accepted else { return };
+                        let Ok(outbound) = TcpStream::connect(("127.0.0.1", target_port)).await
+                        else {
+                            continue;
+                        };
+                        let link = tokio::spawn(relay(inbound, outbound));
+                        live.lock().expect("links").push(link);
+                    }
+                }
+            }
+        });
+        BounceProxy {
+            port,
+            links,
+            stop_accepting,
+        }
+    }
+
+    /// The port a client connects to.
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
+    /// Sever every live link — a server bounce (back immediately).
+    pub fn bounce(&self) {
+        for link in self.links.lock().expect("links").drain(..) {
+            link.abort();
+        }
+    }
+
+    /// Sever the links AND refuse reconnects — a full outage.
+    pub fn refuse(&self) {
+        let _ = self.stop_accepting.send(true);
+        self.bounce();
+    }
+}
+
+async fn relay(inbound: TcpStream, outbound: TcpStream) {
+    let (mut client_read, mut client_write) = inbound.into_split();
+    let (mut server_read, mut server_write) = outbound.into_split();
+    let up = async {
+        let mut buf = [0u8; 4096];
+        loop {
+            match client_read.read(&mut buf).await {
+                Ok(0) | Err(_) => return,
+                Ok(n) => {
+                    if server_write.write_all(&buf[..n]).await.is_err() {
+                        return;
+                    }
+                }
+            }
+        }
+    };
+    let down = async {
+        let mut buf = [0u8; 4096];
+        loop {
+            match server_read.read(&mut buf).await {
+                Ok(0) | Err(_) => return,
+                Ok(n) => {
+                    if client_write.write_all(&buf[..n]).await.is_err() {
+                        return;
+                    }
+                }
+            }
+        }
+    };
+    tokio::join!(up, down);
 }
