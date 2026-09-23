@@ -21,8 +21,8 @@ Notes
   parallel branches (synchronize them with graph.join); each node executes
   at most once per run (loop guard).
 - Every run ends with either "Graph traversal completed in N ms" or
-  "Graph traversal aborted"; on failure, the reason is printed before the
-  aborted line.
+  "Graph traversal aborted: <reason>" - every abort names its reason (a node's
+  error, a pre-run gate rule, the deadline).
 - 'run' may be repeated on the same instance: each run clears the visited
   set and the output namespace, but model values persist across runs -
   instantiate again for a completely fresh state.

@@ -118,7 +118,11 @@ statement[]=DELAY: {model.backoff}
 
 An unresolved variable renders "null": a RESET: entry is then a safe no-op, a DELAY: is skipped,
 and a jump target fails the run loudly ("Next node 'null' does not exist") - correct for a jump,
-so seed the variable before relying on it. See tutorial 12 for the full generic retry handler.
+so seed the variable before relying on it. A COMPUTE: or IF: expression over an unresolved variable
+fails before evaluation and names it ("Unknown identifier: model.backoff (unresolved variable in
+'{model.backoff} * 2')") - every unresolved variable when there are several ("Unknown identifier:
+model.threshold or model.factor") - so the node that failed to set it can be found. See tutorial 12
+for the full generic retry handler.
 
 Iterating lists (for_each)
 --------------------------

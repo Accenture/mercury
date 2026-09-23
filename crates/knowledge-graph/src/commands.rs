@@ -509,15 +509,17 @@ async fn handle_part_three(
         // models, so these rules apply pre-run, not at node create/update
         if let Ok(instance) = crate::common::get_graph_instance(in_route) {
             if let Err(reason) = crate::model_validator::validate(&instance.graph) {
-                say(po, out_route, format!("Unable to run - {reason}")).await;
-                // the uniform end-of-transmission line, matching the traveler's
-                // failure shape so the sync companion's drain stays deterministic
+                // the uniform end-of-transmission line, carrying the reason, matching
+                // the traveler's failure shape so the sync companion's drain stays
+                // deterministic
                 let _ = po
                     .send(
                         EventEnvelope::new()
                             .set_to(out_route)
                             .set_status(400)
-                            .set_raw_body(Value::from("Graph traversal aborted")),
+                            .set_raw_body(Value::from(format!(
+                                "Graph traversal aborted: Unable to run - {reason}"
+                            ))),
                     )
                     .await;
                 return Ok(());

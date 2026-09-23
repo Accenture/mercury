@@ -1,0 +1,80 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Module"
+      ],
+      "alias": "seed",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "double(-1) -> model.threshold",
+          "input.body.threshold -> model.threshold",
+          "input.body.factor -> model.factor"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Module"
+      ],
+      "alias": "use-it",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: doubled -> {model.threshold} * {model.factor}",
+          "MAPPING: use-it.result.doubled -> output.body.doubled"
+        ]
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "a COMPUTE over unresolved model variables fails naming every unresolved variable, not 'null'",
+        "name": "unit-test-math-1"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "run",
+          "properties": {}
+        }
+      ],
+      "target": "seed"
+    },
+    {
+      "source": "seed",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "use-it"
+    },
+    {
+      "source": "use-it",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

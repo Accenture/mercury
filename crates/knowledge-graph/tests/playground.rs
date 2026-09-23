@@ -486,8 +486,10 @@ async fn playground_command_grammar_and_companion() {
         other => panic!("sync bad run output must be an array, got {other:?}"),
     };
     assert!(
-        bad_lines.iter().any(|l| l == "Graph traversal aborted"),
-        "every run ends with a terminal, even on early failure: {bad_lines:?}"
+        bad_lines
+            .iter()
+            .any(|l| l.starts_with("Graph traversal aborted: ")),
+        "every run ends with a terminal carrying its reason, even on early failure: {bad_lines:?}"
     );
 
     // --- the live-graph REST download returns the session's draft
@@ -616,12 +618,8 @@ async fn playground_command_grammar_and_companion() {
     assert!(
         hung_output
             .iter()
-            .any(|l| l == "Graph traversal timed out after 1500 ms"),
-        "the watcher must report the model.ttl deadline: {hung_output:?}"
-    );
-    assert!(
-        hung_output.iter().any(|l| l == "Graph traversal aborted"),
-        "a timed-out run must end with the canonical failure terminal: {hung_output:?}"
+            .any(|l| l == "Graph traversal aborted: timed out after 1500 ms"),
+        "a timed-out run must end with the canonical failure terminal naming the model.ttl deadline: {hung_output:?}"
     );
 
     // --- a completed run cancels its watcher: the run's console IS the
@@ -700,9 +698,7 @@ async fn playground_command_grammar_and_companion() {
         let lines = fast_lines.lock().expect("fast console");
         let late: Vec<&String> = lines
             .iter()
-            .filter(|l| {
-                l.starts_with("Graph traversal timed out") || *l == "Graph traversal aborted"
-            })
+            .filter(|l| l.starts_with("Graph traversal aborted"))
             .collect();
         assert!(
             late.is_empty(),

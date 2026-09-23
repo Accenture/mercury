@@ -41,7 +41,9 @@
           "input.body.state -> output.body.state",
           "text(preset) -> model.probe",
           "input.body.missing -> model.probe",
-          "f:defaultValue(model.probe, text(removed)) -> output.body.probe"
+          "f:defaultValue(model.probe, text(removed)) -> output.body.probe",
+          "text(kept) -> output.body.kept",
+          "input.body.missing -> output.body.kept"
         ]
       }
     },

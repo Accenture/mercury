@@ -3667,3 +3667,62 @@ it off). A caller that keyed on the first post-restart failure now sees it heal;
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
 --workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+## Increment 136 — The null-source rule shared with Event Script, and a graph.math failure that names the variable (2026-09-23)
+
+Two field issues on the Java repository, ruled by Eric on 2026-09-23, land here as twins the same day.
+**mercury-composable #453** reported that an unresolvable mapping source deletes its target — the
+documented default-then-overlay idiom removed the default it had just written, and the failure surfaced
+a node later as `Unknown identifier: null`. Eric's ruling: a genuine Layer 2 / Layer 3 inconsistency —
+Layer 3 adopts Event Script's rule. **#454** (a simple plugin over an absent source aborts the
+traversal) is by design — what a plugin does with a null argument is the plugin's decision — and is
+answered in the Event Script guide's plugin section.
+
+- **One null-source rule (`common::apply_null_source`, Java `applyNullSource`).** A source that
+  resolves to null — a key that does not exist, or a plugin returning null — clears a `model.*` target
+  (removed; set to null when the source key exists with a null value or the target is indexed, so list
+  positions stay stable) and leaves any other target untouched (a source key that exists with a null
+  value propagates the null). Applied to `mapping[]` entries (graph.data.mapper, and the MAPPING
+  statements of graph.math and graph.js), `for_each` entries, the `model.*` half of fetcher/extension
+  `input[]` parameters (a non-model parameter mapped from a null source is not supplied, as before) and
+  the output mapping of graph.task / graph.extension / graph.api.fetcher (`set_fetcher_output_entry`),
+  which used to skip a null result even for a `model.*` target. Until 4.12.15 the engine removed ANY
+  target (PR #295 documented that behaviour).
+- **graph.math names the unresolved variable (`common::assert_variables_resolved`,
+  `name_null_identifier`).** A `{selector}` is rendered into the expression as the text `null` before
+  the math package sees it, so the evaluator can only ever report `Unknown identifier: null`. COMPUTE
+  and IF expressions are now checked before substitution and every unresolved selector is named —
+  `Unknown identifier: model.threshold or model.factor (unresolved variable in
+  '{model.threshold} * {model.factor}')` — and when the evaluator itself meets `null` (a variable
+  holding the text "null"), the statement's selectors are re-rendered and the ones that render as
+  `null` are named; the whole list only when none can be told apart. RESET, DELAY, jump targets and
+  MAPPING keep the documented `null` rendering (tutorial 14's null-safe idiom relies on it inside a
+  `text()` constant).
+- **Tests.** `unit-test-lookup-1` pins both halves of the rule (`model.probe` cleared,
+  `output.body.kept` survives an absent overlay); `unit-test-math-1` (new; the manifest count moves
+  53 → 54) pins the three message shapes: both selectors unresolved, one unresolved, the text-"null"
+  fallback.
+- **Every dry-run abort carries its reason (`traveler::emit_aborted(po, instance, status, reason)`,
+  `reason_of`; Eric's ruling on the diagnosability half of #454).** The traveler's terminal follows the
+  executor's log record — `Graph traversal aborted: <reason>` — on every failure path: a node's thrown
+  error (naming the node), a node's staged error map (message and node), the run deadline (`timed out
+  after N ms`, 408), a failure before the walk starts, and the pre-run gate (`Unable to run - …`). The
+  separate reason line before a bare terminal is gone; the synchronous companion drains on the prefix;
+  the Playground web app classifies the terminal by prefix (`graphRunProtocol.ts`, bundle rebuilt and
+  redeployed). The tests and `help run.md` follow the new shape.
+- **Docs:** `command-reference.md` *Namespaces* (the rule, its scope, defaults from the source side) and
+  *Run deadline*, `skills-reference.md` (graph.js deadline), `minigraph-commands.json` (`mapping_operator`),
+  claim `null-source-removes-target` (text, quote, `since 4.12.16+`), the in-Playground
+  `help graph-data-mapper` (*Null source*), `help graph-math` (the named failure) and `help run`, the
+  companion-sync ADR amended in place.
+
+**Upgrade note.** Behaviour change to READ: a null source no longer removes an `output.*` or node-alias
+target — a graph that relied on that removal must clear the target explicitly; a `model.*` target is
+cleared as before, so `f:defaultValue(...)` (or a plugin's own default) remains the way to default a
+model variable — default-then-overlay is unsupported in both layers. A graph.task / extension / fetcher
+output mapping to `model.*` with a null result now clears the variable (it was left untouched).
+graph.math failures over unresolved variables now name them. A companion or script that matched the bare
+`Graph traversal aborted` line by equality must match the prefix — the line now ends with the reason.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+--workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.

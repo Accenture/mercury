@@ -59,7 +59,8 @@ fn manifest_listed_graphs_are_compiled() {
     // of one suspending subgraph under iteration-scoped records) + the static
     // decision table fixtures (task-9: a skill-less DecisionTable node mapped
     // whole into a generic function; lookup-1: the same table resolved by the
-    // 'lookup' simple plugin in a data mapper decision node);
+    // 'lookup' simple plugin in a data mapper decision node) + the math-1
+    // fixture (a COMPUTE over an unresolved model variable names the variable);
     // the 14 deliberately-invalid fixtures
     // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias) are rejected
     // by the mandatory quality gate. Every graph a runtime test executes MUST
@@ -67,7 +68,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        53,
+        54,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );

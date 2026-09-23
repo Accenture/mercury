@@ -1701,12 +1701,84 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
             "state {state}"
         );
         assert_eq!(Some(Value::from(state)), mm.get_element("state"));
-        // probe of the mapping semantics a default must respect: a null source
-        // REMOVES the target - 'text(preset)' then an absent 'input.body.missing'
-        // leaves no model.probe, so a default is supplied by the plugin's third
-        // argument (or a later f:defaultValue), never by default-then-overlay
+        // probe of the null-source rule shared with Event Script (Java #453): a
+        // null source CLEARS a model.* target - 'text(preset)' then an absent
+        // 'input.body.missing' leaves no model.probe, so a default for a model
+        // variable is supplied by the plugin's third argument (or a later
+        // f:defaultValue), never by default-then-overlay ...
         assert_eq!(Some(Value::from("removed")), mm.get_element("probe"));
+        // ... while any other target is left untouched by a null source:
+        // 'text(kept)' survives the absent overlay on output.body.kept
+        assert_eq!(Some(Value::from("kept")), mm.get_element("kept"));
     }
+
+    // --- unit-test-math-1 (Java #453): the seed's overlay
+    // 'input.body.threshold -> model.threshold' clears the model variable when
+    // the input is absent and 'model.factor' is never set, so the COMPUTE over
+    // {model.threshold} * {model.factor} resolves neither - the failure names
+    // every unresolved variable, joined by 'or', not the rendered text 'null'
+    let reply = run_graph(
+        &platform,
+        "unit-test-math-1",
+        serde_json::json!({}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_ne!(200, reply.status());
+    let text = event_script::conversions::to_json_string(reply.body());
+    assert!(
+        text.contains("Unknown identifier: model.threshold or model.factor"),
+        "unexpected error response: {text}"
+    );
+    assert!(
+        text.contains("{model.threshold} * {model.factor}"),
+        "unexpected error response: {text}"
+    );
+    // one resolved: only the other is named
+    let reply = run_graph(
+        &platform,
+        "unit-test-math-1",
+        serde_json::json!({"factor": 2}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_ne!(200, reply.status());
+    let text = event_script::conversions::to_json_string(reply.body());
+    assert!(
+        text.contains("Unknown identifier: model.threshold ("),
+        "unexpected error response: {text}"
+    );
+    // the evaluator's own 'Unknown identifier: null' - a variable holding the
+    // TEXT "null" passes the pre-check and renders as the identifier null - is
+    // pinpointed by re-rendering the selectors: the culprit alone is named
+    let reply = run_graph(
+        &platform,
+        "unit-test-math-1",
+        serde_json::json!({"threshold": "null", "factor": 2}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_ne!(200, reply.status());
+    let text = event_script::conversions::to_json_string(reply.body());
+    assert!(
+        text.contains("Unknown identifier: model.threshold ("),
+        "unexpected error response: {text}"
+    );
+    assert!(
+        !text.contains("model.threshold or model.factor"),
+        "unexpected error response: {text}"
+    );
+    // with both inputs supplied the same expression computes
+    let reply = run_graph(
+        &platform,
+        "unit-test-math-1",
+        serde_json::json!({"threshold": 5.5, "factor": 2}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from(11.0)), mm.get_element("doubled"));
 }
 
 async fn join_loop_retirement_and_health(platform: &Platform) {
@@ -3455,8 +3527,10 @@ async fn companion_sync_pre_run_check_rejects_broken_suspend_contract(platform: 
         "the gate's rule message must reach the author: {output:?}"
     );
     assert!(
-        output.iter().any(|l| l == "Graph traversal aborted"),
-        "pre-run rejection must still emit the uniform terminal: {output:?}"
+        output
+            .iter()
+            .any(|l| l.starts_with("Graph traversal aborted: Unable to run - ")),
+        "pre-run rejection must still emit the uniform terminal, carrying the reason: {output:?}"
     );
 }
 

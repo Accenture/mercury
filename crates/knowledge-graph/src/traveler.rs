@@ -158,17 +158,8 @@ async fn handle_run_timeout(
                 .set_correlation_id(event_cid)
                 .set_status(408)
                 .set_raw_body(Value::from(format!(
-                    "Graph traversal timed out after {ttl} ms"
+                    "Graph traversal aborted: timed out after {ttl} ms"
                 ))),
-        )
-        .await;
-    let _ = po
-        .send(
-            EventEnvelope::new()
-                .set_to(&out)
-                .set_correlation_id(event_cid)
-                .set_raw_body(Value::from("Graph traversal aborted"))
-                .set_status(400),
         )
         .await;
 }
@@ -191,24 +182,19 @@ async fn execute_graph(
                 claim_terminal(po, &instance);
             }
         }
+        // Uniform end-of-transmission even when the traversal fails before it
+        // starts (no graph instance yet, missing root/end) — no `GraphInstance`
+        // exists here, so emit the terminal line, carrying the reason, directly
+        // to the reply route.
         let _ = po
             .send(
                 EventEnvelope::new()
                     .set_to(&reply_to)
                     .set_status(e.status())
-                    .set_raw_body(Value::from(e.message()))
-                    .set_correlation_id(&cid),
-            )
-            .await;
-        // Uniform end-of-transmission even when the traversal fails before it
-        // starts (no graph instance yet, missing root/end) — no `GraphInstance`
-        // exists here, so emit the terminal line directly to the reply route.
-        let _ = po
-            .send(
-                EventEnvelope::new()
-                    .set_to(&reply_to)
-                    .set_status(400)
-                    .set_raw_body(Value::from("Graph traversal aborted"))
+                    .set_raw_body(Value::from(format!(
+                        "Graph traversal aborted: {}",
+                        e.message()
+                    )))
                     .set_correlation_id(&cid),
             )
             .await;
@@ -285,7 +271,7 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
             let error_map = get_error_map(state.get_element("output.body"), target);
             let _ = state.set_element("output.body", error_map);
         }
-        handle_error_response(po, &instance, response).await;
+        handle_error_response(po, &instance, node_name, response).await;
         return;
     }
     let Ok(Some(node)) = instance.graph.find_node_by_alias(node_name) else {
@@ -342,16 +328,13 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
     {
         if claim_terminal(po, &instance) {
             let error_map = get_error_map(Some(error.clone()), target);
-            let _ = po
-                .send(
-                    EventEnvelope::new()
-                        .set_to(&reply_to)
-                        .set_correlation_id(&instance.get_correlation_id())
-                        .set_raw_body(error_map)
-                        .set_status(rc.as_i64().unwrap_or(500) as i32),
-                )
-                .await;
-            emit_aborted(po, &instance).await;
+            emit_aborted(
+                po,
+                &instance,
+                rc.as_i64().unwrap_or(500) as i32,
+                &reason_of(&error_map),
+            )
+            .await;
         }
     } else if !instance.is_complete() {
         if matches!(
@@ -392,7 +375,7 @@ async fn check_frequency(po: &PostOffice, instance: &Arc<GraphInstance>, node_na
                 "Node {node_name} executed too frequently"
             )))
             .set_status(400);
-        handle_error_response(po, instance, &response).await;
+        handle_error_response(po, instance, node_name, &response).await;
     }
 }
 
@@ -795,40 +778,58 @@ async fn walk_next(
 async fn handle_error_response(
     po: &PostOffice,
     instance: &Arc<GraphInstance>,
+    node_name: &str,
     response: &EventEnvelope,
 ) {
     if !claim_terminal(po, instance) {
         return;
     }
-    let out = instance.get_reply_to();
-    let _ = po
-        .send(
-            EventEnvelope::new()
-                .set_to(&out)
-                .set_correlation_id(&instance.get_correlation_id())
-                .set_raw_body(response.body().clone())
-                .set_status(response.status()),
-        )
-        .await;
-    emit_aborted(po, instance).await;
+    // a thrown node error is plain text - name the node so the reader can find it
+    let reason = match response.body() {
+        Value::Map(_) => reason_of(response.body()),
+        other => format!("{} (node {node_name})", reason_of(other)),
+    };
+    emit_aborted(po, instance, response.status(), &reason).await;
 }
 
 /// Canonical failure terminal — the mirror of the success terminal in
 /// [`execution_complete`]. Emits the single end-of-transmission line the
 /// synchronous companion endpoint drains on, so **every** `run` finishes
 /// with either `Graph traversal completed in N ms` or
-/// `Graph traversal aborted` — a deterministic signal, never a timeout.
+/// `Graph traversal aborted: {reason}` — a deterministic signal, never a
+/// timeout, and every abort names its reason, the shape of the executor's
+/// log record (mercury-composable #454: a bare abort was undiagnosable).
 /// Callers own the terminal via [`claim_terminal`] before emitting.
-async fn emit_aborted(po: &PostOffice, instance: &Arc<GraphInstance>) {
+async fn emit_aborted(po: &PostOffice, instance: &Arc<GraphInstance>, status: i32, reason: &str) {
     let _ = po
         .send(
             EventEnvelope::new()
                 .set_to(&instance.get_reply_to())
                 .set_correlation_id(&instance.get_correlation_id())
-                .set_raw_body(Value::from("Graph traversal aborted"))
-                .set_status(400),
+                .set_raw_body(Value::from(format!("Graph traversal aborted: {reason}")))
+                .set_status(status),
         )
         .await;
+}
+
+/// The human-readable reason of an error body: a structured error map
+/// contributes its message and, when present, the node it names; anything
+/// else is rendered as text. (Java `GraphTraveler.reasonOf`.)
+fn reason_of(body: &Value) -> String {
+    if let Value::Map(entries) = body {
+        let field = |name: &str| {
+            entries
+                .iter()
+                .find(|(k, _)| display(k) == name)
+                .map(|(_, v)| display(v))
+        };
+        let message = field("message").unwrap_or_else(|| "null".to_string());
+        return match field("target") {
+            Some(target) => format!("{message} (node {target})"),
+            None => message,
+        };
+    }
+    display(body)
 }
 
 /// Emit a specific failure reason and then the canonical [`emit_aborted`]
@@ -838,14 +839,5 @@ async fn send_error(po: &PostOffice, instance: &Arc<GraphInstance>, message: &st
     if !claim_terminal(po, instance) {
         return;
     }
-    let _ = po
-        .send(
-            EventEnvelope::new()
-                .set_to(&instance.get_reply_to())
-                .set_correlation_id(&instance.get_correlation_id())
-                .set_raw_body(Value::from(message))
-                .set_status(400),
-        )
-        .await;
-    emit_aborted(po, instance).await;
+    emit_aborted(po, instance, 400, message).await;
 }
