@@ -240,6 +240,94 @@ fn has_boolean_operator(text: &str) -> bool {
 /// and the segment is not part of a dotted variable name; maps/lists render
 /// as compact JSON; a missing value renders as `null`. Segments containing
 /// newlines, tabs or `:` are left as-is (likely JSON, not a variable).
+/// Name the unresolved variable before an expression is evaluated (mercury-composable issue
+/// #453): an unresolved `{selector}` renders as the text `null`, which the expression evaluator
+/// can only report as `Unknown identifier: null`. Checked for COMPUTE and IF expressions only -
+/// RESET, DELAY, jump targets and MAPPING keep the documented `null` rendering (a RESET is then a
+/// no-op, a DELAY is skipped, a text() constant sees the text `null`).
+/// (Java `GraphLambdaFunction.assertVariablesResolved`.)
+pub fn assert_variables_resolved(expression: &str, state: &MultiLevelMap) -> Result<(), AppError> {
+    let mut unresolved: Vec<String> = Vec::new();
+    for key in selectors_in(expression) {
+        if matches!(
+            get_lhs_or_constant(&key, state).map_err(invalid)?,
+            None | Some(Value::Nil)
+        ) {
+            unresolved.push(key);
+        }
+    }
+    if unresolved.is_empty() {
+        Ok(())
+    } else {
+        Err(unknown_identifier(&unresolved, expression))
+    }
+}
+
+/// The `{selector}` variables of an expression, in order and without duplicates - a segment
+/// holding a JavaScript function or a JSON object (newline, tab or colon inside) is not one.
+/// (Java `GraphLambdaFunction.selectorsIn`.)
+pub fn selectors_in(expression: &str) -> Vec<String> {
+    let chars: Vec<char> = expression.chars().collect();
+    let mut keys: Vec<String> = Vec::new();
+    let mut i = 0usize;
+    while i < chars.len() {
+        if chars[i] == '{' {
+            let Some(close) = chars[i..].iter().position(|c| *c == '}') else {
+                break;
+            };
+            let key: String = chars[i + 1..i + close].iter().collect();
+            i += close + 1;
+            if key.contains('\r') || key.contains('\n') || key.contains('\t') || key.contains(':') {
+                continue;
+            }
+            if !keys.contains(&key) {
+                keys.push(key);
+            }
+            continue;
+        }
+        i += 1;
+    }
+    keys
+}
+
+/// The evaluator met the rendered text `null` itself - a selector the pre-check accepted, such as
+/// a variable holding the text "null". The culprits are pinpointed by rendering each selector
+/// again: those that render as `null` are named, several joined by `or`; only when none can be
+/// told apart are all the statement's selectors named. Any other error passes through.
+/// (Java `GraphLambdaFunction.nameNullIdentifier`.)
+pub fn name_null_identifier(err: AppError, expression: &str, state: &MultiLevelMap) -> AppError {
+    if !err.message().ends_with("Unknown identifier: null") {
+        return err;
+    }
+    let selectors = selectors_in(expression);
+    let culprits: Vec<String> = selectors
+        .iter()
+        .filter(|key| match get_lhs_or_constant(key, state) {
+            Ok(None) | Ok(Some(Value::Nil)) => true,
+            Ok(Some(v)) => display(&v) == "null",
+            Err(_) => false,
+        })
+        .cloned()
+        .collect();
+    let named = if culprits.is_empty() {
+        &selectors
+    } else {
+        &culprits
+    };
+    if named.is_empty() {
+        err
+    } else {
+        unknown_identifier(named, expression)
+    }
+}
+
+fn unknown_identifier(selectors: &[String], expression: &str) -> AppError {
+    invalid(format!(
+        "Unknown identifier: {} (unresolved variable in '{expression}')",
+        selectors.join(" or ")
+    ))
+}
+
 pub fn substitute_var_if_any(text: &str, state: &MultiLevelMap) -> Result<String, AppError> {
     let logical = has_boolean_operator(text) || (text.starts_with("$.") && text.contains('@'));
     let (Some(left), Some(right)) = (text.find('{'), text.rfind('}')) else {
@@ -345,13 +433,31 @@ pub fn handle_data_mapping_entry(
         Some(v) => {
             state.set_element(rhs, v).map_err(invalid)?;
         }
-        None => {
-            if rhs.ends_with(']') && rhs.contains('[') {
-                state.set_element(rhs, Value::Nil).map_err(invalid)?;
-            } else {
-                state.remove_element(rhs);
-            }
+        None => apply_null_source(state, &lhs, rhs)?,
+    }
+    Ok(())
+}
+
+/// The null-source rule shared with Event Script (mercury-composable issue #453): when a data
+/// mapping's source resolves to null - a key that does not exist, or a plugin returning null -
+/// only a `model.` target is cleared. It is removed when the source key is absent, and set to
+/// null when the source key exists with a null value or the target is an indexed element (so
+/// list positions stay stable). Any other target is left untouched, except that a source key
+/// that exists with a null value propagates the null. (Java `GraphLambdaFunction.applyNullSource`.)
+pub fn apply_null_source(
+    state: &mut MultiLevelMap,
+    lhs: &str,
+    target: &str,
+) -> Result<(), AppError> {
+    let source_exists = state.key_exists(lhs);
+    if target.starts_with(MODEL_NAMESPACE) {
+        if source_exists || (target.ends_with(']') && target.contains('[')) {
+            state.set_element(target, Value::Nil).map_err(invalid)?;
+        } else {
+            state.remove_element(target);
         }
+    } else if source_exists {
+        state.set_element(target, Value::Nil).map_err(invalid)?;
     }
     Ok(())
 }
@@ -528,7 +634,7 @@ pub fn get_for_each_mapping(
             Some(v) => {
                 state.set_element(rhs, v).map_err(invalid)?;
             }
-            None => state.remove_element(rhs),
+            None => apply_null_source(state, &lhs, rhs)?,
         }
     }
     Ok(mappings)
@@ -607,6 +713,9 @@ fn set_fetcher_output_entry(
         }
         assert_mutable_model_target(node_name, rhs)?;
         state.set_element(rhs, v).map_err(invalid)?;
+    } else if rhs.starts_with(MODEL_NAMESPACE) {
+        assert_mutable_model_target(node_name, rhs)?;
+        apply_null_source(state, &lhs, rhs)?;
     }
     Ok(())
 }
@@ -913,7 +1022,9 @@ pub fn fill_fetcher_api_parameters(
     let value = get_lhs_or_constant(&lhs, state).map_err(invalid)?;
     match value {
         Some(v) => state.set_element(&target, v).map_err(invalid)?,
+        None if target.starts_with(MODEL_NAMESPACE) => apply_null_source(state, &lhs, &target)?,
         None => {
+            // a parameter mapped from a null source is not supplied
             if target.ends_with(']') && target.contains('[') {
                 state.set_element(&target, Value::Nil).map_err(invalid)?;
             } else {

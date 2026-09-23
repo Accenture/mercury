@@ -90,12 +90,13 @@ Notes
   the list with that first element when it does not yet exist).
 - An interior (non-leaf) source path maps the ENTIRE subtree, not just
   scalars - fetch-one.result.profile above carries the whole profile object.
-- A NULL source (a missing key, or a plugin returning null) REMOVES the
-  target key (an indexed target such as profile[1] is set to null instead).
-  Defaults come from the source side: f:defaultValue(input.body.flag,
-  boolean(false)) -> model.flag, or a plugin default such as
-  f:lookup(table, value, text(unknown)) - never default-then-overlay, which
-  the null overlay would remove.
+- A NULL source (a missing key, or a plugin returning null) CLEARS a "model."
+  target (removed; set to null when the source key exists or the target is
+  indexed such as model.list[1]) and leaves any other target untouched - the
+  same rule as Event Script. Defaults for a model variable come from the
+  source side: f:defaultValue(input.body.flag, boolean(false)) -> model.flag,
+  or a plugin default such as f:lookup(table, value, text(unknown)) - never
+  default-then-overlay, which the null overlay would remove.
 - The legacy colon-type suffix ("simple type matching") is deprecated - use
   the f:plugin forms instead.
 - Inside a graph.math node, MAPPING: statements use exactly this syntax; see

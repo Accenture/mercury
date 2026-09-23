@@ -81,14 +81,18 @@ A **non-leaf (interior) path maps the entire subtree**, not just scalars: a sour
 `fetch-one.result.profile` above carries the whole profile object, and `response.accounts` in a
 Dictionary mapping carries the whole array.
 
-**A null source removes the target.** When a mapping's source resolves to null — the key does not
-exist, or a plugin returns null — the graph engine **removes the target key** (an indexed target such
-as `profile[1]` is set to null instead, so list positions stay stable). A default therefore comes from
-the **source** side: `f:defaultValue(input.body.flag, boolean(false)) -> model.flag`, or a plugin's own
-default such as `f:lookup(table, value, text(unknown))`. Do not write a default first and overlay it
-with a possibly-null source — the overlay removes the default. (Event Script flows differ: there a null
-source applies only to `model.*` targets, where it removes the model variable key; for any other target
-the entry is ignored.)
+**A null source clears a `model.*` target and leaves any other target untouched** — the same rule
+as Event Script flows (mercury-composable #453). When a mapping's source resolves to null — the key does
+not exist, or a plugin returns null — a `model.*` target is **removed** (set to null instead when the
+source key exists with a null value, or when the target is an indexed element such as
+`model.profiles[1]`, so list positions stay stable); an `output.*` or node-alias target is **left as it
+was** (a source key that exists with a null value propagates the null). The rule holds for `mapping[]`
+entries, `for_each` entries and the output mapping of `graph.task`, `graph.extension` and
+`graph.api.fetcher`; a fetcher or extension `input[]` parameter mapped from a null source is simply not
+supplied. A default for a model variable therefore comes from the **source** side:
+`f:defaultValue(input.body.flag, boolean(false)) -> model.flag`, or a plugin's own default such as
+`f:lookup(table, value, text(unknown))`. Do not write a default into `model.*` first and overlay it with
+a possibly-null source — the overlay removes the default.
 
 ## Constants {#constants}
 

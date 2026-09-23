@@ -209,13 +209,13 @@
     },
     {
       "id": "null-source-removes-target",
-      "claim": "In a MiniGraph data mapping a source that resolves to null (a missing key, or a plugin returning null) removes the target key, so a default must come from the source side, never from default-then-overlay.",
+      "claim": "In a MiniGraph data mapping a source that resolves to null (a missing key, or a plugin returning null) clears a model.* target (removed, or set to null when the source key exists or the target is indexed) and leaves any other target untouched - the same rule as Event Script - so a default for a model variable must come from the source side, never from default-then-overlay.",
       "pages": [
         "docs/guides/knowledge-graph/command-reference.md"
       ],
-      "quote": "A null source removes the target",
+      "quote": "A null source clears a `model.*` target and leaves any other target untouched",
       "test": "crates/knowledge-graph::graph_runtime::graph_task_matches_java_semantics",
-      "since": "4.12.12+"
+      "since": "4.12.16+"
     },
     {
       "id": "kafka-schema-decode-failure-dead-letters",

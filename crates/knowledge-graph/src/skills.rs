@@ -33,13 +33,14 @@ use platform_core::{AppError, EventEnvelope, Platform, PostOffice};
 use rmpv::Value;
 
 use crate::common::{
-    assert_mutable_model_target, combine, count_execute_statements, get_effective_ttl,
-    get_else_statement, get_entries, get_first_word, get_for_each_mapping, get_graph_instance,
-    get_if_statement, get_model_array_size, get_next_model_param_set, get_next_node,
-    get_next_tag_resolved, get_node, get_then_statement, handle_data_mapping_entry, invalid,
-    perform_fetcher_output_mapping, reset_nodes, split_blocks, substitute_var_if_any, COMPUTE_TAG,
-    DELAY_TAG, ERROR, EXCEPTION, EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO, MODEL_NAMESPACE,
-    NEXT, NODE, NODE_NAME, RESET_TAG, RESULT, SINK, SKILL, STATUS, TARGET, TYPE,
+    apply_null_source, assert_mutable_model_target, assert_variables_resolved, combine,
+    count_execute_statements, get_effective_ttl, get_else_statement, get_entries, get_first_word,
+    get_for_each_mapping, get_graph_instance, get_if_statement, get_model_array_size,
+    get_next_model_param_set, get_next_node, get_next_tag_resolved, get_node, get_then_statement,
+    handle_data_mapping_entry, invalid, name_null_identifier, perform_fetcher_output_mapping,
+    reset_nodes, split_blocks, substitute_var_if_any, COMPUTE_TAG, DELAY_TAG, ERROR, EXCEPTION,
+    EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO, MODEL_NAMESPACE, NEXT, NODE, NODE_NAME,
+    RESET_TAG, RESULT, SINK, SKILL, STATUS, TARGET, TYPE,
 };
 use crate::math::ExpressionEngine;
 use crate::model::GraphInstance;
@@ -275,11 +276,20 @@ fn compute(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Result<
             "{NODE_NAME}{node_name} has invalid statement '{command}'"
         )));
     }
+    assert_variables_resolved(rhs, state)?;
     let text = substitute_var_if_any(rhs, state)?;
     let result = if has_boolean_operator(&text) {
-        Value::from(engine().eval_boolean(&text).map_err(math_error)?)
+        Value::from(
+            engine()
+                .eval_boolean(&text)
+                .map_err(|e| name_null_identifier(math_error(e), rhs, state))?,
+        )
     } else {
-        Value::from(engine().eval_number(&text).map_err(math_error)?)
+        Value::from(
+            engine()
+                .eval_number(&text)
+                .map_err(|e| name_null_identifier(math_error(e), rhs, state))?,
+        )
     };
     state
         .set_element(&format!("{node_name}.result.{lhs}"), result)
@@ -319,8 +329,12 @@ fn evaluate(
             "{NODE_NAME}{node_name} does not have if:, then: or else:"
         )));
     }
+    assert_variables_resolved(&if_statement, state)?;
     let text = substitute_var_if_any(&if_statement, state)?;
-    let branch = if engine().eval_boolean(&text).map_err(math_error)? {
+    let branch = if engine()
+        .eval_boolean(&text)
+        .map_err(|e| name_null_identifier(math_error(e), &if_statement, state))?
+    {
         then_statement
     } else {
         else_statement
@@ -520,7 +534,7 @@ fn build_task_request(
         if rhs.starts_with(MODEL_NAMESPACE) {
             // Event Script parity: an input entry may stage a model variable that later
             // entries reference as a dynamic variable, e.g. text(Bearer {model.token})
-            stage_model_variable(node_name, rhs, value, state)?;
+            stage_model_variable(node_name, &lhs, rhs, value, state)?;
         } else {
             body = stage_task_parameter(node_name, &mut request_headers, rhs, value, body)?;
         }
@@ -533,6 +547,7 @@ fn build_task_request(
 
 fn stage_model_variable(
     node_name: &str,
+    lhs: &str,
     rhs: &str,
     value: Option<Value>,
     state: &mut MultiLevelMap,
@@ -540,13 +555,7 @@ fn stage_model_variable(
     assert_mutable_model_target(node_name, rhs)?;
     match value {
         Some(v) => state.set_element(rhs, v).map_err(invalid)?,
-        None => {
-            if rhs.ends_with(']') && rhs.contains('[') {
-                state.set_element(rhs, Value::Nil).map_err(invalid)?;
-            } else {
-                state.remove_element(rhs);
-            }
-        }
+        None => apply_null_source(state, lhs, rhs)?,
     }
     Ok(())
 }
