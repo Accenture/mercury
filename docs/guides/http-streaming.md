@@ -105,6 +105,19 @@ The first event commits the HTTP response head (status, content type, other head
 Later events cannot change it. Writes after `close` or `fail` are dropped, mirroring
 the edge dropping late segments after a timeout or client disconnect.
 
+### Tracing a stream {#tracing}
+
+A stream is traced at its head and its tail, never per token. When the writer is built inside a
+traced function (`EventStreamWriter::from_request` in `handle_event` - the normal case), the first
+segment and the terminal (`done` or `error`) carry the function's trace and span, so the reply
+lane's records for them parent onto the function; the data segments in between carry no trace,
+because one span per token would flood a tracing backend. The lane annotates the terminal's record
+with `frames`, the number of data segments it rendered, and the edge's own
+[round-trip span](observability.md#edge-span) closes when the terminal is rendered - so a streamed
+response's real duration is visible in the trace without a span per token. The same shape holds
+when a stream is relayed across applications (below): the relay stamps its own span on the head and
+the terminal it synthesizes and forwards the raw token frames untraced.
+
 ## What the client sees
 
 **SSE mode** (`Content-Type: text/event-stream`) - the de facto wire for LLM token

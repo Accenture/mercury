@@ -97,7 +97,7 @@ alongside the configured trace-id and correlation-id headers on every call made 
 trace — so a chain of mercury applications, or a mercury application behind any
 OpenTelemetry-compliant caller, produces one continuous distributed trace.
 
-## The edge's round-trip span
+## The edge's round-trip span {#edge-span}
 
 A traced endpoint records one more span than its functions: the **round trip** itself.
 REST automation mints a span id when the request arrives, makes it the first function's
