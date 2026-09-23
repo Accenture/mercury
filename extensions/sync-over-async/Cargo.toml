@@ -13,10 +13,10 @@ categories = ["asynchronous", "web-programming"]
 name = "sync_over_async"
 
 [dependencies]
-mercury-platform-core = { version = "4.12.14", path = "../../crates/platform-core" }
+mercury-platform-core = { version = "4.12.15", path = "../../crates/platform-core" }
 # the shared Redis client foundation (configuration, standalone-or-cluster
 # seam, health probe) - extracted from this crate, lock-step with the Java engine
-mercury-redis-connection = { version = "4.12.14", path = "../redis-connection" }
+mercury-redis-connection = { version = "4.12.15", path = "../redis-connection" }
 async-trait = "0.1"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 log = "0.4"

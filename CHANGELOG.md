@@ -11,6 +11,75 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Version 4.12.15, 9/22/2026
+
+The lock-step round after the four-runtime certification: the same number on both engines and on the python and
+node language packs. On this engine the release closes the two rulings of the pre-release backlog survey — the
+Layer 3 starter runs dev mode and the home page outside dev is a plain page (P10), and the Redis foundation
+retries intelligently after a restart — and carries the Kafka graceful-shutdown contract, the Playground E0 twin
+and the connected edge spans. Upgrade action: read the *Changed* items; the one new key, `redis.heartbeat.ms`,
+has a working default. Publication: the twelve crates at 4.12.15 on crates.io (`cargo publish --workspace` from
+the tag).
+
+**Lock-step notes.** Java 4.12.15's three items land here as twins: the connected edge spans (#315), the Kafka
+shutdown contract (#312, #313) and the plain home page (#319). This engine's own items with no Java analogue: the
+restart-aware Redis retry (Lettuce requeues unwritten commands across a reconnect, so the Java foundation needs
+none), the Layer 3 starter's dev mode (the Java starter has had it since 4.12.9) and the Playground E0 twin (the
+Java Playground has carried the support-triage graph since experiment E0).
+
+### Added
+
+- **The restart-aware Redis retry in the shared foundation** (`extensions/redis-connection`, #320, Increment 135).
+  `redis-rs`'s `ConnectionManager` arms its reconnect when a command fails but returns that command's error, so
+  the first command after a Redis restart failed with `broken pipe` and the second healed. Every `RedisBackend`
+  now carries a `ConnectionLifecycle` (healthy/lost, with drops, retries and recoveries counters; a loss and a
+  recovery each logged once) and a heartbeat monitor — `redis.heartbeat.ms` (per prefix, falling back to
+  `redis.*`; default 1000; `0` disables; standalone connections), a `PING` per interval whose failure makes the
+  manager reconnect ahead of the next command, so a command issued after it — a non-idempotent `RPUSH` included —
+  succeeds on its first attempt. A command that fails while the connection was believed healthy is the restart
+  itself: an idempotent one (`query_idempotent`, `query_pipeline_idempotent`) is retried exactly once on the
+  fresh connection; a command issued while the connection is known down makes one deadline-bounded attempt,
+  never two; a non-idempotent command is never replayed (on RESP2 the crate reports `broken pipe` both for a
+  command it never sent and for one whose reply was lost, so non-delivery cannot be proven). The distributed
+  cache marks `GET`/`MGET`/`SETEX`/`MPUT`/`DEL`/`LLEN` idempotent; the sync-over-async store runs on the
+  foundation (`ReturnRouteStore::connect`), keeping its own status mapping and its unreplayed append, pop and
+  publish (design D7). Guides: configuration reference (`redis.heartbeat.ms`), distributed cache (*Redis
+  restarts*); the polyglot return-route report's note 3 is closed.
+- **The Layer 3 starter runs dev mode** (`templates/starter-graph`, #319, Increment 134 — P10 closed the Java
+  way): `app.env: dev`, the `get.index.html` home-page route and the dev-mode Playground and companion routes the
+  Java starter ships, with the README's *Dev mode is on* section and the broker README pointing at the starter's
+  own port; the AI agent guide's scaffolding section now starts from the template.
+- **The Playground E0 twin** (`examples/minigraph-playground`, #314, Increment 132): the support-triage graph and
+  the `llm.stream.relay` to a python or node AI node, rendering the provider's tokens progressively out this
+  engine's HTTP edge — driven in the four-runtime certification (Scenarios 8 and 9 of
+  `docs/test-reports/otel-dynatrace-certification.md`, which also gained Scenarios 6 and 7: #311, #316–#318).
+
+### Changed
+
+- **A traced HTTP request is one connected span tree whose root is the edge's round-trip span** (#315,
+  Increment 133). REST automation mints a span at receipt and records `service=http.request` when the response
+  completes — buffered, streamed, error or idle timeout — with the round trip as `exec_time`; the first function
+  and the auth service parent onto it; the Event-over-HTTP relay's client leg parents onto its sender (the route
+  is no longer zero-traced: `skip.rpc.tracing` suppresses only the caller-side RPC `round_trip` record, the Java
+  semantics); a stream is traced at its head and its tail, never per token, with the terminal's record annotated
+  `frames`. The forwarder maps SERVER iff `service == http.request`; every function execution is INTERNAL.
+  **Upgrade action:** read — one more span per traced request; a dashboard keyed on `kind=SERVER` moves to the
+  `http.request` record; the first function is INTERNAL. Guides: observability (*The edge's round-trip span*),
+  http-streaming (*Tracing a stream*, #321).
+- **The home page outside dev mode is a plain page** (#319). The Playground web app's `index.html` was the
+  knowledge-graph crate's static `resources/public/index.html`, so any Layer 3 application served the Playground
+  at `/` in every environment. It is now `resources/template/playground.html`, served by `get.index.html` only
+  when `app.env=dev`; the static `public/index.html` and the routed page for any other `app.env` — an absent one
+  included (the function used to default to dev) — are the plain "MiniGraph Service" page. **Upgrade action:**
+  read — an application that never routed `get.index.html` now gets the plain page at `/` in dev mode too (add
+  the route; the AI guide's `playground-enabled` profile always listed it); an application with no `app.env` gets
+  the plain page where it used to get the Playground; the webapp's `npm run release` writes the assets to
+  `public/assets/` and the entry page to `template/playground.html`.
+- **minimalist-kafka's graceful shutdown is a contract** (#312, #313, Increments 130–131): a flow consumer's
+  close is an explicit LeaveGroup observed at the broker (pinned against the mock cluster), and the producer
+  flushes within the 10 s grace after the consumers — what the grace cannot deliver is reported, never awaited
+  without bound. No upgrade action.
+
 ## Version 4.12.14, 9/21/2026
 
 The lock-step release — one number on both engines. The port moves from 4.12.12 to the Java engine's
