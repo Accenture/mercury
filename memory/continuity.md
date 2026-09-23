@@ -14,24 +14,31 @@
 
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22); the v4.12.14 release — one number on both engines — is MERGED (PR #308 → `b83c493f`, 2026-09-22 02:08Z; tag + `cargo publish` pending). The current release is the `latest_release` field below. History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
-- **latest_release:** v4.12.14 (2026-09-22 02:12:43Z — **the lock-step release with the Java engine**: release PR #308
-  `00ee2181` merged as `b83c493f`; tag `v4.12.14` → `2c88fe2b` (one memory-only commit past the merge), workspace version
-  verified at the tag; the GitHub release body is the CHANGELOG entry; the Java engine released the same number at
-  02:11:55Z — one number on both engines, the Java-side `conv-ports-adopt-java-release-number`). Content since 4.12.12:
-  the minimalist-kafka port complete (K3–K5 incl. the Schema Registry wire format, Increment 127,
-  [[schema-registry-native-codec]]), the OpenTelemetry trace forwarder (mercury #307, Increment 129,
-  [[otel-forwarder-no-sdk]], Dynatrace-certified), the sync-over-async facade tasks + the demo mirror, the lock-step round
-  with Java 4.12.12/4.12.13 (Increment 128), `Platform::keep_running` + the SIGTERM stop (126), `group.protocol=auto` in
-  the bundled template, the port-holding `kafka.health` test fix. Sweep: **13 Cargo.toml files / 24 occurrences**,
-  re-derived ([[conv-template-version-sweep-rust]]). **crates.io: 11 of 12 crates PUBLISHED 2026-09-22** by Eric's single `cargo publish --workspace` from the tag (cargo 1.98 orders the workspace dependency-first and waits for index propagation itself); the registry had held 4.12.7 of seven crates, and `redis-connection`, `minimalist-kafka`, `distributed-cache`, `opentelemetry-forwarder` publish for the first time — both CHANGELOG entries under-stated that; corrected on `docs/changelog-4.12.14-crates` — Rust PR #310 merge `89523616`, Java PR #438 squash `10eb9e0b`, both 2026-09-22 02:36Z. **The v4.12.14 release cycle is CLOSED on both engines**; open afterwards: the forwarder's field acceptance on the published crate ([[otel-forwarder-certification]]) and the starter-graph dev-mode ruling. **`mercury-sync-over-async` REJECTED at upload** — keyword `progressive-rendering` is 21 chars, over crates.io's 20-char cap, which cargo does not validate locally (its first publish, so the first time the cap was hit); fixed to `progressive` on `fix/sync-over-async-keyword` `52cb3b70` (+ the minigraph-state-redis readme path that cargo warned about), package-verified against the live registry, **PR #309 MERGED 2026-09-22 02:24Z as `d8336296`**; the single `cargo publish -p mercury-sync-over-async` from main hit crates.io's NEW-CRATE rate limit first (429, retry-after 02:27:45Z — the fifth first-time crate of the hour) and succeeded on the retry: **12 of 12 crates on crates.io at 4.12.14, verified 2026-09-22 ~02:30Z. The v4.12.14 release is COMPLETE on both engines.** Still open, needing a ruling: dev
-  mode in the Layer 3 starter template. Origin 2026-09-22-010413.md.
-  Prior: v4.12.12 (2026-09-21 — **the catch-up release**, PR #296 `13744c77` merged as `983e7550`;
-  tag `v4.12.12` → `1ef183cb`, one memory-only commit past the merge, workspace version verified at the tag; GitHub
-  release published 00:53Z, body = the CHANGELOG entry). Adopts the Java number per the Java-side
-  `conv-ports-adopt-java-release-number`: 4.12.7 → 4.12.12 in one step, carrying Increments 118–124 plus the
-  sync-over-async R1–R4 and minimalist-kafka K1–K2 gates. Crates.io publication still held until K5. Not yet
-  ported (stated in the entry, backlog P8–P10): the CompileGraph task↔skill gate, the case-insensitive
-  `input.header.*` fallback for Kafka headers, dev mode in the starter-graph template — the first two ported on `feat/lockstep-4-12-13` (2026-09-21), the third RULED and shipped 2026-09-22: Increment 134, `fix/plain-home-page-outside-dev` `037131e8`, PR #319 MERGED 2026-09-23 00:30Z, merge `49403c23` — the starter gains dev mode and the home page outside dev is a plain page.)
+- **latest_release:** v4.12.15 (2026-09-23 01:36:57Z — **the lock-step round after the four-runtime certification**: release
+  PR #322 `dc64647a` merged as `87ee371f`; tag `v4.12.15` → `28cd3328` (one memory-only commit past the merge), workspace
+  version verified at the tag; the GitHub release body is the CHANGELOG entry; the `rust` workflow green on main). Content
+  since 4.12.14 — Increments 132–135: the Playground E0 twin (#314), the connected edge spans (#315,
+  [[connected-edge-spans]] — READ: one more span per traced request, the first function INTERNAL, `kind=SERVER`
+  dashboards move to the `http.request` record), the Kafka graceful-shutdown contract (#312/#313), the Layer 3 starter's
+  dev mode + the plain home page outside dev (#319, P10 — READ: an app without the `get.index.html` route gets the plain
+  page at `/` in dev too; an absent `app.env` is production), the restart-aware Redis retry in the shared foundation (#320,
+  [[redis-restart-aware-retry]]; the one new key `redis.heartbeat.ms`, default 1 s). Sweep: **13 Cargo.toml files / 24
+  occurrences** + `Cargo.lock`, re-derived ([[conv-template-version-sweep-rust]]). Readiness: `cargo test --workspace` 603
+  passed (the earlier "467" was a `tail`-truncated capture). crates.io: the twelve crates' publication (`cargo publish --workspace`) is Eric's step after the tag — recorded when
+  visible. **Lockstep:** the Java engine released v4.12.15
+  the same hour (mercury-composable #451 squash `aafeff04`, tag → `b705e9ff`, 01:35:26Z — the connected edge spans, the
+  Kafka shutdown, the plain home page) and the python/node packs moved 4.12.1 → 4.12.15 (mercury-python #37 `95101575`,
+  mercury-nodejs #105 `13426732`) — one number on all four per the Java-side `conv-ports-adopt-java-release-number`.
+  Origin 2026-09-23-014725.md.
+  Prior: v4.12.14 (2026-09-22 02:12:43Z — the first lock-step release with the Java engine; PR #308 merged as `b83c493f`,
+  tag → `2c88fe2b`; the minimalist-kafka port complete (K3–K5 incl. the Schema Registry wire format, Increment 127,
+  [[schema-registry-native-codec]]), the OpenTelemetry forwarder (#307, Increment 129, [[otel-forwarder-no-sdk]]), the
+  sync-over-async facade + demo mirror, the Java 4.12.12/4.12.13 lock-step round (128), `Platform::keep_running` + the
+  SIGTERM stop (126), `group.protocol=auto`; 12 of 12 crates on crates.io by 02:30Z after one keyword retry; CHANGELOG
+  correction #310. Origin 2026-09-22-010413.md.) Prior: v4.12.12 (2026-09-21 — the catch-up release, PR #296 merged as
+  `983e7550`, tag → `1ef183cb`: 4.12.7 → 4.12.12 in one step, Increments 118–124 + sync-over-async R1–R4 + minimalist-kafka
+  K1–K2; its three "not yet ported" items all shipped since — the task↔skill gate and the `input.header.*` fallback in
+  4.12.14, dev mode in the starter in 4.12.15.)
 - **last_enabled:** 2026-07-15
 - **last_review:** 2026-09-21 | through 2026-09-21-025547.md (cadence — 10 sessions since; archived 0, swept 0 —
   the six closed threads sit at sslu 9–15, inside the 20-session window; tier changes 14 (refresh-metadata:
@@ -127,7 +134,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   was owed since then): the AI docs now lead with the broker and name the keep-alive failure mode;
   the scaffolding manifest carries `scripts/` into derived projects; the broker also ships in
   `templates/starter-graph` (Eric, 2026-09-14).
-  <!-- id: playground-session-broker | created: 2026-09-03 | last_used: 2026-09-19 | uses: 7 | tier: active | origin: 2026-09-03-172834.md -->
+  <!-- id: playground-session-broker | created: 2026-09-03 | last_used: 2026-09-19 | uses: 7 | tier: archive-candidate | origin: 2026-09-03-172834.md -->
 
 - **A `for_each` iteration of a suspending subgraph suspends under its OWN record — the store key is
   `graph:{graph_id}:{cid}:{index}`, and that key format is a cross-engine contract (lock-step with the
@@ -151,7 +158,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   iteration, each holding its own item and counter, both resumed and consumed), which the Java suite
   does not have. Amends ADR-0012 in place (see [[conv-proposals-not-in-adr-ledger-rust]]); relates
   [[fork-join-awaits-on-calling-task]] (found by this increment's test).
-  <!-- id: for-each-suspend-index-key-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 2 | tier: active | origin: 2026-09-19-022252 -->
+  <!-- id: for-each-suspend-index-key-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 2 | tier: archive-candidate | origin: 2026-09-19-022252 -->
 
 - **Fork-join batches are awaited ON THE CALLING TASK, never `tokio::spawn`ed (found 2026-09-19 by
   the `for_each` lockstep's end-to-end test; Increment 118).** The distributed-trace bracket is a tokio
@@ -168,7 +175,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   EVERY shape the feature has — the fan-out failed it on the first run. Pinned by
   `rust-orchestrator-foreach`'s business-cid assertion. Relates [[for-each-suspend-index-key-rust]],
   [[port-bottom-up-faithful]].
-  <!-- id: fork-join-awaits-on-calling-task | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: active | origin: 2026-09-19-022252 -->
+  <!-- id: fork-join-awaits-on-calling-task | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: archive-candidate | origin: 2026-09-19-022252 -->
 
 - **The Redis client layer is the shared `mercury-redis-connection` foundation — `RedisConfig` with a
   configurable key prefix and the plain `redis.*` fallback, the `RedisBackend` standalone-or-cluster seam,
@@ -187,7 +194,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `Platform::on_shutdown` (Java `onShutdown`, v4.12.9) landed with it: hooks run once, newest first,
   isolated, from `AutoStart::run`. Relates [[distributed-cache-rust]]; twin of the Java
   `redis-connection-foundation`.
-  <!-- id: redis-connection-foundation-rust | created: 2026-09-19 | last_used: 2026-09-20 | uses: 2 | tier: active | origin: 2026-09-19-182617 -->
+  <!-- id: redis-connection-foundation-rust | created: 2026-09-19 | last_used: 2026-09-22 | uses: 3 | tier: active | origin: 2026-09-19-182617 -->
 
 - **The distributed cache is `mercury-distributed-cache` — ONE action function `v1.cache.redis` over
   opaque bytes, gated by `redis.cache.enabled`, byte-compatible with the Java module (Increment 119,
@@ -211,7 +218,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   example's Layer 1 false-miss on a cache failure (fixed — PR #286 MERGED 2026-09-20, merge `01710589` — [[l1-caller-checks-reply-status-rust]]) and
   trimmed the example's direct `mercury-event-script` dependency ([[conv-cargo-declare-what-you-name]]).
   Builds on [[redis-connection-foundation-rust]]; the example applies [[playground-session-broker]].
-  <!-- id: distributed-cache-rust | created: 2026-09-19 | last_used: 2026-09-20 | uses: 3 | tier: active | origin: 2026-09-19-182617 -->
+  <!-- id: distributed-cache-rust | created: 2026-09-19 | last_used: 2026-09-22 | uses: 4 | tier: active | origin: 2026-09-19-182617 -->
 
 - **A function that awaits `po.request` must check the reply's STATUS before reading its body — the
   engines do it for flows and graphs, imperative code must do it itself (Java ⇄ Rust cache interop,
@@ -225,7 +232,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   racing Lettuce's command timeout — fixed in lock-step. Recorded asymmetry, since CLOSED (2026-09-20): an in-function RPC timeout is **408** here (`Result`)
   and WAS **500** on Java — a Java platform-core mapping gap (status from the outermost exception), fixed there
   with a cause-chain rule; 408 on both engines now, this engine unchanged. Applies to every PostOffice caller, not only the cache. Relates [[rest-error-body-standard-shape]].
-  <!-- id: l1-caller-checks-reply-status-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: active | origin: 2026-09-20-004627 -->
+  <!-- id: l1-caller-checks-reply-status-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: archive-candidate | origin: 2026-09-20-004627 -->
 
 - **The foundation's command path classifies Redis failures — a timeout is 408, an unreachable Redis 503,
   only a server answer stays 500 — so `v1.cache.redis` fails for what it is, in lock-step with Java (Eric,
@@ -243,7 +250,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   timeout). Java twin: `RedisFailure.classify` applied by `RedisCache`. Behaviour change to READ: a caller
   that keyed on 500 for a Redis outage now sees 408/503. Relates [[redis-connection-foundation-rust]],
   [[l1-caller-checks-reply-status-rust]].
-  <!-- id: redis-failure-classification-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: active | origin: 2026-09-20-004627 -->
+  <!-- id: redis-failure-classification-rust | created: 2026-09-20 | last_used: 2026-09-22 | uses: 2 | tier: active | origin: 2026-09-20-004627 -->
 
 - **A function's failure reaches a REST client as the standard error body `{status, message, type:
   error}` — never as bare text (found and fixed 2026-09-19 by the cache example's Layer 1 miss).** Java
@@ -256,7 +263,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   nothing negotiated a type. **Lesson (the third instance this sprint): a Java-parity assertion carried
   into a Rust twin test is the cheapest parity instrument there is — copy the assertion, not just the
   scenario.** Pinned by `function_failure_is_java_shaped_error_body`.
-  <!-- id: rest-error-body-standard-shape | created: 2026-09-19 | last_used: 2026-09-20 | uses: 2 | tier: active | origin: 2026-09-19-182617 -->
+  <!-- id: rest-error-body-standard-shape | created: 2026-09-19 | last_used: 2026-09-20 | uses: 2 | tier: archive-candidate | origin: 2026-09-19-182617 -->
 
 - **A typed function may return an `EventEnvelope` to set the reply's status, headers and body — the
   `TypedAdapter` honours it AS the reply (2026-09-19, d0b0363e; Java `TypedLambdaFunction<I, EventEnvelope>`
@@ -269,7 +276,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   PR at his direction. Pinned over REST by `typed_function_may_return_an_envelope_to_set_status_and_headers`.
   Relates [[rest-error-body-standard-shape]] (found the same day, the same "Java honours the envelope"
   family); documented in the three authoring surfaces.
-  <!-- id: typed-function-envelope-reply | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: active | origin: 2026-09-19-182617 -->
+  <!-- id: typed-function-envelope-reply | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: archive-candidate | origin: 2026-09-19-182617 -->
 
 - **A headless Rust application must declare that it keeps running — `Platform::keep_running(reason)`
   (found at the minimalist-kafka K4 live drive, 2026-09-21).** `AutoStart::run` parks the process until
@@ -286,7 +293,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   proven live: explicit `LeaveGroup` 22 ms after the signal, where a hard kill waits the 45 s session
   timeout. Report: `docs/test-reports/minimalist-kafka-interop.md` Findings 1–2; Increment 126. **Pinned 2026-09-22 (PR #312, merge `3a90afc6`, Increment 130):** `tests/kafka_shutdown.rs` observes the leave at the mock broker — the survivor of a two-member group holds the leaver's partitions ~3 s after the close (its next heartbeat), never the session timeout — under the consumer protocol (the mock's classic coordinator is slow after a leave; a real broker leaves in 1–2 ms under both); guide §`#shutdown` + claim `kafka-consumer-leaves-group-on-shutdown` (the same id as Java's, whose `KafkaShutdownTest` landed with the Java fix). **And the producer half (PR #313, merge `c952f1e8`, Increment 131, Eric's 10 s ruling):** `runtime::close_publisher` — registered on `on_shutdown` where the producer is built, so it runs AFTER the adapter's consumer stop (hooks newest-first) — flushes within the same 10 s `SHUTDOWN_GRACE` and forgets the handle, reporting what the grace could not deliver; the bound is the deliberate delta from Java's unbounded close (Java then adopted the same bound, mercury-composable #441). Two measured limits recorded in Increment 131: rdkafka's safe flush waits through the client's linger (its zero-timeout `rd_kafka_flush` loop never shows librdkafka the flushing flag; accepted over the crate's first `unsafe`), and on the mock coordinator a KIP-848 member closed within its first heartbeat after an assignment does not always leave (the test now waits for a settled member). Relates [[port-bottom-up-faithful]]
   (an implicit JVM property mapped to an explicit Rust declaration).
-  <!-- id: headless-app-keep-running | created: 2026-09-21 | last_used: 2026-09-21 | uses: 3 | tier: active | origin: 2026-09-21-175430 -->
+  <!-- id: headless-app-keep-running | created: 2026-09-21 | last_used: 2026-09-22 | uses: 6 | tier: active | origin: 2026-09-21-175430 -->
 
 - **The Schema Registry codec is this engine's own, and what it cannot delegate it refuses (Eric's viability
   ruling, 2026-09-21; K5a).** Java speaks the Confluent wire format through Confluent's own serializers; there is
@@ -303,7 +310,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   per registry (a second registry = a second key prefix, because global ids are only unique within one
   registry). Proven byte-compatible live: Confluent's serializers ⇄ this codec in both directions
   (`docs/test-reports/minimalist-kafka-interop.md`, K5 addendum). Spec §7 items 12–16.
-  <!-- id: schema-registry-native-codec | created: 2026-09-21 | last_used: 2026-09-21 | uses: 1 | tier: working | origin: 2026-09-21-233114 -->
+  <!-- id: schema-registry-native-codec | created: 2026-09-21 | last_used: 2026-09-23 | uses: 3 | tier: active | origin: 2026-09-21-233114 -->
 
 - **The OpenTelemetry forwarder is this engine's own OTLP encoder over the platform HTTP client — no OpenTelemetry
   SDK — opt-in by `otel.forwarding`, and a late credential arrives as a runtime override (Eric, 2026-09-21 →
@@ -333,10 +340,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   OTLP encoder ported to mercury-python (#33) and mercury-nodejs (#101) — and Scenario 8 certified them together with
   the Playground's E0 twin (#314, merged `44bb207e`): the Rust and Java edges rendering Gemini tokens progressively through the hosts'
   `llm.stream`, four token-bearing traces, lineage from both sides' datasets, 0 export failures; Eric's Dynatrace
-  lookup is the remaining gate.
+  lookup confirmed them the same day — and found the trees broken at the root, which [[connected-edge-spans]] fixed;
+  Scenario 9 and drive 9 (token-bearing) were confirmed in the UI afterwards.
   **2026-09-22, later:** the kind rule became SERVER iff `service == http.request` — the edge's round-trip record
   introduced by [[connected-edge-spans]]; a function execution is INTERNAL.
-  <!-- id: otel-forwarder-no-sdk | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-010413 -->
+  <!-- id: otel-forwarder-no-sdk | created: 2026-09-22 | last_used: 2026-09-23 | uses: 3 | tier: active | origin: 2026-09-22-010413 -->
 
 - **A traced HTTP request is ONE connected span tree whose root is the edge's round-trip span; a streamed
   response is traced at its head and its tail, never per token (Eric's rulings on the Dynatrace review of
@@ -369,7 +377,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `annotation.frames: 8` on the stream terminal; report PR #318 `21115dc0`).**
   Open: v4.12.15 on Eric's go.**
   Extends [[otel-forwarder-no-sdk]]; pinned by `event_over_http_stream::edge_relay_spans_are_connected`.
-  <!-- id: connected-edge-spans | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-200854 -->
+  <!-- id: connected-edge-spans | created: 2026-09-22 | last_used: 2026-09-23 | uses: 2 | tier: active | origin: 2026-09-22-200854 -->
 
 - **The Redis foundation retries intelligently — a heartbeat monitor plus one retry per lost connection for
   idempotent commands only, never a replay of a non-idempotent one (Eric's ruling on polyglot note 3, 2026-09-22;
@@ -396,7 +404,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   was wrong on the way, not the code: under a refused outage the single attempt waits on the reconnect up to the
   deadline (408), so "fail fast" means one deadline-bounded attempt, never two. Extends
   [[redis-connection-foundation-rust]], [[redis-failure-classification-rust]]; closes the polyglot report's note 3.
-  <!-- id: redis-restart-aware-retry | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-235800 -->
+  <!-- id: redis-restart-aware-retry | created: 2026-09-22 | last_used: 2026-09-23 | uses: 2 | tier: active | origin: 2026-09-22-235800 -->
 
 ## Conventions
 
@@ -413,7 +421,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   pins (deliberately NOT workspace-inherited, so a copied-out template builds as-is after
   deleting the in-repo `path` keys) — the release edit list grows from 5 manifests to 8.
   **Extended 2026-09-22 (the v4.12.14 publish):** before a crate's FIRST publish, audit its manifest metadata as part of the release sweep — `keywords` ≤ 5 and each ≤ 20 characters, valid `categories`, a `readme` path inside the package — because cargo validates none of it locally and crates.io rejects at upload, after the dependency-ordered run has already published everything before it (`progressive-rendering`, 21 chars, cost `mercury-sync-over-async` its place in the 4.12.14 run).
-  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-20 | uses: 4 | tier: active | origin: 2026-09-11-005808 -->
+  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-23 | uses: 8 | tier: active | origin: 2026-09-11-005808 -->
 - Each ported module's `//!` doc names the **Java class it ports** (e.g.
   `org.platformlambda.core.util.ConfigReader`) so reviewers can diff behavior side-by-side.
 - **Tests:** unit tests in-module (`#[cfg(test)]`), integration tests in `tests/` with
@@ -466,7 +474,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `#[optional_service]` left out by its condition never leaves a live URL behind, and production never shows the
   React bundle. Verified live in both modes. Relates [[conv-cargo-declare-what-you-name]] (the same Playground
   polish round).
-  <!-- id: rest-skip-unregistered-and-root-fallback-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 2 | tier: active | origin: 2026-09-20-004627 -->
+  <!-- id: rest-skip-unregistered-and-root-fallback-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 2 | tier: archive-candidate | origin: 2026-09-20-004627 -->
 - **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic
   function by ONE `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric,
   2026-09-20; Increment 123 — a doc gap, no engine change; branch `docs/static-decision-table-on-a-node`
@@ -503,7 +511,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `skills-reference.md` (graph.task), the in-Playground help and the AI agent guide's pre-send checklist,
   pinned by `unit-test-task-9` (`graph_runtime.rs`) in lockstep with the Java repo. Extends
   [[conventions-rust-baseline]] (docs and fixtures stay byte-aligned with the reference).
-  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: active | origin: 2026-09-20-152809 -->
+  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: archive-candidate | origin: 2026-09-20-152809 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to

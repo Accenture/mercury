@@ -15,4 +15,4 @@
   idempotent-only retry-once keyed on the manager's own reconnect trigger (spec §5 item 6);
   append/pop/publish stay fail-fast.
   origin: 2026-09-13-161430 (spec) → R4 close: 2026-09-14-010743.
-  <!-- id: ot-sync-over-async-port | created: 2026-09-13 | last_used: 2026-09-14 | uses: 10 | tier: archive-candidate | origin: 2026-09-13-161430 -->
+  <!-- id: ot-sync-over-async-port | created: 2026-09-13 | last_used: 2026-09-21 | uses: 11 | tier: active | origin: 2026-09-13-161430 -->
