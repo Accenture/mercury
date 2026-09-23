@@ -700,7 +700,9 @@ command grammar, the graph traveler, the websocket UI, the AI-companion endpoint
 inspection, and the mock functions — are each declared with
 `#[optional_service("app.env=dev")]` and register only when this key is `dev`. Any other
 value (e.g. `${APP_ENV:dev}` resolved to `prod`) runs graphs only through
-`POST /api/graph/{graph-id}` and serves the `/template` home page instead of `/public`.
+`POST /api/graph/{graph-id}`, and the home page (`get.index.html`) serves the plain
+`/template/index.html` instead of the Playground page `/template/playground.html` — an absent
+`app.env` yields the plain page too, so a production deployment never shows the Playground UI.
 Read by `crates/knowledge-graph`.
 
 #### `graph.model.automation`

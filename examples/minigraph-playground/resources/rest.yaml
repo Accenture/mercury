@@ -2,8 +2,9 @@
 # The Playground REST endpoints (ported from the Java minigraph engine's
 # rest.yaml). The dev workbench itself loads over WebSocket (/ws/graph,
 # /ws/json — handled by the upgrade path, not routed here); these are the
-# companion/API hops. The compiled React bundle is served as static content
-# from the engine crate's resources/public at "/".
+# companion/API hops. The compiled React bundle's assets are static content from
+# the engine crate's resources/public; its entry page is served by get.index.html
+# (routed at /index.html, reached at "/") only when app.env=dev.
 #
 # The demo-mock data providers (mock.mdm.profile, mock.account.details) are
 # dev-only engine services (#[optional_service("app.env=dev")]); the tutorials'

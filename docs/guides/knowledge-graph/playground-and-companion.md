@@ -10,8 +10,11 @@ Both are **dev-only**: the workbench (WebSocket UI, command service, companion e
 registers only when `app.env=dev`, and there is no authentication — never expose them beyond
 a trusted development host. Their `rest.yaml` entries are skipped at load in any other environment
 (`Skip … - Service … not available`), so one `rest.yaml` serves both modes, and the home page
-(`get.index.html`, also reached at `/`) serves the plain page instead of the Playground UI. Deployed
-graphs still run in production through `POST /api/graph/{graph-id}`.
+(`get.index.html`, also reached at `/`) serves the plain page instead of the Playground UI — for any
+`app.env` other than `dev`, including none. The Playground page lives outside the static folder
+(`resources/template/playground.html`), so an application that does not route `get.index.html` gets
+the plain page at `/` in both modes — never the Playground by accident. Deployed graphs still run in
+production through `POST /api/graph/{graph-id}`.
 
 ## The workbench
 

@@ -86,7 +86,7 @@ Registered whenever the knowledge-graph crate is part of the application:
 | `graph.exception.handler` | Graph failure routing |
 | `graph.housekeeper` | Graph instance cleanup |
 | `graph.health` | Health probe for the graph engine |
-| `get.index.html` | The home page (serves `/public` in dev, `/template` otherwise) |
+| `get.index.html` | The home page (the Playground page when `app.env=dev`, the plain service page otherwise) |
 
 The knowledge graph additionally reserves the node **alias** `suspend` (bound to the
 `graph.suspend` skill — traversal jumps to it by name, the `root`/`end` pattern), the node

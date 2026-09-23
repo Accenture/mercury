@@ -11,3 +11,10 @@ rest.server.port: 8303
 # and compiles the manifest-listed graph models at startup; only graphs that
 # pass the gate are executable ("compiled or 404")
 graph.model.automation: 'classpath:/graphs.yaml'
+
+# Dev mode - activates the MiniGraph Playground UI, the WebSocket session and the AI
+# companion endpoint, so you can co-author graph models with an AI agent or by hand.
+# Every one of those services is gated by #[optional_service("app.env=dev")]; the matching
+# rest.yaml entries are skipped when the gate is closed, and the home page (get.index.html)
+# then serves a plain service page instead of the Playground UI. Remove this line for production.
+app.env: dev

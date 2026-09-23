@@ -320,8 +320,8 @@ impl ComposableFunction for GraphExceptionHandler {
 // service registers only when `app.env=dev` (via `#[optional_service]`); in any
 // other environment none of it exists — production graphs run only through
 // `POST /api/graph/{graph-id}`. The home page (`get.index.html`) is registered
-// regardless (it serves `/template` outside dev), matching Java's non-optional
-// `GetIndexHtml`.
+// regardless - it serves the Playground page only when `app.env=dev` and the plain
+// service page otherwise - matching Java's non-optional `GetIndexHtml`.
 
 /// Dev-only: start the Playground's temp-graph housekeeping sweep. A
 /// `#[before_application]` gated by `#[optional_service]`. This hook plus the
@@ -343,7 +343,7 @@ impl EntryPoint for PlaygroundHousekeeping {
 }
 
 /// Java `GetIndexHtml` (`get.index.html`) — the home page; registered in **all**
-/// environments (serves `/template` outside dev).
+/// environments (the Playground page only when `app.env=dev`, the plain page otherwise).
 #[preload(route = "get.index.html", instances = 10)]
 pub struct GetIndexHtml;
 
