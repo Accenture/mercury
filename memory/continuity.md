@@ -24,8 +24,8 @@
   page at `/` in dev too; an absent `app.env` is production), the restart-aware Redis retry in the shared foundation (#320,
   [[redis-restart-aware-retry]]; the one new key `redis.heartbeat.ms`, default 1 s). Sweep: **13 Cargo.toml files / 24
   occurrences** + `Cargo.lock`, re-derived ([[conv-template-version-sweep-rust]]). Readiness: `cargo test --workspace` 603
-  passed (the earlier "467" was a `tail`-truncated capture). crates.io: the twelve crates' publication (`cargo publish --workspace`) is Eric's step after the tag — recorded when
-  visible. **Lockstep:** the Java engine released v4.12.15
+  passed (the earlier "467" was a `tail`-truncated capture). **crates.io: 12 of 12 crates PUBLISHED 2026-09-23 01:57–01:57Z** by Eric's single `cargo publish --workspace`
+  from main (crate sources identical to the tag), no retry needed this time. **Lockstep:** the Java engine released v4.12.15
   the same hour (mercury-composable #451 squash `aafeff04`, tag → `b705e9ff`, 01:35:26Z — the connected edge spans, the
   Kafka shutdown, the plain home page) and the python/node packs moved 4.12.1 → 4.12.15 (mercury-python #37 `95101575`,
   mercury-nodejs #105 `13426732`) — one number on all four per the Java-side `conv-ports-adopt-java-release-number`.
