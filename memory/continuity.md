@@ -40,13 +40,9 @@
   K1–K2; its three "not yet ported" items all shipped since — the task↔skill gate and the `input.header.*` fallback in
   4.12.14, dev mode in the starter in 4.12.15.)
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-09-21 | through 2026-09-21-025547.md (cadence — 10 sessions since; archived 0, swept 0 —
-  the six closed threads sit at sslu 9–15, inside the 20-session window; tier changes 14 (refresh-metadata:
-  6 → active, the 6 closed threads → archive-candidate, 2 uses-only). **Near-miss recorded:**
-  `conv-template-version-sweep-rust` read sslu 25 and was archived in the first pass; step 6 found it APPLIED on
-  2026-09-20 (the v4.12.12 template sweep) with no declaration — the declaration was added to that session's own
-  log and the archive reverted before commit; see [[conv-declare-consulted-references-rust]]. Invariant re-verify
-  not due (10 of 40). Stalled threads: none. Prior: 2026-09-17 | through 2026-09-17-004239.md)
+- **last_review:** 2026-09-23 | through 2026-09-23-224407.md (cadence — 10 sessions since 2026-09-21; archived 0, swept 0 —
+  nothing past `archive_window`; tier changes 1 via `refresh-metadata`; lines and facts within the caps.)
+  Prior: 2026-09-21 | through 2026-09-21-025547.md (cadence; archived 0, swept 0; tier changes 14; the near-miss is in that log).
 - **last_invariant_check:** 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, team-eric-maintainer, vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -503,7 +499,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   set to null when the source key exists or the target is indexed) and is IGNORED for any other target — via one
   helper, `common::apply_null_source`, in the mapping entry, `for_each`, the `model.*` half of fetcher/extension
   parameters (a null parameter is not supplied) and the fetcher/task/extension output mapping (Increment 136, branch
-  `fix/l3-null-source-mapping-parity`). Until 4.12.15 it removed ANY target — the 2026-09-20 ruling had documented
+  `fix/l3-null-source-mapping-parity`, PR #323 MERGED 2026-09-23 `da133b88`; the same PR made every dry-run abort carry
+  its reason). Until 4.12.15 it removed ANY target — the 2026-09-20 ruling had documented
   that (PR #295, Java PR #432, claim `null-source-removes-target`, whose text now states the shared rule with the
   command reference, the command JSON, the data-mapper help and the `unit-test-lookup-1` probe). A default for a
   model variable still comes from the source side (the plugin's third argument, or `f:defaultValue`), never from
