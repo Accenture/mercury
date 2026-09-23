@@ -373,7 +373,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 - **The Redis foundation retries intelligently — a heartbeat monitor plus one retry per lost connection for
   idempotent commands only, never a replay of a non-idempotent one (Eric's ruling on polyglot note 3, 2026-09-22;
-  Increment 135, `feat/redis-lifecycle-retry` `3d4a9559`, stacked on the P10 branch).** `redis-rs`'s
+  Increment 135, `feat/redis-lifecycle-retry` — PR #320 MERGED 2026-09-23 00:36Z, merge `34ff82d6`).** `redis-rs`'s
   `ConnectionManager` arms its reconnect when a command fails but returns that command's error (Lettuce requeues
   unwritten commands), so the first command after a Redis restart failed `broken pipe` and the second healed.
   `ConnectionLifecycle` (per `RedisBackend`, shared by its clones) tracks healthy/lost with drops/retries/recoveries
