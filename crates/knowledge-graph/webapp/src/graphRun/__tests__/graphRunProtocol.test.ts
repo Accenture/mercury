@@ -31,6 +31,12 @@ describe('graph run protocol classification', () => {
       status: 'aborted',
       elapsedMs: null,
     }));
+    // every abort carries its reason (engine 4.12.16+): the terminal is matched by prefix
+    expect(classifyMessage(5, 'Graph traversal aborted: timed out after 1500 ms')).toContainEqual(expect.objectContaining({
+      kind: 'graph.run.terminal',
+      status: 'aborted',
+      elapsedMs: null,
+    }));
     expect(classifyMessage(4, 'ERROR: Root node does not exist')).toContainEqual(expect.objectContaining({
       kind: 'command.error',
       message: 'Root node does not exist',

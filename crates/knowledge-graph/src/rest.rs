@@ -259,7 +259,7 @@ fn is_traversal_command(command: &str) -> bool {
 /// last (success or failure), so the synchronous endpoint drains a traversal
 /// deterministically — no timer, no truncated capture.
 fn is_traversal_terminal(line: &str) -> bool {
-    line.starts_with("Graph traversal completed in") || line == "Graph traversal aborted"
+    line.starts_with("Graph traversal completed in") || line.starts_with("Graph traversal aborted")
 }
 
 /// **Synchronous** AI-companion command (design: `draft-design-specs/ai-companion-sync.md`)

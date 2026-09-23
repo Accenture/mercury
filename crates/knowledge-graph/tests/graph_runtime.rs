@@ -3527,8 +3527,10 @@ async fn companion_sync_pre_run_check_rejects_broken_suspend_contract(platform: 
         "the gate's rule message must reach the author: {output:?}"
     );
     assert!(
-        output.iter().any(|l| l == "Graph traversal aborted"),
-        "pre-run rejection must still emit the uniform terminal: {output:?}"
+        output
+            .iter()
+            .any(|l| l.starts_with("Graph traversal aborted: Unable to run - ")),
+        "pre-run rejection must still emit the uniform terminal, carrying the reason: {output:?}"
     );
 }
 

@@ -36,7 +36,7 @@ export function parseGraphRunTerminal(raw: string): GraphRunTerminalResult | nul
   if (completed) {
     return { status: 'completed', elapsedMs: Number.parseInt(completed[1], 10) };
   }
-  if (raw === 'Graph traversal aborted') {
+  if (raw.startsWith('Graph traversal aborted')) {
     return { status: 'aborted', elapsedMs: null };
   }
   return null;

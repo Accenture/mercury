@@ -221,10 +221,10 @@ inspect error                # the exception context after a failed node routed 
 
 **Run deadline:** a dry-run traversal is bounded by `model.ttl` (default 30 s) — the same
 deadline its deployed twin gets from the flow timer, so dev and production time out alike. A
-hung or overlong run ends with `Graph traversal timed out after N ms` followed by the canonical
-`Graph traversal aborted` terminal (the console and the synchronous companion endpoint always
-receive an end-of-transmission line). Seed a different budget at the instantiate edge:
-`long(60000) -> model.ttl`.
+hung or overlong run ends with the canonical terminal carrying its reason, `Graph traversal
+aborted: timed out after N ms` (every abort names its reason — a node's error, a pre-run gate
+rule, the deadline — and the console and the synchronous companion endpoint always receive an
+end-of-transmission line). Seed a different budget at the instantiate edge: `long(60000) -> model.ttl`.
 
 ### describe / list / seen {#describe}
 
