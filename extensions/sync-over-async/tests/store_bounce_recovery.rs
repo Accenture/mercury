@@ -25,107 +25,23 @@
 //! bounce (connections die, the server is immediately back), and dropping its
 //! listener is an outage (reconnects refused).
 
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use redis_test_double::start_resp_double;
+use redis_test_double::{start_resp_double, BounceProxy};
 use sync_over_async::{RedisSettings, ReturnRouteStore};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::watch;
-use tokio::task::JoinHandle;
 
-/// A TCP forwarder with a kill switch: `bounce()` severs every live link
-/// (the client sees a dropped connection; new connects succeed at once),
-/// `refuse()` also stops accepting (a full outage).
-struct BounceProxy {
-    port: u16,
-    links: Arc<Mutex<Vec<JoinHandle<()>>>>,
-    stop_accepting: watch::Sender<bool>,
-}
-
-impl BounceProxy {
-    async fn start(target_port: u16) -> BounceProxy {
-        let listener = TcpListener::bind("127.0.0.1:0").await.expect("proxy bind");
-        let port = listener.local_addr().expect("proxy addr").port();
-        let links: Arc<Mutex<Vec<JoinHandle<()>>>> = Arc::new(Mutex::new(Vec::new()));
-        let (stop_accepting, mut stopped) = watch::channel(false);
-        let live = links.clone();
-        tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    _ = stopped.changed() => return, // refuse(): drop the listener
-                    accepted = listener.accept() => {
-                        let Ok((inbound, _)) = accepted else { return };
-                        let Ok(outbound) = TcpStream::connect(("127.0.0.1", target_port)).await
-                        else {
-                            continue;
-                        };
-                        let link = tokio::spawn(async move {
-                            let (mut client_read, mut client_write) = inbound.into_split();
-                            let (mut server_read, mut server_write) = outbound.into_split();
-                            let up = async {
-                                let mut buf = [0u8; 4096];
-                                loop {
-                                    match client_read.read(&mut buf).await {
-                                        Ok(0) | Err(_) => return,
-                                        Ok(n) => {
-                                            if server_write.write_all(&buf[..n]).await.is_err() {
-                                                return;
-                                            }
-                                        }
-                                    }
-                                }
-                            };
-                            let down = async {
-                                let mut buf = [0u8; 4096];
-                                loop {
-                                    match server_read.read(&mut buf).await {
-                                        Ok(0) | Err(_) => return,
-                                        Ok(n) => {
-                                            if client_write.write_all(&buf[..n]).await.is_err() {
-                                                return;
-                                            }
-                                        }
-                                    }
-                                }
-                            };
-                            tokio::join!(up, down);
-                        });
-                        live.lock().expect("links").push(link);
-                    }
-                }
-            }
-        });
-        BounceProxy {
-            port,
-            links,
-            stop_accepting,
-        }
-    }
-
-    /// Sever every live link — a server bounce (back immediately).
-    fn bounce(&self) {
-        for link in self.links.lock().expect("links").drain(..) {
-            link.abort();
-        }
-    }
-
-    /// Sever the links AND refuse reconnects — a full outage.
-    fn refuse(&self) {
-        let _ = self.stop_accepting.send(true);
-        self.bounce();
-    }
-}
-
+/// The store through a severable relay. The heartbeat monitor is OFF here on
+/// purpose: these tests pin the retry semantics of a command that meets the
+/// lost connection itself, which the heartbeat would otherwise heal ahead of
+/// it (the foundation's own suite proves the heartbeat).
 async fn store_through_proxy(timeout_ms: u64) -> (ReturnRouteStore, BounceProxy) {
     let (redis_port, _store, _journal) = start_resp_double("7.4.0").await;
     let proxy = BounceProxy::start(redis_port).await;
-    let settings = RedisSettings::new("127.0.0.1", proxy.port, "", false, 0, timeout_ms);
-    let store = ReturnRouteStore::new(
-        settings.manager().await.expect("manager connects"),
-        settings.timeout(),
-    );
+    let settings =
+        RedisSettings::new("127.0.0.1", proxy.port(), "", false, 0, timeout_ms).with_heartbeat(0);
+    let store = ReturnRouteStore::connect(&settings)
+        .await
+        .expect("store connects");
     (store, proxy)
 }
 

@@ -787,6 +787,7 @@ How many visits to the same node within `graph.max.loop.interval` count as a run
 | `redis.ssl` | boolean | `false` |
 | `redis.database` | int | `0` (standalone only — a cluster is database 0) |
 | `redis.timeout.ms` | long (ms) | `5000` |
+| `redis.heartbeat.ms` | long (ms) | `1000` — the connection heartbeat of the standalone (managed) connection; `0` disables it. **Rust engine only** — a `PING` per interval that notices a lost connection and makes the client reconnect ahead of the next command, the lifecycle behind the restart-aware retry (Java's Lettuce requeues unwritten commands across a reconnect on its own) |
 | `redis.cluster.detect` | `auto` \| other | `auto` — probe the seed at start-up (`INFO cluster`); anything else = decide by `redis.cluster.mode` |
 | `redis.cluster.mode` | boolean | `false` — `true` = cluster client, `false` = standalone; also the fallback when auto-detection is inconclusive |
 | `redis.cluster.nodes` | string | — (blank = `redis.host:redis.port`; else `host:port,host:port` seeds) |

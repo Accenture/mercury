@@ -83,7 +83,7 @@ impl StreamResponder {
         ttl_seconds: u64,
     ) -> Result<Self, AppError> {
         Ok(StreamResponder {
-            store: ReturnRouteStore::new(settings.manager().await?, settings.timeout()),
+            store: ReturnRouteStore::connect(settings).await?,
             ttl_seconds,
         })
     }

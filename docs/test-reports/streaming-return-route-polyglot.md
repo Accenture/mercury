@@ -187,5 +187,11 @@ Nothing in the R-series — **R1 → R4 complete; the port is functionally in lo
 the Java engine's ratified design. Outside the series, recorded for their own gates: the
 `mercury-sync-over-async` crates.io publication rides the next release (with the
 path-only dev-dependency check), the one-shot facade tasks stay deferred until a transport
-worth demonstrating lands (ruling Q1), and note 3's hardening question awaits the
-maintainer's ruling.
+worth demonstrating lands (ruling Q1), and note 3 is **closed**: the store took the
+idempotent-only retry-once first (spec §5 item 6), and the maintainer's ruling of 2026-09-22 —
+retry intelligently, only when the broken pipe is a Redis restart or reconnection, on the strength of
+simple lifecycle monitoring — moved the mechanism into the `redis-connection` foundation: a heartbeat
+that notices the lost connection and makes the client reconnect *ahead* of the next command (so the
+producer's first `RPUSH` after a restart, this note's symptom, now finds a fresh connection), one
+retry per lost connection for idempotent commands only, and a single fast-failing attempt while the
+connection is known down. `RPUSH`/`LPOP` stay unreplayed by design (D7).

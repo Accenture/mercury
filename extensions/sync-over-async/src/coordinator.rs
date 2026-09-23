@@ -230,7 +230,7 @@ impl ReturnRouteCoordinator {
         config: SyncOverAsyncConfig,
     ) -> Result<Self, AppError> {
         let client = settings.client()?;
-        let store = ReturnRouteStore::new(settings.manager().await?, settings.timeout());
+        let store = ReturnRouteStore::connect(settings).await?;
         let (shutdown, _) = watch::channel(false);
         Ok(ReturnRouteCoordinator {
             return_channel: format!("{}:{origin}", config.return_channel_prefix()),

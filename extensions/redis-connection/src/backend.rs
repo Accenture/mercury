@@ -44,9 +44,47 @@
 //! Deliberate delta (port spec §4): the Java backend is generic in the value
 //! codec (`String` vs `byte[]`); the `redis` crate is codec-free, so typing
 //! lives at the call site (`query::<Vec<u8>>`, `query::<String>`).
+//!
+//! # Lifecycle — the restart-aware retry
+//!
+//! Lettuce (Java) requeues commands it has not yet written across a reconnect,
+//! so the first command after a Redis restart simply works there. The `redis`
+//! crate's [`ConnectionManager`] arms an asynchronous reconnect when a command
+//! fails but returns that command's error to the caller — so on this engine the
+//! first command after a restart used to fail (`broken pipe`) and the second
+//! heal. The maintainer's ruling (2026-09-22): retry **intelligently** — only
+//! when the failure is a Redis restart or reconnection — which takes some simple
+//! lifecycle monitoring. Two pieces, both on the standalone (managed) connection:
+//!
+//! - **The heartbeat monitor** ([`RedisConfig::heartbeat`], `heartbeat.ms`,
+//!   default 1 s, `0` = off): one `PING` per interval. A lost connection is
+//!   noticed within one interval — the failed `PING` is what makes the manager
+//!   reconnect *eagerly*, so a command issued after that awaits the fresh
+//!   connection and succeeds on its first attempt (the producer's first `RPUSH`
+//!   after a restart, the note-3 symptom, heals before it is sent). The monitor
+//!   flips [`ConnectionLifecycle::healthy`] and logs the loss and the recovery
+//!   once each.
+//! - **One retry per transition, idempotent commands only.** A command that fails
+//!   with a connection-loss error *and was issued while the connection was
+//!   believed healthy* is the restart itself: an idempotent command
+//!   ([`RedisBackend::query_idempotent`], the caller's declaration) is retried
+//!   exactly once, awaiting the manager's swapped-in reconnection future under
+//!   its own deadline. A command issued while the connection is already known to
+//!   be down makes ONE attempt, bounded by the command deadline (408 while the
+//!   manager is still trying to reconnect, 503 on an outright refusal) — never a
+//!   second one, so an outage never doubles the deadline. A non-idempotent
+//!   command is never replayed: on RESP2 the crate
+//!   reports `broken pipe` both for a command it never sent and for one whose
+//!   reply was lost (`closed_connection_error`), so non-delivery cannot be
+//!   proven, and replaying an ambiguous `RPUSH` risks a duplicate — the
+//!   heartbeat is what heals those ahead of the next call. A timeout is never a
+//!   lifecycle signal (408, no retry), nor is anything the server answered.
 
+use std::fmt::Display;
 use std::future::Future;
-use std::time::Duration;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, Weak};
+use std::time::{Duration, Instant};
 
 use platform_core::AppError;
 use redis::aio::{ConnectionLike, ConnectionManager, MultiplexedConnection};
@@ -173,14 +211,160 @@ pub fn command_timeout(timeout: Duration) -> AppError {
     )
 }
 
-/// One topology-agnostic Redis backend: the connection, what it is, and the
-/// per-command deadline (Java `RedisBackend`, built by `RedisBackendFactory`).
+/// Is this failure the connection going away (the manager's own reconnect
+/// trigger, plus the dropped/refused shapes), as opposed to a timeout or an
+/// answer from the server?
+pub fn is_connection_loss(error: &redis::RedisError) -> bool {
+    !error.is_timeout()
+        && (error.is_unrecoverable_error()
+            || error.is_io_error()
+            || error.is_connection_dropped()
+            || error.is_connection_refusal())
+}
+
+/// The caller's declaration of whether a command may be replayed after a lost
+/// connection (module docs: *Lifecycle*).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Replay {
+    /// Safe to run twice (`GET`, `SETEX`, `DEL`, `LLEN`, `MGET`…): retried once
+    /// when the loss is the restart itself.
+    Idempotent,
+    /// Never replayed (`RPUSH`, `LPOP`, `SET NX`…): the heartbeat heals the
+    /// connection ahead of the next call instead.
+    NotIdempotent,
+}
+
+/// A failed command, before classification — for a consumer that keeps its own
+/// status mapping (the sync-over-async store); [`CommandError::classify`] is the
+/// 408/503/500 mapping [`RedisBackend::query`] applies.
+#[derive(Debug)]
+pub enum CommandError {
+    /// No answer within the per-command deadline.
+    TimedOut(Duration),
+    /// The `redis` crate's own error — a lost connection or a server answer.
+    Redis(redis::RedisError),
+}
+
+impl CommandError {
+    /// Java `RedisFailure.classify`: 408 for a timeout, 503 for an unreachable
+    /// Redis, 500 for a server answer (see [`classify_command_error`]).
+    pub fn classify(self) -> AppError {
+        match self {
+            CommandError::TimedOut(timeout) => command_timeout(timeout),
+            CommandError::Redis(error) => classify_command_error(&error),
+        }
+    }
+}
+
+impl Display for CommandError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CommandError::TimedOut(timeout) => {
+                write!(
+                    f,
+                    "Redis command timed out after {} ms",
+                    timeout.as_millis()
+                )
+            }
+            CommandError::Redis(error) => write!(f, "{error}"),
+        }
+    }
+}
+
+/// What the backend currently believes about its connection, maintained by the
+/// heartbeat monitor and by every command's outcome (module docs: *Lifecycle*).
+/// Shared by all clones of one [`RedisBackend`]; the counters are for tests,
+/// health reporting and operators reading a recovery.
+pub struct ConnectionLifecycle {
+    endpoint: String,
+    healthy: AtomicBool,
+    drops: AtomicU64,
+    retries: AtomicU64,
+    recoveries: AtomicU64,
+    lost_at: Mutex<Option<Instant>>,
+}
+
+impl ConnectionLifecycle {
+    fn new(endpoint: String) -> Self {
+        ConnectionLifecycle {
+            endpoint,
+            healthy: AtomicBool::new(true),
+            drops: AtomicU64::new(0),
+            retries: AtomicU64::new(0),
+            recoveries: AtomicU64::new(0),
+            lost_at: Mutex::new(None),
+        }
+    }
+
+    /// `true` while the connection is believed up — a lost connection that no
+    /// command or heartbeat has seen restored yet reads `false`.
+    pub fn healthy(&self) -> bool {
+        self.healthy.load(Ordering::Acquire)
+    }
+
+    /// Transitions from healthy to lost observed so far.
+    pub fn drops(&self) -> u64 {
+        self.drops.load(Ordering::Relaxed)
+    }
+
+    /// Second attempts spent on idempotent commands.
+    pub fn retries(&self) -> u64 {
+        self.retries.load(Ordering::Relaxed)
+    }
+
+    /// Transitions from lost back to healthy.
+    pub fn recoveries(&self) -> u64 {
+        self.recoveries.load(Ordering::Relaxed)
+    }
+
+    /// A connection-loss failure was observed. Returns whether the connection
+    /// was believed healthy until now — i.e. whether this failure IS the
+    /// transition (logged once per transition).
+    fn mark_lost(&self, cause: &dyn Display) -> bool {
+        let was_healthy = self.healthy.swap(false, Ordering::AcqRel);
+        if was_healthy {
+            self.drops.fetch_add(1, Ordering::Relaxed);
+            *self.lost_at.lock().expect("lifecycle") = Some(Instant::now());
+            log::warn!(
+                "Redis connection to {} lost - {cause}; reconnecting",
+                self.endpoint
+            );
+        }
+        was_healthy
+    }
+
+    /// A command or heartbeat succeeded: healthy again (logged once per
+    /// recovery, with how long the connection was gone).
+    fn mark_alive(&self) {
+        if !self.healthy.swap(true, Ordering::AcqRel) {
+            self.recoveries.fetch_add(1, Ordering::Relaxed);
+            let gone = self.lost_at.lock().expect("lifecycle").take();
+            match gone {
+                Some(since) => log::info!(
+                    "Redis connection to {} restored after {} ms",
+                    self.endpoint,
+                    since.elapsed().as_millis()
+                ),
+                None => log::info!("Redis connection to {} restored", self.endpoint),
+            }
+        }
+    }
+
+    fn count_retry(&self) {
+        self.retries.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+/// One topology-agnostic Redis backend: the connection, what it is, the
+/// per-command deadline and the connection lifecycle (Java `RedisBackend`,
+/// built by `RedisBackendFactory`).
 #[derive(Clone)]
 pub struct RedisBackend {
     connection: RedisConnection,
     cluster: bool,
     timeout: Duration,
     endpoint: String,
+    lifecycle: Arc<ConnectionLifecycle>,
 }
 
 impl RedisBackend {
@@ -190,15 +374,25 @@ impl RedisBackend {
     /// `RedisBackendFactory.create`).
     pub async fn connect(config: &RedisConfig) -> Result<Self, ConnectError> {
         let cluster = Self::resolve_cluster(config).await;
-        let connection = if cluster {
-            RedisConnection::Cluster(Self::cluster_connection(config).await?)
-        } else {
-            let client = Self::client(config)?;
-            RedisConnection::Managed(
-                with_timeout(config.timeout(), client.get_connection_manager()).await?,
-            )
-        };
-        Ok(Self::new(connection, cluster, config))
+        if cluster {
+            let connection = RedisConnection::Cluster(Self::cluster_connection(config).await?);
+            return Ok(Self::new(connection, true, config));
+        }
+        Self::connect_standalone(config).await
+    }
+
+    /// Build a **long-lived standalone** backend — the auto-reconnecting manager
+    /// plus the heartbeat monitor — without consulting the cluster keys. For a
+    /// consumer whose command set is not cluster-safe (the sync-over-async
+    /// store's two-key `DEL`), where the cluster parity is a separate item.
+    pub async fn connect_standalone(config: &RedisConfig) -> Result<Self, ConnectError> {
+        let client = Self::client(config)?;
+        let manager = with_timeout(config.timeout(), client.get_connection_manager()).await?;
+        let backend = Self::new(RedisConnection::Managed(manager), false, config);
+        if let Some(interval) = config.heartbeat() {
+            backend.start_heartbeat(interval);
+        }
+        Ok(backend)
     }
 
     /// Build a **single, non-reconnecting** connection for `config` — the
@@ -294,8 +488,24 @@ impl RedisBackend {
     /// [`classify_command_error`]) — so a broken store fails the caller for
     /// what it is instead of hanging or hiding behind a generic 500.
     pub async fn query<T: FromRedisValue>(&self, cmd: &Cmd) -> Result<T, AppError> {
-        let mut connection = self.connection.clone();
-        with_deadline(self.timeout, cmd.query_async::<T>(&mut connection)).await
+        self.attempt(Replay::NotIdempotent, || {
+            let mut connection = self.connection.clone();
+            async move { cmd.query_async::<T>(&mut connection).await }
+        })
+        .await
+        .map_err(CommandError::classify)
+    }
+
+    /// [`RedisBackend::query`] for a command that is safe to run twice: after a
+    /// lost connection that was believed healthy when the command was issued, it
+    /// is retried exactly once (module docs: *Lifecycle*).
+    pub async fn query_idempotent<T: FromRedisValue>(&self, cmd: &Cmd) -> Result<T, AppError> {
+        self.attempt(Replay::Idempotent, || {
+            let mut connection = self.connection.clone();
+            async move { cmd.query_async::<T>(&mut connection).await }
+        })
+        .await
+        .map_err(CommandError::classify)
     }
 
     /// Issue a pipeline (a plain batch, or an atomic `MULTI`/`EXEC` block when
@@ -303,8 +513,110 @@ impl RedisBackend {
     /// replies awaited together (the Java "fire without waiting, then await
     /// all" shape of a pipelined `MPUT`).
     pub async fn query_pipeline<T: FromRedisValue>(&self, pipe: &Pipeline) -> Result<T, AppError> {
-        let mut connection = self.connection.clone();
-        with_deadline(self.timeout, pipe.query_async::<T>(&mut connection)).await
+        self.attempt(Replay::NotIdempotent, || {
+            let mut connection = self.connection.clone();
+            async move { pipe.query_async::<T>(&mut connection).await }
+        })
+        .await
+        .map_err(CommandError::classify)
+    }
+
+    /// [`RedisBackend::query_pipeline`] for a batch that is safe to run twice
+    /// (e.g. the cache's `MPUT`, pipelined `SETEX`es).
+    pub async fn query_pipeline_idempotent<T: FromRedisValue>(
+        &self,
+        pipe: &Pipeline,
+    ) -> Result<T, AppError> {
+        self.attempt(Replay::Idempotent, || {
+            let mut connection = self.connection.clone();
+            async move { pipe.query_async::<T>(&mut connection).await }
+        })
+        .await
+        .map_err(CommandError::classify)
+    }
+
+    /// The connection lifecycle shared by every clone of this backend.
+    pub fn lifecycle(&self) -> &ConnectionLifecycle {
+        &self.lifecycle
+    }
+
+    /// Run one operation with the lifecycle-aware retry and the per-command
+    /// deadline, returning the raw failure — for a consumer that keeps its own
+    /// status mapping; [`RedisBackend::query`] is this plus
+    /// [`CommandError::classify`]. `operation` builds a fresh future per attempt
+    /// (it may run twice for [`Replay::Idempotent`]).
+    pub async fn attempt<T, F, Fut>(&self, replay: Replay, operation: F) -> Result<T, CommandError>
+    where
+        F: Fn() -> Fut,
+        Fut: Future<Output = redis::RedisResult<T>>,
+    {
+        // the belief at issue time decides: every command in flight when the
+        // connection goes is the transition and gets its retry; a command issued
+        // while the connection is already known down makes one attempt
+        let issued_healthy = self.lifecycle.healthy();
+        let error = match tokio::time::timeout(self.timeout, operation()).await {
+            Ok(Ok(value)) => {
+                self.lifecycle.mark_alive();
+                return Ok(value);
+            }
+            // a timeout is not a lifecycle signal: no retry, no health change
+            Err(_) => return Err(CommandError::TimedOut(self.timeout)),
+            Ok(Err(error)) => error,
+        };
+        if !is_connection_loss(&error) {
+            return Err(CommandError::Redis(error));
+        }
+        self.lifecycle.mark_lost(&error);
+        let managed = matches!(self.connection, RedisConnection::Managed(_));
+        if !(managed && issued_healthy && replay == Replay::Idempotent) {
+            return Err(CommandError::Redis(error));
+        }
+        self.lifecycle.count_retry();
+        log::info!(
+            "Retrying an idempotent Redis command once after the lost connection to {}",
+            self.endpoint
+        );
+        // the manager swapped in its reconnection future when the first attempt
+        // failed - this attempt awaits it rather than racing it
+        match tokio::time::timeout(self.timeout, operation()).await {
+            Ok(Ok(value)) => {
+                self.lifecycle.mark_alive();
+                Ok(value)
+            }
+            Ok(Err(error)) => Err(CommandError::Redis(error)),
+            Err(_) => Err(CommandError::TimedOut(self.timeout)),
+        }
+    }
+
+    /// The heartbeat monitor (module docs: *Lifecycle*): one `PING` per
+    /// interval on the managed connection. Holds only a weak reference to the
+    /// lifecycle, so it ends with the last clone of the backend.
+    fn start_heartbeat(&self, interval: Duration) {
+        let connection = self.connection.clone();
+        let timeout = self.timeout;
+        let lifecycle = Arc::downgrade(&self.lifecycle);
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(interval);
+            ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            ticker.tick().await; // the first tick completes at once
+            loop {
+                ticker.tick().await;
+                let Some(lifecycle) = Weak::upgrade(&lifecycle) else {
+                    return;
+                };
+                let mut connection = connection.clone();
+                let ping = redis::cmd("PING");
+                let round_trip = ping.query_async::<String>(&mut connection);
+                match tokio::time::timeout(timeout, round_trip).await {
+                    Ok(Ok(_)) => lifecycle.mark_alive(),
+                    // the failed PING is what makes the manager reconnect
+                    Ok(Err(error)) if is_connection_loss(&error) => {
+                        lifecycle.mark_lost(&error);
+                    }
+                    _ => {} // a timeout or a server answer is not a lifecycle signal
+                }
+            }
+        });
     }
 
     /// One `PING` round trip — proves connectivity, TLS and authentication in a
@@ -321,11 +633,13 @@ impl RedisBackend {
     }
 
     fn new(connection: RedisConnection, cluster: bool, config: &RedisConfig) -> Self {
+        let endpoint = config.endpoint();
         RedisBackend {
             connection,
             cluster,
             timeout: config.timeout(),
-            endpoint: config.endpoint(),
+            lifecycle: Arc::new(ConnectionLifecycle::new(endpoint.clone())),
+            endpoint,
         }
     }
 
@@ -360,16 +674,5 @@ async fn with_timeout<T>(
         Ok(Ok(value)) => Ok(value),
         Ok(Err(error)) => Err(ConnectError::Redis(error)),
         Err(_) => Err(ConnectError::TimedOut(timeout)),
-    }
-}
-
-async fn with_deadline<T>(
-    timeout: Duration,
-    future: impl Future<Output = Result<T, redis::RedisError>>,
-) -> Result<T, AppError> {
-    match tokio::time::timeout(timeout, future).await {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => Err(classify_command_error(&error)),
-        Err(_) => Err(command_timeout(timeout)),
     }
 }

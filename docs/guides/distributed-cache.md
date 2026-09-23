@@ -106,6 +106,7 @@ list:
 | `redis.ssl` | `false` | Use TLS. |
 | `redis.cluster.detect` / `redis.cluster.mode` / `redis.cluster.nodes` | `auto` / `false` / — | Standalone-or-cluster selection — the same two-key scheme as the Java engine. |
 | `redis.timeout.ms` | `5000` | Default command timeout. |
+| `redis.heartbeat.ms` | `1000` | Connection heartbeat (Rust engine only; `0` = off) — see *Redis restarts* below. |
 | `redis.health.timeout` | `5s` | Timeout for the [`redis.health`](#health) probe. |
 | `redis.health.startup.grace` | `30s` | Start-up grace for [`redis.health`](#health). |
 
@@ -243,6 +244,29 @@ are routed per slot by the cluster client; `MPUT` is a pipeline of independent s
 module uses **one shared, multiplexed** connection — **no connection pool**: the client pipelines any
 number of concurrent callers over one in-order connection, and this op set has no blocking commands
 (`LPOP`, not `BLPOP`). `redis.cache.instances` is worker concurrency, not a connection count.
+
+## Redis restarts {#restarts}
+
+Lettuce (the Java client) requeues commands it has not yet written across a reconnect, so on the
+Java engine the first command after a Redis restart simply works. The `redis` crate arms a reconnect
+when a command fails but returns that command's error, so on this engine the first command after a
+restart used to fail with `503 Redis unavailable - broken pipe` and the second heal. The shared
+foundation now carries the maintainer's ruling — retry only when the failure is a restart or a
+reconnection, which takes some simple lifecycle monitoring:
+
+- **A heartbeat** (`redis.heartbeat.ms`, default one second) notices a lost connection within one
+  interval and makes the client reconnect ahead of the next command, so a command that arrives after
+  that finds a fresh connection — including the non-idempotent ones. The loss and the recovery are
+  each logged once.
+- **One retry per lost connection, idempotent commands only.** `GET`, `MGET`, `PUT`/`MPUT` (`SETEX`),
+  `DELETE` and `LLEN` that meet the lost connection themselves are retried exactly once on the fresh
+  connection. `PUT_IF_NOT_PRESENT` (`SET NX`), list push (`RPUSH`) and pop (`LPOP`) are never
+  replayed — the client cannot prove whether a lost command reached the server — so they fail the
+  caller for what it is (503) and the caller's own retry lands on the healed connection.
+- **A known outage never doubles the deadline.** Once the connection is known down, a command makes one
+  attempt, bounded by `redis.timeout.ms` — 408 while the client is still trying to reconnect, 503 when
+  the connection is refused outright — and is not retried. A timeout is never treated as a lost
+  connection.
 
 ## Health check {#health}
 

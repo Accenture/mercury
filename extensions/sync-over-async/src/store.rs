@@ -31,35 +31,39 @@
 //! fully drained list ceases to exist on its own; the TTLs are the crash
 //! safety net.
 //!
-//! # Bounce recovery — the idempotent-only retry (port spec §5 item 6)
+//! # Bounce recovery — the lifecycle-aware retry (port spec §5 item 6)
 //!
 //! After a Redis restart, the `redis` crate's `ConnectionManager` arms an
 //! asynchronous reconnect but returns the failed command's error to the caller
 //! (its retry configuration governs *connection attempts*, not command
 //! replay), where the Java engine's Lettuce transparently requeues commands it
-//! had not yet written. To keep the engines' healing behavior equivalent, the
-//! store retries its **idempotent** operations exactly once —
+//! had not yet written. The store therefore runs on the foundation's
+//! [`RedisBackend`] and its lifecycle (maintainer's ruling, 2026-09-22 —
+//! `redis_connection::backend`, *Lifecycle*): a **heartbeat** notices the lost
+//! connection within one interval and makes the manager reconnect eagerly, so
+//! the first command after the restart usually finds a fresh connection; and a
+//! command that fails while the connection was believed healthy is retried
+//! **exactly once** when it is idempotent —
 //! `save_route`/`get_route`/`cleanup`/`queue_length` (`SETEX`/`GET`/`DEL`/
-//! `LLEN`) — keyed on the manager's own reconnect trigger
-//! (`RedisError::is_unrecoverable_error`, plus `is_io_error` for a failure
-//! surfaced by the connect path itself), so the retry fires precisely when the
-//! manager has swapped in its reconnection future and never on a server-side
-//! error. The second attempt *awaits* that swapped-in future — the manager
-//! stores its connection as a shared future, so retrying is synchronized with
-//! the reconnection lifecycle rather than racing it — under its own timeout.
+//! `LLEN`) — awaiting the swapped-in reconnection future under its own timeout.
+//! A command issued while the connection is already known down makes one
+//! attempt and fails fast.
 //!
-//! Deliberately **fail-fast** (no retry): `append_segment` (replaying an
-//! ambiguous `RPUSH` risks a duplicate segment the no-sequence-number design
-//! cannot detect — design D7), `pop_segment` (replaying an ambiguous `LPOP`
-//! could silently discard the popped segment), and `publish` (wake-ups are
-//! best-effort by contract — a lost one is healed by the next drain). A
-//! timed-out attempt is never retried either: a timeout is not a
-//! connection-death signal, and the caller's deadline is the contract.
-
-use std::time::Duration;
+//! Deliberately **never replayed**: `append_segment` (replaying an ambiguous
+//! `RPUSH` risks a duplicate segment the no-sequence-number design cannot
+//! detect — design D7; the crate reports `broken pipe` for a command it never
+//! sent and for one whose reply was lost alike, so non-delivery cannot be
+//! proven), `pop_segment` (replaying an ambiguous `LPOP` could silently discard
+//! the popped segment), and `publish` (wake-ups are best-effort by contract — a
+//! lost one is healed by the next drain). A timed-out attempt is never retried
+//! either: a timeout is not a connection-death signal, and the caller's
+//! deadline is the contract. The store keeps its own status mapping (500), as
+//! the Java store does.
 
 use platform_core::AppError;
-use redis::aio::ConnectionManager;
+use redis_connection::{CommandError, ConnectionLifecycle, RedisBackend, Replay};
+
+use crate::connection::RedisSettings;
 
 const ROUTE_PREFIX: &str = "request:";
 const QUEUE_PREFIX: &str = "queue:";
@@ -67,16 +71,23 @@ const QUEUE_PREFIX: &str = "queue:";
 /// Handle on the rendezvous key space over one multiplexed connection.
 #[derive(Clone)]
 pub struct ReturnRouteStore {
-    connection: ConnectionManager,
-    timeout: Duration,
+    backend: RedisBackend,
 }
 
 impl ReturnRouteStore {
-    pub fn new(connection: ConnectionManager, timeout: Duration) -> Self {
-        ReturnRouteStore {
-            connection,
-            timeout,
-        }
+    /// Connect the store's own standalone backend — the managed connection plus
+    /// the heartbeat monitor — from the `soa.redis.*` settings.
+    pub async fn connect(settings: &RedisSettings) -> Result<Self, AppError> {
+        Ok(Self::new(RedisBackend::connect_standalone(settings).await?))
+    }
+
+    pub fn new(backend: RedisBackend) -> Self {
+        ReturnRouteStore { backend }
+    }
+
+    /// The connection lifecycle (health, drops, retries, recoveries).
+    pub fn lifecycle(&self) -> &ConnectionLifecycle {
+        self.backend.lifecycle()
     }
 
     /// `request:{cid}` — the route key.
@@ -96,8 +107,8 @@ impl ReturnRouteStore {
         ttl_seconds: u64,
     ) -> Result<(), AppError> {
         let key = Self::route_key(business_correlation_id);
-        self.run_idempotent("SETEX route", || {
-            let mut connection = self.connection.clone();
+        self.run(Replay::Idempotent, || {
+            let mut connection = self.backend.connection();
             let key = key.clone();
             let return_channel = return_channel.to_string();
             async move {
@@ -119,8 +130,8 @@ impl ReturnRouteStore {
         business_correlation_id: &str,
     ) -> Result<Option<String>, AppError> {
         let key = Self::route_key(business_correlation_id);
-        self.run_idempotent("GET route", || {
-            let mut connection = self.connection.clone();
+        self.run(Replay::Idempotent, || {
+            let mut connection = self.backend.connection();
             let key = key.clone();
             async move {
                 redis::cmd("GET")
@@ -148,21 +159,26 @@ impl ReturnRouteStore {
         segment_json: &str,
         ttl_seconds: u64,
     ) -> Result<(), AppError> {
-        let mut connection = self.connection.clone();
         let key = Self::queue_key(business_correlation_id);
-        self.run(
-            redis::pipe()
-                .atomic()
-                .cmd("RPUSH")
-                .arg(&key)
-                .arg(segment_json)
-                .ignore()
-                .cmd("EXPIRE")
-                .arg(&key)
-                .arg(ttl_seconds)
-                .ignore()
-                .query_async::<()>(&mut connection),
-        )
+        self.run(Replay::NotIdempotent, || {
+            let mut connection = self.backend.connection();
+            let key = key.clone();
+            let segment_json = segment_json.to_string();
+            async move {
+                redis::pipe()
+                    .atomic()
+                    .cmd("RPUSH")
+                    .arg(&key)
+                    .arg(&segment_json)
+                    .ignore()
+                    .cmd("EXPIRE")
+                    .arg(&key)
+                    .arg(ttl_seconds)
+                    .ignore()
+                    .query_async::<()>(&mut connection)
+                    .await
+            }
+        })
         .await
     }
 
@@ -173,12 +189,17 @@ impl ReturnRouteStore {
         &self,
         business_correlation_id: &str,
     ) -> Result<Option<String>, AppError> {
-        let mut connection = self.connection.clone();
-        self.run(
-            redis::cmd("LPOP")
-                .arg(Self::queue_key(business_correlation_id))
-                .query_async::<Option<String>>(&mut connection),
-        )
+        let key = Self::queue_key(business_correlation_id);
+        self.run(Replay::NotIdempotent, || {
+            let mut connection = self.backend.connection();
+            let key = key.clone();
+            async move {
+                redis::cmd("LPOP")
+                    .arg(&key)
+                    .query_async::<Option<String>>(&mut connection)
+                    .await
+            }
+        })
         .await
     }
 
@@ -186,8 +207,8 @@ impl ReturnRouteStore {
     /// drain's lost-wakeup re-check.
     pub async fn queue_length(&self, business_correlation_id: &str) -> Result<u64, AppError> {
         let key = Self::queue_key(business_correlation_id);
-        self.run_idempotent("LLEN queue", || {
-            let mut connection = self.connection.clone();
+        self.run(Replay::Idempotent, || {
+            let mut connection = self.backend.connection();
             let key = key.clone();
             async move {
                 redis::cmd("LLEN")
@@ -206,8 +227,8 @@ impl ReturnRouteStore {
     pub async fn cleanup(&self, business_correlation_id: &str) -> Result<(), AppError> {
         let route_key = Self::route_key(business_correlation_id);
         let queue_key = Self::queue_key(business_correlation_id);
-        self.run_idempotent("DEL rendezvous keys", || {
-            let mut connection = self.connection.clone();
+        self.run(Replay::Idempotent, || {
+            let mut connection = self.backend.connection();
             let route_key = route_key.clone();
             let queue_key = queue_key.clone();
             async move {
@@ -227,59 +248,38 @@ impl ReturnRouteStore {
         channel: &str,
         business_correlation_id: &str,
     ) -> Result<(), AppError> {
-        let mut connection = self.connection.clone();
-        self.run(
-            redis::cmd("PUBLISH")
-                .arg(channel)
-                .arg(business_correlation_id)
-                .query_async::<i64>(&mut connection),
-        )
+        self.run(Replay::NotIdempotent, || {
+            let mut connection = self.backend.connection();
+            let channel = channel.to_string();
+            let cid = business_correlation_id.to_string();
+            async move {
+                redis::cmd("PUBLISH")
+                    .arg(&channel)
+                    .arg(&cid)
+                    .query_async::<i64>(&mut connection)
+                    .await
+            }
+        })
         .await
         .map(|_| ())
     }
 
-    /// One attempt under the store timeout — the fail-fast path
-    /// (`append_segment`, `pop_segment`, `publish`; see the module docs for
-    /// why those never retry).
-    async fn run<T>(
-        &self,
-        operation: impl std::future::Future<Output = redis::RedisResult<T>>,
-    ) -> Result<T, AppError> {
-        tokio::time::timeout(self.timeout, operation)
-            .await
-            .map_err(|_| AppError::new(500, "Redis command timed out"))?
-            .map_err(|e| AppError::new(500, format!("Redis error - {e}")))
-    }
-
-    /// Run one **idempotent** operation with a single lifecycle-aware retry
-    /// (module docs: *Bounce recovery*). The retry condition is the
-    /// `ConnectionManager`'s own reconnect trigger, so a second attempt runs
-    /// exactly when the manager has swapped in its reconnection future — and
-    /// awaiting the second attempt awaits that fresh connection, under its own
-    /// timeout. A timed-out first attempt is not retried.
-    async fn run_idempotent<T, F, Fut>(
-        &self,
-        description: &str,
-        operation: F,
-    ) -> Result<T, AppError>
+    /// Run one operation through the foundation's lifecycle-aware retry
+    /// (module docs: *Bounce recovery*) — a second attempt only for
+    /// [`Replay::Idempotent`], only when the lost connection was believed
+    /// healthy when the command was issued — keeping this store's own status
+    /// mapping: every failure is a 500 to the rendezvous caller.
+    async fn run<T, F, Fut>(&self, replay: Replay, operation: F) -> Result<T, AppError>
     where
         F: Fn() -> Fut,
         Fut: std::future::Future<Output = redis::RedisResult<T>>,
     {
-        match tokio::time::timeout(self.timeout, operation()).await {
-            Err(_) => Err(AppError::new(500, "Redis command timed out")),
-            Ok(Ok(value)) => Ok(value),
-            Ok(Err(error)) if error.is_unrecoverable_error() || error.is_io_error() => {
-                // the manager replaces its connection exactly when a command
-                // fails this classification - the retry below awaits the
-                // swapped-in reconnection future rather than racing it
-                log::debug!("Retrying {description} once after a lost connection - {error}");
-                tokio::time::timeout(self.timeout, operation())
-                    .await
-                    .map_err(|_| AppError::new(500, "Redis command timed out"))?
-                    .map_err(|e| AppError::new(500, format!("Redis error - {e}")))
-            }
-            Ok(Err(error)) => Err(AppError::new(500, format!("Redis error - {error}"))),
-        }
+        self.backend
+            .attempt(replay, operation)
+            .await
+            .map_err(|failure| match failure {
+                CommandError::TimedOut(_) => AppError::new(500, "Redis command timed out"),
+                CommandError::Redis(error) => AppError::new(500, format!("Redis error - {error}")),
+            })
     }
 }

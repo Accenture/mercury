@@ -40,6 +40,10 @@ use platform_core::AppError;
 use redis_connection::RedisBackend;
 
 /// The cache operations (Java `RedisCacheStore`).
+/// Commands that are safe to run twice (`SETEX`, `GET`, `MGET`, `MPUT`, `DEL`,
+/// `LLEN`) go through the backend's idempotent path and are retried once when
+/// the connection was lost to a restart; `SET NX`, `RPUSH` and `LPOP` are never
+/// replayed (`redis_connection::backend`, *Lifecycle*).
 pub struct RedisCacheStore {
     backend: RedisBackend,
     key_prefix: String,
@@ -81,7 +85,7 @@ impl RedisCacheStore {
     ) -> Result<(), AppError> {
         let key = self.prefixed(key)?;
         self.backend
-            .query::<String>(redis::cmd("SETEX").arg(key).arg(ttl_seconds).arg(value))
+            .query_idempotent::<String>(redis::cmd("SETEX").arg(key).arg(ttl_seconds).arg(value))
             .await
             .map(|_| ())
     }
@@ -89,7 +93,9 @@ impl RedisCacheStore {
     /// `GET key` — the value, or `None` on a miss.
     pub async fn get(&self, key: Option<&str>) -> Result<Option<Vec<u8>>, AppError> {
         let key = self.prefixed(key)?;
-        self.backend.query(redis::cmd("GET").arg(key)).await
+        self.backend
+            .query_idempotent(redis::cmd("GET").arg(key))
+            .await
     }
 
     /// `MGET k1 k2 …` — misses omitted, request order kept, keys returned
@@ -103,7 +109,7 @@ impl RedisCacheStore {
         for key in keys {
             cmd.arg(self.prefixed(Some(key))?);
         }
-        let values: Vec<Option<Vec<u8>>> = self.backend.query(&cmd).await?;
+        let values: Vec<Option<Vec<u8>>> = self.backend.query_idempotent(&cmd).await?;
         Ok(keys
             .iter()
             .zip(values)
@@ -131,7 +137,7 @@ impl RedisCacheStore {
                 .arg(value.as_slice());
         }
         self.backend
-            .query_pipeline::<Vec<String>>(&pipe)
+            .query_pipeline_idempotent::<Vec<String>>(&pipe)
             .await
             .map(|_| ())
     }
@@ -139,7 +145,9 @@ impl RedisCacheStore {
     /// `DEL key` — the number of keys removed (0 or 1).
     pub async fn delete(&self, key: Option<&str>) -> Result<i64, AppError> {
         let key = self.prefixed(key)?;
-        self.backend.query(redis::cmd("DEL").arg(key)).await
+        self.backend
+            .query_idempotent(redis::cmd("DEL").arg(key))
+            .await
     }
 
     /// `SET key value NX EX ttl` — atomic put-if-absent with a TTL in one
@@ -201,7 +209,9 @@ impl RedisCacheStore {
     /// `LLEN key` — the list length (0 for an absent list).
     pub async fn list_len(&self, key: Option<&str>) -> Result<i64, AppError> {
         let key = self.prefixed(key)?;
-        self.backend.query(redis::cmd("LLEN").arg(key)).await
+        self.backend
+            .query_idempotent(redis::cmd("LLEN").arg(key))
+            .await
     }
 
     fn prefixed(&self, key: Option<&str>) -> Result<String, AppError> {

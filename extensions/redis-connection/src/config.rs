@@ -85,6 +85,7 @@ pub struct RedisConfig {
     ssl: bool,
     database: i64,
     timeout_ms: u64,
+    heartbeat_ms: u64,
     auto_detect_cluster: bool,
     cluster_enabled: bool,
     cluster_nodes: String,
@@ -101,6 +102,7 @@ impl Default for RedisConfig {
             ssl: false,
             database: 0,
             timeout_ms: 5000,
+            heartbeat_ms: 1000,
             auto_detect_cluster: true,
             cluster_enabled: false,
             cluster_nodes: String::new(),
@@ -137,6 +139,7 @@ impl RedisConfig {
             ssl: is_true(get("ssl")),
             database: parse_or(get("database"), defaults.database),
             timeout_ms: parse_or(get("timeout.ms"), defaults.timeout_ms),
+            heartbeat_ms: parse_or(get("heartbeat.ms"), defaults.heartbeat_ms),
             auto_detect_cluster: detect.trim().eq_ignore_ascii_case(AUTO),
             cluster_enabled: is_true(get("cluster.mode")),
             cluster_nodes: get("cluster.nodes").unwrap_or_default(),
@@ -177,6 +180,13 @@ impl RedisConfig {
     /// its probe with its own timeout (Java `withTimeout`).
     pub fn with_timeout(mut self, timeout_ms: u64) -> Self {
         self.timeout_ms = timeout_ms;
+        self
+    }
+
+    /// The connection heartbeat interval in milliseconds — `0` disables the
+    /// monitor (see [`RedisBackend`](crate::RedisBackend) *Lifecycle*).
+    pub fn with_heartbeat(mut self, heartbeat_ms: u64) -> Self {
+        self.heartbeat_ms = heartbeat_ms;
         self
     }
 
@@ -231,6 +241,16 @@ impl RedisConfig {
     /// The per-request deadline (`timeout.ms`), at least 1 ms.
     pub fn timeout(&self) -> Duration {
         Duration::from_millis(self.timeout_ms.max(1))
+    }
+
+    pub fn heartbeat_ms(&self) -> u64 {
+        self.heartbeat_ms
+    }
+
+    /// The heartbeat interval, `None` when the monitor is disabled
+    /// (`heartbeat.ms=0`).
+    pub fn heartbeat(&self) -> Option<Duration> {
+        (self.heartbeat_ms > 0).then(|| Duration::from_millis(self.heartbeat_ms))
     }
 
     /// `<prefix>cluster.detect=auto` — probe the seed to choose the topology.

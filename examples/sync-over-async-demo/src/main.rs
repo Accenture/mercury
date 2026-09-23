@@ -164,10 +164,7 @@ async fn append_without_wake_up(cid: &str, segment: &StreamSegment) -> Result<()
     let store = CHAOS_STORE
         .get_or_try_init(|| async {
             let settings = RedisSettings::from_config();
-            Ok::<ReturnRouteStore, AppError>(ReturnRouteStore::new(
-                settings.manager().await?,
-                settings.timeout(),
-            ))
+            ReturnRouteStore::connect(&settings).await
         })
         .await?;
     store
