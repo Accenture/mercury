@@ -31,7 +31,7 @@
   `conv-ports-adopt-java-release-number`: 4.12.7 → 4.12.12 in one step, carrying Increments 118–124 plus the
   sync-over-async R1–R4 and minimalist-kafka K1–K2 gates. Crates.io publication still held until K5. Not yet
   ported (stated in the entry, backlog P8–P10): the CompileGraph task↔skill gate, the case-insensitive
-  `input.header.*` fallback for Kafka headers, dev mode in the starter-graph template — the first two ported on `feat/lockstep-4-12-13` (2026-09-21), the third RULED and shipped 2026-09-22: Increment 134, `fix/plain-home-page-outside-dev` `037131e8` (PR #319) — the starter gains dev mode and the home page outside dev is a plain page.)
+  `input.header.*` fallback for Kafka headers, dev mode in the starter-graph template — the first two ported on `feat/lockstep-4-12-13` (2026-09-21), the third RULED and shipped 2026-09-22: Increment 134, `fix/plain-home-page-outside-dev` `037131e8`, PR #319 MERGED 2026-09-23 00:30Z, merge `49403c23` — the starter gains dev mode and the home page outside dev is a plain page.)
 - **last_enabled:** 2026-07-15
 - **last_review:** 2026-09-21 | through 2026-09-21-025547.md (cadence — 10 sessions since; archived 0, swept 0 —
   the six closed threads sit at sslu 9–15, inside the 20-session window; tier changes 14 (refresh-metadata:
