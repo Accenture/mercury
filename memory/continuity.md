@@ -456,7 +456,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   or appends its resource root explicitly. Applied to `templates/starter-graph` and
   `examples/minigraph-playground` on 2026-09-20 at Eric's direction (branch `chore/cargo-declare-what-you-name`,
   `8868613c`, PR #291 MERGED 2026-09-20, merge `548ce651`; the root README, the template README and the getting-started guide now state the rule).
-  <!-- id: conv-cargo-declare-what-you-name | created: 2026-09-20 | last_used: 2026-09-21 | uses: 3 | tier: active | origin: 2026-09-20-004627 -->
+  <!-- id: conv-cargo-declare-what-you-name | created: 2026-09-20 | last_used: 2026-09-21 | uses: 3 | tier: archive-candidate | origin: 2026-09-20-004627 -->
 
 - **A `rest.yaml` entry whose service is not registered is SKIPPED at load, and `/` falls back to the `/index.html`
   entry — Java REST semantics the port lacked until Increment 122 (Eric found both running the Playground with
