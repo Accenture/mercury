@@ -13,7 +13,7 @@ categories = ["development-tools::debugging", "asynchronous"]
 name = "opentelemetry_forwarder"
 
 [dependencies]
-mercury-platform-core = { version = "4.12.14", path = "../../crates/platform-core" }
+mercury-platform-core = { version = "4.12.15", path = "../../crates/platform-core" }
 async-trait = "0.1"
 log = "0.4"
 rmpv = { version = "1", features = ["with-serde"] }
