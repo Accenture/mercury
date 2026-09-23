@@ -498,20 +498,23 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   that needs more than a lookup. The plugin takes the table as a map or JSON text, `keys`/rule lists as lists
   or JSON arrays written as text, compares as text case-insensitively, returns the default (or Nil) on a
   miss, and carries the Java error messages verbatim.
-  **A null mapping source REMOVES the target** in the graph mapper and in Event Script alike — pinned by a
-  probe in `unit-test-lookup-1` on both engines — so a default comes from the plugin's third argument (or a
-  later `f:defaultValue`), never from default-then-overlay. **Eric's ruling (2026-09-20): the doc moves to
-  the code** — the namespaces section, the command JSON and this engine's data-mapper help now say *A null
-  source removes the target* (indexed target → null), with his Event Script contrast: a null source applies
-  only to `model.*` targets, where it removes the model variable key, and for any other target the entry is
-  ignored; claim `null-source-removes-target` registered against the probe test on both engines (branch
-  `docs/null-source-removes-target` `48111840`, PR #295 MERGED 2026-09-20 `bbb8c043`; Java twin `f233067f`, PR #432). **Rule:** the product owner reads and certifies the table ON
+  **A null mapping source — CHANGED 2026-09-23 (mercury-composable #453, Eric's ruling; twin of the Java fix):**
+  the graph engine now applies Event Script's rule — a null or unresolved source CLEARS a `model.*` target (removed;
+  set to null when the source key exists or the target is indexed) and is IGNORED for any other target — via one
+  helper, `common::apply_null_source`, in the mapping entry, `for_each`, the `model.*` half of fetcher/extension
+  parameters (a null parameter is not supplied) and the fetcher/task/extension output mapping (Increment 136, branch
+  `fix/l3-null-source-mapping-parity`). Until 4.12.15 it removed ANY target — the 2026-09-20 ruling had documented
+  that (PR #295, Java PR #432, claim `null-source-removes-target`, whose text now states the shared rule with the
+  command reference, the command JSON, the data-mapper help and the `unit-test-lookup-1` probe). A default for a
+  model variable still comes from the source side (the plugin's third argument, or `f:defaultValue`), never from
+  default-then-overlay. The same increment makes graph.math name every unresolved `{selector}` of a COMPUTE or IF
+  expression ("Unknown identifier: model.threshold or model.factor") instead of the rendered text `null`. **Rule:** the product owner reads and certifies the table ON
   the graph, a new table is a new graph version (`v2026-08-prime-rates`) and never a code change, and the
   function stays generic by reading rule names from `table.keys`. The pattern is now in
   `skills-reference.md` (graph.task), the in-Playground help and the AI agent guide's pre-send checklist,
   pinned by `unit-test-task-9` (`graph_runtime.rs`) in lockstep with the Java repo. Extends
   [[conventions-rust-baseline]] (docs and fixtures stay byte-aligned with the reference).
-  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: archive-candidate | origin: 2026-09-20-152809 -->
+  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-23 | uses: 2 | tier: active | origin: 2026-09-20-152809 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
