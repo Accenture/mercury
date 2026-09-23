@@ -31,7 +31,7 @@
   `conv-ports-adopt-java-release-number`: 4.12.7 → 4.12.12 in one step, carrying Increments 118–124 plus the
   sync-over-async R1–R4 and minimalist-kafka K1–K2 gates. Crates.io publication still held until K5. Not yet
   ported (stated in the entry, backlog P8–P10): the CompileGraph task↔skill gate, the case-insensitive
-  `input.header.*` fallback for Kafka headers, dev mode in the starter-graph template — the first two ported on `feat/lockstep-4-12-13` (2026-09-21), the third awaits a ruling.)
+  `input.header.*` fallback for Kafka headers, dev mode in the starter-graph template — the first two ported on `feat/lockstep-4-12-13` (2026-09-21), the third RULED and shipped 2026-09-22: Increment 134, `fix/plain-home-page-outside-dev` `037131e8` (PR #319) — the starter gains dev mode and the home page outside dev is a plain page.)
 - **last_enabled:** 2026-07-15
 - **last_review:** 2026-09-21 | through 2026-09-21-025547.md (cadence — 10 sessions since; archived 0, swept 0 —
   the six closed threads sit at sslu 9–15, inside the 20-session window; tier changes 14 (refresh-metadata:
@@ -370,6 +370,33 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   Open: v4.12.15 on Eric's go.**
   Extends [[otel-forwarder-no-sdk]]; pinned by `event_over_http_stream::edge_relay_spans_are_connected`.
   <!-- id: connected-edge-spans | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-200854 -->
+
+- **The Redis foundation retries intelligently — a heartbeat monitor plus one retry per lost connection for
+  idempotent commands only, never a replay of a non-idempotent one (Eric's ruling on polyglot note 3, 2026-09-22;
+  Increment 135, `feat/redis-lifecycle-retry` `3d4a9559`, stacked on the P10 branch).** `redis-rs`'s
+  `ConnectionManager` arms its reconnect when a command fails but returns that command's error (Lettuce requeues
+  unwritten commands), so the first command after a Redis restart failed `broken pipe` and the second healed.
+  `ConnectionLifecycle` (per `RedisBackend`, shared by its clones) tracks healthy/lost with drops/retries/recoveries
+  counters, logging a loss and a recovery once each; the heartbeat (`{prefix}heartbeat.ms` → `redis.heartbeat.ms`,
+  default 1000, 0 = off, managed connections only) PINGs per interval — its failure is what makes the manager
+  reconnect EAGERLY, so a command issued after it (a non-idempotent `RPUSH` included) succeeds on its first attempt;
+  `RedisBackend::attempt(replay, op)` retries a `Replay::Idempotent` command exactly once when it failed while the
+  connection was BELIEVED HEALTHY at issue time (the transition = the restart); a command issued while known-down
+  makes one attempt bounded by the command deadline (408 while the manager is still reconnecting, 503 on a refusal),
+  never two; a timeout is never a lifecycle signal. **Why non-idempotent commands are never replayed:** on RESP2 the
+  crate reports `broken pipe` (`closed_connection_error`) both for a command it never sent and for one whose reply
+  was lost, so non-delivery cannot be proven — the RESP3 `Disconnection` push that would tell is not available to
+  us — and an ambiguous `RPUSH` replay risks a duplicate segment (D7). Consumers: the cache marks
+  GET/MGET/SETEX/MPUT/DEL/LLEN idempotent; the sync-over-async `ReturnRouteStore` now runs on a `RedisBackend`
+  (`ReturnRouteStore::connect(&settings)` → `connect_standalone`, keeping the two-key `DEL` off the cluster path and
+  its own 500 mapping as the Java store does); `minigraph-state-redis` still drives its own manager (follow-up).
+  Java needs no twin (Lettuce). Method note: the first design keyed the replay on the io kind (BrokenPipe ⇒ not
+  delivered) — reading `redis-rs` 1.5.0 showed the same error on both paths, and the RESP3-only push closed the
+  second idea; the heartbeat is what was left, and it is also what fixes the actual field symptom. A test expectation
+  was wrong on the way, not the code: under a refused outage the single attempt waits on the reconnect up to the
+  deadline (408), so "fail fast" means one deadline-bounded attempt, never two. Extends
+  [[redis-connection-foundation-rust]], [[redis-failure-classification-rust]]; closes the polyglot report's note 3.
+  <!-- id: redis-restart-aware-retry | created: 2026-09-22 | last_used: 2026-09-22 | uses: 1 | tier: working | origin: 2026-09-22-235800 -->
 
 ## Conventions
 
