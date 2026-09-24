@@ -3726,3 +3726,33 @@ graph.math failures over unresolved variables now name them. A companion or scri
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
 --workspace`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+## Increment 137 — `serde_yaml` retired for `yaml_serde`, the YAML Organization's maintained continuation (2026-09-24)
+
+During the 4.12.16 crates publish Eric saw `Compiling serde_yaml v0.9.34+deprecated` — the crate author's own
+deprecation marker on a crate archived in 2024. It was a direct dependency of `platform-core` (the config reader, the
+multi-level map, the app-config reader, REST automation's routing) and of `ai-contract-provider`, so every Mercury
+crate and app pulled it in. Nothing was broken and no advisory is open against it (RustSec holds only the 2018
+recursion bug, fixed long ago; `unsafe-libyaml`'s 2023 advisory is fixed in the 0.2.11 we shipped), but an unmaintained
+dependency receives no fixes and surfaces as an informational finding in dependency scanners.
+
+- **The change is two manifest lines and the lock.** `crates/platform-core/Cargo.toml` and
+  `system/ai-contract-provider/Cargo.toml` now declare `serde_yaml = { package = "yaml_serde", version = "0.10" }` —
+  Cargo's package renaming keeps every `use serde_yaml::` import unchanged, so no source file moved. The lock swaps
+  exactly four packages: `serde_yaml` and `unsafe-libyaml` out, `yaml_serde` 0.10.7 and `libyaml-rs` 0.3.0 in;
+  `cargo tree -i unsafe-libyaml` and `cargo tree -i serde_yaml` no longer match any package.
+- **Why this fork.** `yaml_serde` is published under github.com/yaml by the YAML specification's co-author, states
+  itself the actively maintained fork "with full compatibility", released seven times since January 2026 (latest
+  2026-08-18) and is downloaded about 1.9 million times per 90 days. The alternatives were weaker: `serde_yaml_ng`
+  and `serde_norway` have had no release since 2024 and still sit on `unsafe-libyaml`; `serde_yml` is itself
+  deprecated; `serde-saphyr` is a pure-Rust, panic-free parser but with a different API and a heavy dependency tree.
+- **Caveat recorded, not solved.** `libyaml-rs` is libyaml transliterated to Rust by c2rust — the same technique as
+  the retired `unsafe-libyaml`, so `unsafe`-heavy code, now maintained. A pure-Rust parser would be a separate
+  decision (`serde-saphyr`), with an API migration. A follow-up worth taking: `cargo audit` in the `rust` workflow,
+  so a deprecation of this kind surfaces in CI rather than in a publish log.
+
+**Upgrade note.** None for applications: the crates' public API is unchanged; YAML parsing behaviour is that of the
+same libyaml lineage.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+--workspace`, `check-doc-claims`, `check-llms-links`.
