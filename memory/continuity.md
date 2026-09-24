@@ -14,22 +14,22 @@
 
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22); the v4.12.14 release — one number on both engines — is MERGED (PR #308 → `b83c493f`, 2026-09-22 02:08Z; tag + `cargo publish` pending). The current release is the `latest_release` field below. History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
-- **latest_release:** v4.12.15 (2026-09-23 01:36:57Z — **the lock-step round after the four-runtime certification**: release
-  PR #322 `dc64647a` merged as `87ee371f`; tag `v4.12.15` → `28cd3328` (one memory-only commit past the merge), workspace
-  version verified at the tag; the GitHub release body is the CHANGELOG entry; the `rust` workflow green on main). Content
-  since 4.12.14 — Increments 132–135: the Playground E0 twin (#314), the connected edge spans (#315,
-  [[connected-edge-spans]] — READ: one more span per traced request, the first function INTERNAL, `kind=SERVER`
-  dashboards move to the `http.request` record), the Kafka graceful-shutdown contract (#312/#313), the Layer 3 starter's
-  dev mode + the plain home page outside dev (#319, P10 — READ: an app without the `get.index.html` route gets the plain
-  page at `/` in dev too; an absent `app.env` is production), the restart-aware Redis retry in the shared foundation (#320,
-  [[redis-restart-aware-retry]]; the one new key `redis.heartbeat.ms`, default 1 s). Sweep: **13 Cargo.toml files / 24
-  occurrences** + `Cargo.lock`, re-derived ([[conv-template-version-sweep-rust]]). Readiness: `cargo test --workspace` 603
-  passed (the earlier "467" was a `tail`-truncated capture). **crates.io: 12 of 12 crates PUBLISHED 2026-09-23 01:57–01:57Z** by Eric's single `cargo publish --workspace`
-  from main (crate sources identical to the tag), no retry needed this time. **Lockstep:** the Java engine released v4.12.15
-  the same hour (mercury-composable #451 squash `aafeff04`, tag → `b705e9ff`, 01:35:26Z — the connected edge spans, the
-  Kafka shutdown, the plain home page) and the python/node packs moved 4.12.1 → 4.12.15 (mercury-python #37 `95101575`,
-  mercury-nodejs #105 `13426732`) — one number on all four per the Java-side `conv-ports-adopt-java-release-number`.
-  Origin 2026-09-23-014725.md.
+- **latest_release:** v4.12.16 (2026-09-24 00:09:26Z — **the correctness round from two Java field reports, lock-step with the
+  Java engine**: release PR #324 `caa66cc8` merged as `743d4ea2`; tag `v4.12.16` → `cc138af3` (one memory-only commit past the
+  merge), workspace version verified at the tag; the GitHub release body is the CHANGELOG entry; `rust` and `agent-memory` green
+  on the tag commit). Content — Increment 136 (#323): the null-source mapping rule shared with Event Script
+  ([[static-decision-table-is-graph-data-rust]] — READ: a null source no longer removes an `output.*`/node-alias target, an output
+  mapping to `model.*` with a null result clears the variable), graph.math naming every unresolved `{selector}`, every dry-run
+  abort carrying its reason (`Graph traversal aborted: <reason>` — READ: match the terminal by PREFIX; the web app and the
+  companion do). Sweep 13 Cargo.toml / 24 occurrences + `Cargo.lock`, re-derived. Readiness `cargo test --workspace` 603 / 0 / 9
+  (a first run started right after the Java reactor build failed three timing-sensitive `event_over_http_stream` tests —
+  environmental, clean on the idle re-run and in CI). **crates.io: 12 of 12 PUBLISHED 2026-09-24 00:12:36–00:12:52Z**, one
+  `cargo publish --workspace`, no retry. **Lockstep:** Java v4.12.16 the same hour (mercury-composable #457 squash `df605533`, tag →
+  `dc0ee6fa`, 00:08:35Z); the python/node packs stay at 4.12.15. Origin 2026-09-23-235047.md.
+  Prior: v4.12.15 (2026-09-23 01:36:57Z — the lock-step round after the four-runtime certification; PR #322 → `87ee371f`, tag →
+  `28cd3328`; Increments 132–135 — the E0 twin, [[connected-edge-spans]], the Kafka shutdown contract, the starter's dev mode +
+  plain home page (P10), [[redis-restart-aware-retry]] with `redis.heartbeat.ms`; 603 tests; crates 12/12 01:57Z; Java #451
+  `aafeff04`, the packs 4.12.1 → 4.12.15. READ notes in the CHANGELOG. Origin 2026-09-23-014725.md.)
   Prior: v4.12.14 (2026-09-22 02:12:43Z — the first lock-step release with the Java engine; PR #308 merged as `b83c493f`,
   tag → `2c88fe2b`; the minimalist-kafka port complete (K3–K5 incl. the Schema Registry wire format, Increment 127,
   [[schema-registry-native-codec]]), the OpenTelemetry forwarder (#307, Increment 129, [[otel-forwarder-no-sdk]]), the
