@@ -8,11 +8,18 @@ name: rust
 # check under branch protection, and a path-filtered required check leaves
 # docs-only PRs stuck waiting for a run that never starts. The cargo cache
 # keeps docs-only runs cheap.
+#
+# The `audit` job runs `cargo audit` against Cargo.lock (RustSec advisory
+# database): a vulnerability fails the job; unmaintained, unsound and yanked
+# advisories are reported as warnings. It also runs on a weekly schedule,
+# because advisories arrive without a commit — the other jobs skip that event.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'   # Mondays 06:00 UTC — advisory sweep only (see `audit`)
 
 permissions:
   contents: read
@@ -23,6 +30,7 @@ concurrency:
 
 jobs:
   test:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -49,3 +57,25 @@ jobs:
       # (docs.yml does not trigger on crates/** changes; this lane does)
       - name: Check documentation behavior claims
         run: python3 scripts/check-doc-claims.py
+
+  # Dependency advisories (RustSec) against Cargo.lock. The official RustSec
+  # action installs cargo-audit itself and annotates the PR; it needs
+  # `checks: write` for the annotations, which is why this job widens the
+  # workflow's read-only default. Increment 138 (2026-09-24): added after the
+  # 4.12.16 publish log showed `serde_yaml v0.9.34+deprecated` — an advisory
+  # database catches vulnerabilities (and RustSec-filed unmaintained crates),
+  # not a crate author's own deprecation marker, so this is the vulnerability
+  # gate the workspace lacked, not a substitute for reading the publish log.
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: cargo audit (RustSec advisories)
+        uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

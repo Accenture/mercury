@@ -20,7 +20,9 @@ Before submitting a Pull Request:
 
 - Please write tests.
 - Make sure you run all tests and check for warnings (`cargo test --workspace`,
-  `cargo clippy --workspace --all-targets`, `cargo fmt --all --check`).
+  `cargo clippy --workspace --all-targets`, `cargo fmt --all --check`), and that the
+  dependency lock is clean of RustSec advisories (`cargo audit`, installed with
+  `cargo install cargo-audit --locked`); CI runs the same audit on every pull request and weekly.
 - Think about whether it makes sense to document the change in some way. For smaller, internal changes, 
   inline documentation might be sufficient, while more visible ones might warrant a change to 
   the design docs or the [README](./README.md).
