@@ -3782,3 +3782,37 @@ the job; unmaintained, unsound and yanked advisories are warnings, annotated on 
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
 --workspace`, `cargo audit`, `check-doc-claims`, `check-llms-links`.
+
+## Increment 139 — A separate Schema Registry identity for the consumer side (2026-09-24)
+
+Lock-step with the Java engine's #458/#459 and the twin-kafka sync: a field installation whose Confluent
+registry grants access per direction — a produce identity pool and a consume identity pool — found that one
+codec per process, shared by the producer and every flow-adapter binding, pins both directions to one identity.
+The Java fix reuses the prefix seam its twin-kafka already runs on for a second cluster's registry; this port
+has the same seam (`SchemaCodec::for_registry`) and the same one-codec bootstrap, so it gains the same opt-in.
+
+- **`SchemaCodec::for_consumer(config, url, key_prefix, producer)`** — the producer's codec unless
+  `<key_prefix>.consumer.properties` names a registry client template, in which case a second codec is built
+  under `<key_prefix>.consumer`: the same registry URL (a consumer decodes ids minted by the registry its
+  producers use), that template, its own caches. Presence is the opt-in; blank counts as unset (the `${VAR:}`
+  idiom); the registry URL stays the feature switch. The bootstrap hands the flow adapter this codec and the
+  producer keeps `schema.registry.*` — unset, byte-for-byte the previous wiring.
+- **Where the identity lives, and the one delta from Java.** There is no serde layer here, so the Java
+  `schema.registry.consumer.serde.*` override route has no analog (reported as ignored like any serde key) and
+  CSFLE does not apply; the consume identity — typically the producer's OAuth client with a different
+  `bearer.auth.identity.pool.id` — goes in the consumer template, and the codec sends it on every registry
+  call. On Java the override reaches the deserializer's DEK-registry client but not the codec's own schema
+  lookups; here the template is the whole story, which is the simpler of the two.
+- **Test.** `schema_codec` scenario 14: unset and blank return the producer's `Arc` (`ptr_eq`); the opt-in alone
+  does not switch schema features on; a configured template builds a distinct codec under
+  `schema.registry.consumer` (its own `ManagedCache`) that decodes the producer's frame against the same
+  embedded registry.
+- **Docs.** Guide subsection *A separate registry identity for the consumer side*, the configuration table
+  row and reference entry, the `schema-registry.yml` template's note, the llms.txt discovery line, and a
+  commented sample in the sync-over-async demo (`application.yml` + `schema-registry-consumer.yml`), as on Java.
+
+**Upgrade note.** None unless you opt in: an application that never sets `schema.registry.consumer.properties`
+runs exactly as before.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+--workspace`, `cargo audit`, `check-doc-claims`, `check-llms-links`.

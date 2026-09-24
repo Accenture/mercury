@@ -19,6 +19,18 @@ schema.registry.url: '${SCHEMA_REGISTRY_URL:http://127.0.0.1:8081}'
 # id->schema cache TTL. 30m lets schema changes be picked up while running (no pod restart);
 # not-found is never cached, so a newly registered schema is visible immediately.
 schema.registry.cache.ttl: 30m
+# --- Optional: a separate Schema Registry identity for the CONSUMER side (the Kafka flow adapter) ---
+# By default one codec - one registry identity, from schema-registry.yml - serves both directions. Some
+# Confluent installations grant registry access per direction - a produce identity pool and a consume
+# identity pool - so no single identity covers everything a service consumes. The opt-in is the PRESENCE
+# of schema.registry.consumer.properties; unset or blank leaves the adapter on the producer's codec, so
+# schema.registry.consumer.properties: '${SCHEMA_REGISTRY_CONSUMER_PROPERTIES:}' stays off until that
+# variable is exported. schema.registry.url stays the feature switch and is shared. On this engine the
+# consume identity lives in the template (there is no serde layer to override): see the sample
+# schema-registry-consumer.yml next to this file. The local schema-registry-standalone helper enforces no
+# identity pools, so these lines illustrate the wiring, not an access grant.
+# schema.registry.consumer.properties: 'classpath:/schema-registry-consumer.yml'
+# schema.registry.consumer.cache.ttl: 30m
 # return-route engine tunables (the facade role; the soa.redis.* namespace falls back to redis.*)
 sync.return.channel.prefix: svc-return
 sync.route.ttl.seconds: 90

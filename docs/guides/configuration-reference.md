@@ -687,6 +687,19 @@ Validate JSON documents against their registered schema on both produce and cons
 `json.fail.invalid.schema`). Other `schema.registry.serde.*` keys have no analog here (CSFLE is not
 supported) and are logged as unsupported.
 
+#### `schema.registry.consumer.properties`
+
+| Type | Default |
+|---|---|
+| string (comma-separated locations) | — (the flow adapter shares the producer's codec) |
+
+Opt-in [separate Schema Registry identity for the consumer side](minimalist-kafka.md#schema-consumer-identity).
+When it names a registry client template, the Kafka flow adapter decodes with its own codec built under the
+`schema.registry.consumer` prefix — the same `schema.registry.url`, that template, its own
+`schema.registry.consumer.cache.ttl` — for an installation that grants registry access per direction
+(separate produce and consume identity pools). The consume identity lives in the template on this engine.
+Unset or blank: unchanged, one shared codec; `schema.registry.url` remains the feature switch.
+
 ## Knowledge graph and Playground
 
 #### `app.env`

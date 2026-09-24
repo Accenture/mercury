@@ -499,4 +499,91 @@ async fn schema_codec_end_to_end() {
         "{}",
         denied.message()
     );
+
+    // --- 14. the consume side's own registry identity (the Java KafkaFlowAutoStartTest
+    //         twin): unset or blank reuses the producer's codec; a configured template
+    //         builds a distinct codec under schema.registry.consumer that decodes the
+    //         producer's frame against the same registry
+    let producer = Some(codec.clone());
+    let same = SchemaCodec::for_consumer(
+        config,
+        Some(registry.base_url()),
+        "schema.registry",
+        producer.clone(),
+    )
+    .expect("resolves")
+    .expect("producer codec");
+    assert!(
+        Arc::ptr_eq(&codec, &same),
+        "unset: the adapter decodes with the producer's codec"
+    );
+    overrides::set("schema.registry.consumer.properties", "  ");
+    let blank = SchemaCodec::for_consumer(
+        config,
+        Some(registry.base_url()),
+        "schema.registry",
+        producer.clone(),
+    )
+    .expect("resolves")
+    .expect("producer codec");
+    assert!(
+        Arc::ptr_eq(&codec, &blank),
+        "blank (the env-var-default idiom) means off, like schema.registry.url"
+    );
+    let consumer_template = std::env::temp_dir().join(format!(
+        "schema-registry-consumer-{}.yml",
+        std::process::id()
+    ));
+    std::fs::write(
+        &consumer_template,
+        "bearer.auth.identity.pool.id: pool-consume-test\n",
+    )
+    .expect("write consumer template");
+    overrides::set(
+        "schema.registry.consumer.properties",
+        &format!("file:{}", consumer_template.display()),
+    );
+    assert!(
+        SchemaCodec::for_consumer(config, Some("  "), "schema.registry", None)
+            .expect("resolves")
+            .is_none(),
+        "the opt-in alone does not switch schema features on"
+    );
+    let consumer = SchemaCodec::for_consumer(
+        config,
+        Some(registry.base_url()),
+        "schema.registry",
+        producer,
+    )
+    .expect("resolves")
+    .expect("consumer codec");
+    assert!(
+        !Arc::ptr_eq(&codec, &consumer),
+        "set: the adapter decodes with its own codec"
+    );
+    assert!(
+        ManagedCache::get_instance("schema.registry.consumer").is_some(),
+        "the consumer codec's caches carry the schema.registry.consumer prefix"
+    );
+    let identity_id = registry.register("consumer-identity-value", "JSON", JSON_SCHEMA);
+    let resolved = codec
+        .resolve("consumer-identity-value", "latest")
+        .await
+        .expect("resolved");
+    assert_eq!(identity_id, resolved.id);
+    let framed = codec
+        .encode(resolved, &serde_json::json!({"hello": "identity"}))
+        .await
+        .expect("framed");
+    assert_eq!(
+        "identity",
+        json_view(
+            &consumer
+                .decode("consumer-identity", Some(&framed))
+                .await
+                .expect("decoded by the consumer's own codec")
+        )["hello"]
+    );
+    let _ = std::fs::remove_file(&consumer_template);
+    overrides::clear("schema.registry.consumer.properties");
 }

@@ -792,6 +792,39 @@ The Java module's `schema.registry.serde.*` pass-through is read for the one set
 `schema.registry.serde.json.fail.invalid.schema` (see the [notes](#schema-notes)); any other key under that
 prefix is logged as unsupported.
 
+### A separate registry identity for the consumer side {#schema-consumer-identity}
+
+By default **one** codec — one Schema Registry identity, taken from `schema-registry.yml` — serves both
+directions: `simple.kafka.notification` encodes and the flow adapter decodes with it. Some Confluent
+installations grant a service's registry access **per direction** — a *produce* identity pool and a
+*consume* identity pool — so no single identity covers everything the service consumes. Set
+`schema.registry.consumer.properties` to give the flow adapter its own codec, built under the
+`schema.registry.consumer` key prefix against the **same** `schema.registry.url`:
+
+```yaml
+# Producer identity (unchanged)
+schema.registry.url: '${SCHEMA_REGISTRY_URL}'
+schema.registry.properties: 'classpath:/schema-registry.yml'
+
+# Consumer identity: a second template carrying the consume identity
+schema.registry.consumer.properties: 'classpath:/schema-registry-consumer.yml'
+```
+
+The same rules as on the Java engine ([guide](https://accenture.github.io/mercury-composable/guides/minimalist-kafka/#schema-consumer-identity)),
+with one difference to know:
+
+- **Unset or blank = unchanged.** The adapter shares the producer's codec exactly as before; the `${ENV_VAR:}`
+  idiom (blank when the variable is unset) keeps it that way per environment. The opt-in does not turn schema
+  features on — `schema.registry.url` stays the switch and is shared: a consumer decodes messages whose ids
+  were minted by the registry its producers use.
+- **The consumer keys derive from the prefix:** `schema.registry.consumer.properties` (the template — reuse the
+  producer's file or point at a second one) and `schema.registry.consumer.cache.ttl` (its own caches).
+- **The identity lives in the template on this engine.** There is no Confluent serde layer here, so the Java
+  module's `schema.registry.consumer.serde.*` override route has no analog (a key under it is reported as
+  ignored, like any other serde key) and CSFLE does not apply. The consume identity — typically the producer's
+  OAuth client with a different `bearer.auth.identity.pool.id` — goes in the consumer template, and the codec
+  sends it on every registry call.
+
 ### Consume: decode by embedded id {#schema-consume}
 
 Set `schema.enabled: true` on a consumer binding. The adapter reads the magic byte + embedded id, looks up
@@ -873,6 +906,7 @@ The essentials:
 | `schema.registry.cache.ttl` | `30m` | TTL for the in-memory schema cache (by id); positive results only; cleared at startup. |
 | `schema.registry.version.cache.ttl` | `10d` | TTL for the pinned subject+version resolutions (bounded to 3000 entries). |
 | `schema.registry.serde.json.fail.invalid.schema` | `false` | Validate JSON documents against their schema on produce and consume. |
+| `schema.registry.consumer.properties` | — | Opt in to a [separate registry identity for the consumer side](#schema-consumer-identity): the flow adapter's own registry client template (the producer's file or a second one). Unset or blank = the adapter shares the producer's codec. |
 
 ## Differences from the Java engine {#deltas}
 
