@@ -243,6 +243,49 @@ impl SchemaCodec {
         })))
     }
 
+    /// The codec a consume side decodes with (Java `SchemaCodec.forConsumer`):
+    /// the producer's own codec unless `<key_prefix>.consumer.properties` names
+    /// a registry client template, in which case a second codec is built by
+    /// [`SchemaCodec::for_registry`] under the `<key_prefix>.consumer` prefix —
+    /// the same registry URL (a consumer decodes messages whose ids were minted
+    /// by the registry its producers use), that template (the producer's file
+    /// or a second one) and its own caches. Some Confluent installations grant
+    /// a service's registry access per direction — separate produce and consume
+    /// identity pools — so no single identity covers everything the service
+    /// consumes; this is the seam that lets the two directions carry different
+    /// identities. Presence is the opt-in: unset or blank (the `${ENV_VAR:}`
+    /// idiom) returns `producer` unchanged, and the registry URL stays the
+    /// feature switch (a missing/blank URL yields `None`, as for the producer).
+    ///
+    /// This port has no serde layer and no CSFLE, so the consume identity is
+    /// carried by the template itself (the identity-pool header on every
+    /// registry call); a `<key_prefix>.consumer.serde.*` key is reported as
+    /// ignored like any other serde key.
+    pub fn for_consumer(
+        config: &AppConfigReader,
+        registry_url: Option<&str>,
+        key_prefix: &str,
+        producer: Option<Arc<SchemaCodec>>,
+    ) -> Result<Option<Arc<SchemaCodec>>, AppError> {
+        let location_key = format!("{key_prefix}.consumer.properties");
+        let location = config.get_property_or(&location_key, "");
+        if location.trim().is_empty() {
+            return Ok(producer);
+        }
+        let consumer_prefix = format!("{key_prefix}.consumer");
+        let consumer = Self::for_registry(config, registry_url, &consumer_prefix)?;
+        match &consumer {
+            None => log::warn!(
+                "{location_key} is set but {key_prefix}.url is not - schema features stay off"
+            ),
+            Some(_) => log::info!(
+                "Consume side decodes with its own Schema Registry identity \
+                 ({location_key}={location}, prefix {consumer_prefix})"
+            ),
+        }
+        Ok(consumer)
+    }
+
     /// Whether the bytes are Confluent-framed (magic byte + 4-byte id + payload).
     pub fn is_framed(data: &[u8]) -> bool {
         data.len() >= FRAME_HEADER_LEN && data[0] == MAGIC_BYTE

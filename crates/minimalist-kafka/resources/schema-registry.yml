@@ -18,6 +18,11 @@
 # feature switch: unset means schema features are off. The library also pins its cache behavior
 # (positive-results-only) in code; everything here is yours.
 #
+# The flow adapter (consume side) shares this identity unless schema.registry.consumer.properties
+# names a template of its own - for an installation that grants registry access per direction
+# (separate produce and consume identity pools). See the guide's "separate registry identity for the
+# consumer side".
+#
 
 # --- OAuth 2.0 client-credentials (e.g. Azure AD / Entra ID): uncomment and complete ---
 # bearer.auth.credentials.source: OAUTHBEARER

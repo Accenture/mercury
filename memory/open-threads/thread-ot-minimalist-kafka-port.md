@@ -7,4 +7,4 @@
   Lesson: a configuration-only activation still needs one use line per crate (Finding 5), and `auto` needed no probe — a
   refused join is the probe. origin: 2026-09-14-015014 … 2026-09-21-233114; close 2026-09-23-014725.
   → served: vision-mercury
-  <!-- id: ot-minimalist-kafka-port | created: 2026-09-14 | last_used: 2026-09-23 | uses: 13 | tier: active | origin: 2026-09-14-015014 -->
+  <!-- id: ot-minimalist-kafka-port | created: 2026-09-14 | last_used: 2026-09-24 | uses: 14 | tier: active | origin: 2026-09-14-015014 -->

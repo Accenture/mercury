@@ -1,0 +1,22 @@
+#
+# SAMPLE consumer-side Schema Registry client template for the sync-over-async demo - the consumer-identity
+# opt-in described in application.yml. Activate it there with
+#   schema.registry.consumer.properties: 'classpath:/schema-registry-consumer.yml'
+# and the Kafka flow adapter (consume side) builds its own codec from THIS file, while
+# simple.kafka.notification (produce side) keeps schema-registry.yml. Same mechanics as that template: the
+# keys are the Confluent Schema Registry client's own, interpreted by name (any other key is logged as
+# ignored); ${ENV_VAR:default} substitution applies; point the key at a file path to externalize. The
+# registry URL is NOT here - it stays schema.registry.url, shared with the producer.
+#
+# Fully commented out on purpose: the local schema-registry-standalone helper enforces no authentication
+# and no identity pools, so the demo runs unchanged with this file active. A field installation uncomments
+# the block its registry requires and gives the CONSUME identity here - typically the producer's OAuth
+# client with a different identity pool:
+#
+# bearer.auth.credentials.source: OAUTHBEARER
+# bearer.auth.issuer.endpoint.url: '${SCHEMA_REGISTRY_OAUTH_TOKEN_URL:}'
+# bearer.auth.client.id: '${SCHEMA_REGISTRY_CLIENT_ID:}'
+# bearer.auth.client.secret: '${SCHEMA_REGISTRY_CLIENT_SECRET:}'
+# bearer.auth.scope: '${SCHEMA_REGISTRY_OAUTH_SCOPE:}'
+# bearer.auth.logical.cluster: '${SCHEMA_REGISTRY_LOGICAL_CLUSTER:}'
+# bearer.auth.identity.pool.id: '${SCHEMA_REGISTRY_CONSUME_POOL_ID:}'

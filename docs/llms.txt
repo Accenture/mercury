@@ -123,7 +123,7 @@ repo's own source, so it answers the question without opening `crates/`.
   `kafka-producer.yml` / `kafka-consumer.yml` templates with `${ENV}` substitution, and the Confluent
   Schema Registry wire format for JSON Schema and Avro (subject-driven produce with `subject`/`version`
   headers, `schema.enabled` decode by embedded id, positive-only schema caches, the interpreted
-  `schema-registry.yml` template with OAuth 2.0 client credentials; CSFLE, data-contract rules, schema
+  `schema-registry.yml` template with OAuth 2.0 client credentials, and an optional consumer-side registry identity (`schema.registry.consumer.properties`, a second template for the flow adapter); CSFLE, data-contract rules, schema
   references and Protobuf refused, never degraded). Stated deltas from the Java engine in its own
   section. NOT the Kafka service mesh.
 - [Macros reference](guides/macros-reference.md) — the Rust carrier surface, analog of the Java

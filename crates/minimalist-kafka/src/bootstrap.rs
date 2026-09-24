@@ -66,13 +66,23 @@ impl EntryPoint for KafkaAutoStart {
         }
         // the Schema Registry codec (Java parity: built once, shared by the
         // producer and every schema-enabled binding); None keeps raw bytes
-        match SchemaCodec::from_config(config)? {
-            Some(codec) => runtime::set_schema_codec(codec),
+        let producer_codec = SchemaCodec::from_config(config)?;
+        match &producer_codec {
+            Some(codec) => runtime::set_schema_codec(codec.clone()),
             None => log::info!(
                 "{} not set; schema features off (raw bytes on the wire)",
                 schema::REGISTRY_URL
             ),
         }
+        // the consume side may carry its own registry identity
+        // (schema.registry.consumer.properties - Java resolveConsumerSchemaCodec);
+        // unset or blank, the flow adapter shares the producer's codec
+        let consumer_codec = SchemaCodec::for_consumer(
+            config,
+            config.get_property(schema::REGISTRY_URL).as_deref(),
+            schema::DEFAULT_KEY_PREFIX,
+            producer_codec,
+        )?;
         if producer_enabled {
             let producer: FutureProducer = client_config::producer_client_config()?
                 .create()
@@ -99,7 +109,7 @@ impl EntryPoint for KafkaAutoStart {
         if !consumer_enabled {
             log::info!("{CONSUMER_ENABLED}=false; Kafka flow adapter not started");
         } else if let Some(adapter_location) = config.get_property(ADAPTER_CONFIG) {
-            start_flow_adapter(&adapter_location).await?;
+            start_flow_adapter(&adapter_location, consumer_codec).await?;
         } else {
             log::info!("{ADAPTER_CONFIG} not set; Kafka flow adapter not started");
         }
@@ -111,7 +121,12 @@ impl EntryPoint for KafkaAutoStart {
 /// start): parse + validate the YAML (fail-fast), enforce the
 /// dead-letter-needs-producer guard, build each binding's consumer from the
 /// template with its delivery-mode overlay, and launch the poll loops.
-async fn start_flow_adapter(adapter_location: &str) -> Result<(), AppError> {
+/// `schema_codec` is the consume side's codec — the producer's, or its own
+/// when `schema.registry.consumer.properties` is set.
+async fn start_flow_adapter(
+    adapter_location: &str,
+    schema_codec: Option<Arc<SchemaCodec>>,
+) -> Result<(), AppError> {
     let config = AppConfigReader::get_instance();
     let reader = ConfigReader::load(adapter_location).map_err(|e| {
         AppError::new(
@@ -120,7 +135,6 @@ async fn start_flow_adapter(adapter_location: &str) -> Result<(), AppError> {
         )
     })?;
     let bindings = adapter::parse_bindings(&reader)?;
-    let schema_codec = runtime::schema_codec();
     // a schema.enabled binding without a registry would fail every record:
     // the contradiction fails the deployment, naming the binding
     adapter::reject_schema_without_registry(

@@ -309,8 +309,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   silent security regression; Protobuf stays recognized-and-refused as on Java. One shared, thread-safe codec
   per registry (a second registry = a second key prefix, because global ids are only unique within one
   registry). Proven byte-compatible live: Confluent's serializers ⇄ this codec in both directions
-  (`docs/test-reports/minimalist-kafka-interop.md`, K5 addendum). Spec §7 items 12–16.
-  <!-- id: schema-registry-native-codec | created: 2026-09-21 | last_used: 2026-09-23 | uses: 3 | tier: active | origin: 2026-09-21-233114 -->
+  (`docs/test-reports/minimalist-kafka-interop.md`, K5 addendum). Spec §7 items 12–16. **Increment 139 (2026-09-24,
+  lock-step with Java #458/#460):** the consume side may carry its own registry identity — `SchemaCodec::for_consumer`
+  builds a second codec under `<prefix>.consumer` when `<prefix>.consumer.properties` names a template (presence = opt-in,
+  blank = unset, same URL); the identity lives in the template here, there being no serde layer to override.
+  <!-- id: schema-registry-native-codec | created: 2026-09-21 | last_used: 2026-09-24 | uses: 4 | tier: active | origin: 2026-09-21-233114 -->
 
 - **The OpenTelemetry forwarder is this engine's own OTLP encoder over the platform HTTP client — no OpenTelemetry
   SDK — opt-in by `otel.forwarding`, and a late credential arrives as a runtime override (Eric, 2026-09-21 →
