@@ -410,8 +410,9 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
 
-- **`cargo fmt` + `cargo clippy --all-targets` clean** is part of "done" for every change
-  (default settings, no custom rustfmt.toml yet).
+- **`cargo fmt` + `cargo clippy --all-targets` clean, and `cargo audit` clean** is part of "done" for every
+  change (default settings, no custom rustfmt.toml yet; the RustSec audit runs in CI on every PR and weekly since
+  Increment 138, 2026-09-24 — its first run closed `rustls` RUSTSEC-2026-0285 with a lock refresh).
 - **Apache-2.0 header** comment on every source file (ported from the Java originals'
   header style). EXCEPTION ruled by Eric 2026-09-11: `templates/*` starter sources carry a
   ONE-LINE scaffold attribution instead — templates seed field applications that are not
