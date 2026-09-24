@@ -64,6 +64,7 @@ Verify the workspace:
 cargo test --workspace
 cargo clippy --workspace --all-targets
 cargo fmt --all --check
+cargo audit            # RustSec advisories against Cargo.lock (cargo install cargo-audit --locked)
 ```
 
 ## Repository layout

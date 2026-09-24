@@ -3756,3 +3756,29 @@ same libyaml lineage.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
 --workspace`, `check-doc-claims`, `check-llms-links`.
+
+## Increment 138 — `cargo audit` joins the CI gates, and its first run closes a TLS advisory (2026-09-24)
+
+Increment 137's follow-up, asked for by Eric the same night: the `rust` workflow gains an `audit` job that runs the
+official RustSec action (`rustsec/audit-check@v2`) against `Cargo.lock` on every push to main and every pull request,
+and alone on a weekly schedule (Mondays 06:00 UTC), because advisories arrive without a commit. A vulnerability fails
+the job; unmaintained, unsound and yanked advisories are warnings, annotated on the PR. The job carries its own
+`checks: write` permission for the annotations, leaving the workflow's read-only default for the test job.
+
+- **What the gate is, and is not.** An advisory database catches vulnerabilities and RustSec-filed unmaintained
+  crates. It would not have flagged `serde_yaml`'s own `+deprecated` marker (no RustSec advisory exists for it), so
+  the publish log remains worth reading; what the workspace lacked was the vulnerability gate.
+- **The first local run found one.** `rustls` 0.23.42 carried RUSTSEC-2026-0285 (TLS 1.3 handshake messages accepted
+  across encryption level boundaries; medium, 5.3; fixed in 0.23.45) and `event-listener` 5.4.1 the unsoundness
+  warning RUSTSEC-2026-0221. `cargo update -p rustls -p event-listener` moved the lock within its semver ranges —
+  `rustls` 0.23.45, `rustls-webpki` 0.103.15, `event-listener` 5.4.2 — and the re-audit is clean: 320 crate
+  dependencies, no vulnerability, no warning.
+- **Docs.** README's *Verify the workspace* block and CONTRIBUTING's checklist gain `cargo audit`
+  (`cargo install cargo-audit --locked`).
+- **Known edges.** A pull request from a fork gets a read-only token, so the annotation step cannot create its check
+  there; the scheduled run shares the workflow's per-ref concurrency group with pushes to main.
+
+**Upgrade note.** None for applications — a lock refresh of three transitive crates within their declared ranges.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+--workspace`, `cargo audit`, `check-doc-claims`, `check-llms-links`.
