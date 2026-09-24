@@ -57,8 +57,11 @@
 `rustup update stable` when formatting disagrees — a 1.95-vs-1.98 rustfmt skew over
 match-arm block wrapping failed PR #242's format gate). Cargo **workspace**
 (`Cargo.toml` root, members `crates/*`); `crates/platform-core` is the first crate.
-**Deps in use:** serde 1, serde_json 1, serde_yaml 0.9 (⚠ archived upstream — works fine;
-swap for a maintained fork only if it ever blocks), thiserror 1, log 0.4 (std feature),
+**Deps in use:** serde 1, serde_json 1, **yaml_serde 0.10** (the YAML Organization's maintained continuation
+of the archived `serde_yaml`, wired as `serde_yaml = { package = "yaml_serde", version = "0.10" }` so every
+`use serde_yaml::` stays — migrated 2026-09-24 after Eric saw `serde_yaml v0.9.34+deprecated` in the 4.12.16 publish
+log; its parser `libyaml-rs` is libyaml transliterated by c2rust, the same technique as the retired `unsafe-libyaml`,
+maintained), thiserror 1, log 0.4 (std feature),
 tokio 1 (rt-multi-thread/sync/time/macros/net/signal/io-util), async-trait 0.1,
 async-channel 2 (per-route MPMC queue), rmp-serde 1 + rmpv 1 (with-serde), uuid 1 (v4),
 **hyper 1 (http1/server) + hyper-util 0.1 + http-body-util 0.1** (D10 — REST automation;
