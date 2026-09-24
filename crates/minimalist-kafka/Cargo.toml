@@ -20,8 +20,8 @@ default = []
 ssl = ["rdkafka/ssl-vendored"]
 
 [dependencies]
-mercury-platform-core = { version = "4.12.16", path = "../platform-core" }
-mercury-event-script = { version = "4.12.16", path = "../event-script" }
+mercury-platform-core = { version = "4.12.17", path = "../platform-core" }
+mercury-event-script = { version = "4.12.17", path = "../event-script" }
 async-trait = "0.1"
 log = "0.4"
 regex = "1"

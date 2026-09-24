@@ -11,6 +11,62 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Version 4.12.17, 9/24/2026
+
+The lock-step twin of Java 4.12.17 (Increment 139): the Kafka flow adapter can carry its own Schema Registry identity,
+so an installation whose Confluent registry grants access per direction — a produce identity pool and a consume
+identity pool — serves both directions from one service. This release also carries two Rust-only items merged since
+4.12.16: the unmaintained `serde_yaml` retired for `yaml_serde` (Increment 137) and `cargo audit` in the CI gates,
+whose first run moved three transitive crates past a TLS advisory (Increment 138). Upgrade action: none — the opt-in
+is by presence of one key, the public API is unchanged, and the lock refresh stays within declared ranges.
+Publication: the twelve crates at 4.12.17 on crates.io (`cargo publish --workspace` from the tag).
+
+**Lock-step notes.** Java 4.12.17's feature lands here as Increment 139 (#327). Java's twin-kafka item has no analogue
+(twin-kafka is not ported); Increments 137 and 138 are Rust-only, with no Java analogue.
+
+### Added
+
+- **A separate Schema Registry identity for the consumer side — `schema.registry.consumer.properties`** (#327,
+  Increment 139; the Java engine's #458/#460). The bootstrap built one `SchemaCodec` per process, shared by
+  `simple.kafka.notification` (produce) and every schema-enabled flow-adapter binding (consume), so both directions
+  carried one registry identity. `SchemaCodec::for_consumer(config, url, key_prefix, producer)` returns the producer's
+  codec unless the key names a registry client template, in which case a second codec is built by `for_registry`
+  under `schema.registry.consumer`: the same `schema.registry.url` (a consumer decodes messages whose ids were minted
+  by the registry its producers use), that template, its own caches (`schema.registry.consumer.cache.ttl`). Presence
+  is the opt-in and a blank value counts as unset, so the `${ENV_VAR:}` idiom switches it per environment;
+  `schema.registry.url` stays the feature switch; the bootstrap hands the flow adapter the resolved codec and the
+  producer keeps `schema.registry.*`. One delta from Java, stated in the guide: this engine has no serde layer and no
+  CSFLE, so the Java `schema.registry.consumer.serde.*` override route has no analogue (reported as ignored like any
+  serde key) — the consume identity, typically the producer's OAuth client with a different
+  `bearer.auth.identity.pool.id`, lives in the consumer template and the codec sends it on every registry call. The
+  guide gained *A separate registry identity for the consumer side*, the configuration reference its entry, the
+  `schema-registry.yml` template a note, and the sync-over-async demo a commented sample (`application.yml` +
+  `schema-registry-consumer.yml`). **Upgrade action:** none unless you opt in.
+
+### Changed
+
+- **`serde_yaml` retired for `yaml_serde`, the YAML Organization's maintained continuation** (#325, Increment 137).
+  `serde_yaml` 0.9.34 carries its author's `+deprecated` marker (archived 2024) and was a direct dependency of
+  `platform-core` and `ai-contract-provider`, so every Mercury crate pulled it in. The two manifests now declare
+  `serde_yaml = { package = "yaml_serde", version = "0.10" }` — Cargo's package renaming keeps every
+  `use serde_yaml::` import unchanged — and the lock swaps exactly four packages: `serde_yaml` and `unsafe-libyaml`
+  out, `yaml_serde` 0.10.7 and `libyaml-rs` 0.3.0 in. **Upgrade action:** none — the public API is unchanged and
+  parsing behaviour is that of the same libyaml lineage; an application that pins `serde_yaml` itself now sees two
+  YAML crates in its tree until it follows.
+
+### Build
+
+- **`cargo audit` joins the CI gates** (#326, Increment 138). The `rust` workflow's new `audit` job runs the RustSec
+  advisory check against `Cargo.lock` on every push to main and every pull request, and alone on a weekly schedule
+  (Mondays 06:00 UTC); a vulnerability fails the job, unmaintained/unsound/yanked advisories are annotated as
+  warnings. Its first run found `rustls` 0.23.42 under RUSTSEC-2026-0285 (TLS 1.3 handshake messages accepted across
+  encryption-level boundaries; fixed in 0.23.45) and the `event-listener` 5.4.1 unsoundness note; `cargo update`
+  moved the lock within declared ranges to `rustls` 0.23.45, `rustls-webpki` 0.103.15 and `event-listener` 5.4.2, and
+  the re-audit is clean (320 crate dependencies). README's *Verify the workspace* block and CONTRIBUTING's checklist
+  gain `cargo audit`. **Upgrade action:** none — a library's lock does not ship; an application resolves its own
+  `rustls` and should hold ≥ 0.23.45.
+
+---
 ## Version 4.12.16, 9/23/2026
 
 The lock-step twin of Java 4.12.16 (Increment 136): the null-source mapping rule is now the same in Layer 2 and
