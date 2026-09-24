@@ -92,3 +92,8 @@
 - thread-release-4-11-5-rust — (release — SHIPPED 2026-08-09, lock-step with the Java engine at v4.11.5) — swept: completed thread past archive_window (review 2026-09-17) — 2026-Q3.md
 - thread-tutorial-14-decision-rust — (lock-step) tutorial-14's manager approval became a real three-outcome decision — swept: completed thread past archive_window (review 2026-09-17) — 2026-Q3.md
 - thread-v4-11-1-lockstep — (lock-step) The v4.11.1 arc shipped — version-aware Redis consume, per-task — swept: completed thread past archive_window (review 2026-09-17) — 2026-Q3.md
+- bp-foundation-to-ui — (blueprint — CLOSED at the closure gate 2026-09-17, stalled 69 sessions) Continue foundati… — completed thread past archive_window - swept at the 2026-09-24 seam close — 2026-Q3.md
+- bp-kafka-connectors-backlog — (blueprint — CLOSED at the closure gate 2026-09-17, stalled 93 sessions) Port the lightwei… — completed thread past archive_window - swept at the 2026-09-24 seam close — 2026-Q3.md
+- ot-close-stalled-threads-20260917 — Close stalled threads (due) — dispositioned 2026-09-17 (this repo's first closure gate, RE… — completed thread past archive_window - swept at the 2026-09-24 seam close — 2026-Q3.md
+- ot-cratesio-followups — (follow-ups — CLOSED as parked at the closure gate 2026-09-17, stalled 67 sessions) Regist… — completed thread past archive_window - swept at the 2026-09-24 seam close — 2026-Q3.md
+- thread-reverify-invariants-20260917 — Re-verify invariants — CONFIRMED by Eric 2026-09-17 (due at 60 sessions since 2026-09-02-1… — completed thread past archive_window - swept at the 2026-09-24 seam close — 2026-Q3.md

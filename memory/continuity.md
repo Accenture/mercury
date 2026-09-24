@@ -40,9 +40,10 @@
   K1–K2; its three "not yet ported" items all shipped since — the task↔skill gate and the `input.header.*` fallback in
   4.12.14, dev mode in the starter in 4.12.15.)
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-09-23 | through 2026-09-23-224407.md (cadence — 10 sessions since 2026-09-21; archived 0, swept 0 —
-  nothing past `archive_window`; tier changes 1 via `refresh-metadata`; lines and facts within the caps.)
-  Prior: 2026-09-21 | through 2026-09-21-025547.md (cadence; archived 0, swept 0; tier changes 14; the near-miss is in that log).
+- **last_review:** 2026-09-24 | through 2026-09-24-003204.md (ADVISORY SWEEP at the seam close, 2 sessions after the cadence
+  review — 5 completed threads past `archive_window` swept: the two closed Blueprint gaps, the 2026-09-17 stalled-threads gate,
+  the crates.io follow-ups, the invariants re-verification; archived 0 facts; tier changes 0; lines and facts within the caps.)
+  Prior: 2026-09-23 | 2026-09-23-224407.md (cadence; archived 0, swept 0) · 2026-09-21 | 2026-09-21-025547.md (cadence; tier changes 14).
 - **last_invariant_check:** 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, team-eric-maintainer, vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
