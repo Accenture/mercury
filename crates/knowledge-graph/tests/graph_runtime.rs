@@ -1779,6 +1779,125 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
     assert_eq!(200, reply.status());
     let mm = body_map(&reply);
     assert_eq!(Some(Value::from(11.0)), mm.get_element("doubled"));
+
+    // --- unit-test-math-2 (the field's "wrong answer" rulings, Java twin): a
+    // dispatcher node routes each case to one node per behaviour
+    // case 1: CONDITION stores a declared boolean - a comparison, a bare boolean
+    // variable, a boolean operation over a prior result
+    let reply = run_graph(
+        &platform,
+        "unit-test-math-2",
+        serde_json::json!({"case": 1, "a": 1, "b": 2, "flag": true}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(
+        200,
+        reply.status(),
+        "{}",
+        event_script::conversions::to_json_string(reply.body())
+    );
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from(true)), mm.get_element("ok"));
+    assert_eq!(Some(Value::from(true)), mm.get_element("same"));
+    assert_eq!(Some(Value::from(true)), mm.get_element("gate"));
+    let reply = run_graph(
+        &platform,
+        "unit-test-math-2",
+        serde_json::json!({"case": 1, "a": 3, "b": 2, "flag": false}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from(false)), mm.get_element("ok"));
+    assert_eq!(Some(Value::from(false)), mm.get_element("same"));
+    assert_eq!(Some(Value::from(false)), mm.get_element("gate"));
+    // cases 2, 6, 7: a JSON boolean in a numeric slot never computes as 1 or 0 -
+    // arithmetic, a relational comparison and a bare boolean COMPUTE result all fail
+    // naming the selector
+    for case in [2, 6, 7] {
+        let reply = run_graph(
+            &platform,
+            "unit-test-math-2",
+            serde_json::json!({"case": case, "flag": true}),
+            serde_json::json!({}),
+        )
+        .await;
+        assert_ne!(200, reply.status(), "case {case}");
+        let text = event_script::conversions::to_json_string(reply.body());
+        assert!(
+            text.contains("Boolean operand: model.flag (true)"),
+            "case {case}: {text}"
+        );
+        assert!(text.contains("CONDITION"), "case {case}: {text}");
+    }
+    let reply = run_graph(
+        &platform,
+        "unit-test-math-2",
+        serde_json::json!({"case": 6, "flag": false}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_ne!(200, reply.status());
+    let text = event_script::conversions::to_json_string(reply.body());
+    assert!(
+        text.contains("Boolean operand: model.flag (false) in '{model.flag} < 1'"),
+        "unexpected error response: {text}"
+    );
+    // case 4: a misspelled function is rejected by name, never a silent no-op
+    let reply = run_graph(
+        &platform,
+        "unit-test-math-2",
+        serde_json::json!({"case": 4, "a": 1, "b": 2}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_ne!(200, reply.status());
+    let text = event_script::conversions::to_json_string(reply.body());
+    assert!(
+        text.contains("Unknown function: mn"),
+        "unexpected error response: {text}"
+    );
+    // case 3: an overflow fails naming the operator instead of traveling on as Infinity
+    let reply = run_graph(
+        &platform,
+        "unit-test-math-2",
+        serde_json::json!({"case": 3, "big": 1e308}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_ne!(200, reply.status());
+    let text = event_script::conversions::to_json_string(reply.body());
+    assert!(
+        text.contains("Arithmetic overflow in '*' (result Infinity)"),
+        "unexpected error response: {text}"
+    );
+    // case 5: a division by zero is an error, not an infinite amount - and the same
+    // expression computes with a non-zero divisor
+    let reply = run_graph(
+        &platform,
+        "unit-test-math-2",
+        serde_json::json!({"case": 5, "a": 1, "b": 0}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_ne!(200, reply.status());
+    let text = event_script::conversions::to_json_string(reply.body());
+    assert!(
+        text.contains("Division by zero or arithmetic overflow in '/'"),
+        "unexpected error response: {text}"
+    );
+    let reply = run_graph(
+        &platform,
+        "unit-test-math-2",
+        serde_json::json!({"case": 5, "a": 1, "b": 4}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from(0.25)), mm.get_element("x"));
 }
 
 async fn join_loop_retirement_and_health(platform: &Platform) {

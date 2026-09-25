@@ -73,26 +73,46 @@ fn eval_var(name: &str, ctx: &EvalContext) -> Result<Value, MathError> {
 fn eval_unary(op: &str, right: &Expr, ctx: &EvalContext) -> Result<Value, MathError> {
     let r = eval(right, ctx)?;
     match op {
-        "+" => Ok(Value::Number(as_number(&r, "unary '+'")?)),
-        "-" => Ok(Value::Number(-as_number(&r, "unary '-'")?)),
+        "+" => Ok(Value::Number(finite(
+            as_number(&r, "unary '+'")?,
+            "unary '+'",
+        )?)),
+        "-" => Ok(Value::Number(finite(
+            -as_number(&r, "unary '-'")?,
+            "unary '-'",
+        )?)),
         "!" => Ok(Value::Bool(!r.as_boolean())),
         _ => Err(eval_err(format!("Unsupported unary operator: {op}"))),
     }
 }
 
 fn eval_call(callee: &Expr, args: &[Expr], ctx: &EvalContext) -> Result<Value, MathError> {
+    let name = callee_name(callee);
     let fn_obj = match callee {
         Expr::MemberAccess { .. } | Expr::Variable(_) => resolve_object(callee, ctx),
         _ => None,
     };
-    let Some(ContextValue::Function(function)) = fn_obj else {
-        return Err(eval_err("Attempting to call a non-function"));
+    let function = match fn_obj {
+        // a misspelled or unsupported function is rejected by name, never a silent no-op
+        None => return Err(eval_err(format!("Unknown function: {name}"))),
+        Some(ContextValue::Function(function)) => function,
+        Some(_) => return Err(eval_err(format!("'{name}' is not a function"))),
     };
+    let context = format!("argument of {name}()");
     let mut arg_values = Vec::with_capacity(args.len());
     for arg in args {
-        arg_values.push(eval(arg, ctx)?.as_double()?);
+        arg_values.push(as_number(&eval(arg, ctx)?, &context)?);
     }
-    Ok(Value::Number(function(&arg_values)?))
+    let result = function(&arg_values)?;
+    Ok(Value::Number(finite(result, &format!("{name}()"))?))
+}
+
+fn callee_name(e: &Expr) -> String {
+    match e {
+        Expr::Variable(name) => name.clone(),
+        Expr::MemberAccess { target, property } => format!("{}.{property}", callee_name(target)),
+        _ => "expression".to_string(),
+    }
 }
 
 fn eval_binary(op: &str, left: &Expr, right: &Expr, ctx: &EvalContext) -> Result<Value, MathError> {
@@ -120,13 +140,39 @@ fn eval_binary(op: &str, left: &Expr, right: &Expr, ctx: &EvalContext) -> Result
     }
     // numeric arithmetic
     match op {
-        "+" => return Ok(Value::Number(as_number(&lv, op)? + as_number(&rv, op)?)),
-        "-" => return Ok(Value::Number(as_number(&lv, op)? - as_number(&rv, op)?)),
-        "*" => return Ok(Value::Number(as_number(&lv, op)? * as_number(&rv, op)?)),
-        "/" => return Ok(Value::Number(as_number(&lv, op)? / as_number(&rv, op)?)),
-        "%" => return Ok(Value::Number(as_number(&lv, op)? % as_number(&rv, op)?)),
+        "+" => {
+            return Ok(Value::Number(finite(
+                as_number(&lv, op)? + as_number(&rv, op)?,
+                op,
+            )?))
+        }
+        "-" => {
+            return Ok(Value::Number(finite(
+                as_number(&lv, op)? - as_number(&rv, op)?,
+                op,
+            )?))
+        }
+        "*" => {
+            return Ok(Value::Number(finite(
+                as_number(&lv, op)? * as_number(&rv, op)?,
+                op,
+            )?))
+        }
+        "/" => {
+            return Ok(Value::Number(finite(
+                as_number(&lv, op)? / as_number(&rv, op)?,
+                op,
+            )?))
+        }
+        "%" => {
+            return Ok(Value::Number(finite(
+                as_number(&lv, op)? % as_number(&rv, op)?,
+                op,
+            )?))
+        }
         "**" => {
-            return Ok(Value::Number(as_number(&lv, op)?.powf(as_number(&rv, op)?)));
+            let powered = as_number(&lv, op)?.powf(as_number(&rv, op)?);
+            return Ok(Value::Number(finite(powered, op)?));
         }
         _ => {}
     }
@@ -191,13 +237,39 @@ fn resolve_object<'a>(e: &Expr, ctx: &'a EvalContext) -> Option<&'a ContextValue
     }
 }
 
+/// A number for arithmetic, a relational comparison or a function argument. A
+/// boolean is never a number here - one uniform rejection, whichever operator
+/// met it - so a JSON boolean that reached a numeric slot fails by name instead
+/// of computing as 1 or 0 (equality already type-checks). Java `asNumber`.
 fn as_number(v: &Value, context: &str) -> Result<f64, MathError> {
     match v {
         Value::Number(n) => Ok(*n),
-        // allow bool -> number for arithmetic
-        Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
+        Value::Bool(_) => Err(eval_err(format!("Boolean operand in '{context}': {v}"))),
         Value::Str(_) => Err(eval_err(format!("Expected number in {context}, got {v}"))),
     }
+}
+
+/// Arithmetic stays finite: a double that overflowed to infinity or lost
+/// meaning (NaN) is an error naming the operator, never a value that travels
+/// on to render as the identifier `Infinity` or a settled amount. Java `finite`.
+fn finite(d: f64, context: &str) -> Result<f64, MathError> {
+    if d.is_nan() {
+        return Err(eval_err(format!(
+            "Arithmetic result is not a number (NaN) in '{context}'"
+        )));
+    }
+    if d.is_infinite() {
+        let cause = if context == "/" || context == "%" {
+            "Division by zero or arithmetic overflow"
+        } else {
+            "Arithmetic overflow"
+        };
+        let rendered = if d > 0.0 { "Infinity" } else { "-Infinity" };
+        return Err(eval_err(format!(
+            "{cause} in '{context}' (result {rendered})"
+        )));
+    }
+    Ok(d)
 }
 
 /// String view for concatenation (Java `asString`): numbers render in the

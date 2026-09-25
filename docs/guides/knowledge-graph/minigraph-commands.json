@@ -422,13 +422,15 @@
       ],
       "statement_types": [
         "COMPUTE",
+        "CONDITION",
         "IF",
         "MAPPING",
         "EXECUTE",
         "RESET"
       ],
       "statement_syntax": {
-        "COMPUTE": "COMPUTE: {var} -> {expr}   (JS-like; {namespace.key} substitution; result stored in this node's result namespace, read as {this-node}.result.{var})",
+        "COMPUTE": "COMPUTE: {var} -> {expr}   (JS-like; {namespace.key} substitution; result stored in this node's result namespace, read as {this-node}.result.{var}. A comparison or boolean operator in the expression yields a boolean; a boolean operand in arithmetic, in a </> comparison or as a function argument is REJECTED by name (Boolean operand: model.flag (true) ...) - a JSON true never computes as 1; an unknown function (Unknown function: mn), an overflow (Arithmetic overflow in '*') and a division by zero fail by name. Arithmetic is IEEE double: exact-decimal money belongs in a graph.task function)",
+        "CONDITION": "CONDITION: {var} -> {boolean expr}   (the declared boolean statement: evaluated as a boolean whatever operators it carries - CONDITION: same -> {model.flag} - and stored as a boolean in this node's result namespace; an IF may test it directly: IF: {this-node}.result.{var})",
         "IF": "multi-line decision — MUST include THEN and ELSE or the run aborts ('node X does not have if:, then: or else:'):\nIF: <boolean expression>\nTHEN: <node-name> | next\nELSE: <node-name> | next\n(THEN/ELSE name the node to jump to, or the keyword 'next' to fall through; append the triad as one '''...''' multi-line value. A taken NODE-JUMP ends the statement list immediately - later statements do not run; a 'next' branch falls through and processing continues)",
         "MAPPING": "MAPPING: source -> target   (identical to graph.data.mapper; no {} braces around source/target)",
         "EXECUTE": "EXECUTE: {node-name}   (run another graph.math node's statements inline, IN THE CALLING NODE'S CONTEXT: any COMPUTE results land in the INVOKING node's result namespace ({invoker}.result.{var}); the executed module's own namespace stays empty. This is the module-reuse mechanism: author a formula once in an off-path Module node reading neutral model.* operands; a caller marshals inputs with MAPPING, EXECUTEs the module, then maps ITS OWN result out - e.g. MAPPING: compute.result.sum -> output.body.sum, NOT addition.result.sum. Hang the module under the island (island -[module]-> {module}) so no node is left unconnected)",

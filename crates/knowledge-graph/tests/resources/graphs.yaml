@@ -38,6 +38,7 @@ graphs:
   # node (f:lookup + f:defaultValue), no composable function at all
   - 'unit-test-lookup-1'
   - 'unit-test-math-1'
+  - 'unit-test-math-2'
   - 'rust-foreach'
   - 'rust-join'
   - 'rust-join-retry'

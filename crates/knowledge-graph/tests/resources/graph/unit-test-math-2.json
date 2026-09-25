@@ -1,0 +1,322 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Module"
+      ],
+      "alias": "seed",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "input.body.a -> model.a",
+          "input.body.b -> model.b",
+          "input.body.flag -> model.flag",
+          "input.body.big -> model.big",
+          "input.body.case -> model.case"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Module"
+      ],
+      "alias": "route",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "IF: {model.case} == 1\nTHEN: cond\nELSE: next",
+          "IF: {model.case} == 2\nTHEN: bool-arith\nELSE: next",
+          "IF: {model.case} == 3\nTHEN: overflow\nELSE: next",
+          "IF: {model.case} == 4\nTHEN: unknown-fn\nELSE: next",
+          "IF: {model.case} == 5\nTHEN: divide\nELSE: next",
+          "IF: {model.case} == 6\nTHEN: compare-bool\nELSE: next",
+          "IF: {model.case} == 7\nTHEN: bool-copy\nELSE: next"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Module"
+      ],
+      "alias": "cond",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "CONDITION: ok -> {model.a} < {model.b}",
+          "CONDITION: same -> {model.flag}",
+          "CONDITION: gate -> {cond.result.ok} && {model.flag}",
+          "MAPPING: cond.result.ok -> output.body.ok",
+          "MAPPING: cond.result.same -> output.body.same",
+          "MAPPING: cond.result.gate -> output.body.gate"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Module"
+      ],
+      "alias": "bool-arith",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: x -> {model.flag} + 1",
+          "MAPPING: bool-arith.result.x -> output.body.x"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Module"
+      ],
+      "alias": "overflow",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: x -> {model.big} * 10",
+          "MAPPING: overflow.result.x -> output.body.x"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Module"
+      ],
+      "alias": "unknown-fn",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: x -> mn({model.a}, {model.b})",
+          "MAPPING: unknown-fn.result.x -> output.body.x"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Module"
+      ],
+      "alias": "divide",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: x -> {model.a} / {model.b}",
+          "MAPPING: divide.result.x -> output.body.x"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Module"
+      ],
+      "alias": "compare-bool",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: x -> {model.flag} < 1",
+          "MAPPING: compare-bool.result.x -> output.body.x"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Module"
+      ],
+      "alias": "bool-copy",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: x -> {model.flag}",
+          "MAPPING: bool-copy.result.x -> output.body.x"
+        ]
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.math names a boolean operand, an unknown function, an overflow and a division by zero; CONDITION stores a declared boolean",
+        "name": "unit-test-math-2"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "run",
+          "properties": {}
+        }
+      ],
+      "target": "seed"
+    },
+    {
+      "source": "seed",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "route"
+    },
+    {
+      "source": "route",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "route",
+      "relations": [
+        {
+          "type": "case",
+          "properties": {}
+        }
+      ],
+      "target": "cond"
+    },
+    {
+      "source": "route",
+      "relations": [
+        {
+          "type": "case",
+          "properties": {}
+        }
+      ],
+      "target": "bool-arith"
+    },
+    {
+      "source": "route",
+      "relations": [
+        {
+          "type": "case",
+          "properties": {}
+        }
+      ],
+      "target": "overflow"
+    },
+    {
+      "source": "route",
+      "relations": [
+        {
+          "type": "case",
+          "properties": {}
+        }
+      ],
+      "target": "unknown-fn"
+    },
+    {
+      "source": "route",
+      "relations": [
+        {
+          "type": "case",
+          "properties": {}
+        }
+      ],
+      "target": "divide"
+    },
+    {
+      "source": "route",
+      "relations": [
+        {
+          "type": "case",
+          "properties": {}
+        }
+      ],
+      "target": "compare-bool"
+    },
+    {
+      "source": "route",
+      "relations": [
+        {
+          "type": "case",
+          "properties": {}
+        }
+      ],
+      "target": "bool-copy"
+    },
+    {
+      "source": "cond",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "bool-arith",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "overflow",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "unknown-fn",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "divide",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "compare-bool",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "bool-copy",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

@@ -169,14 +169,42 @@ fn numbers_lexing_edge_cases() {
 }
 
 #[test]
-fn division_by_zero_and_nan() {
+fn division_by_zero_overflow_and_nan_are_errors() {
+    // arithmetic stays finite: no Infinity or NaN travels on as a value (a field graph once
+    // failed a later node with 'Unknown identifier: Infinity' after an overflow) - Java parity
     let engine = ExpressionEngine::new();
-    assert_eq!(f64::INFINITY, engine.eval_number("1 / 0.0").unwrap());
-    assert_eq!(f64::NEG_INFINITY, engine.eval_number("-1 / 0.0").unwrap());
-    // NaN truthiness
-    assert!(engine.eval_boolean("!(0/0)").unwrap());
-    // NaN == NaN -> false
-    assert!(!engine.eval_boolean("(0/0) == (0/0)").unwrap());
+    let e1 = engine.eval_number("1 / 0.0").unwrap_err();
+    assert!(
+        e1.message()
+            .contains("Division by zero or arithmetic overflow in '/' (result Infinity)"),
+        "{}",
+        e1.message()
+    );
+    let e2 = engine.eval_number("-1 / 0.0").unwrap_err();
+    assert!(
+        e2.message().contains("result -Infinity"),
+        "{}",
+        e2.message()
+    );
+    let e3 = engine.eval_number("0 / 0").unwrap_err();
+    assert!(
+        e3.message().contains("not a number (NaN) in '/'"),
+        "{}",
+        e3.message()
+    );
+    let e4 = engine.eval_number("1e308 * 10").unwrap_err();
+    assert!(
+        e4.message()
+            .contains("Arithmetic overflow in '*' (result Infinity)"),
+        "{}",
+        e4.message()
+    );
+    let e5 = engine.eval_number("pow(10, 400)").unwrap_err();
+    assert!(
+        e5.message().contains("Arithmetic overflow in 'pow()'"),
+        "{}",
+        e5.message()
+    );
 }
 
 #[test]
@@ -209,14 +237,56 @@ fn error_cases_unknowns_and_misuse() {
     let e1 = engine.eval_number("foo + 1").unwrap_err();
     assert!(matches!(e1, MathError::Eval(_)));
     assert!(e1.message().to_lowercase().contains("unknown identifier"));
-    // calling a non-function
+    // calling a value as a function, and a misspelled function - each rejected by name
     let e2 = engine.eval_number("PI(2)").unwrap_err();
     assert!(matches!(e2, MathError::Eval(_)));
-    assert!(e2.message().to_lowercase().contains("non-function"));
+    assert_eq!("'PI' is not a function", e2.message());
+    let e2b = engine.eval_number("mn(1, 2)").unwrap_err();
+    assert_eq!("Unknown function: mn", e2b.message());
+    let e2c = engine.eval_number("Math.mn(1, 2)").unwrap_err();
+    assert_eq!("Unknown function: Math.mn", e2c.message());
     // type mismatch in equality
     let e3 = engine.eval_boolean("'1' == 1").unwrap_err();
     assert!(matches!(e3, MathError::Eval(_)));
     assert!(e3.message().contains("Type mismatch"));
+    // a boolean is never a number: arithmetic, a relational comparison, a function argument
+    // and a bare boolean result are all rejected - uniformly, whichever operator met it
+    let b1 = engine.eval_number("true + 1").unwrap_err();
+    assert!(
+        b1.message()
+            .starts_with("Boolean operand in '+': Boolean(true)"),
+        "{}",
+        b1.message()
+    );
+    let b2 = engine.eval_number("0 - true").unwrap_err();
+    assert!(
+        b2.message().starts_with("Boolean operand in '-'"),
+        "{}",
+        b2.message()
+    );
+    let b3 = engine.eval_boolean("false < 1").unwrap_err();
+    assert!(
+        b3.message().starts_with("Boolean operand in '<'"),
+        "{}",
+        b3.message()
+    );
+    let b4 = engine.eval_number("max(true, 2)").unwrap_err();
+    assert!(
+        b4.message()
+            .starts_with("Boolean operand in 'argument of max()'"),
+        "{}",
+        b4.message()
+    );
+    let b5 = engine.eval_number("true").unwrap_err();
+    assert!(
+        b5.message()
+            .starts_with("Boolean result where a number was expected"),
+        "{}",
+        b5.message()
+    );
+    // booleans stay first-class in boolean contexts
+    assert!(engine.eval_boolean("true && !false").unwrap());
+    assert!(engine.eval_boolean("true == true").unwrap());
 }
 
 #[test]
@@ -231,9 +301,13 @@ fn random_and_argument_checks() {
     assert_eq!("Function pow expects 2 args, got 1", e1.message());
     let e2 = engine.eval_number("sin(1, 2)").unwrap_err();
     assert_eq!("Expected 1 argument", e2.message());
-    // string argument to a numeric function never coerces
+    // string argument to a numeric function never coerces - the argument passes the same
+    // typed check as an arithmetic operand (Java `asNumber`), so the message names the slot
     let e3 = engine.eval_number("sqrt('4')").unwrap_err();
-    assert_eq!("Cannot coerce string to number: \"4\"", e3.message());
+    assert_eq!(
+        "Expected number in argument of sqrt(), got String(4)",
+        e3.message()
+    );
 }
 
 /// Increment 57 (parity F23): a CONCATENATED negative zero renders "0" like

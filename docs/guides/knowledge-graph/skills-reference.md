@@ -76,11 +76,12 @@ mapping[]=fetch-two.result.profile -> output.body.profile[1]
 
 Fast inline math and boolean evaluation for computation and decision-making. This is **the** skill
 for inline compute/branch in this Rust port ([`graph.js`](#js) is retired). Statements run in order;
-five types:
+six types:
 
 | Statement | Purpose |
 |---|---|
-| `COMPUTE` | evaluate a math expression → the node's `result` |
+| `COMPUTE` | evaluate a math expression → the node's `result` (a number; an expression with a comparison or boolean operator yields a boolean) |
+| `CONDITION` | evaluate a **boolean** expression → the node's `result`, declared as a boolean whatever operators it carries (`CONDITION: ok -> {model.a} < {model.b}`, `CONDITION: same -> {model.flag}`) |
 | `IF` | boolean decision → jump to a node (`THEN`/`ELSE`) |
 | `MAPPING` | data-map source → target (no curly braces) |
 | `EXECUTE` | run another `graph.math` node inline — results land on the **caller** (`{invoker}.result.*`), making this the module-reuse mechanism ([details](command-reference.md#math-statements)) |
@@ -109,17 +110,44 @@ becomes an iteration array (parallel lists advance in lockstep and must agree on
 bind once; an unresolvable source removes the key). `BEGIN`/`END` split the statements into
 pre-block (once) / each-block (per element) / post-block (once) — **without `BEGIN` the whole
 list is the loop body**. Iteration is strictly sequential in list order, inside one node
-execution; a taken `IF` jump breaks the loop and skips the post-block. Numeric accumulators work
-with either `f:add` (numeric promotion: all-whole stays exact long, any decimal promotes to
-double) or a pure-`COMPUTE` read-back. Full rules + worked example:
+execution; **a taken `IF` jump inside the loop body ends the whole walk** — the current iteration,
+every remaining element and the post-block — and routes traversal to the target, because an `IF`
+is a traversal jump, not a per-row branch. Write per-row rules as arithmetic gates
+(`flag = predicate; hit = open * flag; bucket += amount * hit`) and keep `IF` for the decision
+that follows the loop. Numeric accumulators work with either `f:add` (numeric promotion:
+all-whole stays exact long, any decimal promotes to double) or a pure-`COMPUTE` read-back.
+A `MAPPING` onto `model.x[]` **appends**; the list is not cleared between executions of the same
+instance, so a walk that accumulates a list reseeds it in the pre-block
+(`MAPPING: f:json(text([])) -> model.codes`). Full rules + worked example:
 [for_each](command-reference.md#math-for-each).
 
+**Numbers and booleans.** The dialect is a **narrow** JS-like subset — arithmetic, comparison and
+boolean operators, the built-in math functions (`min`, `max`, `abs`, `floor`, `ceil`, `round`,
+`sqrt`, `pow`, `exp`, `log`, `log10`, also under `Math.`), no bitwise operators, no variables. Its
+rules, each enforced by a named failure rather than a silent value:
+
+- **A boolean is not a number.** A boolean where arithmetic, a `<`/`>` comparison or a function
+  argument needs a number fails naming the selector (`Boolean operand: model.flag (true) in
+  '{model.flag} + 1' …`), and so does a `COMPUTE` whose whole result is a boolean variable. JSON
+  `true` in a numeric slot therefore never computes as `1`. Equality type-checks its two sides.
+  Assert a slot's type with `f:validate(input.body.x, text(x; Double; required; evaluate))` when the
+  request is untrusted; store a decision with `CONDITION`.
+- **`COMPUTE` yields a boolean when the expression carries a comparison or boolean operator**
+  (`<`, `>`, `==`, `!`, `&&`, `||`) — it evaluates the question you wrote. Use `CONDITION` to say
+  so in the statement, and keep `COMPUTE` for amounts.
+- **A misspelled or unsupported function fails by name** (`Unknown function: mn`).
+- **Arithmetic is IEEE double.** An overflow to infinity, a division by zero and a NaN each fail
+  naming the operator (`Arithmetic overflow in '*' (result Infinity)`, `Division by zero or
+  arithmetic overflow in '/'`) instead of traveling on; integers beyond 2^53 lose precision, and
+  `round` rounds half away from zero as Java's `Math.round` does for positive values. `COMPUTE`
+  returns a double, so an integer result serializes as e.g. `8.0`. **Money that needs exact
+  decimal arithmetic, a stated rounding mode or integer cents does not belong in the dialect**:
+  put it in a small composable function on `graph.task` (a decimal crate), which keeps the math
+  package minimal by design.
+
 **Gotchas:** a node runs **once** (guard against loops) unless you `RESET` it — an advanced,
-use-with-care feature; a node may not contain only `MAPPING` statements (use the data mapper). The
-expression dialect is a **narrow** JS-like subset — arithmetic, comparison and boolean operators
-only: **no bitwise operators, no function calls** (e.g. `parseInt(...)`), no variables. `COMPUTE`
-returns a double, so an integer result serializes as e.g. `8.0` (numerically exact — there is no
-in-grammar integer coercion). For anything richer, use `graph.task` (a composable function).
+use-with-care feature; a node may not contain only `MAPPING` statements (use the data mapper).
+For anything richer than the dialect, use `graph.task` (a composable function).
 
 ## graph.js {#js}
 

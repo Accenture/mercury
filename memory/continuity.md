@@ -123,36 +123,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   spec (map, don't mirror).
   <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-30 | uses: 104 | tier: core | origin: 2026-07-15-215538.md -->
 
-- **Playground session broker: an AI agent can HOST a Playground session (2026-09-03, Eric's
-  design, contributed from ai-enabled-repo-demo).**
-  `examples/minigraph-playground/scripts/playground-session-broker.mjs` (zero-dependency,
-  Node ≥ 22, byte-identical to the Java repo's copy) holds a `/ws/graph/playground` session with
-  the UI's welcome/ping handshake, auto-reconnects across app restarts, and exposes a localhost
-  control API (`GET /session`, `POST /start|/stop`). Humans join with `session subscribe <id>` as
-  equal co-authors; the agent drives via companion `/sync`. Smoke-tested against the Java engine;
-  `ws_ui.rs` implements the same handshake — a Rust-side smoke test is still owed. Dev-only.
-  **Reactivated 2026-09-17** (consulted 2026-09-14 for the broker-first hosting docs; the move back
-  was owed since then): the AI docs now lead with the broker and name the keep-alive failure mode;
-  the scaffolding manifest carries `scripts/` into derived projects; the broker also ships in
-  `templates/starter-graph` (Eric, 2026-09-14).
-  <!-- id: playground-session-broker | created: 2026-09-03 | last_used: 2026-09-19 | uses: 7 | tier: archive-candidate | origin: 2026-09-03-172834.md -->
-
-- **A `for_each` iteration of a suspending subgraph suspends under its OWN record — the store key is
-  `graph:{graph_id}:{cid}:{index}`, a cross-engine contract (lock-step with Java's PR #418; Increment 118, 2026-09-19,
-  PR #284).** Every iteration inherits the parent's business cid (that is what makes a subgraph resumable), so N
-  concurrent iterations collided on `graph:{id}:{cid}` and which suspension survived was a race. Mechanism: the extension
-  skill's `for_each` branch carries the position as the `x-iteration-index` HEADER of a graph invocation (never the body;
-  a `flow://` target gets no index — Java parity); the executor lifts it into the reserved `model.iteration_index`
-  (never persisted, never restored); `graph.suspend` puts `index` in the envelope, `graph.resume` sends it in the
-  `type=get` body; the Redis store and the file-store mock append it ONLY when present, so single delegations and
-  pre-upgrade records keep the two-segment key. A mixed Java/Rust fleet shares one Redis, so the two engines must compose
-  the key identically — a lock-step, not an option. Constraints DECLARED in the guide, not enforced (Eric's
-  clean-knowledge-design ruling): positional consistency (appending safe; a shifted iteration MISSES rather than
-  restoring another item's record — pinned), parent → `for_each` → flow → suspending graph unsupported, nested `for_each`
-  with suspension a non-goal. Pinned end to end by `rust-orchestrator-foreach`. Amends ADR-0012 in place (see
-  [[conv-proposals-not-in-adr-ledger-rust]]); relates [[fork-join-awaits-on-calling-task]].
-  <!-- id: for-each-suspend-index-key-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 2 | tier: archive-candidate | origin: 2026-09-19-022252 -->
-
 - **The Redis client layer is the shared `mercury-redis-connection` foundation — `RedisConfig` with a
   configurable key prefix and the plain `redis.*` fallback, the `RedisBackend` standalone-or-cluster seam,
   the reusable `RedisHealthProbe` (Increment 119, 2026-09-19; the Java Q2 extraction in lock-step).**
@@ -235,19 +205,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   scenario.** Pinned by `function_failure_is_java_shaped_error_body`.
   <!-- id: rest-error-body-standard-shape | created: 2026-09-19 | last_used: 2026-09-20 | uses: 2 | tier: archive-candidate | origin: 2026-09-19-182617 -->
 
-- **A typed function may return an `EventEnvelope` to set the reply's status, headers and body — the
-  `TypedAdapter` honours it AS the reply (2026-09-19, d0b0363e; Java `TypedLambdaFunction<I, EventEnvelope>`
-  parity, `WorkerHandler.updateResponse`'s `instanceof`).** Before, the adapter wrapped every `O` as the
-  body, and because `EventEnvelope` derives `Serialize` a `TypedFunction<I, EventEnvelope>` compiled and
-  silently nested the whole envelope inside the reply body — a trap that only the untyped
-  `ComposableFunction` (which always returns an envelope) avoided. Now the output is downcast through
-  `Any`: an `EventEnvelope` passes through, anything else is wrapped as before (`O: 'static`, which
-  `TypedAdapter::arc` already required). Eric's question surfaced it; the fix rode the distributed-cache
-  PR at his direction. Pinned over REST by `typed_function_may_return_an_envelope_to_set_status_and_headers`.
-  Relates [[rest-error-body-standard-shape]] (found the same day, the same "Java honours the envelope"
-  family); documented in the three authoring surfaces.
-  <!-- id: typed-function-envelope-reply | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: archive-candidate | origin: 2026-09-19-182617 -->
-
 - **A headless Rust application must declare that it keeps running — `Platform::keep_running(reason)`
   (found at the minimalist-kafka K4 live drive, 2026-09-21).** `AutoStart::run` parks the process until
   Ctrl-C only when it serves HTTP or websockets; the JVM stays up on a component's non-daemon threads,
@@ -305,7 +262,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   [[otel-forwarder-certification]] CLOSED). The no-SDK design now holds on all four runtimes (the encoder ported to
   mercury-python and mercury-nodejs) and Scenario 8/9 certified them together; the kind rule is SERVER iff
   `service == http.request` — the edge record from [[connected-edge-spans]] — and every function execution is INTERNAL.
-  <!-- id: otel-forwarder-no-sdk | created: 2026-09-22 | last_used: 2026-09-23 | uses: 3 | tier: active | origin: 2026-09-22-010413 -->
+  <!-- id: otel-forwarder-no-sdk | created: 2026-09-22 | last_used: 2026-09-23 | uses: 3 | tier: archive-candidate | origin: 2026-09-22-010413 -->
 
 - **A traced HTTP request is ONE connected span tree whose root is the edge's round-trip span; a streamed response is
   traced at its head and its tail, never per token (Eric's rulings on the Dynatrace review of the v4.12.15 certification
@@ -327,7 +284,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   in Dynatrace by Eric (Scenario 9 and the token-bearing drive 9, `annotation.frames: 8`; reports in
   `docs/test-reports/`). Extends [[otel-forwarder-no-sdk]]; pinned by
   `event_over_http_stream::edge_relay_spans_are_connected`.
-  <!-- id: connected-edge-spans | created: 2026-09-22 | last_used: 2026-09-23 | uses: 2 | tier: active | origin: 2026-09-22-200854 -->
+  <!-- id: connected-edge-spans | created: 2026-09-22 | last_used: 2026-09-23 | uses: 2 | tier: archive-candidate | origin: 2026-09-22-200854 -->
 
 - **The Redis foundation retries intelligently — a heartbeat monitor plus one retry per lost connection for idempotent
   commands only, never a replay of a non-idempotent one (Eric's ruling on polyglot note 3, 2026-09-22; Increment 135, PR
@@ -347,7 +304,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   still drives its own manager (follow-up). Java needs no twin (Lettuce). Lesson: "fail fast" under a known outage means
   one deadline-bounded attempt, never two — a test expectation was wrong on the way, not the code. Extends
   [[redis-connection-foundation-rust]], [[redis-failure-classification-rust]]; closes the polyglot report's note 3.
-  <!-- id: redis-restart-aware-retry | created: 2026-09-22 | last_used: 2026-09-23 | uses: 2 | tier: active | origin: 2026-09-22-235800 -->
+  <!-- id: redis-restart-aware-retry | created: 2026-09-22 | last_used: 2026-09-23 | uses: 2 | tier: archive-candidate | origin: 2026-09-22-235800 -->
 
 ## Conventions
 
@@ -365,7 +322,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   pins (deliberately NOT workspace-inherited, so a copied-out template builds as-is after
   deleting the in-repo `path` keys) — the release edit list grows from 5 manifests to 8.
   **Extended 2026-09-22 (the v4.12.14 publish):** before a crate's FIRST publish, audit its manifest metadata as part of the release sweep — `keywords` ≤ 5 and each ≤ 20 characters, valid `categories`, a `readme` path inside the package — because cargo validates none of it locally and crates.io rejects at upload, after the dependency-ordered run has already published everything before it (`progressive-rendering`, 21 chars, cost `mercury-sync-over-async` its place in the 4.12.14 run).
-  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-23 | uses: 8 | tier: active | origin: 2026-09-11-005808 -->
+  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-23 | uses: 8 | tier: archive-candidate | origin: 2026-09-11-005808 -->
 - Each ported module's `//!` doc names the **Java class it ports** (e.g.
   `org.platformlambda.core.util.ConfigReader`) so reviewers can diff behavior side-by-side.
 - **Tests:** unit tests in-module (`#[cfg(test)]`), integration tests in `tests/` with
@@ -443,6 +400,31 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `table.keys`. In `skills-reference.md`, the in-Playground help and the AI agent guide's checklist; pinned by
   `unit-test-task-9` (`graph_runtime.rs`) in lockstep with Java. Extends [[conventions-rust-baseline]].
   <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-23 | uses: 2 | tier: active | origin: 2026-09-20-152809 -->
+- **graph.math is typed and finite — a boolean is never a number, an unknown function and an overflow fail by name, and
+  `CONDITION` is the declared boolean statement (Eric's rulings on a field page of nine "wrong answer" behaviours,
+  2026-09-25; Increment 141, the Java twin `feat/graph-math-condition-and-typed-arithmetic`).** Both evaluators had the
+  same shape — `as_number` coerced a boolean to 1/0 for arithmetic, `<`/`>` and function arguments while equality
+  type-checked, `eval_call` failed generically, no finite check — so the same JSON `true` in a numeric slot computed
+  three different ways and an overflow travelled on as `Infinity` to fail a later node as `Unknown identifier: Infinity`
+  (the field's case: a boolean threshold negated into a number charged $3.5M where $1.5M was owed). **Rules, each a
+  named failure and never a silent value:** `Boolean operand in '<op>': Boolean(true)` from the evaluator, mapped back to
+  the selector by `name_offending_selectors` (the generalized `name_null_identifier`) as `Boolean operand: model.flag
+  (true) in '…' - a boolean is not a number; store a boolean with CONDITION or assert the type with f:validate`;
+  `eval_number` rejects a boolean RESULT; `Unknown function: mn` / `'PI' is not a function`; `finite()` on every unary,
+  binary and call result (`Arithmetic overflow in '*' (result Infinity)`, `Division by zero or arithmetic overflow in
+  '/'`, NaN by name). `CONDITION: var -> expr` substitutes in a logical context whatever operators it carries
+  (`substitute_var_if_any_logical(text, state, true)`), evaluates with `eval_boolean`, stores a boolean at
+  `{node}.result.{var}`; the compile gate counts it as a statement. **Minimalist boundary (Eric):** exact-decimal money
+  (a rounding mode, integer cents) is NOT added to the dialect — a small composable function on `graph.task` with a
+  decimal crate; the math package does not grow. **Documentation rulings, not engine changes:** `run` on the same
+  Playground instance keeps `model.*` (a `model.x[]` append appends again) and `instantiate graph` / `start` is the
+  reset (a fresh instance; a deployed graph gets one per request); a taken `IF` inside a `for_each` body ends the walk,
+  so per-row rules are arithmetic gates; the end node is the terminus (last writer wins). READ: a graph that relied on
+  `true`/`false` computing as 1/0, a boolean COMPUTE result storing 1.0, or `Infinity` propagating now fails at that
+  statement by name. Pinned by `unit-test-math-2` (`graph_runtime.rs`) and `expression_engine.rs`, lockstep with Java.
+  Extends [[static-decision-table-is-graph-data-rust]] (the same evaluator's null-source rule, Increment 136) and
+  [[conventions-rust-baseline]].
+  <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 1 | tier: working | origin: 2026-09-25-190229 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to

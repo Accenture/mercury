@@ -287,6 +287,16 @@
       "quote": "the shared producer is **flushed** — every record already accepted by `simple.kafka.notification` or a dead-letter write is delivered before the process exits",
       "test": "crates/minimalist-kafka::kafka_shutdown::close_publisher_delivers_the_lingering_records_then_forgets_the_handle",
       "since": "4.12.15+"
+    },
+    {
+      "id": "math-boolean-operand-rejected",
+      "claim": "In graph.math a boolean is never a number: a boolean operand in arithmetic, in a </> comparison or as a function argument - and a COMPUTE whose result is a bare boolean - fails naming the selector instead of computing as 1 or 0; an unknown function, an overflow to infinity and a division by zero fail by name too.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "each enforced by a named failure rather than a silent value",
+      "test": "crates/knowledge-graph::graph_runtime::graph_task_matches_java_semantics",
+      "since": "4.12.18+"
     }
   ]
 }

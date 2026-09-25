@@ -60,7 +60,9 @@ fn manifest_listed_graphs_are_compiled() {
     // decision table fixtures (task-9: a skill-less DecisionTable node mapped
     // whole into a generic function; lookup-1: the same table resolved by the
     // 'lookup' simple plugin in a data mapper decision node) + the math-1
-    // fixture (a COMPUTE over an unresolved model variable names the variable);
+    // fixture (a COMPUTE over an unresolved model variable names the variable)
+    // + the math-2 fixture (CONDITION, a boolean rejected wherever a number is
+    // needed, an unknown function, overflow and division by zero, each by name);
     // the 14 deliberately-invalid fixtures
     // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias) are rejected
     // by the mandatory quality gate. Every graph a runtime test executes MUST
@@ -68,7 +70,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        54,
+        55,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
