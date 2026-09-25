@@ -3816,3 +3816,33 @@ runs exactly as before.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
 --workspace`, `cargo audit`, `check-doc-claims`, `check-llms-links`.
+
+## Increment 140 — Two timing-sensitive tests hardened: the bounce double awaits its severing, the stranded record is queued synchronously (2026-09-25)
+
+Two CI failures around the v4.12.17 release, each on a tree that had passed the same test elsewhere, and neither in
+shipped code. Test-only; `mercury-redis-test-double` is `publish = false`.
+
+- **`BounceProxy::bounce()` / `refuse()` are `async` and return once the severing has happened.** They were
+  fire-and-forget: `abort()` on the relay tasks and a watch `send()` to the acceptor merely schedule the work, so a
+  command written before the runtime polled those tasks still travelled the old link and was answered — main's
+  `rust` run on a memory-only push failed `store_bounce_recovery::retry_is_single_and_bounded_under_a_full_outage`
+  with `expect_err` meeting `Ok(())`: the save had succeeded during the "outage". `bounce()` now aborts and then
+  awaits every relay handle (an aborted task resolves once dropped, its sockets with it); `refuse()` signals the
+  acceptor, awaits its exit so the listener is gone and no link can be added behind the severing, then bounces.
+  Eleven call sites in `redis-connection` and `sync-over-async` gain `.await`. Locally the old double never failed in
+  60 runs — the race needs a starved runner — and the new one passed 20 + 20 repeats of both bounce binaries.
+- **`kafka_shutdown`: the stranded record is queued synchronously.** The bounded-close half of
+  `close_publisher_delivers_the_lingering_records_then_forgets_the_handle` established its precondition — one record
+  in the client's queue against an unreachable broker — with a spawned `publish()` polled by `wait_for`, and asserted
+  nothing about it; the v4.12.17 release PR's first `test` job reached the close with nothing queued and the close
+  truthfully reported 0 undelivered (expected 1). Not reproduced locally (0 failures in 30 runs alone and 10 runs with its two siblings in parallel), so the one timing-dependent
+  step is removed rather than tuned: the record is enqueued with `FutureProducer::send_result` on a clone of the
+  publisher's producer, and the precondition is asserted before the close.
+- **Lesson, for any test double that severs or stops something:** a method that schedules the effect and returns is a
+  flake waiting for a slow machine; make it `async` and await the effect, so the test's next step observes the world
+  it asserts about.
+
+**Upgrade note.** None — tests and a test-only crate.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+--workspace`, `cargo audit`, `check-doc-claims`, `check-llms-links`.

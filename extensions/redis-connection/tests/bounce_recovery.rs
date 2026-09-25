@@ -59,7 +59,7 @@ async fn idempotent_command_heals_across_a_bounce_with_one_retry() {
         .expect("healthy write");
     assert!(backend.lifecycle().healthy());
 
-    proxy.bounce();
+    proxy.bounce().await;
     let value: Option<String> = backend
         .query_idempotent(redis::cmd("GET").arg("k"))
         .await
@@ -84,7 +84,7 @@ async fn non_idempotent_command_is_not_replayed() {
         .expect("healthy push");
     assert_eq!(1, length);
 
-    proxy.bounce();
+    proxy.bounce().await;
     let failure = backend
         .query::<i64>(redis::cmd("RPUSH").arg("list").arg("two"))
         .await
@@ -115,7 +115,7 @@ async fn heartbeat_heals_the_connection_ahead_of_the_next_command() {
         .await
         .expect("healthy push");
 
-    proxy.bounce();
+    proxy.bounce().await;
     // the failed heartbeat marks the loss ...
     assert!(
         wait_until(Duration::from_secs(3), || !backend.lifecycle().healthy()).await,
@@ -153,7 +153,7 @@ async fn known_outage_fails_fast_without_a_second_attempt() {
         .await
         .expect("healthy write");
 
-    proxy.refuse();
+    proxy.refuse().await;
     assert!(
         wait_until(Duration::from_secs(3), || !backend.lifecycle().healthy()).await,
         "the heartbeat must notice the outage"
