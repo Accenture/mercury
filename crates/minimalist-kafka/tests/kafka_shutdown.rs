@@ -39,7 +39,7 @@ use platform_core::Platform;
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::mocking::MockCluster;
-use rdkafka::producer::{DefaultProducerContext, FutureProducer};
+use rdkafka::producer::{DefaultProducerContext, FutureProducer, FutureRecord};
 
 /// Far below the mock cluster's 30 s consumer session timeout (and the 45 s broker default): a
 /// member that merely vanished would keep its partitions for the whole session.
@@ -195,15 +195,21 @@ async fn close_publisher_delivers_the_lingering_records_then_forgets_the_handle(
         .set("bootstrap.servers", "127.0.0.1:1")
         .set("message.timeout.ms", "60000");
     let producer: FutureProducer = unreachable.create().expect("producer");
-    let publisher = Arc::new(KafkaRequestPublisher::new(producer));
+    let publisher = Arc::new(KafkaRequestPublisher::new(producer.clone()));
     runtime::set_publisher(publisher.clone());
-    let caller = publisher.clone();
-    let stuck = tokio::spawn(async move {
-        caller
-            .publish(topic, None, HashMap::new(), Some(b"stranded".to_vec()))
-            .await
-    });
-    wait_for(|| publisher.in_flight_count() >= 1, Duration::from_secs(5)).await;
+    // Queue the stranded record SYNCHRONOUSLY: send_result enqueues and hands back the delivery
+    // future at once, so the precondition never depends on a spawned publisher task being
+    // scheduled. The earlier shape - a spawned publish() polled by wait_for - could reach the close
+    // with nothing queued on a starved CI runner, and the close then truthfully reported 0.
+    let record: FutureRecord<'_, str, [u8]> = FutureRecord::to(topic).payload(b"stranded");
+    let stranded = producer
+        .send_result(record)
+        .map_err(|(error, _)| error)
+        .expect("the stranded record is queued");
+    assert!(
+        publisher.in_flight_count() >= 1,
+        "the stranded record must sit in the client's queue before the close begins"
+    );
     let started = Instant::now();
     let undelivered =
         tokio::task::spawn_blocking(|| runtime::close_publisher_within(Duration::from_millis(500)))
@@ -219,7 +225,9 @@ async fn close_publisher_delivers_the_lingering_records_then_forgets_the_handle(
         started.elapsed()
     );
     assert!(runtime::publisher().is_none());
-    stuck.abort();
+    // the delivery future of the stranded record is dropped unresolved - the dead broker never
+    // acknowledges it, and the test has proven that the close did not wait for it
+    drop(stranded);
     std::mem::forget(cluster);
 }
 

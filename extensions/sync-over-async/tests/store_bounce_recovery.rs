@@ -56,20 +56,20 @@ async fn idempotent_operations_heal_across_a_server_bounce() {
         .await
         .expect("healthy save");
 
-    proxy.bounce();
+    proxy.bounce().await;
     store
         .save_route("cid-1", "svc-return:pod", 60)
         .await
         .expect("save_route heals in one call");
 
-    proxy.bounce();
+    proxy.bounce().await;
     assert_eq!(
         Some("svc-return:pod".to_string()),
         store.get_route("cid-1").await.expect("get_route heals"),
         "the value survives the bounce (server state, not connection state)"
     );
 
-    proxy.bounce();
+    proxy.bounce().await;
     assert_eq!(
         0,
         store
@@ -78,7 +78,7 @@ async fn idempotent_operations_heal_across_a_server_bounce() {
             .expect("queue_length heals")
     );
 
-    proxy.bounce();
+    proxy.bounce().await;
     store.cleanup("cid-1").await.expect("cleanup heals");
     assert_eq!(None, store.get_route("cid-1").await.expect("route gone"));
 }
@@ -95,7 +95,7 @@ async fn append_and_pop_stay_fail_fast_across_a_bounce() {
         .await
         .expect("healthy append");
 
-    proxy.bounce();
+    proxy.bounce().await;
     store
         .append_segment("cid-2", "{\"type\":\"data\",\"body\":\"two\"}", 60)
         .await
@@ -105,7 +105,7 @@ async fn append_and_pop_stay_fail_fast_across_a_bounce() {
         .await
         .expect("the caller's own retry lands on the healed connection");
 
-    proxy.bounce();
+    proxy.bounce().await;
     store
         .pop_segment("cid-2")
         .await
@@ -131,7 +131,7 @@ async fn retry_is_single_and_bounded_under_a_full_outage() {
         .await
         .expect("healthy save");
 
-    proxy.refuse();
+    proxy.refuse().await;
     let started = std::time::Instant::now();
     store
         .save_route("cid-3", "svc-return:pod", 60)

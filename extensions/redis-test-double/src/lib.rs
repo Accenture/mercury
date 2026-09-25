@@ -676,6 +676,7 @@ pub struct BounceProxy {
     port: u16,
     links: Arc<Mutex<Vec<JoinHandle<()>>>>,
     stop_accepting: watch::Sender<bool>,
+    acceptor: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl BounceProxy {
@@ -687,7 +688,7 @@ impl BounceProxy {
         let links: Arc<Mutex<Vec<JoinHandle<()>>>> = Arc::new(Mutex::new(Vec::new()));
         let (stop_accepting, mut stopped) = watch::channel(false);
         let live = links.clone();
-        tokio::spawn(async move {
+        let acceptor = tokio::spawn(async move {
             loop {
                 tokio::select! {
                     _ = stopped.changed() => return, // refuse(): drop the listener
@@ -707,6 +708,7 @@ impl BounceProxy {
             port,
             links,
             stop_accepting,
+            acceptor: Mutex::new(Some(acceptor)),
         }
     }
 
@@ -715,17 +717,31 @@ impl BounceProxy {
         self.port
     }
 
-    /// Sever every live link — a server bounce (back immediately).
-    pub fn bounce(&self) {
-        for link in self.links.lock().expect("links").drain(..) {
+    /// Sever every live link — a server bounce (back immediately). Returns only
+    /// once every relay task has been torn down, i.e. once both ends of every
+    /// link are closed: `abort()` alone merely schedules the cancellation, and a
+    /// command written before the runtime polls the aborted task would still
+    /// travel the old link and be answered (a flake seen on a starved CI runner).
+    pub async fn bounce(&self) {
+        let links: Vec<JoinHandle<()>> = self.links.lock().expect("links").drain(..).collect();
+        for link in links {
             link.abort();
+            // an aborted task resolves (cancelled) once it has been dropped - its
+            // sockets with it; a task that already finished resolves at once
+            let _ = link.await;
         }
     }
 
-    /// Sever the links AND refuse reconnects — a full outage.
-    pub fn refuse(&self) {
+    /// Sever the links AND refuse reconnects — a full outage. The listener is
+    /// gone when this returns: the acceptor is told to stop and awaited first,
+    /// so no link can be added behind the severing, then every link is severed.
+    pub async fn refuse(&self) {
         let _ = self.stop_accepting.send(true);
-        self.bounce();
+        let acceptor = self.acceptor.lock().expect("acceptor").take();
+        if let Some(acceptor) = acceptor {
+            let _ = acceptor.await;
+        }
+        self.bounce().await;
     }
 }
 
