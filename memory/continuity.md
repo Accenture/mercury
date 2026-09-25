@@ -313,7 +313,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   lock-step with Java #458/#460):** the consume side may carry its own registry identity — `SchemaCodec::for_consumer`
   builds a second codec under `<prefix>.consumer` when `<prefix>.consumer.properties` names a template (presence = opt-in,
   blank = unset, same URL); the identity lives in the template here, there being no serde layer to override.
-  <!-- id: schema-registry-native-codec | created: 2026-09-21 | last_used: 2026-09-24 | uses: 4 | tier: active | origin: 2026-09-21-233114 -->
+  <!-- id: schema-registry-native-codec | created: 2026-09-21 | last_used: 2026-09-24 | uses: 5 | tier: active | origin: 2026-09-21-233114 -->
 
 - **The OpenTelemetry forwarder is this engine's own OTLP encoder over the platform HTTP client — no OpenTelemetry
   SDK — opt-in by `otel.forwarding`, and a late credential arrives as a runtime override (Eric, 2026-09-21 →
