@@ -722,16 +722,23 @@ Read by `crates/knowledge-graph`.
 
 | Type | Default |
 |---|---|
-| string (location) | — (unset = no deployed graphs) |
+| string (comma-sep manifest paths) | — (unset = no deployed graphs) |
 
 Location of the graph manifest — a `graphs:` list of graph ids plus an optional
 `location` entry naming the deployed-graph folder (default `classpath:/graph`; `file:/`
-or `classpath:/`, the flows.yaml convention). The manifest is the **CompileGraph quality
-gate and the only door to deployed execution**: a graph is executable at
-`POST /api/graph/{graph-id}` only when listed here AND passing the gate at startup —
-failed or unlisted graphs answer HTTP-404 as if they do not exist. When unset or empty, a
-startup warning notes that no deployed graph models will be executable (the Playground
-dry-run surface is unaffected). Read by `crates/knowledge-graph` (compiler).
+or `classpath:/`, the flows.yaml convention). Since 4.12.19 the property accepts a
+comma-separated list of manifests, each carrying its own location, and when two manifests
+list the same graph id the later manifest wins — its copy replaces the earlier one, and if
+that copy is rejected the id is not executable (a manifest that cannot be loaded is skipped
+with a warning). The manifest is the **CompileGraph quality gate and the only door to
+deployed execution**: a graph is executable at `POST /api/graph/{graph-id}` only when listed
+AND passing the gate at startup — failed or unlisted graphs answer HTTP-404 as if they do not
+exist. When unset or empty, a startup warning notes that no deployed graph models will be
+executable (the Playground dry-run surface is unaffected). Set it for one run with the `-D`
+program argument — `cargo run -p minigraph-playground -- -Dgraph.model.automation='classpath:/graphs.yaml, file:/tmp/graph/deploy/graphs.yaml'`
+keeps the bundled graphs and deploys an exported graph from a `file:/` manifest beside them
+without a rebuild (the [rapid-prototyping path](knowledge-graph/ai-agent-guide.md#deploy-without-rebuild)).
+Read by `crates/knowledge-graph` (compiler).
 
 > The former `location.graph.deployed` key is **retired** — the manifest carries the
 > location of its own models. A leftover value logs an obsolete-key startup warning.

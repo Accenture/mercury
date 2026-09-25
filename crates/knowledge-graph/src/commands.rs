@@ -83,13 +83,6 @@ pub fn temp_dir() -> &'static PathBuf {
     })
 }
 
-/// The deployed graph model folder, resolved by the compiler from the graph
-/// manifest's `location` entry (`location.graph.deployed` is obsolete — the
-/// manifest carries the location of its own models, the flows.yaml convention).
-fn deployed_location() -> String {
-    crate::graphs::deployed_location()
-}
-
 /// Start the temp-graph housekeeping sweep (Java: 10s periodic).
 pub fn start_housekeeping() {
     static STARTED: OnceLock<()> = OnceLock::new();
@@ -905,23 +898,29 @@ fn list_flows() -> String {
     sb
 }
 
-/// The deployed location as enumerable directories: a `file:` location
-/// directly; a `classpath:` location through every resource root (listing is
-/// the union, matching resolve semantics where any root can satisfy a load).
+/// Every deployed location (manifest order — since 4.12.19 there may be several) as
+/// enumerable directories: a `file:` location directly; a `classpath:` location through
+/// every resource root (listing is the union, matching resolve semantics where any root
+/// can satisfy a load).
 fn deployed_dirs() -> Vec<PathBuf> {
-    let location = deployed_location();
-    if let Some(path) = location.strip_prefix("file:") {
-        return vec![PathBuf::from(path)];
+    let mut dirs = Vec::new();
+    for location in crate::graphs::deployed_locations() {
+        if let Some(path) = location.strip_prefix("file:") {
+            dirs.push(PathBuf::from(path));
+            continue;
+        }
+        let Some(sub) = location.strip_prefix("classpath:") else {
+            continue;
+        };
+        let rel = sub.trim_start_matches('/');
+        dirs.extend(
+            platform_core::resources::resource_roots()
+                .into_iter()
+                .map(|root| root.join(rel))
+                .filter(|dir| dir.is_dir()),
+        );
     }
-    let Some(sub) = location.strip_prefix("classpath:") else {
-        return Vec::new();
-    };
-    let rel = sub.trim_start_matches('/');
-    platform_core::resources::resource_roots()
-        .into_iter()
-        .map(|root| root.join(rel))
-        .filter(|dir| dir.is_dir())
-        .collect()
+    dirs
 }
 
 /// A deployed/compiled graph model as JSON (compiled registry first, then
@@ -1873,15 +1872,14 @@ async fn handle_import_graph(
             format!("Graph model not found in {}", file.display()),
         )
         .await;
-        match deployed_graph_as_text(filename) {
-            Some(json) => {
+        match find_deployed_graph(filename) {
+            Some((location, json)) => {
                 say(
                     po,
                     out_route,
                     format!(
-                        "Found deployed graph model in {}\nPlease export an updated version and \
-                         re-import to instantiate an instance model",
-                        deployed_location()
+                        "Found deployed graph model in {location}\nPlease export an updated version \
+                         and re-import to instantiate an instance model"
                     ),
                 )
                 .await;
@@ -1892,8 +1890,29 @@ async fn handle_import_graph(
     }
 }
 
+/// A deployed model's JSON text and the location it was read from: the location whose
+/// copy compiled (the later manifest's when two manifests list the id) is searched first,
+/// then every deployed location in manifest order.
+fn find_deployed_graph(filename: &str) -> Option<(String, String)> {
+    let mut locations: Vec<String> = Vec::new();
+    if let Some(compiled_from) = crate::graphs::graph_location(filename) {
+        locations.push(compiled_from);
+    }
+    for location in crate::graphs::deployed_locations() {
+        if !locations.contains(&location) {
+            locations.push(location);
+        }
+    }
+    locations.into_iter().find_map(|location| {
+        deployed_graph_text_at(&location, filename).map(|json| (location, json))
+    })
+}
+
 fn deployed_graph_as_text(filename: &str) -> Option<String> {
-    let location = deployed_location();
+    find_deployed_graph(filename).map(|(_, json)| json)
+}
+
+fn deployed_graph_text_at(location: &str, filename: &str) -> Option<String> {
     if let Some(path) = location.strip_prefix("classpath:") {
         let resource = format!("{}/{filename}.json", path.trim_end_matches('/'));
         let resolved = platform_core::resources::resolve_classpath(&resource)?;

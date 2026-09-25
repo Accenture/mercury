@@ -1,0 +1,38 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "a graph listed only by the second manifest compiles from that manifest's own location",
+        "name": "unit-test-manifest-extra"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(graph-extra) -> output.body.location"
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

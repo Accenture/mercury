@@ -3889,3 +3889,39 @@ with a named message; a misspelled function reports its name.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
 --workspace`, `cargo audit`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+## Increment 142 — graph.model.automation accepts a list of manifests; the later manifest wins (2026-09-25)
+
+The Rust twin of the Java engine's `feat/graph-manifest-list` (for 4.12.19). Born at a live demo's deploy step: an exported
+graph went live in the running playground example with no rebuild — the export copied to `/tmp/graph/deploy/`, a manifest
+there, and the manifest property overridden at launch — but ONE manifest replaced the bundled set, so a prototype delegating
+through `graph.extension` to a bundled graph could not run.
+
+- **A comma-separated list of manifests** (the `yaml.flow.automation` convention): `compiler::compile_graphs` splits on
+  `,` and space (Java `util.split(text, ", ")`), `compile_manifest` loads each with its own `location`, and a manifest that
+  fails to load is skipped with a warning so the others still compile. Startup log per manifest: `Loading graph manifest …`,
+  `Deployed graph model folder - …`.
+- **Later manifest wins.** `compile_one_graph` drops an earlier copy from another location — `Graph {id} from {B} replaces
+  the copy from {A}` — before compiling the later one; a REJECTED later copy leaves the id not executable (404) rather than
+  silently serving the copy the operator meant to replace. Rationale (Eric): the prototyping loop is `import graph from` a
+  deployed graph → correct → dry-run → export → stage in the deploy folder with its manifest → restart with both manifests →
+  `curl` the deployed behaviour → bundle. Entries are manifests, never bare folders: a manifest is the gate's allowlist.
+- **Registry (`graphs.rs`):** `add_graph(id, model, location)`, `remove_graph`, `graph_location`, `add_deployed_location`,
+  `deployed_locations()` in manifest order; `deployed_location()` stays as the primary (first). `commands.rs`: `list graphs`
+  enumerates every location (`deployed_dirs`), and the `import graph from` fallback searches the compiled-from location
+  first, then all (`find_deployed_graph`), naming the location it found.
+- **Tests** (`tests/compiler.rs`, the Java `CompileGraphTest` twins): a second manifest compiles from its own location,
+  `later_manifest_wins_for_a_duplicate_graph_id` (`unit-test-manifest-dup` version 1 → 2), a rejected later copy leaves the
+  id out, both locations registered in order; fixtures `graphs-extra.yaml` + `graph-extra/`, the test `application.yml`
+  lists both manifests; manifest count 55 → 57.
+- **Docs** (the Java pages' twins): `ai-agent-guide.md` §Rapid prototyping — deploy without a rebuild (the recipe, two
+  manifests, the iterate-on-a-deployed-graph loop, the broker's new-session-id choreography), `build-your-first-graph.md`,
+  `playground-and-companion.md`, `configuration-reference.md` (comma-sep manifest paths), `llms.txt`; claim
+  `graph-manifest-list-later-wins` pinned to the compiler test. The override is a `-D` program argument here:
+  `cargo run -p minigraph-playground -- -Dgraph.model.automation='classpath:/graphs.yaml, file:/tmp/graph/deploy/graphs.yaml'`.
+
+**Upgrade note.** Additive — a single manifest behaves exactly as before. Read if a graph id is listed in two manifests: the
+later one now wins, and its rejection makes the id answer 404.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.

@@ -211,6 +211,23 @@ Like `flows.yaml`, the manifest carries the location of its own models: the opti
 `location` entry points at the deployed-graph folder (`file:/` or `classpath:/` — it is
 read-only) and defaults to `classpath:/graph`, so most projects can omit it.
 
+**Rapid prototyping — deploy without a rebuild.** The manifest is an ordinary property, so a `-D`
+runtime override (a program argument in the Rust port) sets it for one run, and `location` accepts a
+`file:/` folder. Stage the export in a folder with its own manifest and restart with the override —
+the project itself is untouched:
+
+```bash
+mkdir -p /tmp/graph/deploy && cp /tmp/graph/my-first-graph.json /tmp/graph/deploy/
+printf "graphs:\n  - 'my-first-graph'\nlocation: 'file:/tmp/graph/deploy'\n" > /tmp/graph/deploy/graphs.yaml
+cargo run -p minigraph-playground -- -Dgraph.model.automation='classpath:/graphs.yaml, file:/tmp/graph/deploy/graphs.yaml'
+```
+
+Since 4.12.19 the property takes a comma-separated list of manifests, each with its own `location`,
+so the bundled graphs stay deployed beside the prototype; when both list the same id the later
+manifest wins. Only listed ids are executable, and a deployment is still a restart — `CompileGraph`
+runs once at startup. The full recipe, with the log lines to verify and the session choreography for
+a hosted Playground, is in the [AI agent guide](ai-agent-guide.md#deploy-without-rebuild).
+
 At startup, `CompileGraph` validates every manifest graph once — structure, the root node's
 `purpose`, data-mapping syntax, and the suspend/resume contract — and only graphs that pass
 become executable. A graph that fails the gate, or is not listed, answers **HTTP-404** as if

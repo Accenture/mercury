@@ -1,0 +1,38 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "manifest precedence - the LATER manifest's copy has no end node and fails the gate; the id must answer 404, not fall back to the bundled copy",
+        "name": "unit-test-manifest-reject"
+      }
+    },
+    {
+      "alias": "step-1",
+      "types": [
+        "mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "input.body -> output.body"
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "step-1",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

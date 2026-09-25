@@ -101,6 +101,10 @@ To read the current model of a live session: `GET /api/graph/session/{session-id
 
 > **Restarting the app ends every session — export first.** The working graph lives in the
 > session, not on disk: `export graph as {name}` before any restart, or unexported work is lost.
+> For a prototype or a demo the restart need not be a rebuild — see
+> [Rapid prototyping — deploy without a rebuild](ai-agent-guide.md#deploy-without-rebuild) — and
+> the shipped broker survives it: it reconnects, reports the new session id, and the agent
+> re-imports the export before the humans re-subscribe.
 
 !!! note "Rust port"
     The synchronous `/sync` endpoint originated in this Rust port and was merged into the

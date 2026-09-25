@@ -62,7 +62,10 @@ fn manifest_listed_graphs_are_compiled() {
     // 'lookup' simple plugin in a data mapper decision node) + the math-1
     // fixture (a COMPUTE over an unresolved model variable names the variable)
     // + the math-2 fixture (CONDITION, a boolean rejected wherever a number is
-    // needed, an unknown function, overflow and division by zero, each by name);
+    // needed, an unknown function, overflow and division by zero, each by name)
+    // + the 2 manifest-precedence fixtures compiled through the SECOND manifest
+    // (graphs-extra.yaml: manifest-extra, and manifest-dup whose later copy wins;
+    // manifest-reject's later copy is rejected and the id stays out);
     // the 14 deliberately-invalid fixtures
     // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias) are rejected
     // by the mandatory quality gate. Every graph a runtime test executes MUST
@@ -70,7 +73,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        55,
+        57,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
@@ -177,9 +180,78 @@ fn node_ttl_placement_and_metadata_immutability_are_validated() {
 #[test]
 fn manifest_location_defaults_to_classpath_graph() {
     compile_once();
-    // the engine's test manifest declares no 'location' - the CompileFlows-style
-    // default applies (the playground example app's manifest sets it explicitly)
+    // the engine's first test manifest declares no 'location' - the CompileFlows-style
+    // default applies (the playground example app's manifest sets it explicitly), and the
+    // primary location is the first manifest's
     assert_eq!("classpath:/graph", graphs::deployed_location());
+    // graph.model.automation names two manifests (comma-separated): both locations are
+    // registered, in manifest order
+    assert_eq!(
+        vec![
+            "classpath:/graph".to_string(),
+            "classpath:/graph-extra".to_string()
+        ],
+        graphs::deployed_locations()
+    );
+}
+
+#[test]
+fn a_second_manifest_compiles_from_its_own_location() {
+    compile_once();
+    // graphs-extra.yaml is the second manifest in graph.model.automation and carries its
+    // own 'location' - the rapid-prototyping lane: an external manifest beside the bundled one
+    assert!(graphs::graph_exists("unit-test-manifest-extra"));
+    assert_eq!(
+        Some("classpath:/graph-extra".to_string()),
+        graphs::graph_location("unit-test-manifest-extra")
+    );
+    // the first manifest's graphs are untouched by the second one
+    assert_eq!(
+        Some("classpath:/graph".to_string()),
+        graphs::graph_location("tutorial-1")
+    );
+}
+
+#[test]
+fn later_manifest_wins_for_a_duplicate_graph_id() {
+    compile_once();
+    // both manifests list unit-test-manifest-dup and the copies differ in the root 'version'
+    // property. The later manifest owns the id: an operator iterating on a deployed graph
+    // exports the updated copy to the external folder and tests it before bundling it
+    assert!(graphs::graph_exists("unit-test-manifest-dup"));
+    assert_eq!(
+        Some("classpath:/graph-extra".to_string()),
+        graphs::graph_location("unit-test-manifest-dup")
+    );
+    let model = graphs::get_graph("unit-test-manifest-dup").expect("compiled");
+    assert_eq!(Some("2".to_string()), root_property(&model, "version"));
+}
+
+#[test]
+fn a_rejected_later_copy_leaves_the_id_not_executable() {
+    compile_once();
+    // both manifests list unit-test-manifest-reject: the first copy is valid, the later copy
+    // has no 'end' node and fails the gate. The later manifest owns the id, so the graph is
+    // NOT executable (404) - it does not fall back to the copy the operator meant to replace,
+    // which would let a curl test pass against the old behaviour
+    assert!(!graphs::graph_exists("unit-test-manifest-reject"));
+    assert_eq!(None, graphs::graph_location("unit-test-manifest-reject"));
+}
+
+fn root_property(model: &Value, key: &str) -> Option<String> {
+    let mm = MultiLevelMap::from_value(model.clone());
+    let Some(Value::Array(nodes)) = mm.get_element("nodes") else {
+        return None;
+    };
+    for i in 0..nodes.len() {
+        if mm.get_element(&format!("nodes[{i}].alias")) == Some(Value::from("root")) {
+            return match mm.get_element(&format!("nodes[{i}].properties.{key}")) {
+                Some(Value::String(text)) => text.as_str().map(|s| s.to_string()),
+                _ => None,
+            };
+        }
+    }
+    None
 }
 
 #[test]
