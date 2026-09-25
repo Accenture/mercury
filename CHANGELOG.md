@@ -11,6 +11,44 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Version 4.12.19, 9/25/2026
+
+The lock-step twin of Java 4.12.19 (Increment 142): `graph.model.automation` accepts a comma-separated list of graph
+manifests, each with its own `location`, and the later manifest wins — the rapid-prototyping deploy lane completed on both
+engines. Upgrade action: none unless a graph id is listed in two manifests — read the *Added* item. Publication: the twelve
+crates at 4.12.19 on crates.io (`cargo publish --workspace` from the tag).
+
+**Lock-step notes.** Java 4.12.19 is the same single item (#465); it lands here as Increment 142 (#332). The recipe's
+override is a `-D` program argument in the Rust port (`cargo run -p minigraph-playground -- -Dgraph.model.automation=…`),
+not a JVM flag.
+
+### Added
+
+- **`graph.model.automation` accepts a comma-separated list of manifests; the later manifest wins** (#332, Increment
+  142; the Java engine's #465). The `yaml.flow.automation` convention: `compile_graphs` splits the property,
+  `compile_manifest` loads each manifest with its own `location`, and a manifest that fails to load is skipped with a
+  warning so the others still compile (`Loading graph manifest …` and `Deployed graph model folder - …` per manifest).
+  When two manifests list the same graph id, the later manifest owns it: its copy replaces the earlier one (`Graph {id}
+  from {B} replaces the copy from {A}`), and a rejected later copy leaves the id not executable (404) rather than silently
+  serving the copy the operator meant to replace. `graphs.rs` records each graph's source location; `list graphs`
+  enumerates every location, and the `import graph from` fallback searches the compiled-from location first, then all,
+  naming the location it found. Entries are manifests, never bare folders — the manifest is the gate's allowlist.
+  **Upgrade action:** none for a single manifest — it behaves exactly as before. Read if a graph id is listed in two
+  manifests: the later one now wins, and its rejection makes the id answer 404.
+
+### Documentation
+
+- **Rapid prototyping — deploy without a rebuild** (#332). The AI agent guide gains `#deploy-without-rebuild` — export,
+  stage `/tmp/graph/deploy/` with its own `graphs.yaml`, restart with the `-D` program argument naming both manifests,
+  verify the gate in the log, then `curl` — with the two rules to read (later manifest wins; a deployment is still a
+  restart), the broker's new-session-id choreography after a restart, and the loop for iterating on a graph that is
+  already deployed (`import graph from` the deployed copy, correct, dry-run, export, stage, restart with both manifests,
+  `curl`, then bundle). The same recipe in the first-graph walkthrough, the Playground guide's restart callout, the
+  configuration reference (`graph.model.automation`: comma-sep manifest paths) and `llms.txt`; claim
+  `graph-manifest-list-later-wins` pins the rule to `compiler::later_manifest_wins_for_a_duplicate_graph_id`.
+  **Upgrade action:** none.
+
+---
 ## Version 4.12.18, 9/25/2026
 
 The lock-step twin of Java 4.12.18 (Increment 141): graph.math is typed and finite — a boolean is never a number, an
