@@ -24,6 +24,8 @@
   --workspace`. **Lockstep:** Java v4.12.18 the same minute (mercury-composable #464 squash `1e419a29`, tag → `70e00474`,
   20:56:19Z — also carrying Java's #463 Snyk dependency bumps, no analogue here); the python/node packs stay at 4.12.15. Main's
   `rust` run was in progress on the tag commit at close. Origin 2026-09-25-195421.md.
+  **Unreleased on main since 2026-09-25:** #332 merge `d3d82a3f` — `graph.model.automation` accepts a list of manifests, later
+  wins ([[graph-manifest-list-later-wins-rust]], Increment 142; Java #465 `40ce30a7`) — the 4.12.19 content so far.
   Prior: v4.12.17 (2026-09-25 00:20:16Z — the field's Kafka gap closed on both engines; PR #328 → `ad957930`, tag → `af9d6f30`;
   Increment 139 `SchemaCodec::for_consumer` ([[schema-registry-native-codec]]) plus the Rust-only 137 `yaml_serde` and 138 `cargo
   audit`; 603 / 0 / 9; crates 12/12 00:24Z; Java #461 `e9cde291`. Origin 2026-09-24-235353.md.)
@@ -390,7 +392,8 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 3 | tier: active | origin: 2026-09-25-190229 -->
 
 - **`graph.model.automation` accepts a comma-separated list of manifests, and the later manifest wins — the Rust twin
-  (Increment 142, 2026-09-25; lock-step with mercury-composable `feat/graph-manifest-list`, for 4.12.19).** Each manifest
+  (Increment 142, 2026-09-25; PR #332 merge `d3d82a3f` MERGED 2026-09-25, lock-step with mercury-composable #465 squash
+  `40ce30a7`; UNRELEASED — ships in 4.12.19).** Each manifest
   carries its own `location`, they compile in order, one that fails to load is skipped with a warning; `graphs.rs` records
   each graph's source location, and `list graphs` / the `import graph from` fallback span every location. **Rule (Eric):**
   the later manifest OWNS a duplicate id — its copy replaces the earlier one (`Graph X from B replaces the copy from A`) and
@@ -401,7 +404,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   file:/tmp/graph/deploy/graphs.yaml'`), not a JVM flag. Entries are manifests, never bare folders (the manifest is the
   gate's allowlist). Claim `graph-manifest-list-later-wins` pinned to `compiler::later_manifest_wins_for_a_duplicate_graph_id`;
   the recipe lives in `ai-agent-guide.md#deploy-without-rebuild`.
-  <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 1 | tier: working | origin: 2026-09-25-224149 -->
+  <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 2 | tier: active | origin: 2026-09-25-224149 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
