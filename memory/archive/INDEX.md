@@ -98,3 +98,6 @@
 - ot-cratesio-followups — (follow-ups — CLOSED as parked at the closure gate 2026-09-17, stalled 67 sessions) Regist… — completed thread past archive_window - swept at the 2026-09-24 seam close — 2026-Q3.md
 - thread-reverify-invariants-20260917 — Re-verify invariants — CONFIRMED by Eric 2026-09-17 (due at 60 sessions since 2026-09-02-1… — completed thread past archive_window - swept at the 2026-09-24 seam close — 2026-Q3.md
 - fork-join-awaits-on-calling-task — Fork-join batches are awaited ON THE CALLING TASK, never `tokio::spawn`ed (found 2026-09-1… — faded — 2026-Q3.md
+- playground-session-broker — Playground session broker: an AI agent can HOST a Playground session (2026-09-03, Eric's — faded — 2026-Q3.md
+- for-each-suspend-index-key-rust — A `for_each` iteration of a suspending subgraph suspends under its OWN record — the store… — faded — 2026-Q3.md
+- typed-function-envelope-reply — A typed function may return an `EventEnvelope` to set the reply's status, headers and body… — faded — 2026-Q3.md

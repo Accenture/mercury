@@ -69,6 +69,7 @@ const RESULT_NAMESPACE: &str = "result.";
 
 pub const MAPPING_TAG: &str = "mapping:";
 pub const COMPUTE_TAG: &str = "compute:";
+pub const CONDITION_TAG: &str = "condition:";
 pub const EXECUTE_TAG: &str = "execute:";
 pub const RESET_TAG: &str = "reset:";
 pub const IF_TAG: &str = "if:";
@@ -290,35 +291,59 @@ pub fn selectors_in(expression: &str) -> Vec<String> {
     keys
 }
 
-/// The evaluator met the rendered text `null` itself - a selector the pre-check accepted, such as
-/// a variable holding the text "null". The culprits are pinpointed by rendering each selector
-/// again: those that render as `null` are named, several joined by `or`; only when none can be
-/// told apart are all the statement's selectors named. Any other error passes through.
-/// (Java `GraphLambdaFunction.nameNullIdentifier`.)
-pub fn name_null_identifier(err: AppError, expression: &str, state: &MultiLevelMap) -> AppError {
-    if !err.message().ends_with("Unknown identifier: null") {
-        return err;
+/// Turn the evaluator's own failure over a rendered value back into the selector that
+/// supplied it (Java `GraphLambdaFunction.nameOffendingSelectors`). Two cases:
+/// `Unknown identifier: null` - a selector the pre-check accepted, such as a variable
+/// holding the text "null" - names the selectors that render as `null` (several joined
+/// by `or`; all of the statement's selectors only when none can be told apart); a
+/// boolean operand - the evaluator rejects a boolean wherever a number is needed - is
+/// named from the selectors whose value is a boolean, with the remedy in the message.
+/// Any other error passes through.
+pub fn name_offending_selectors(
+    err: AppError,
+    expression: &str,
+    state: &MultiLevelMap,
+) -> AppError {
+    let message = err.message().to_string();
+    if message.ends_with("Unknown identifier: null") {
+        let selectors = selectors_in(expression);
+        let culprits: Vec<String> = selectors
+            .iter()
+            .filter(|key| match get_lhs_or_constant(key, state) {
+                Ok(None) | Ok(Some(Value::Nil)) => true,
+                Ok(Some(v)) => display(&v) == "null",
+                Err(_) => false,
+            })
+            .cloned()
+            .collect();
+        let named = if culprits.is_empty() {
+            &selectors
+        } else {
+            &culprits
+        };
+        return if named.is_empty() {
+            err
+        } else {
+            unknown_identifier(named, expression)
+        };
     }
-    let selectors = selectors_in(expression);
-    let culprits: Vec<String> = selectors
-        .iter()
-        .filter(|key| match get_lhs_or_constant(key, state) {
-            Ok(None) | Ok(Some(Value::Nil)) => true,
-            Ok(Some(v)) => display(&v) == "null",
-            Err(_) => false,
-        })
-        .cloned()
-        .collect();
-    let named = if culprits.is_empty() {
-        &selectors
-    } else {
-        &culprits
-    };
-    if named.is_empty() {
-        err
-    } else {
-        unknown_identifier(named, expression)
+    if message.starts_with("Boolean operand in") || message.starts_with("Boolean result where") {
+        let culprits: Vec<String> = selectors_in(expression)
+            .iter()
+            .filter_map(|key| match get_lhs_or_constant(key, state) {
+                Ok(Some(Value::Boolean(b))) => Some(format!("{key} ({b})")),
+                _ => None,
+            })
+            .collect();
+        if !culprits.is_empty() {
+            return invalid(format!(
+                "Boolean operand: {} in '{expression}' - a boolean is not a number; store a boolean \
+                 with CONDITION or assert the type with f:validate",
+                culprits.join(" or ")
+            ));
+        }
     }
+    err
 }
 
 fn unknown_identifier(selectors: &[String], expression: &str) -> AppError {
@@ -330,6 +355,19 @@ fn unknown_identifier(selectors: &[String], expression: &str) -> AppError {
 
 pub fn substitute_var_if_any(text: &str, state: &MultiLevelMap) -> Result<String, AppError> {
     let logical = has_boolean_operator(text) || (text.starts_with("$.") && text.contains('@'));
+    substitute_var_if_any_logical(text, state, logical)
+}
+
+/// Render `{selectors}` into an expression with an explicit boolean context: in a
+/// logical context a text value is quoted so it reads as a string literal. CONDITION
+/// forces that context because its result is a boolean by declaration, whether or not
+/// the expression carries a comparison operator (Java
+/// `substituteVarIfAny(text, stateMachine, logical)`).
+pub fn substitute_var_if_any_logical(
+    text: &str,
+    state: &MultiLevelMap,
+    logical: bool,
+) -> Result<String, AppError> {
     let (Some(left), Some(right)) = (text.find('{'), text.rfind('}')) else {
         return Ok(text.to_string());
     };
@@ -800,6 +838,7 @@ pub fn count_execute_statements(node_name: &str, statements: &[String]) -> Resul
         let line = entry.trim().to_lowercase();
         if line.starts_with(IF_TAG)
             || line.starts_with(COMPUTE_TAG)
+            || line.starts_with(CONDITION_TAG)
             || line.starts_with(RESET_TAG)
             || line.starts_with(DELAY_TAG)
         {
@@ -817,13 +856,13 @@ pub fn count_execute_statements(node_name: &str, statements: &[String]) -> Resul
     }
     if js == 0 {
         return Err(invalid(format!(
-            "{NODE_NAME}{node_name} must include 'IF:', 'COMPUTE:', 'EXECUTE:', 'RESET:' or \
-             'DELAY:' statements"
+            "{NODE_NAME}{node_name} must include 'IF:', 'COMPUTE:', 'CONDITION:', 'EXECUTE:', \
+             'RESET:' or 'DELAY:' statements"
         )));
     }
     if error > 0 {
         return Err(invalid(format!(
-            "{NODE_NAME}{node_name} must use 'IF:', 'COMPUTE:', 'EXECUTE:', 'RESET:', \
+            "{NODE_NAME}{node_name} must use 'IF:', 'COMPUTE:', 'CONDITION:', 'EXECUTE:', 'RESET:', \
              'MAPPING:', 'NEXT:', 'DELAY:', 'BEGIN' or 'END' keywords"
         )));
     }

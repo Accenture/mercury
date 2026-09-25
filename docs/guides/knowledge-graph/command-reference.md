@@ -198,7 +198,12 @@ text(100 World Blvd) -> input.body.profile.address1
 ```
 
 Issuing `instantiate graph` again **replaces** the current instance — a fresh state machine and
-cleared run marks — which is the standard idiom for a second dry-run with different input.
+cleared run marks — which is the standard idiom for a second dry-run with different input. A
+`run` without a new `instantiate graph` re-traverses the **same instance**: `model.*` values from
+the previous run are still there, a `MAPPING` onto `model.x[]` appends to the list it built last
+time, and the run-once marks are what `RESET:` governs — so a second `run` that must start clean
+is preceded by `instantiate graph` (alias `start`). A deployed graph never sees this: every request
+gets a fresh instance.
 
 ### run / execute / inspect {#run}
 
@@ -613,11 +618,12 @@ unaffected: the island sinks, so the execution path never enters the knowledge l
 > is a narrow JS-like subset — arithmetic/comparison/boolean operators only, **no bitwise ops, no
 > function calls, no variables**; `COMPUTE` yields a double (integers serialize as e.g. `8.0`).
 
-A `graph.math` node runs an ordered list of `statement[]` lines. Five statement types:
+A `graph.math` node runs an ordered list of `statement[]` lines. Six statement types:
 
 | Statement | Form | Purpose |
 |---|---|---|
-| `COMPUTE` | `COMPUTE: {var} -> {expr}` | evaluate a JS-like math/boolean expression; the result is stored in **this node's `result` namespace** — read it back as `{this-node}.result.{var}` or move it with `MAPPING` |
+| `COMPUTE` | `COMPUTE: {var} -> {expr}` | evaluate a JS-like math expression; the result is stored in **this node's `result` namespace** — read it back as `{this-node}.result.{var}` or move it with `MAPPING`. An expression carrying a comparison or boolean operator yields a boolean; a boolean operand in arithmetic, a `<`/`>` comparison or a function argument is rejected by name, and so are an unknown function, an overflow and a division by zero (see [numbers and booleans](skills-reference.md#math)) |
+| `CONDITION` | `CONDITION: {var} -> {boolean expr}` | evaluate a boolean expression and store the boolean in this node's `result` — the declared form of a decision value, whether or not the expression carries an operator (`CONDITION: same -> {model.flag}`); an `IF` may test it directly (`IF: {node.result.var}`) |
 | `IF` | multi-line (see below) | a boolean **decision** that redirects traversal to a named node |
 | `MAPPING` | `MAPPING: source -> target` | data mapping, identical to `graph.data.mapper` (**no** `{}` around source/target) |
 | `EXECUTE` | `EXECUTE: {node-name}` | run another `graph.math` node's statements inline, **in the calling node's context** — any `COMPUTE` results land in the **invoking** node's result namespace (`{invoker}.result.{var}`); the executed module's own namespace stays empty. This is the **module-reuse mechanism**: author a formula once in an off-path module node, and any executing node borrows it (see the note below) |
@@ -756,6 +762,11 @@ Rules (engine-verified):
   pre-block it skips the loop and post-block the same way. (A `NEXT:` exits too, after its block
   completes.) An `ELSE: next` falls through to the rest of the iteration.
 - **Empty lists are fine:** the each-block runs zero times; the pre- and post-blocks still run.
+- **A `MAPPING` onto `model.x[]` appends, and the list is never cleared for you.** Within one run,
+  seed the accumulator in the pre-block. Across dry-runs, a second `run` on the same instance
+  appends to the list the first run built — every dollar total can stay right while the ledger
+  doubles — so reseed it (`MAPPING: f:json(text([])) -> model.codes`) or `instantiate graph` again
+  before the second run; a deployed graph gets a fresh instance per request.
 - **Number dialect:** `COMPUTE` yields **doubles**; the `f:add`/`f:subtract`/… simple plugins
   use **numeric promotion** — all-whole-number inputs keep exact long arithmetic (including
   integer division and the classic integer counters of
@@ -797,7 +808,10 @@ the `COMPUTE` doubles through `f:add` (both forms are engine-verified).
 Hard rules the engine enforces — violate them and generation fails (invariant 4 is the one
 exception: an authoring convention, marked below):
 
-1. The root node is named `root`; the end node is named `end`.
+1. The root node is named `root`; the end node is named `end`. The end node is the **terminus**:
+   its own mappings run last, so a value it writes to an `output.*` key overrides what any earlier
+   node wrote there (the last writer along the path wins) — a node that must survive to the
+   response writes a `model.*` key that `end` maps out once.
 2. A node has **0 or 1** skill.
 3. Node **names** are **lowercase letters, digits and hyphen** (`root`/`end` reserved). Node **types** are
    descriptive labels — shipped examples capitalize structural types (see [lexical](#lexical)).

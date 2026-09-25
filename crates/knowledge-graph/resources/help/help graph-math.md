@@ -15,6 +15,7 @@ Properties
 ```
 skill=graph.math
 statement[]=COMPUTE: {var} -> {expression}
+statement[]=CONDITION: {var} -> {boolean expression}
 statement[]=IF: / THEN: / ELSE:              (multi-line - see below)
 statement[]=MAPPING: {source} -> {target}
 statement[]=EXECUTE: {node-name}
@@ -37,6 +38,12 @@ Statements
 - COMPUTE: {var} -> {expression} - evaluate the expression; the result is
   stored in THIS node's result namespace, readable as
   {this-node}.result.{var} or moved onward with a MAPPING statement.
+- CONDITION: {var} -> {boolean expression} - the declared boolean statement:
+  evaluated as a boolean whatever operators it carries (a bare {model.flag}
+  included) and stored as a boolean in THIS node's result namespace; an IF
+  may test it directly (IF: {this-node}.result.{var}). A COMPUTE stores a
+  boolean only when its expression happens to carry a comparison or boolean
+  operator - CONDITION says so in the statement.
 - IF - a boolean decision that can redirect traversal (see below).
 - MAPPING: {source} -> {target} - data mapping, identical to the data mapper
   (see 'help graph-data-mapper'). Do NOT wrap source/target in curly braces.
@@ -61,9 +68,27 @@ hyphenated names - {unit-price} is the value of "unit-price", never parsed
 as a subtraction - so use communicative hyphenated names freely.
 
 The dialect is a NARROW JavaScript-like subset: arithmetic, comparison and
-boolean operators only. No bitwise operators, no function calls (e.g. no
-parseInt), no variables inside the expression. COMPUTE yields a double, so
-an integer result serializes as e.g. 8.0 (numerically exact).
+boolean operators, and the built-in math functions (min, max, abs, floor,
+ceil, round, sqrt, pow, exp, log, log10, also under Math.). No bitwise
+operators, no variables inside the expression. COMPUTE yields a double, so an
+integer result serializes as e.g. 8.0 (numerically exact).
+
+Numbers and booleans - each rule is enforced by a named failure, never a
+silent value:
+- A boolean is not a number. A boolean where arithmetic, a < or > comparison
+  or a function argument needs a number fails naming the selector, e.g.
+  "Boolean operand: model.flag (true) in '{model.flag} + 1' - a boolean is
+  not a number; store a boolean with CONDITION or assert the type with
+  f:validate". A JSON true in a numeric slot never computes as 1. Equality
+  (==, !=) type-checks its two sides.
+- A misspelled or unsupported function fails by name ("Unknown function: mn").
+- Arithmetic is IEEE double precision. An overflow to infinity, a division by
+  zero and a NaN each fail naming the operator ("Arithmetic overflow in '*'
+  (result Infinity)", "Division by zero or arithmetic overflow in '/'");
+  integers beyond 2^53 lose precision. Money that needs exact decimal
+  arithmetic, a stated rounding mode or integer cents does not belong in this
+  skill: implement it as a small composable function and call it with
+  graph.task. The math package stays minimal by design.
 
 IF / THEN / ELSE
 ----------------

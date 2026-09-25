@@ -3846,3 +3846,46 @@ shipped code. Test-only; `mercury-redis-test-double` is `publish = false`.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
 --workspace`, `cargo audit`, `check-doc-claims`, `check-llms-links`.
+
+## Increment 141 — graph.math: CONDITION, booleans are never numbers, unknown functions and overflow fail by name (2026-09-25)
+
+The Rust twin of the Java engine's response to a field page of nine "behaviours that return a wrong answer"
+(mercury-composable branch `feat/graph-math-condition-and-typed-arithmetic`; four of the nine were engine changes,
+the rest documentation or already resolved in 4.12.16). Same evaluator shape on both engines, so the same four
+changes:
+
+- **A boolean is never a number.** `as_number` coerced `Value::Bool` to 1/0 for arithmetic, `<`/`>` comparisons
+  and function arguments while equality type-checked — three outcomes for the same JSON `true`. Now one uniform
+  rejection (`Boolean operand in '+': Boolean(true)`), and `ExpressionEngine::eval_number` rejects a boolean
+  *result* (`Boolean result where a number was expected`) instead of storing 1.0. `common::name_offending_selectors`
+  (the generalized `name_null_identifier`) maps the failure back to the selector that supplied it:
+  `Boolean operand: model.flag (true) in '{model.flag} + 1' - a boolean is not a number; store a boolean with
+  CONDITION or assert the type with f:validate`.
+- **`CONDITION: var -> expr`** — the declared boolean statement (`CONDITION_TAG`, counted by the gate as a
+  statement; both gate messages list it). The expression is substituted in a logical context whatever operators it
+  carries (`substitute_var_if_any_logical(text, state, true)`, a `CONDITION: same -> {model.flag}` included),
+  evaluated with `eval_boolean`, stored as a boolean at `{node}.result.{var}`; an `IF` may test it directly.
+- **A misspelled function fails by name.** `eval_call` resolves the callee's name (`callee_name`: `mn`,
+  `Math.mn`): `Unknown function: mn` for an unresolved callee, `'PI' is not a function` for a value — the generic
+  "Attempting to call a non-function" is gone.
+- **Arithmetic stays finite.** Every unary, binary and function result passes `finite()`: `Arithmetic overflow in
+  '*' (result Infinity)`, `Division by zero or arithmetic overflow in '/' (result Infinity)`, `Arithmetic result is
+  not a number (NaN) in '/'` — instead of `Infinity` travelling on to fail a later node as `Unknown identifier:
+  Infinity`. Exact-decimal money is ruled out of the dialect: a small composable function on `graph.task` (a decimal
+  crate) keeps the math package minimal.
+- **Tests.** `unit-test-math-2` (the Java fixture byte-for-byte: a dispatcher node routing each case to one node
+  per behaviour) driven from `graph_runtime.rs`; `expression_engine.rs` moved off the old Infinity/coercion
+  semantics (`division_by_zero_overflow_and_nan_are_errors`, the boolean rejections and the named unknown
+  functions in `error_cases_unknowns_and_misuse`).
+- **Docs** (the Java pages' twins): `skills-reference.md` graph.math — six statement types, the CONDITION row, the
+  *Numbers and booleans* rules, a taken `IF` inside `for_each` ends the walk, `model.x[]` append/reseed;
+  `command-reference.md` — the CONDITION row, `run` on the same instance keeps `model.*` while `instantiate graph`
+  (`start`) resets, the end node is the terminus (last writer wins), the `for_each` append/reseed bullet;
+  `minigraph-commands.json`; the in-Playground `help graph-math` page.
+
+**Upgrade note.** Behaviour change to read: a graph that relied on `true`/`false` computing as 1/0 in a `COMPUTE`,
+on a boolean `COMPUTE` result storing 1.0, or on an overflowed `Infinity` propagating, now fails at that statement
+with a named message; a misspelled function reports its name.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+--workspace`, `cargo audit`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.

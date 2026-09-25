@@ -161,9 +161,17 @@ impl ExpressionEngine {
         ExpressionEngine { ctx }
     }
 
-    /// Evaluate to a number; booleans coerce to 0/1.
+    /// Evaluate to a number. A boolean result is rejected rather than coerced
+    /// to 0/1 - a boolean is not a number in this dialect; a caller that wants
+    /// a boolean evaluates with [`ExpressionEngine::eval_boolean`].
     pub fn eval_number(&self, expr: &str) -> Result<f64, MathError> {
-        self.evaluate_value(expr)?.as_double()
+        let v = self.evaluate_value(expr)?;
+        if matches!(v, Value::Bool(_)) {
+            return Err(eval_err(format!(
+                "Boolean result where a number was expected: {v}"
+            )));
+        }
+        v.as_double()
     }
 
     /// Evaluate to a boolean with JS-like truthiness.

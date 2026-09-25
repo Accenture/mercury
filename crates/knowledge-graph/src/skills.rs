@@ -37,10 +37,10 @@ use crate::common::{
     count_execute_statements, get_effective_ttl, get_else_statement, get_entries, get_first_word,
     get_for_each_mapping, get_graph_instance, get_if_statement, get_model_array_size,
     get_next_model_param_set, get_next_node, get_next_tag_resolved, get_node, get_then_statement,
-    handle_data_mapping_entry, invalid, name_null_identifier, perform_fetcher_output_mapping,
-    reset_nodes, split_blocks, substitute_var_if_any, COMPUTE_TAG, DELAY_TAG, ERROR, EXCEPTION,
-    EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO, MODEL_NAMESPACE, NEXT, NODE, NODE_NAME,
-    RESET_TAG, RESULT, SINK, SKILL, STATUS, TARGET, TYPE,
+    handle_data_mapping_entry, invalid, name_offending_selectors, perform_fetcher_output_mapping,
+    reset_nodes, split_blocks, substitute_var_if_any, substitute_var_if_any_logical, COMPUTE_TAG,
+    CONDITION_TAG, DELAY_TAG, ERROR, EXCEPTION, EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO,
+    MODEL_NAMESPACE, NEXT, NODE, NODE_NAME, RESET_TAG, RESULT, SINK, SKILL, STATUS, TARGET, TYPE,
 };
 use crate::math::ExpressionEngine;
 use crate::model::GraphInstance;
@@ -241,6 +241,9 @@ fn process_commands(
     if tag == COMPUTE_TAG {
         compute(&command, node_name, state)?;
     }
+    if tag == CONDITION_TAG {
+        condition(&command, node_name, state)?;
+    }
     if tag == MAPPING_TAG {
         handle_data_mapping_entry(node_name, &command, state, &instance.graph)?;
     }
@@ -282,17 +285,45 @@ fn compute(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Result<
         Value::from(
             engine()
                 .eval_boolean(&text)
-                .map_err(|e| name_null_identifier(math_error(e), rhs, state))?,
+                .map_err(|e| name_offending_selectors(math_error(e), rhs, state))?,
         )
     } else {
         Value::from(
             engine()
                 .eval_number(&text)
-                .map_err(|e| name_null_identifier(math_error(e), rhs, state))?,
+                .map_err(|e| name_offending_selectors(math_error(e), rhs, state))?,
         )
     };
     state
         .set_element(&format!("{node_name}.result.{lhs}"), result)
+        .map_err(invalid)
+}
+
+/// CONDITION: var -> expression - the explicit boolean statement (Java `GraphMath.condition`).
+/// The expression is evaluated as a boolean whatever operators it carries (a bare
+/// `{model.flag}` included) and the result is stored as a boolean at `{node}.result.{var}`,
+/// so a decision value is declared as one instead of being inferred from the operators of a
+/// COMPUTE.
+fn condition(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Result<(), AppError> {
+    let Some(sep) = command.rfind(MAP_TO) else {
+        return Err(invalid(format!(
+            "{NODE_NAME}{node_name} does not have '->' in '{command}'"
+        )));
+    };
+    let lhs = command[..sep].trim();
+    let rhs = command[sep + MAP_TO.len()..].trim();
+    if lhs.is_empty() || rhs.is_empty() {
+        return Err(invalid(format!(
+            "{NODE_NAME}{node_name} has invalid statement '{command}'"
+        )));
+    }
+    assert_variables_resolved(rhs, state)?;
+    let text = substitute_var_if_any_logical(rhs, state, true)?;
+    let result = engine()
+        .eval_boolean(&text)
+        .map_err(|e| name_offending_selectors(math_error(e), rhs, state))?;
+    state
+        .set_element(&format!("{node_name}.result.{lhs}"), Value::from(result))
         .map_err(invalid)
 }
 
@@ -333,7 +364,7 @@ fn evaluate(
     let text = substitute_var_if_any(&if_statement, state)?;
     let branch = if engine()
         .eval_boolean(&text)
-        .map_err(|e| name_null_identifier(math_error(e), &if_statement, state))?
+        .map_err(|e| name_offending_selectors(math_error(e), &if_statement, state))?
     {
         then_statement
     } else {
