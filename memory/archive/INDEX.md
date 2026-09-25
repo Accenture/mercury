@@ -101,3 +101,5 @@
 - playground-session-broker — Playground session broker: an AI agent can HOST a Playground session (2026-09-03, Eric's — faded — 2026-Q3.md
 - for-each-suspend-index-key-rust — A `for_each` iteration of a suspending subgraph suspends under its OWN record — the store… — faded — 2026-Q3.md
 - typed-function-envelope-reply — A typed function may return an `EventEnvelope` to set the reply's status, headers and body… — faded — 2026-Q3.md
+- l1-caller-checks-reply-status-rust — A function that awaits `po.request` must check the reply's STATUS before reading its body… — faded — 2026-Q3.md
+- rest-error-body-standard-shape — A function's failure reaches a REST client as the standard error body `{status, message, t… — faded — 2026-Q3.md

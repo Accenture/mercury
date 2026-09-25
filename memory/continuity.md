@@ -160,20 +160,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   [[playground-session-broker]].
   <!-- id: distributed-cache-rust | created: 2026-09-19 | last_used: 2026-09-22 | uses: 4 | tier: archive-candidate | origin: 2026-09-19-182617 -->
 
-- **A function that awaits `po.request` must check the reply's STATUS before reading its body — the
-  engines do it for flows and graphs, imperative code must do it itself (Java ⇄ Rust cache interop,
-  2026-09-20, Increment 120).** An `Err(AppError)` from a function arrives at the caller as `Ok(reply)`
-  with `reply.has_error()` and the message as a `Value::String` body (platform.rs: `set_status(e.status())`
-  + `set_raw_body(String)`), never as `Err` — so `po.request(..).await?` propagates only transport failures
-  (408 timeout, closed channel). `ProfileCacheL1` matched the body (`Value::Binary` or nil) and read a
-  cache outage as 404 *Profile not found*; a POST would have acked `stored`. Fix: `checked()` in the
-  example's main.rs, pinned by `tests/l1_cache_failure.rs` (real cache off, a `#[preload]` fail-fast stub
-  on `v1.cache.redis`; L1/L2/L3 → 503). The Java example had the identical gap, masked by its RPC timeout
-  racing Lettuce's command timeout — fixed in lock-step. Recorded asymmetry, since CLOSED (2026-09-20): an in-function RPC timeout is **408** here (`Result`)
-  and WAS **500** on Java — a Java platform-core mapping gap (status from the outermost exception), fixed there
-  with a cause-chain rule; 408 on both engines now, this engine unchanged. Applies to every PostOffice caller, not only the cache. Relates [[rest-error-body-standard-shape]].
-  <!-- id: l1-caller-checks-reply-status-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 1 | tier: archive-candidate | origin: 2026-09-20-004627 -->
-
 - **The foundation's command path classifies Redis failures — a timeout is 408, an unreachable Redis 503,
   only a server answer stays 500 — so `v1.cache.redis` fails for what it is, in lock-step with Java (Eric,
   2026-09-20, Increment 121; PR #289 merged `017bf8ed`).** `classify_command_error` (redis-crate `is_timeout` → 408 `Redis request
@@ -191,19 +177,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   that keyed on 500 for a Redis outage now sees 408/503. Relates [[redis-connection-foundation-rust]],
   [[l1-caller-checks-reply-status-rust]].
   <!-- id: redis-failure-classification-rust | created: 2026-09-20 | last_used: 2026-09-22 | uses: 2 | tier: archive-candidate | origin: 2026-09-20-004627 -->
-
-- **A function's failure reaches a REST client as the standard error body `{status, message, type:
-  error}` — never as bare text (found and fixed 2026-09-19 by the cache example's Layer 1 miss).** Java
-  `AsyncHttpResponse.handleException`: an error status with no headers and a string body that does not
-  look like JSON or XML renders as the standard error map (JSON unless the client negotiated HTML); the
-  Rust server had that shape only for its own routing errors, so `Err(AppError::new(404, "..."))` from a
-  service arrived as `text/plain` while the same failure from a flow's exception handler arrived as
-  JSON — two shapes for one thing, and the Java-parity assertion on the example's miss body is what caught
-  it. `automation/server.rs` now applies the same guard and defaults the body to `application/json` when
-  nothing negotiated a type. **Lesson (the third instance this sprint): a Java-parity assertion carried
-  into a Rust twin test is the cheapest parity instrument there is — copy the assertion, not just the
-  scenario.** Pinned by `function_failure_is_java_shaped_error_body`.
-  <!-- id: rest-error-body-standard-shape | created: 2026-09-19 | last_used: 2026-09-20 | uses: 2 | tier: archive-candidate | origin: 2026-09-19-182617 -->
 
 - **A headless Rust application must declare that it keeps running — `Platform::keep_running(reason)`
   (found at the minimalist-kafka K4 live drive, 2026-09-21).** `AutoStart::run` parks the process until
@@ -399,10 +372,11 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   a new table is a new graph version and never a code change, and the function stays generic by reading rule names from
   `table.keys`. In `skills-reference.md`, the in-Playground help and the AI agent guide's checklist; pinned by
   `unit-test-task-9` (`graph_runtime.rs`) in lockstep with Java. Extends [[conventions-rust-baseline]].
-  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-23 | uses: 2 | tier: active | origin: 2026-09-20-152809 -->
+  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-23 | uses: 2 | tier: archive-candidate | origin: 2026-09-20-152809 -->
 - **graph.math is typed and finite — a boolean is never a number, an unknown function and an overflow fail by name, and
   `CONDITION` is the declared boolean statement (Eric's rulings on a field page of nine "wrong answer" behaviours,
-  2026-09-25; Increment 141, the Java twin `feat/graph-math-condition-and-typed-arithmetic`).** Both evaluators had the
+  2026-09-25; Increment 141, PR #330 squash `d97eab9b` MERGED 2026-09-25; the Java twin
+  `feat/graph-math-condition-and-typed-arithmetic`, PR mercury-composable#462).** Both evaluators had the
   same shape — `as_number` coerced a boolean to 1/0 for arithmetic, `<`/`>` and function arguments while equality
   type-checked, `eval_call` failed generically, no finite check — so the same JSON `true` in a numeric slot computed
   three different ways and an overflow travelled on as `Infinity` to fail a later node as `Unknown identifier: Infinity`
@@ -424,7 +398,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   statement by name. Pinned by `unit-test-math-2` (`graph_runtime.rs`) and `expression_engine.rs`, lockstep with Java.
   Extends [[static-decision-table-is-graph-data-rust]] (the same evaluator's null-source rule, Increment 136) and
   [[conventions-rust-baseline]].
-  <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 1 | tier: working | origin: 2026-09-25-190229 -->
+  <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 2 | tier: active | origin: 2026-09-25-190229 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
