@@ -299,7 +299,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   pins (deliberately NOT workspace-inherited, so a copied-out template builds as-is after
   deleting the in-repo `path` keys) — the release edit list grows from 5 manifests to 8.
   **Extended 2026-09-22 (the v4.12.14 publish):** before a crate's FIRST publish, audit its manifest metadata as part of the release sweep — `keywords` ≤ 5 and each ≤ 20 characters, valid `categories`, a `readme` path inside the package — because cargo validates none of it locally and crates.io rejects at upload, after the dependency-ordered run has already published everything before it (`progressive-rendering`, 21 chars, cost `mercury-sync-over-async` its place in the 4.12.14 run).
-  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-25 | uses: 9 | tier: active | origin: 2026-09-11-005808 -->
+  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-25 | uses: 10 | tier: active | origin: 2026-09-11-005808 -->
 - Each ported module's `//!` doc names the **Java class it ports** (e.g.
   `org.platformlambda.core.util.ConfigReader`) so reviewers can diff behavior side-by-side.
 - **Tests:** unit tests in-module (`#[cfg(test)]`), integration tests in `tests/` with
@@ -323,22 +323,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   listed in `system/ai-contract-provider/resources/skill/files.list` — the snapshot test
   `inventory_equals_the_documentation_closure` walks both trees (PR #286's first push failed on a new report).
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-09-02 | uses: 113 | tier: core | origin: 2026-07-15-224707.md -->
-
-- **An application crate declares the Mercury crates it NAMES — Cargo has no Maven-style transitive
-  classpath (Eric's question, 2026-09-20; proven on the cache example, Increment 120).** The Java rule is
-  ONE dependency (`minigraph-playground-engine` brings the rest, and listing more even collides on
-  `index.html`); the Rust rule differs in kind: a crate can only `use` a dependency it declares
-  (knowledge-graph re-exports only `inventory` and `fetch_feature`), while transitive crates still LINK —
-  `#[preload]` inventory registrations included. So `mercury-platform-core` stays wherever code names
-  `platform_core::` items (the `preload`/`main_application` macros, `AppError`, `EventEnvelope`,
-  `PostOffice` — every app does), `mercury-knowledge-graph` is the Layer 3 engine, and
-  `mercury-event-script` is declared only when code names `event_script::` — the cache example named
-  nothing from it, the dependency was removed, and its Layer 2 flow suites still pass (the flow engine
-  arrives through knowledge-graph). No Rust analogue of the Java classpath-order trap: each crate prepends
-  or appends its resource root explicitly. Applied to `templates/starter-graph` and
-  `examples/minigraph-playground` on 2026-09-20 at Eric's direction (branch `chore/cargo-declare-what-you-name`,
-  `8868613c`, PR #291 MERGED 2026-09-20, merge `548ce651`; the root README, the template README and the getting-started guide now state the rule).
-  <!-- id: conv-cargo-declare-what-you-name | created: 2026-09-20 | last_used: 2026-09-21 | uses: 3 | tier: archive-candidate | origin: 2026-09-20-004627 -->
 
 - **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic function by ONE
   `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric, 2026-09-20; Increment 123, a doc
@@ -404,7 +388,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   file:/tmp/graph/deploy/graphs.yaml'`), not a JVM flag. Entries are manifests, never bare folders (the manifest is the
   gate's allowlist). Claim `graph-manifest-list-later-wins` pinned to `compiler::later_manifest_wins_for_a_duplicate_graph_id`;
   the recipe lives in `ai-agent-guide.md#deploy-without-rebuild`.
-  <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 2 | tier: active | origin: 2026-09-25-224149 -->
+  <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 3 | tier: active | origin: 2026-09-25-224149 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to

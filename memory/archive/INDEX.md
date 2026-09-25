@@ -104,3 +104,4 @@
 - l1-caller-checks-reply-status-rust — A function that awaits `po.request` must check the reply's STATUS before reading its body… — faded — 2026-Q3.md
 - rest-error-body-standard-shape — A function's failure reaches a REST client as the standard error body `{status, message, t… — faded — 2026-Q3.md
 - rest-skip-unregistered-and-root-fallback-rust — A `rest.yaml` entry whose service is not registered is SKIPPED at load, and `/` falls back… — faded past archive_window at the release seam — 2026-Q3.md
+- conv-cargo-declare-what-you-name — An application crate declares the Mercury crates it NAMES — Cargo has no Maven-style trans… — faded past archive_window 20 at the release/4.12.19 seam; the rule stands in the workspace manifests and the archive keeps it retrievable — 2026-Q3.md
