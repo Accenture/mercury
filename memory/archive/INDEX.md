@@ -97,3 +97,4 @@
 - ot-close-stalled-threads-20260917 — Close stalled threads (due) — dispositioned 2026-09-17 (this repo's first closure gate, RE… — completed thread past archive_window - swept at the 2026-09-24 seam close — 2026-Q3.md
 - ot-cratesio-followups — (follow-ups — CLOSED as parked at the closure gate 2026-09-17, stalled 67 sessions) Regist… — completed thread past archive_window - swept at the 2026-09-24 seam close — 2026-Q3.md
 - thread-reverify-invariants-20260917 — Re-verify invariants — CONFIRMED by Eric 2026-09-17 (due at 60 sessions since 2026-09-02-1… — completed thread past archive_window - swept at the 2026-09-24 seam close — 2026-Q3.md
+- fork-join-awaits-on-calling-task — Fork-join batches are awaited ON THE CALLING TASK, never `tokio::spawn`ed (found 2026-09-1… — faded — 2026-Q3.md

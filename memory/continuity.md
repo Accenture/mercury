@@ -13,7 +13,7 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22); the v4.12.14 release — one number on both engines — is MERGED (PR #308 → `b83c493f`, 2026-09-22 02:08Z; tag + `cargo publish` pending). The current release is the `latest_release` field below. History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
+- **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22). The current release is the `latest_release` field below (both engines release in lock-step, one number for the same content). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
 - **latest_release:** v4.12.17 (2026-09-25 00:20:16Z — **the field's Kafka gap closed on both engines, lock-step with the Java
   engine**: release PR #328 merged as `ad957930`; tag `v4.12.17` → `af9d6f30` (one memory-only commit past the merge), workspace
   version verified at the tag; the GitHub release body is the CHANGELOG entry; `rust`, `docs` and `agent-memory` green on the tag
@@ -32,20 +32,19 @@
   `28cd3328`; Increments 132–135 — the E0 twin, [[connected-edge-spans]], the Kafka shutdown contract, the starter's dev mode +
   plain home page (P10), [[redis-restart-aware-retry]] with `redis.heartbeat.ms`; 603 tests; crates 12/12 01:57Z; Java #451
   `aafeff04`, the packs 4.12.1 → 4.12.15. READ notes in the CHANGELOG. Origin 2026-09-23-014725.md.)
-  Prior: v4.12.14 (2026-09-22 02:12:43Z — the first lock-step release with the Java engine; PR #308 merged as `b83c493f`,
-  tag → `2c88fe2b`; the minimalist-kafka port complete (K3–K5 incl. the Schema Registry wire format, Increment 127,
-  [[schema-registry-native-codec]]), the OpenTelemetry forwarder (#307, Increment 129, [[otel-forwarder-no-sdk]]), the
-  sync-over-async facade + demo mirror, the Java 4.12.12/4.12.13 lock-step round (128), `Platform::keep_running` + the
-  SIGTERM stop (126), `group.protocol=auto`; 12 of 12 crates on crates.io by 02:30Z after one keyword retry; CHANGELOG
-  correction #310. Origin 2026-09-22-010413.md.) Prior: v4.12.12 (2026-09-21 — the catch-up release, PR #296 merged as
-  `983e7550`, tag → `1ef183cb`: 4.12.7 → 4.12.12 in one step, Increments 118–124 + sync-over-async R1–R4 + minimalist-kafka
-  K1–K2; its three "not yet ported" items all shipped since — the task↔skill gate and the `input.header.*` fallback in
-  4.12.14, dev mode in the starter in 4.12.15.)
+  Prior: v4.12.14 (2026-09-22 — the first lock-step release with the Java engine; PR #308 → `b83c493f`, tag → `2c88fe2b`;
+  the minimalist-kafka port complete incl. the Schema Registry wire format, the OpenTelemetry forwarder, the sync-over-async
+  facade, `Platform::keep_running`, `group.protocol=auto`; 12 crates. Origin 2026-09-22-010413.md.) Prior: v4.12.12
+  (2026-09-21 — the catch-up release 4.12.7 → 4.12.12 in one step, PR #296 → `983e7550`, tag → `1ef183cb`; Increments 118–124.)
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-09-24 | through 2026-09-24-003204.md (ADVISORY SWEEP at the seam close, 2 sessions after the cadence
-  review — 5 completed threads past `archive_window` swept: the two closed Blueprint gaps, the 2026-09-17 stalled-threads gate,
-  the crates.io follow-ups, the invariants re-verification; archived 0 facts; tier changes 0; lines and facts within the caps.)
-  Prior: 2026-09-23 | 2026-09-23-224407.md (cadence; archived 0, swept 0) · 2026-09-21 | 2026-09-21-025547.md (cadence; tier changes 14).
+- **last_review:** 2026-09-25 | through 2026-09-25-010828.md (ON COMMAND, Eric — at the 600-line cap after the v4.12.17 cycle; SIZE
+  review: archived 1 (`fork-join-awaits-on-calling-task`, faded at 21 > 20 once the review's own log entered the window), swept 0 (three
+  closed threads at completion ages 2/10/11, 37 narrative lines ≤ 150), reactivated 0; condensed six shipped-decision facts
+  (their ship narrative lives in INCREMENTS and the origin logs; every rule, READ note, footer and [[link]] kept), the stale
+  release clause in `status`, and the v4.12.14/v4.12.12 release priors — lines 600 → ~520, facts 29 → 28; three facts re-tiered active → archive-candidate. Invariants not due
+  (26 of 40 since 2026-09-17); no unchecked thread, so no stalled-thread gate; contradiction scan found none — one stale
+  "Open: v4.12.15 on Eric's go" line in `connected-edge-spans` corrected to SHIPPED.)
+  Prior: 2026-09-24 | through 2026-09-24-003204.md (advisory sweep at the v4.12.16 seam) · 2026-09-23 | 2026-09-23-014725.md.
 - **last_invariant_check:** 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, team-eric-maintainer, vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
@@ -139,45 +138,20 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   <!-- id: playground-session-broker | created: 2026-09-03 | last_used: 2026-09-19 | uses: 7 | tier: archive-candidate | origin: 2026-09-03-172834.md -->
 
 - **A `for_each` iteration of a suspending subgraph suspends under its OWN record — the store key is
-  `graph:{graph_id}:{cid}:{index}`, and that key format is a cross-engine contract (lock-step with the
-  Java engine's PR #418; Increment 118, 2026-09-19, PR #284 MERGED — merge commit `c239532b`, feature
-  commit `3c98043d`).** Every iteration inherits the parent's business cid by design —
-  that inheritance is what makes a subgraph resumable at all — so N concurrent iterations of one
-  subgraph collided on `graph:{id}:{cid}` and which suspension survived was a race. Mechanism: the
-  extension skill's `for_each` branch carries the position as the `x-iteration-index` HEADER of a
-  graph invocation (never the body, never the application-owned `graph-executor` flow; a `flow://`
-  target gets no index — Java parity); the executor lifts it into the reserved
-  `model.iteration_index` (`RESERVED_MODEL_METADATA` is ten names; `NON_PERSISTED_MODEL_KEYS` aliases
-  it, so it is never persisted and never restored); `graph.suspend` puts `index` in the envelope,
-  `graph.resume` sends it in the `type=get` body; the Redis store and the file-store mock append it
-  ONLY when present, so single delegations and pre-upgrade records keep the two-segment key. A mixed
-  Java/Rust fleet shares one Redis, so the two engines must compose the key identically — the reason
-  this is a lock-step and not an option. Constraints DECLARED in the guide, not enforced (Eric's
-  clean-knowledge-design ruling on the Java side): positional consistency (appending safe; insert/
-  remove/reorder shifts positions and a shifted iteration MISSES rather than restoring another item's
-  record — pinned), parent → `for_each` → flow → suspending graph unsupported, nested `for_each` with
-  suspension a non-goal. Pinned end to end by `rust-orchestrator-foreach` (two records keyed by
-  iteration, each holding its own item and counter, both resumed and consumed), which the Java suite
-  does not have. Amends ADR-0012 in place (see [[conv-proposals-not-in-adr-ledger-rust]]); relates
-  [[fork-join-awaits-on-calling-task]] (found by this increment's test).
+  `graph:{graph_id}:{cid}:{index}`, a cross-engine contract (lock-step with Java's PR #418; Increment 118, 2026-09-19,
+  PR #284).** Every iteration inherits the parent's business cid (that is what makes a subgraph resumable), so N
+  concurrent iterations collided on `graph:{id}:{cid}` and which suspension survived was a race. Mechanism: the extension
+  skill's `for_each` branch carries the position as the `x-iteration-index` HEADER of a graph invocation (never the body;
+  a `flow://` target gets no index — Java parity); the executor lifts it into the reserved `model.iteration_index`
+  (never persisted, never restored); `graph.suspend` puts `index` in the envelope, `graph.resume` sends it in the
+  `type=get` body; the Redis store and the file-store mock append it ONLY when present, so single delegations and
+  pre-upgrade records keep the two-segment key. A mixed Java/Rust fleet shares one Redis, so the two engines must compose
+  the key identically — a lock-step, not an option. Constraints DECLARED in the guide, not enforced (Eric's
+  clean-knowledge-design ruling): positional consistency (appending safe; a shifted iteration MISSES rather than
+  restoring another item's record — pinned), parent → `for_each` → flow → suspending graph unsupported, nested `for_each`
+  with suspension a non-goal. Pinned end to end by `rust-orchestrator-foreach`. Amends ADR-0012 in place (see
+  [[conv-proposals-not-in-adr-ledger-rust]]); relates [[fork-join-awaits-on-calling-task]].
   <!-- id: for-each-suspend-index-key-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 2 | tier: archive-candidate | origin: 2026-09-19-022252 -->
-
-- **Fork-join batches are awaited ON THE CALLING TASK, never `tokio::spawn`ed (found 2026-09-19 by
-  the `for_each` lockstep's end-to-end test; Increment 118).** The distributed-trace bracket is a tokio
-  task-local: a spawned child starts outside it, its `po.request` finds no current trace, the launched
-  flow or task runs UNTRACED, and every downstream call inside it falls back to a minted correlation
-  id instead of the business cid. All three fan-out skills (`graph.extension`, `graph.task`,
-  `graph.api.fetcher`) had carried the pattern since their port — under a single delegation every
-  child span shares the parent's trace id, under a fan-out the children emitted none — a violation of
-  [[inv-telemetry-presentation-parity]] that the Increment-64 signature instrument never saw because
-  it had no fan-out shape. `common::join_batch` (`futures_util::future::join_all`) replaces the spawn
-  at all three sites: concurrent, responses in request order, the worker's trace and business cid in
-  scope — the Java `po.request(batch, timeout)` shape. **Durable lesson:** a parity assertion proven
-  on one shape (the orchestrator test's "the working step sees the business cid") must be re-run on
-  EVERY shape the feature has — the fan-out failed it on the first run. Pinned by
-  `rust-orchestrator-foreach`'s business-cid assertion. Relates [[for-each-suspend-index-key-rust]],
-  [[port-bottom-up-faithful]].
-  <!-- id: fork-join-awaits-on-calling-task | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: archive-candidate | origin: 2026-09-19-022252 -->
 
 - **The Redis client layer is the shared `mercury-redis-connection` foundation — `RedisConfig` with a
   configurable key prefix and the plain `redis.*` fallback, the `RedisBackend` standalone-or-cluster seam,
@@ -196,31 +170,25 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `Platform::on_shutdown` (Java `onShutdown`, v4.12.9) landed with it: hooks run once, newest first,
   isolated, from `AutoStart::run`. Relates [[distributed-cache-rust]]; twin of the Java
   `redis-connection-foundation`.
-  <!-- id: redis-connection-foundation-rust | created: 2026-09-19 | last_used: 2026-09-22 | uses: 3 | tier: active | origin: 2026-09-19-182617 -->
+  <!-- id: redis-connection-foundation-rust | created: 2026-09-19 | last_used: 2026-09-22 | uses: 3 | tier: archive-candidate | origin: 2026-09-19-182617 -->
 
-- **The distributed cache is `mercury-distributed-cache` — ONE action function `v1.cache.redis` over
-  opaque bytes, gated by `redis.cache.enabled`, byte-compatible with the Java module (Increment 119,
-  2026-09-19; Java v4.12.9 Q1–Q8 in lock-step; PR #285 MERGED by Eric 2026-09-19, merge commit `5ac55eaf`; on main; released in v4.12.12, 2026-09-21).** Same action names
-  (`PUT`/`GET`/`MGET`/`MPUT`/`DELETE`/`PUT_IF_NOT_PRESENT`/`LIST_PUSH`/`LIST_POP`/`LIST_LEN`), same headers
-  (`action`/`key`/`ttl`), same error messages, same key layout `{redis.cache.key.prefix}{key}`, same
-  config keys — so a Java pod and a Rust pod share one cache. Every key TTL'd from birth: `SETEX`, atomic
-  `SET NX EX`, and `RPUSH`+`EXPIRE` as ONE `MULTI`/`EXEC` step — the port's ruled equivalent of Java's
-  `EVAL` (the delta the sync-over-async port set; the RESP double cannot run Lua). `MPUT` is a pipelined
-  per-entry `SETEX`, never `MSET`. **Bodies are `Value::Binary`**: a `set_body(Vec<u8>)` would serde a
-  list of integers — the one thing a Rust caller can get wrong that a Java caller cannot. Runtime: lazy,
-  double-checked build over ONE multiplexed connection, config re-read per failed attempt (a late vault
-  credential is picked up; the app boots with Redis down), released via `on_shutdown`, `runtime::set` as
-  the test seam. `redis.health` = the foundation probe bound to the plain namespace. The worked example
-  (`examples/distributed-cache-example`) runs the Java example's flow and graph files byte-identical and
-  stores plain-MsgPack maps under `cache-demo:` — **the cross-engine interop harness**: pointed at one
-  Redis, the two examples read each other's profiles (a side-by-side run is the certification step).
-  **CERTIFIED 2026-09-20 (Increment 120):** the two examples side by side on one `redis-standalone` —
-  112/112 hard checks (`docs/test-reports/distributed-cache-interop.md`, twin in the Java repo): 6 × 6 layer
-  matrix, raw wire, cross-engine deletes, identical error shapes, a 54 s outage and recovery. It found the
-  example's Layer 1 false-miss on a cache failure (fixed — PR #286 MERGED 2026-09-20, merge `01710589` — [[l1-caller-checks-reply-status-rust]]) and
-  trimmed the example's direct `mercury-event-script` dependency ([[conv-cargo-declare-what-you-name]]).
-  Builds on [[redis-connection-foundation-rust]]; the example applies [[playground-session-broker]].
-  <!-- id: distributed-cache-rust | created: 2026-09-19 | last_used: 2026-09-22 | uses: 4 | tier: active | origin: 2026-09-19-182617 -->
+- **The distributed cache is `mercury-distributed-cache` — ONE action function `v1.cache.redis` over opaque bytes, gated by
+  `redis.cache.enabled`, byte-compatible with the Java module (Increment 119, 2026-09-19, PR #285; released in v4.12.12).**
+  Same action names (`PUT`/`GET`/`MGET`/`MPUT`/`DELETE`/`PUT_IF_NOT_PRESENT`/`LIST_PUSH`/`LIST_POP`/`LIST_LEN`), headers
+  (`action`/`key`/`ttl`), error messages, key layout `{redis.cache.key.prefix}{key}` and config keys — a Java pod and a
+  Rust pod share one cache. Every key TTL'd from birth: `SETEX`, atomic `SET NX EX`, and `RPUSH`+`EXPIRE` as ONE
+  `MULTI`/`EXEC` step (the port's ruled equivalent of Java's `EVAL`; the RESP double cannot run Lua); `MPUT` is a
+  pipelined per-entry `SETEX`, never `MSET`. **Bodies are `Value::Binary`** — a `set_body(Vec<u8>)` would serde a list of
+  integers, the one thing a Rust caller can get wrong that a Java caller cannot. Runtime: lazy, double-checked build over
+  ONE multiplexed connection, config re-read per failed attempt (a late vault credential is picked up; the app boots with
+  Redis down), released via `on_shutdown`, `runtime::set` as the test seam; `redis.health` = the foundation probe. The
+  worked example (`examples/distributed-cache-example`) runs the Java example's flow and graph files byte-identical — the
+  cross-engine interop harness, **CERTIFIED 2026-09-20 (Increment 120):** 112/112 hard checks side by side on one
+  `redis-standalone` (`docs/test-reports/distributed-cache-interop.md`, twin in the Java repo), which found the example's
+  Layer 1 false-miss on a cache failure ([[l1-caller-checks-reply-status-rust]]) and a stray direct dependency
+  ([[conv-cargo-declare-what-you-name]]). Builds on [[redis-connection-foundation-rust]]; applies
+  [[playground-session-broker]].
+  <!-- id: distributed-cache-rust | created: 2026-09-19 | last_used: 2026-09-22 | uses: 4 | tier: archive-candidate | origin: 2026-09-19-182617 -->
 
 - **A function that awaits `po.request` must check the reply's STATUS before reading its body — the
   engines do it for flows and graphs, imperative code must do it itself (Java ⇄ Rust cache interop,
@@ -252,7 +220,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   timeout). Java twin: `RedisFailure.classify` applied by `RedisCache`. Behaviour change to READ: a caller
   that keyed on 500 for a Redis outage now sees 408/503. Relates [[redis-connection-foundation-rust]],
   [[l1-caller-checks-reply-status-rust]].
-  <!-- id: redis-failure-classification-rust | created: 2026-09-20 | last_used: 2026-09-22 | uses: 2 | tier: active | origin: 2026-09-20-004627 -->
+  <!-- id: redis-failure-classification-rust | created: 2026-09-20 | last_used: 2026-09-22 | uses: 2 | tier: archive-candidate | origin: 2026-09-20-004627 -->
 
 - **A function's failure reaches a REST client as the standard error body `{status, message, type:
   error}` — never as bare text (found and fixed 2026-09-19 by the cache example's Layer 1 miss).** Java
@@ -317,97 +285,67 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   blank = unset, same URL); the identity lives in the template here, there being no serde layer to override.
   <!-- id: schema-registry-native-codec | created: 2026-09-21 | last_used: 2026-09-24 | uses: 5 | tier: active | origin: 2026-09-21-233114 -->
 
-- **The OpenTelemetry forwarder is this engine's own OTLP encoder over the platform HTTP client — no OpenTelemetry
-  SDK — opt-in by `otel.forwarding`, and a late credential arrives as a runtime override (Eric, 2026-09-21 →
-  Increment 129; PR #307 MERGED 2026-09-22, `9c56cc32`).** `extensions/opentelemetry-forwarder` (`mercury-opentelemetry-forwarder`) registers
-  `distributed.trace.forwarder` under `#[optional_service("otel.forwarding")]` — linking the crate registers nothing,
-  the Java `@OptionalService` shape, pinned by `hello-flow`, which carries the crate with the switch off — and a
-  `#[before_application]` hook under the same switch validates the endpoint and announces header NAMES. The OTLP v1
-  trace protobuf (eight frozen message types) is written by `src/otlp.rs`; the Rust OTLP stack
-  (`opentelemetry-otlp` → `opentelemetry-proto` → `prost` + `tonic`) would have been the heaviest dependency in the
-  workspace. The request goes as `application/x-protobuf` through `async.http.request`, the seam the schema registry
-  client proved ([[schema-registry-native-codec]]). Java's retry policy (5 attempts, 1 s × 1.5 on transport failures
-  and 408/429/502/503/504 — the platform client renders its OWN transport failures as a 500 with NO response headers,
-  and that absence is the retry discriminator) and diagnostics (status, ≤256-char body, 404/401/403 hints; header
-  values never logged) carried over. **Two platform facts learned:** (1) `${ENV}` references resolve ONCE when the
-  base configuration loads (`ConfigReader::new_base` → `resolve_references`), so the environment is not a live path;
-  a `-D`/`overrides::set` value is consulted first on every lookup — the late-credential path, the twin of Java's
-  vault-published system property; (2) the lifecycle constructs every annotated function BEFORE it runs the
-  `before_application` hooks, so state a hook installs must be resolved lazily (the forwarder takes its exporter on
-  the first dataset). Declared deltas: `otel.exporter.otlp.compression` honours only `none`,
-  `otel.exporter.otlp.connect.timeout` has no effect (`http.client.connection.timeout` governs), scope
-  `mercury-opentelemetry-forwarder`. Certified live (`docs/test-reports/otel-dynatrace-certification.md`): A-B-A on
-  hello-flow — real token 0/5, bogus token 5/5 `HTTP 401`, real token 0/5; **UI confirmation DONE 2026-09-22** (Eric's
-  Dynatrace screenshots: nesting, kinds, scope 4.12.12, attributes as mapped); the field acceptance on the released
-  crate — a registry-only consumer app and one trace across both engines — is CONFIRMED in the UI 2026-09-22, and
-  [[otel-forwarder-certification]] is CLOSED (report Scenarios 6–7).
-  **Extended 2026-09-22 (Eric's v4.12.15 milestone):** the no-SDK design now holds on all four runtimes — this crate's
-  OTLP encoder ported to mercury-python (#33) and mercury-nodejs (#101) — and Scenario 8 certified them together with
-  the Playground's E0 twin (#314, merged `44bb207e`): the Rust and Java edges rendering Gemini tokens progressively through the hosts'
-  `llm.stream`, four token-bearing traces, lineage from both sides' datasets, 0 export failures; Eric's Dynatrace
-  lookup confirmed them the same day — and found the trees broken at the root, which [[connected-edge-spans]] fixed;
-  Scenario 9 and drive 9 (token-bearing) were confirmed in the UI afterwards.
-  **2026-09-22, later:** the kind rule became SERVER iff `service == http.request` — the edge's round-trip record
-  introduced by [[connected-edge-spans]]; a function execution is INTERNAL.
+- **The OpenTelemetry forwarder is this engine's own OTLP encoder over the platform HTTP client — no OpenTelemetry SDK —
+  opt-in by `otel.forwarding`, and a late credential arrives as a runtime override (Eric, 2026-09-21; Increment 129, PR
+  #307).** `extensions/opentelemetry-forwarder` registers `distributed.trace.forwarder` under
+  `#[optional_service("otel.forwarding")]` — linking the crate registers nothing (pinned by `hello-flow`, which carries
+  the crate with the switch off) — and a `#[before_application]` hook under the same switch validates the endpoint and
+  announces header NAMES (values never logged). `src/otlp.rs` writes the OTLP v1 trace protobuf (eight frozen message
+  types) — the Rust OTLP stack would have been the workspace's heaviest dependency; the request goes as
+  `application/x-protobuf` through `async.http.request`, the seam [[schema-registry-native-codec]] proved. Java's retry
+  policy carried over (5 attempts, 1 s × 1.5, on transport failures and 408/429/502/503/504 — the platform client renders
+  its own transport failures as a 500 with NO response headers, and that absence is the retry discriminator) with the
+  same diagnostics. **Two platform facts:** (1) `${ENV}` references resolve ONCE when the base configuration loads, so
+  the environment is not a live path — a `-D`/`overrides::set` value is consulted first on every lookup, the twin of
+  Java's vault-published system property; (2) the lifecycle constructs every annotated function BEFORE the
+  `before_application` hooks run, so state a hook installs is resolved lazily. Declared deltas:
+  `otel.exporter.otlp.compression` honours only `none`; `otel.exporter.otlp.connect.timeout` has no effect
+  (`http.client.connection.timeout` governs); scope `mercury-opentelemetry-forwarder`. Certified live
+  (`docs/test-reports/otel-dynatrace-certification.md`; A-B-A token experiment, UI-confirmed by Eric 2026-09-22;
+  [[otel-forwarder-certification]] CLOSED). The no-SDK design now holds on all four runtimes (the encoder ported to
+  mercury-python and mercury-nodejs) and Scenario 8/9 certified them together; the kind rule is SERVER iff
+  `service == http.request` — the edge record from [[connected-edge-spans]] — and every function execution is INTERNAL.
   <!-- id: otel-forwarder-no-sdk | created: 2026-09-22 | last_used: 2026-09-23 | uses: 3 | tier: active | origin: 2026-09-22-010413 -->
 
-- **A traced HTTP request is ONE connected span tree whose root is the edge's round-trip span; a streamed
-  response is traced at its head and its tail, never per token (Eric's rulings on the Dynatrace review of
-  the v4.12.15 certification traces, 2026-09-22; Increment 133, branch `fix/connected-edge-spans` `a95e2a91`,
-  lock-step with mercury-composable `15bc19e8`).** `automation/server.rs` mints the span at receipt
-  (`EdgeTrace`), every dispatch parents onto it, and the record `service=http.request` is emitted by `handle`
-  (buffered response, edge error) or by the stream renderer at the terminal (head status, or the in-band
-  failure's status and message, or the idle 408) — `start` = receipt, `exec_time` = the round trip,
-  `parent_span_id` = the inbound traceparent span. **All four OTel forwarders map SERVER iff `service ==
-  http.request`; every function execution is INTERNAL.** The stream relay's client leg parents onto the
-  sender (`relay_event_stream` stamps `set_span_id`) because `is_zero_traced` no longer consults
-  `skip.rpc.tracing` — the list only suppresses the caller-side RPC `round_trip` record (Java `InboxBase`
-  semantics; this port had zero-traced the whole route and the RPC path masked the drift for months).
-  `EventStreamWriter` sends the first segment and the terminals traced and the data segments through
-  `PostOffice::send_untraced`; the HTTP client relays stamp the client leg's own trace (`RelayTrace`) on
-  synthesized head/eof/exception segments and forward raw token frames untraced; `StreamLaneService`
-  annotates the terminal record with `frames` = the data-segment count. **Why it was invisible until now:**
-  0 export failures in every drive; only the trace tree in the backend UI showed the orphans — and the
-  drive's fabricated `traceparent` (a random parent nobody exported) broke every root, a drive artifact that
-  looked like an engine defect (send `X-Trace-Id`, or nothing, without a real upstream span). Behaviour
-  change to READ at 4.12.15: one more span per traced request; the first function is INTERNAL; an
-  Event-over-HTTP callee edge records its own round trip between the caller's span and `event.api.service`.
-  **MERGED 2026-09-22: PR #315 (`84f8ad66`), the Java twin #444 (`737ce503`), Python #36, Node #104; Scenario 9's
-  backend view CONFIRMED in Dynatrace (one tree per trace, the edge span the root and the response time; report PR
-  #316 `251bb369`, Java #445 `3675590d`). **Token-bearing re-drive DONE (drive 9, 2026-09-22): a temporary mock
-  of the Gemini REST API shadowed the quota-spent provider at its base URL (`GOOGLE_GEMINI_BASE_URL` /
-  `GEMINI_API_BASE`, no host code change) — all four pairings streamed 8 token frames, every tree one tree with the
-  terminal `frames: 8`, exported by all four apps (report PR #317 `a6abb436`, Java #446 `a7abcace`) — and
-  CONFIRMED in Dynatrace by Eric's six screenshots (one tree per trace, the round trip as the response time,
-  `annotation.frames: 8` on the stream terminal; report PR #318 `21115dc0`).**
-  Open: v4.12.15 on Eric's go.**
-  Extends [[otel-forwarder-no-sdk]]; pinned by `event_over_http_stream::edge_relay_spans_are_connected`.
+- **A traced HTTP request is ONE connected span tree whose root is the edge's round-trip span; a streamed response is
+  traced at its head and its tail, never per token (Eric's rulings on the Dynatrace review of the v4.12.15 certification
+  traces, 2026-09-22; Increment 133, PR #315, lock-step with mercury-composable #444; SHIPPED in v4.12.15).**
+  `automation/server.rs` mints the span at receipt (`EdgeTrace`), every dispatch parents onto it, and the record
+  `service=http.request` is emitted by `handle` (buffered response, edge error) or by the stream renderer at the terminal
+  (head status, the in-band failure's status, or the idle 408) — `start` = receipt, `exec_time` = the round trip,
+  `parent_span_id` = the inbound traceparent span. **All four OTel forwarders map SERVER iff `service == http.request`;
+  every function execution is INTERNAL.** The stream relay's client leg parents onto the sender because `is_zero_traced`
+  no longer consults `skip.rpc.tracing` — the list only suppresses the caller-side RPC `round_trip` record (Java
+  `InboxBase` semantics; the RPC path had masked the drift for months). `EventStreamWriter` sends the first segment and
+  the terminals traced and the data segments through `PostOffice::send_untraced`; the HTTP client relays stamp the client
+  leg's own trace (`RelayTrace`) on synthesized head/eof/exception segments and forward raw token frames untraced;
+  `StreamLaneService` annotates the terminal record with `frames` = the data-segment count. **Why it was invisible:** 0
+  export failures in every drive; only the backend's trace tree showed the orphans — and the drive's fabricated
+  `traceparent` broke every root, a drive artifact that looked like an engine defect (send `X-Trace-Id`, or nothing,
+  without a real upstream span). **READ at 4.12.15:** one more span per traced request; the first function is INTERNAL;
+  an Event-over-HTTP callee edge records its own round trip between the caller's span and `event.api.service`. Confirmed
+  in Dynatrace by Eric (Scenario 9 and the token-bearing drive 9, `annotation.frames: 8`; reports in
+  `docs/test-reports/`). Extends [[otel-forwarder-no-sdk]]; pinned by
+  `event_over_http_stream::edge_relay_spans_are_connected`.
   <!-- id: connected-edge-spans | created: 2026-09-22 | last_used: 2026-09-23 | uses: 2 | tier: active | origin: 2026-09-22-200854 -->
 
-- **The Redis foundation retries intelligently — a heartbeat monitor plus one retry per lost connection for
-  idempotent commands only, never a replay of a non-idempotent one (Eric's ruling on polyglot note 3, 2026-09-22;
-  Increment 135, `feat/redis-lifecycle-retry` — PR #320 MERGED 2026-09-23 00:36Z, merge `34ff82d6`).** `redis-rs`'s
-  `ConnectionManager` arms its reconnect when a command fails but returns that command's error (Lettuce requeues
-  unwritten commands), so the first command after a Redis restart failed `broken pipe` and the second healed.
-  `ConnectionLifecycle` (per `RedisBackend`, shared by its clones) tracks healthy/lost with drops/retries/recoveries
-  counters, logging a loss and a recovery once each; the heartbeat (`{prefix}heartbeat.ms` → `redis.heartbeat.ms`,
-  default 1000, 0 = off, managed connections only) PINGs per interval — its failure is what makes the manager
-  reconnect EAGERLY, so a command issued after it (a non-idempotent `RPUSH` included) succeeds on its first attempt;
-  `RedisBackend::attempt(replay, op)` retries a `Replay::Idempotent` command exactly once when it failed while the
-  connection was BELIEVED HEALTHY at issue time (the transition = the restart); a command issued while known-down
-  makes one attempt bounded by the command deadline (408 while the manager is still reconnecting, 503 on a refusal),
-  never two; a timeout is never a lifecycle signal. **Why non-idempotent commands are never replayed:** on RESP2 the
-  crate reports `broken pipe` (`closed_connection_error`) both for a command it never sent and for one whose reply
-  was lost, so non-delivery cannot be proven — the RESP3 `Disconnection` push that would tell is not available to
-  us — and an ambiguous `RPUSH` replay risks a duplicate segment (D7). Consumers: the cache marks
-  GET/MGET/SETEX/MPUT/DEL/LLEN idempotent; the sync-over-async `ReturnRouteStore` now runs on a `RedisBackend`
-  (`ReturnRouteStore::connect(&settings)` → `connect_standalone`, keeping the two-key `DEL` off the cluster path and
-  its own 500 mapping as the Java store does); `minigraph-state-redis` still drives its own manager (follow-up).
-  Java needs no twin (Lettuce). Method note: the first design keyed the replay on the io kind (BrokenPipe ⇒ not
-  delivered) — reading `redis-rs` 1.5.0 showed the same error on both paths, and the RESP3-only push closed the
-  second idea; the heartbeat is what was left, and it is also what fixes the actual field symptom. A test expectation
-  was wrong on the way, not the code: under a refused outage the single attempt waits on the reconnect up to the
-  deadline (408), so "fail fast" means one deadline-bounded attempt, never two. Extends
+- **The Redis foundation retries intelligently — a heartbeat monitor plus one retry per lost connection for idempotent
+  commands only, never a replay of a non-idempotent one (Eric's ruling on polyglot note 3, 2026-09-22; Increment 135, PR
+  #320).** `redis-rs`'s `ConnectionManager` arms its reconnect when a command fails but returns that command's error
+  (Lettuce requeues unwritten commands), so the first command after a Redis restart failed `broken pipe` and the second
+  healed. `ConnectionLifecycle` (per `RedisBackend`, shared by its clones) tracks healthy/lost with drops/retries/recoveries
+  counters; the heartbeat (`{prefix}heartbeat.ms` → `redis.heartbeat.ms`, default 1000, 0 = off, managed connections only)
+  PINGs per interval — its failure makes the manager reconnect EAGERLY, so a command issued after it (a non-idempotent
+  `RPUSH` included) succeeds first time; `RedisBackend::attempt(replay, op)` retries a `Replay::Idempotent` command exactly
+  once when it failed while the connection was BELIEVED HEALTHY at issue time; a command issued while known-down makes one
+  deadline-bounded attempt (408 while the manager reconnects, 503 on a refusal), never two; a timeout is never a lifecycle
+  signal. **Why non-idempotent commands are never replayed:** on RESP2 the crate reports `broken pipe` both for a command
+  it never sent and for one whose reply was lost (the RESP3 `Disconnection` push is not available to us), so non-delivery
+  cannot be proven and an ambiguous `RPUSH` replay risks a duplicate segment (D7). Consumers: the cache marks
+  GET/MGET/SETEX/MPUT/DEL/LLEN idempotent; the sync-over-async `ReturnRouteStore` runs on a `RedisBackend`
+  (`connect_standalone`, the two-key `DEL` off the cluster path, its own 500 mapping as Java); `minigraph-state-redis`
+  still drives its own manager (follow-up). Java needs no twin (Lettuce). Lesson: "fail fast" under a known outage means
+  one deadline-bounded attempt, never two — a test expectation was wrong on the way, not the code. Extends
   [[redis-connection-foundation-rust]], [[redis-failure-classification-rust]]; closes the polyglot report's note 3.
   <!-- id: redis-restart-aware-retry | created: 2026-09-22 | last_used: 2026-09-23 | uses: 2 | tier: active | origin: 2026-09-22-235800 -->
 
@@ -481,46 +419,29 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   React bundle. Verified live in both modes. Relates [[conv-cargo-declare-what-you-name]] (the same Playground
   polish round).
   <!-- id: rest-skip-unregistered-and-root-fallback-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 2 | tier: archive-candidate | origin: 2026-09-20-004627 -->
-- **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic
-  function by ONE `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric,
-  2026-09-20; Increment 123 — a doc gap, no engine change; branch `docs/static-decision-table-on-a-node`
-  `a0d2f4aa` + `3186bde1` + `ac882d11`, PR #293 MERGED 2026-09-20 `d4b1af10`; Java twin PR #430 squash
-  `c5adc58f`; the `lookup` plugin follows as Increment 124 on branch `feat/lookup-plugin` `f942b7cb` + `d61a1285`; PR #294 MERGED 2026-09-20 `c4750128`, Java twin PR #431 squash `e52aeaca`).** Found when an AI agent compiled a rule-by-state table
-  into a composable function shipped with its graph. `initialize_with_node_properties` already copies every
-  node's properties into the state machine at instantiation (skill node → non-reserved keys at
-  `{node}.{key}`; skill-less node → the whole map at `{node}`) and the shared LHS resolver reads any
-  selector, so `state-rules -> table` maps the table in one entry. **Presentation (Eric's review):** each
-  value is a JSON array written as text — `keys=[ "a", "b" ]`, `a=[ "CA", "TX" ]` — which reads as a table
-  on the node and arrives as a string the function reconstructs (`serde_json::from_str`; Java
-  `SimpleMapper`); `key[]=` lines build a real list instead, and a nested table is one triple-quoted JSON
-  text property parsed by `f:json(state-rules.table)` at mapping time. **Why (Eric):** readability — the
-  product owner certifies the rules on the graph in the business vocabulary — and one table replaces a
-  ladder of IF-THEN-ELSE in `graph.math` or inside a function, so neither a human nor an agent hard-codes
-  it; the engine was fully capable all along, and the recipe is what steers the design choice.
-  **The common case needs no function at all (Increment 124 — the `f:lookup(table, value)` simple plugin Eric
-  wrote in Java, ported in lockstep):** a `graph.data.mapper` decision node resolves the rule —
-  `f:lookup(state-rules, input.body.state, text(unknown)) -> output.body.rule`, one entry, the optional third
-  argument (Eric's suggestion) being the default on a miss — and the composable function stays for a ruling
-  that needs more than a lookup. The plugin takes the table as a map or JSON text, `keys`/rule lists as lists
-  or JSON arrays written as text, compares as text case-insensitively, returns the default (or Nil) on a
-  miss, and carries the Java error messages verbatim.
-  **A null mapping source — CHANGED 2026-09-23 (mercury-composable #453, Eric's ruling; twin of the Java fix):**
-  the graph engine now applies Event Script's rule — a null or unresolved source CLEARS a `model.*` target (removed;
-  set to null when the source key exists or the target is indexed) and is IGNORED for any other target — via one
-  helper, `common::apply_null_source`, in the mapping entry, `for_each`, the `model.*` half of fetcher/extension
-  parameters (a null parameter is not supplied) and the fetcher/task/extension output mapping (Increment 136, branch
-  `fix/l3-null-source-mapping-parity`, PR #323 MERGED 2026-09-23 `da133b88`; the same PR made every dry-run abort carry
-  its reason). Until 4.12.15 it removed ANY target — the 2026-09-20 ruling had documented
-  that (PR #295, Java PR #432, claim `null-source-removes-target`, whose text now states the shared rule with the
-  command reference, the command JSON, the data-mapper help and the `unit-test-lookup-1` probe). A default for a
-  model variable still comes from the source side (the plugin's third argument, or `f:defaultValue`), never from
-  default-then-overlay. The same increment makes graph.math name every unresolved `{selector}` of a COMPUTE or IF
-  expression ("Unknown identifier: model.threshold or model.factor") instead of the rendered text `null`. **Rule:** the product owner reads and certifies the table ON
-  the graph, a new table is a new graph version (`v2026-08-prime-rates`) and never a code change, and the
-  function stays generic by reading rule names from `table.keys`. The pattern is now in
-  `skills-reference.md` (graph.task), the in-Playground help and the AI agent guide's pre-send checklist,
-  pinned by `unit-test-task-9` (`graph_runtime.rs`) in lockstep with the Java repo. Extends
-  [[conventions-rust-baseline]] (docs and fixtures stay byte-aligned with the reference).
+- **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic function by ONE
+  `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric, 2026-09-20; Increment 123, a doc
+  gap and no engine change, PR #293; Java twin #430).** `initialize_with_node_properties` copies every node's properties
+  into the state machine at instantiation (skill node → non-reserved keys at `{node}.{key}`; skill-less node → the whole
+  map at `{node}`) and the shared LHS resolver reads any selector, so `state-rules -> table` maps the table in one entry.
+  **Presentation (Eric):** each value is a JSON array written as text — `keys=[ "a", "b" ]`, `a=[ "CA", "TX" ]` — which
+  reads as a table on the node and arrives as a string the function reconstructs (`serde_json::from_str`); `key[]=` lines
+  build a real list; a nested table is one triple-quoted JSON text parsed by `f:json(state-rules.table)` at mapping time.
+  **Why:** the product owner certifies the rules on the graph in the business vocabulary, and one table replaces a ladder
+  of IF-THEN-ELSE. **The common case needs no function (Increment 124, PR #294; Java #431):** the `f:lookup(table, value,
+  default)` simple plugin resolves the rule in one `graph.data.mapper` entry — table as map or JSON text, lists as lists
+  or JSON arrays written as text, case-insensitive text compare, the optional third argument the default on a miss, the
+  Java error messages verbatim. **A null mapping source — CHANGED 2026-09-23 (Increment 136, PR #323; mercury-composable
+  #453):** Event Script's rule now applies — a null or unresolved source CLEARS a `model.*` target (removed; set to null
+  when the source key exists or the target is indexed) and is IGNORED for any other target — via `common::apply_null_source`
+  in the mapping entry, `for_each`, the `model.*` half of fetcher/extension parameters (a null parameter is not supplied)
+  and the fetcher/task/extension output mapping; until 4.12.15 it removed ANY target (the claim `null-source-removes-target`
+  now states the shared rule). A default for a model variable comes from the source side (the plugin's third argument or
+  `f:defaultValue`), never from default-then-overlay; the same increment makes graph.math name every unresolved
+  `{selector}` instead of the rendered text `null`. **Rule:** the product owner reads and certifies the table ON the graph,
+  a new table is a new graph version and never a code change, and the function stays generic by reading rule names from
+  `table.keys`. In `skills-reference.md`, the in-Playground help and the AI agent guide's checklist; pinned by
+  `unit-test-task-9` (`graph_runtime.rs`) in lockstep with Java. Extends [[conventions-rust-baseline]].
   <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-23 | uses: 2 | tier: active | origin: 2026-09-20-152809 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
