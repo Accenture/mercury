@@ -14,17 +14,19 @@
 
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22). The current release is the `latest_release` field below (both engines release in lock-step, one number for the same content). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
-- **latest_release:** v4.12.17 (2026-09-25 00:20:16Z — **the field's Kafka gap closed on both engines, lock-step with the Java
-  engine**: release PR #328 merged as `ad957930`; tag `v4.12.17` → `af9d6f30` (one memory-only commit past the merge), workspace
-  version verified at the tag; the GitHub release body is the CHANGELOG entry; `rust`, `docs` and `agent-memory` green on the tag
-  commit). Content — Increment 139 (#327): `SchemaCodec::for_consumer`, the consumer-side Schema Registry identity
-  (`schema.registry.consumer.properties`; the identity lives in the template here — no serde layer; see
-  [[schema-registry-native-codec]]) plus the two Rust-only increments unreleased since 4.12.16 — 137 `yaml_serde` (#325) and 138
-  `cargo audit` with the rustls/event-listener lock refresh (#326) — which the tag-range rule surfaced. Sweep 13 Cargo.toml / 24 +
-  `Cargo.lock`. Readiness 603 / 0 / 9; PR #328's first `test` job failed on the timing-sensitive `kafka_shutdown` test and passed
-  on Eric's re-run (test-only hardening recorded as a follow-up with the bounce-recovery double). **crates.io: 12 of 12 PUBLISHED
-  2026-09-25 00:24:48–00:24:58Z**, one `cargo publish --workspace`. **Lockstep:** Java v4.12.17 the same minute (mercury-composable
-  #461 squash `e9cde291`, tag → `8a13a02e`, 00:19:27Z); the python/node packs stay at 4.12.15. Origin 2026-09-24-235353.md.
+- **latest_release:** v4.12.18 (2026-09-25 20:55:02Z — **the graph.math rulings shipped on both engines, lock-step with the Java
+  engine**: release PR #331 merged as `568d71b2`; tag `v4.12.18` → `7d07e9bd` (one memory-only commit past the merge), workspace
+  version verified at the tag; the GitHub release body is the CHANGELOG entry). Content — Increment 141 (#330): graph.math typed
+  and finite — a boolean is never a number, unknown functions and overflow fail by name, `CONDITION`
+  ([[graph-math-typed-arithmetic-rust]]; READ: a graph that relied on `true` computing as 1/0 or on `Infinity` propagating now
+  fails at that statement) — plus the Rust-only Increment 140 (#329, two timing-sensitive tests hardened). Sweep 13 Cargo.toml /
+  24 + `Cargo.lock`. Readiness 603 / 0 / 9. **crates.io: 12 of 12 PUBLISHED 2026-09-25 20:58:10–20:58:23Z**, one `cargo publish
+  --workspace`. **Lockstep:** Java v4.12.18 the same minute (mercury-composable #464 squash `1e419a29`, tag → `70e00474`,
+  20:56:19Z — also carrying Java's #463 Snyk dependency bumps, no analogue here); the python/node packs stay at 4.12.15. Main's
+  `rust` run was in progress on the tag commit at close. Origin 2026-09-25-195421.md.
+  Prior: v4.12.17 (2026-09-25 00:20:16Z — the field's Kafka gap closed on both engines; PR #328 → `ad957930`, tag → `af9d6f30`;
+  Increment 139 `SchemaCodec::for_consumer` ([[schema-registry-native-codec]]) plus the Rust-only 137 `yaml_serde` and 138 `cargo
+  audit`; 603 / 0 / 9; crates 12/12 00:24Z; Java #461 `e9cde291`. Origin 2026-09-24-235353.md.)
   Prior: v4.12.16 (2026-09-24 00:09:26Z — the correctness round from two Java field reports; PR #324 → `743d4ea2`, tag → `cc138af3`;
   Increment 136: the shared null-source rule, graph.math naming the selector, every abort carrying its reason — READ notes in the
   CHANGELOG; 603 / 0 / 9; crates 12/12 00:12Z; Java #457 `df605533`. Origin 2026-09-23-235047.md.)
