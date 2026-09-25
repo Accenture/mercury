@@ -11,6 +11,68 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Version 4.12.18, 9/25/2026
+
+The lock-step twin of Java 4.12.18 (Increment 141): graph.math is typed and finite — a boolean is never a number, an
+unknown function and an overflow fail by name, and `CONDITION` is the declared boolean statement — closing a field page
+of nine "wrong answer" behaviours on both engines. This release also carries Increment 140, merged after 4.12.17: two
+timing-sensitive tests hardened (test-only). Upgrade action: read the *Changed* item — a graph that relied on a boolean
+computing as 1/0 or on an overflowed `Infinity` propagating now fails at that statement with a named message.
+Publication: the twelve crates at 4.12.18 on crates.io (`cargo publish --workspace` from the tag).
+
+**Lock-step notes.** Java 4.12.18's graph.math item lands here as Increment 141 (#330). Java's other item — the
+Jackson, Netty and MsgPack dependency bumps for the field's Snyk gate — is Java-specific with no analogue here
+(`cargo audit` is green on this tree). Increment 140 is Rust-only.
+
+### Changed
+
+- **graph.math: a boolean is never a number; an unknown function, an overflow and a division by zero fail by name**
+  (#330, Increment 141; the Java engine's #462). `as_number` coerced `Value::Bool` to 1/0 in arithmetic, `<`/`>`
+  comparisons and function arguments while equality type-checked — three outcomes for the same JSON `true`, and in the
+  field a boolean threshold negated into a number produced a large overcharge with no error. Now one uniform rejection,
+  mapped back to the selector that supplied it by `name_offending_selectors` (the generalized `name_null_identifier`):
+  `Boolean operand: model.flag (true) in '{model.flag} + 1' - a boolean is not a number; store a boolean with CONDITION
+  or assert the type with f:validate`; `eval_number` rejects a boolean *result* instead of storing 1.0. A misspelled or
+  unsupported function reports its name (`Unknown function: mn`; a callee that is a value, `'PI' is not a function`)
+  instead of the generic "Attempting to call a non-function". Every unary, binary and function result passes `finite()` —
+  `Arithmetic overflow in '*' (result Infinity)`, `Division by zero or arithmetic overflow in '/' (result Infinity)`,
+  `Arithmetic result is not a number (NaN) in '/'` — instead of `Infinity` traveling on to fail a later node as
+  `Unknown identifier: Infinity`. A function argument now passes the same typed check as an operand, so a string
+  argument reads `Expected number in argument of sqrt(), got String(4)` (was `Cannot coerce string to number`). Arithmetic
+  stays IEEE double by design: exact-decimal money belongs in a small composable function on `graph.task` with a decimal
+  crate; the math package does not grow. **Upgrade action:** a graph that relied on `true`/`false` computing as 1/0 in a
+  `COMPUTE`, on a boolean `COMPUTE` result storing 1.0, or on an overflowed `Infinity` propagating now fails at that
+  statement with a named message; a graph whose numbers are numbers is unaffected.
+
+### Added
+
+- **`CONDITION: var -> expr` — the declared boolean statement in graph.math** (#330, Increment 141). Substituted in a
+  logical context whatever operators it carries (`CONDITION: ok -> {model.a} < {model.b}`, `CONDITION: same ->
+  {model.flag}`), evaluated with `eval_boolean`, stored as a boolean at `{node}.result.{var}`; an `IF` may test it
+  directly. The compile gate counts it as a statement and both gate messages list it. `COMPUTE` keeps its documented
+  behaviour — an expression with a comparison or boolean operator yields a boolean — now stated in the guide, the
+  command reference, the command JSON and the in-Playground `help graph-math`. **Upgrade action:** none.
+
+### Documentation
+
+- **The rulings that were documentation, not engine** (#330). A `run` on the same Playground instance keeps `model.*` —
+  a `MAPPING` onto `model.x[]` appends to the list the previous run built — and `instantiate graph` (alias `start`) is
+  the reset; a deployed graph gets a fresh instance per request. A taken `IF` inside a `for_each` body ends the whole
+  walk, so per-row rules are arithmetic gates and the `IF` follows the loop. The end node is the terminus: its mappings
+  run last, so the last writer to an `output.*` key wins. The `for_each` rules gain the append/reseed bullet, and the
+  guide's *Numbers and booleans* rules state the numeric model; claim `math-boolean-operand-rejected` pins them to
+  `graph_runtime`.
+
+### Build
+
+- **Two timing-sensitive tests hardened** (#329, Increment 140; test-only, no shipped code). `BounceProxy::bounce()` /
+  `refuse()` are `async` and return once the severing has happened (an aborted relay task is awaited, the acceptor's
+  exit too), so a command written before the runtime polled those tasks can no longer travel the old link during an
+  "outage"; the `kafka_shutdown` stranded record is enqueued synchronously with `FutureProducer::send_result` and its
+  precondition asserted before the close. Both had failed once each on CI runners around the 4.12.17 release and never
+  locally.
+
+---
 ## Version 4.12.17, 9/24/2026
 
 The lock-step twin of Java 4.12.17 (Increment 139): the Kafka flow adapter can carry its own Schema Registry identity,

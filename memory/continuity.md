@@ -295,7 +295,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   pins (deliberately NOT workspace-inherited, so a copied-out template builds as-is after
   deleting the in-repo `path` keys) — the release edit list grows from 5 manifests to 8.
   **Extended 2026-09-22 (the v4.12.14 publish):** before a crate's FIRST publish, audit its manifest metadata as part of the release sweep — `keywords` ≤ 5 and each ≤ 20 characters, valid `categories`, a `readme` path inside the package — because cargo validates none of it locally and crates.io rejects at upload, after the dependency-ordered run has already published everything before it (`progressive-rendering`, 21 chars, cost `mercury-sync-over-async` its place in the 4.12.14 run).
-  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-23 | uses: 8 | tier: archive-candidate | origin: 2026-09-11-005808 -->
+  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-25 | uses: 9 | tier: active | origin: 2026-09-11-005808 -->
 - Each ported module's `//!` doc names the **Java class it ports** (e.g.
   `org.platformlambda.core.util.ConfigReader`) so reviewers can diff behavior side-by-side.
 - **Tests:** unit tests in-module (`#[cfg(test)]`), integration tests in `tests/` with
@@ -336,19 +336,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   `8868613c`, PR #291 MERGED 2026-09-20, merge `548ce651`; the root README, the template README and the getting-started guide now state the rule).
   <!-- id: conv-cargo-declare-what-you-name | created: 2026-09-20 | last_used: 2026-09-21 | uses: 3 | tier: archive-candidate | origin: 2026-09-20-004627 -->
 
-- **A `rest.yaml` entry whose service is not registered is SKIPPED at load, and `/` falls back to the `/index.html`
-  entry — Java REST semantics the port lacked until Increment 122 (Eric found both running the Playground with
-  `-Dapp.env=prod`, 2026-09-20; PR #292 MERGED, merge `567bf57e`).** `RoutingTable::retain_available` drops such entries and `start_http_server`
-  warns in Java's words (`Skip [GET] /api/x - Service x not available`; `RoutingEntry.resolveServices`); the REST
-  server starts after preload and before the main application on BOTH engines, so a function registered in a main
-  application is invisible to rest.yaml in either — parity, not a Rust quirk. The request handler retries a `/`
-  miss as `/index.html` before static content (Java `HttpRequestHandler`), so `get.index.html` — dev → the
-  Playground's `/public/index.html`, otherwise `/template/index.html` — serves the root as well; static
-  `public/index.html` is only the last resort. Consequence: one `rest.yaml` serves dev and production; an
-  `#[optional_service]` left out by its condition never leaves a live URL behind, and production never shows the
-  React bundle. Verified live in both modes. Relates [[conv-cargo-declare-what-you-name]] (the same Playground
-  polish round).
-  <!-- id: rest-skip-unregistered-and-root-fallback-rust | created: 2026-09-20 | last_used: 2026-09-20 | uses: 2 | tier: archive-candidate | origin: 2026-09-20-004627 -->
 - **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic function by ONE
   `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric, 2026-09-20; Increment 123, a doc
   gap and no engine change, PR #293; Java twin #430).** `initialize_with_node_properties` copies every node's properties
@@ -398,7 +385,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   statement by name. Pinned by `unit-test-math-2` (`graph_runtime.rs`) and `expression_engine.rs`, lockstep with Java.
   Extends [[static-decision-table-is-graph-data-rust]] (the same evaluator's null-source rule, Increment 136) and
   [[conventions-rust-baseline]].
-  <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 2 | tier: active | origin: 2026-09-25-190229 -->
+  <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 3 | tier: active | origin: 2026-09-25-190229 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
