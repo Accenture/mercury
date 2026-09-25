@@ -140,7 +140,7 @@ fn compile_one_graph(deploy_location: &str, graph_id: &str) {
     // later manifest wins: when a later manifest lists a graph id again, that manifest owns
     // the id - its copy replaces the earlier one, and if the new copy is rejected the id is
     // not executable (404) rather than silently served from the copy the operator meant to
-    // replace (a curl test would otherwise pass against the old behaviour)
+    // replace (a curl test would otherwise pass against the old behavior)
     if let Some(previous) = graphs::graph_location(graph_id).filter(|p| p != deploy_location) {
         log::warn!("Graph {graph_id} from {deploy_location} replaces the copy from {previous}");
         graphs::remove_graph(graph_id);

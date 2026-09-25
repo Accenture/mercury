@@ -90,7 +90,7 @@ pub fn add_graph(graph_id: &str, model: Value, location: &str) {
 }
 
 /// Drop a compiled graph model — a later manifest takes ownership of the id.
-pub fn remove_graph(graph_id: &str) -> Option<Arc<Value>> {
+pub fn remove_graph(graph_id: &str) {
     locations()
         .write()
         .expect("graph locations poisoned")
@@ -98,7 +98,7 @@ pub fn remove_graph(graph_id: &str) -> Option<Arc<Value>> {
     registry()
         .write()
         .expect("graph registry poisoned")
-        .remove(graph_id)
+        .remove(graph_id);
 }
 
 /// The deployed location a compiled graph came from (`None` when it is not compiled).
@@ -118,15 +118,6 @@ pub fn get_all_graphs() -> Vec<String> {
         .keys()
         .cloned()
         .collect()
-}
-
-/// Replace the deployed locations with a single one (the single-manifest form).
-pub fn set_deployed_location(location: &str) {
-    let mut slot = deployed_locations_slot()
-        .write()
-        .expect("deployed locations poisoned");
-    slot.clear();
-    slot.push(location.to_string());
 }
 
 /// Append a manifest's deployed location (manifest order; a repeated location is kept once).
