@@ -103,3 +103,4 @@
 - typed-function-envelope-reply — A typed function may return an `EventEnvelope` to set the reply's status, headers and body… — faded — 2026-Q3.md
 - l1-caller-checks-reply-status-rust — A function that awaits `po.request` must check the reply's STATUS before reading its body… — faded — 2026-Q3.md
 - rest-error-body-standard-shape — A function's failure reaches a REST client as the standard error body `{status, message, t… — faded — 2026-Q3.md
+- rest-skip-unregistered-and-root-fallback-rust — A `rest.yaml` entry whose service is not registered is SKIPPED at load, and `/` falls back… — faded past archive_window at the release seam — 2026-Q3.md
