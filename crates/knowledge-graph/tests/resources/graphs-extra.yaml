@@ -1,0 +1,14 @@
+# A SECOND graph manifest, named after graphs.yaml in graph.model.automation (comma-separated,
+# the yaml.flow.automation convention). This is the rapid-prototyping lane's external manifest -
+# on the classpath here so the fixture is self-contained - and it carries its OWN 'location'.
+graphs:
+  # listed only here: a later manifest's graphs compile from that manifest's own location
+  - 'unit-test-manifest-extra'
+  # also listed in graphs.yaml: the LATER manifest wins - this copy carries version=2
+  - 'unit-test-manifest-dup'
+  # also listed in graphs.yaml, where the copy is valid; this copy has no 'end' node and is
+  # rejected by the gate. The later manifest owns the id, so the graph is NOT executable (404) -
+  # it does not fall back to the copy the operator meant to replace
+  - 'unit-test-manifest-reject'
+
+location: 'classpath:/graph-extra'

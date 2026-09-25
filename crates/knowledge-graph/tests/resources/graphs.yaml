@@ -90,3 +90,7 @@ graphs:
   - 'unit-test-suspend-err6'
   - 'unit-test-suspend-err7'
   - 'unit-test-no-end'
+  # manifest precedence (see graphs-extra.yaml, the second manifest in graph.model.automation):
+  # both ids are listed there too - dup's later copy wins, reject's later copy fails the gate
+  - 'unit-test-manifest-dup'
+  - 'unit-test-manifest-reject'

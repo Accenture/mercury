@@ -38,7 +38,9 @@
 //!    enforcement floor for the playground dry-run surface.
 //!
 //! CompileGraph is the deployment gate: set `graph.model.automation` to a
-//! YAML file listing the graph ids to compile at startup (mirroring
+//! YAML manifest — or, since 4.12.19, a comma-separated list of manifests, each
+//! with its own `location`, the later manifest winning a duplicate graph id —
+//! listing the graph ids to compile at startup (mirroring
 //! `yaml.flow.automation` for event flows). Like flows.yaml, the manifest
 //! carries the location of its own models in an optional `location` entry
 //! (file:/ or classpath:/, default `classpath:/graph`) — there is no separate
@@ -82,16 +84,31 @@ pub fn compile_graphs() -> Vec<String> {
              set 'location' in the graph manifest (graph.model.automation) instead"
         );
     }
-    let manifest = config.get_property_or("graph.model.automation", "");
-    if manifest.trim().is_empty() {
+    let manifests = config.get_property_or("graph.model.automation", "");
+    if manifests.trim().is_empty() {
         log::warn!(
             "No graph manifest configured (graph.model.automation) - \
              no deployed graph models will be executable"
         );
         return graphs::get_all_graphs();
     }
-    match ConfigReader::load(&manifest) {
+    // Since 4.12.19 the property may name several manifests, comma-separated (the
+    // yaml.flow.automation convention): the one bundled in the artifact and, for rapid
+    // prototyping, an external one - each carries its own 'location'. Manifests compile
+    // in the order listed, and a manifest that cannot be loaded is skipped with a warning
+    // so the others still compile (Java: util.split(manifests, ", ")).
+    for manifest in manifests.split([',', ' ']).filter(|s| !s.is_empty()) {
+        compile_manifest(manifest);
+    }
+    let all = graphs::get_all_graphs();
+    log::info!("Graph models compiled: {}", all.len());
+    all
+}
+
+fn compile_manifest(manifest: &str) {
+    match ConfigReader::load(manifest) {
         Ok(reader) => {
+            log::info!("Loading graph manifest {manifest}");
             // like flows.yaml, the manifest carries the location of its own models
             let mut deploy_location = reader
                 .get_property(LOCATION)
@@ -105,7 +122,7 @@ pub fn compile_graphs() -> Vec<String> {
                 );
                 deploy_location = DEFAULT_DEPLOY_DIR.to_string();
             }
-            graphs::set_deployed_location(&deploy_location);
+            graphs::add_deployed_location(&deploy_location);
             log::info!("Deployed graph model folder - {deploy_location}");
             if let Some(ConfigValue::List(list)) = reader.get("graphs") {
                 for i in 0..list.len() {
@@ -117,15 +134,20 @@ pub fn compile_graphs() -> Vec<String> {
         }
         Err(e) => log::warn!("Unable to load graph manifest {manifest} - {e}"),
     }
-    let all = graphs::get_all_graphs();
-    log::info!("Graph models compiled: {}", all.len());
-    all
 }
 
 fn compile_one_graph(deploy_location: &str, graph_id: &str) {
+    // later manifest wins: when a later manifest lists a graph id again, that manifest owns
+    // the id - its copy replaces the earlier one, and if the new copy is rejected the id is
+    // not executable (404) rather than silently served from the copy the operator meant to
+    // replace (a curl test would otherwise pass against the old behavior)
+    if let Some(previous) = graphs::graph_location(graph_id).filter(|p| p != deploy_location) {
+        log::warn!("Graph {graph_id} from {deploy_location} replaces the copy from {previous}");
+        graphs::remove_graph(graph_id);
+    }
     match load_and_validate(deploy_location, graph_id) {
         Ok(model) => {
-            graphs::add_graph(graph_id, model);
+            graphs::add_graph(graph_id, model, deploy_location);
             log::info!("Compiled graph {graph_id}");
         }
         // a rejected graph is simply not registered: deployed execution is served

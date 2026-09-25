@@ -118,7 +118,10 @@ engines):
    any console you render. **Skipping this step is the classic hand-rolled-client failure — the
    session dies at the idle timeout.**
 5. A restart of the app destroys the session (and any unexported graph — export first);
-   reconnect and parse the **new** id.
+   reconnect and parse the **new** id. The shipped broker does this for you: after a restart,
+   `GET /session` returns the new `sessionId` with the old one under `previousSessionIds`.
+   Re-import the exported graph into the new session (`import graph from {name}`) **before**
+   handing the id to the humans, so the model syncs back to them on `session subscribe`.
 
 ## Generate deterministically {#deterministic}
 
@@ -199,11 +202,71 @@ A reliable order for building a graph:
    the success line alone. (With the root-node `name=`/`created=` best practice from step 2 the
    export overwrites cleanly; the delete-and-verify here is defense in depth.) Deploy the JSON
    into your project's `resources/graph/`, list the id in `graphs.yaml`, rebuild, restart, then
-   call `POST /api/graph/{name}`.
+   call `POST /api/graph/{name}` — that is the production path; for a prototype or a demo,
+   [deploy from an external manifest without a rebuild](#deploy-without-rebuild).
 8. **Dry-running the deployed model in a fresh session:** a Playground session opened after the
    restart starts **empty** — no root node — even though the graph is deployed. Run
    `import graph from {name}` first (it falls back to the deployed classpath model, `ok:true`),
    then `instantiate graph` and `run` as usual.
+
+### Rapid prototyping — deploy without a rebuild {#deploy-without-rebuild}
+
+The production path keeps the manifest and the models **inside the artifact** (`classpath:/graphs.yaml`,
+`classpath:/graph`), so a deployment is a build. For a prototype or a live demo, the `CompileGraph`
+gate also accepts a manifest and a model folder **outside the binary**: the manifest is an ordinary
+property (`graph.model.automation`), so a `-D` runtime override sets it for one run, and the
+manifest's `location` may be a `file:/` folder. Since 4.12.19 the property accepts a comma-separated
+list of manifests, each carrying its own location, and when two manifests list the same graph id the
+later manifest wins — so the bundled graphs stay deployed beside the prototype. Nothing in the
+project changes — the same gate compiles the same JSON.
+
+1. **Export** as usual — `export graph as {name}` writes `/tmp/graph/{name}.json` (the temp location).
+2. **Stage** a deploy folder with its own manifest — the copy is the visible promotion step:
+   ```bash
+   mkdir -p /tmp/graph/deploy
+   cp /tmp/graph/{name}.json /tmp/graph/deploy/
+   cat > /tmp/graph/deploy/graphs.yaml <<'EOF'
+   graphs:
+     - '{name}'
+   location: 'file:/tmp/graph/deploy'
+   EOF
+   ```
+3. **Restart** the app with the manifest override — a `-D` **program argument** in the Rust port
+   (after `--` under `cargo run`; a built binary takes the same arguments). Name the bundled
+   manifest first and the deploy folder's second: the bundled graphs stay executable (a prototype
+   can delegate to them through `graph.extension`, and they to it), and each manifest keeps its own
+   `location`:
+   ```bash
+   cargo run -p minigraph-playground -- -Dgraph.model.automation='classpath:/graphs.yaml, file:/tmp/graph/deploy/graphs.yaml'
+   ```
+4. **Verify** the gate in the startup log, then in the Playground and over REST:
+   ```
+   Loading graph manifest file:/tmp/graph/deploy/graphs.yaml
+   Deployed graph model folder - file:/tmp/graph/deploy
+   Compiled graph {name}
+   Graph models compiled: {bundled + 1}
+   ```
+   `list graphs` now shows `{name} - {root purpose}`, and `POST /api/graph/{name}` answers.
+
+Two rules to read before relying on it:
+
+- **Later manifest wins.** Only the ids the listed manifests name compile. When two manifests list
+  the same graph id, the later manifest owns it: its copy replaces the earlier one, and if that copy
+  is rejected by the gate the id answers 404 rather than silently serving the copy you meant to
+  replace. The startup log says so — `Graph {name} from file:/tmp/graph/deploy replaces the copy
+  from classpath:/graph`, then `Compiled graph {name}` or `Rejected graph {name} - {reason}`. A
+  manifest that cannot be loaded is skipped with a warning, so a typo in the external path never
+  takes the bundled graphs down.
+- **A deployment is still a restart.** `CompileGraph` runs once at startup; there is no runtime
+  reload. Export before the restart, and follow the broker choreography in
+  [Hosting the session yourself](#hosting): the broker reconnects and reports a new session id;
+  `import graph from {name}` into it, then re-invite the humans.
+
+The same two manifests are how to **iterate on a graph that is already deployed** without a rebuild:
+`import graph from {name}` (it falls back to the deployed copy), make the corrections, dry-run the
+cases, `export graph as {name}`, stage the export in the deploy folder and list the id in its
+manifest, restart with both manifests, and test the deployed behaviour with `curl` — the external
+copy has replaced the bundled one — before bundling the updated JSON into the application.
 
 ## Worked example {#example}
 

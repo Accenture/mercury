@@ -297,6 +297,17 @@
       "quote": "each enforced by a named failure rather than a silent value",
       "test": "crates/knowledge-graph::graph_runtime::graph_task_matches_java_semantics",
       "since": "4.12.18+"
+    },
+    {
+      "id": "graph-manifest-list-later-wins",
+      "claim": "graph.model.automation accepts a comma-separated list of graph manifests, each with its own location; when two manifests list the same graph id, the later manifest wins - its copy replaces the earlier one, and a rejected later copy leaves the id not executable (404).",
+      "pages": [
+        "docs/guides/configuration-reference.md",
+        "docs/guides/knowledge-graph/ai-agent-guide.md"
+      ],
+      "quote": "accepts a comma-separated list of manifests, each carrying its own location, and when two manifests list the same graph id the later manifest wins",
+      "test": "crates/knowledge-graph::compiler::later_manifest_wins_for_a_duplicate_graph_id",
+      "since": "4.12.19+"
     }
   ]
 }

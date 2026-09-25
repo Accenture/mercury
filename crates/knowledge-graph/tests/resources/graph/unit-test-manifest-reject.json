@@ -1,0 +1,38 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "manifest precedence - a VALID copy listed by the first manifest; the later manifest's copy is rejected, and the later manifest owns the id",
+        "name": "unit-test-manifest-reject"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(bundled) -> output.body.copy"
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

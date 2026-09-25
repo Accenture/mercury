@@ -389,6 +389,20 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   [[conventions-rust-baseline]].
   <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 3 | tier: active | origin: 2026-09-25-190229 -->
 
+- **`graph.model.automation` accepts a comma-separated list of manifests, and the later manifest wins — the Rust twin
+  (Increment 142, 2026-09-25; lock-step with mercury-composable `feat/graph-manifest-list`, for 4.12.19).** Each manifest
+  carries its own `location`, they compile in order, one that fails to load is skipped with a warning; `graphs.rs` records
+  each graph's source location, and `list graphs` / the `import graph from` fallback span every location. **Rule (Eric):**
+  the later manifest OWNS a duplicate id — its copy replaces the earlier one (`Graph X from B replaces the copy from A`) and
+  a rejected later copy leaves the id not executable (404), never a silent fallback — because the prototyping loop is
+  `import graph from` a deployed graph → correct → dry-run → export → stage in the deploy folder with its manifest → restart
+  with BOTH manifests → curl the deployed behaviour → bundle. Here the override is a `-D` PROGRAM ARGUMENT
+  (`overrides::apply_runtime_args`; `cargo run -p minigraph-playground -- -Dgraph.model.automation='classpath:/graphs.yaml,
+  file:/tmp/graph/deploy/graphs.yaml'`), not a JVM flag. Entries are manifests, never bare folders (the manifest is the
+  gate's allowlist). Claim `graph-manifest-list-later-wins` pinned to `compiler::later_manifest_wins_for_a_duplicate_graph_id`;
+  the recipe lives in `ai-agent-guide.md#deploy-without-rebuild`.
+  <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 1 | tier: working | origin: 2026-09-25-224149 -->
+
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
   `refresh-metadata`, so an undeclared consultation reads as non-use and decays the fact. In the

@@ -1,0 +1,39 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "manifest precedence - the copy listed by the FIRST manifest (classpath:/graph)",
+        "name": "unit-test-manifest-dup",
+        "version": "1"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(1) -> output.body.version"
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}
