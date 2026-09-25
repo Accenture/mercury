@@ -1,0 +1,3787 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The official Rust implementation of Mercury Composable — Accenture's event-driven, composable application platform: platform-core, Event Script, and the active knowledge graph.">
+      
+      
+        <meta name="author" content="Eric Law">
+      
+      
+        <link rel="canonical" href="https://accenture.github.io/mercury/test-reports/distributed-cache-interop/">
+      
+      
+        <link rel="prev" href="../suspend-resume-interop/">
+      
+      
+        <link rel="next" href="../minimalist-kafka-interop/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Interop Test Report — Distributed Cache, Java ⇄ Rust - Composable for Rust</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../css/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#interop-test-report-distributed-cache-java-rust" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Composable for Rust" class="md-header__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Composable for Rust
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Interop Test Report — Distributed Cache, Java ⇄ Rust
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/getting-started/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Orientation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Foundations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/event-driven/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 1 — Event-Driven
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/event-script/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 2 — Event Script
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/knowledge-graph/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 3 — Knowledge Graph
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/observability/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Operate & integrate
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../guides/configuration-reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Composable for Rust" class="md-nav__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    Composable for Rust
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orientation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Orientation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mercury-story/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    White Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mercury-family/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Mercury Family
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Foundations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Foundations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/ai-developer-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/event-driven/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 1 — Event-Driven
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 1 — Event-Driven
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/write-your-first-function/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Write Your First Function
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/function-execution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/rest-automation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST Automation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/event-script/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 2 — Event Script
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 2 — Event Script
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/syntax/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Script Syntax
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/flow-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/flow-schema-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Schema Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/knowledge-graph/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 3 — Knowledge Graph
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 3 — Knowledge Graph
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/build-your-first-graph/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Your First Graph
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/workflow-suspension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow Suspension
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/playground-and-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground & AI Companion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/composing-the-layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composing the Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/command-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MiniGraph Command Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/skills-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate & integrate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate & integrate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-over-http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event over HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/http-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Response Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/distributed-cache/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/minimalist-kafka/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Minimalist Kafka
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/polyglot-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Polyglot Functions (Python & Node.js)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/macros-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macros
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/registration-metadata-contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Registration Metadata Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-envelope-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EventEnvelope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/api-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform & PostOffice API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/reserved-names-and-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reserved Names & Headers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/actuators-and-http-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Actuators & HTTP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-over-http-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report (Java ⇄ Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../progressive-rendering-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Progressive Rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suspend-resume-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Suspend/Resume
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Distributed Cache
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Distributed Cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-this-drive-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why this drive exists
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#results-certification-run-112112-checks-passed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results — certification run: 112/112 checks passed
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Results — certification run: 112/112 checks passed">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-identity-and-health" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Identity and health
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-the-6-6-matrix-every-reader-reads-every-writer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. The 6 × 6 matrix — every reader reads every writer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-the-wire-key-layout-value-format-ttl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. The wire — key layout, value format, TTL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-cross-engine-deletes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D. Cross-engine deletes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e-one-error-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E. One error shape
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#outage-redis-stopped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outage — Redis stopped
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recovery-redis-restarted-no-application-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recovery — Redis restarted, no application restart
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-run-after-the-finding-3-fix-2026-09-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation run after the Finding 3 fix (2026-09-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-run-after-the-cache-failure-classification-2026-09-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation run after the cache-failure classification (2026-09-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reset-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recovery after the connection-reset fix (2026-09-21)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-reproduce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to reproduce
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../minimalist-kafka-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Minimalist Kafka
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming-return-route-cross-pod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — Streaming Return Route (cross-pod)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming-return-route-polyglot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — Streaming Return Route (polyglot)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../otel-dynatrace-certification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — OpenTelemetry Forwarder (Dynatrace)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../AI-companion-test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Companion Test Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/port-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Port Scope & Fidelity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arch-decisions/ADR/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arch-decisions/RFC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requests for Comments (RFC)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CHANGELOG.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CONTRIBUTING.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CODE_OF_CONDUCT.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code of Conduct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/INCLUSIVITY.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inclusivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-this-drive-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why this drive exists
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#results-certification-run-112112-checks-passed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results — certification run: 112/112 checks passed
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Results — certification run: 112/112 checks passed">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-identity-and-health" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Identity and health
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-the-6-6-matrix-every-reader-reads-every-writer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. The 6 × 6 matrix — every reader reads every writer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-the-wire-key-layout-value-format-ttl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. The wire — key layout, value format, TTL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-cross-engine-deletes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D. Cross-engine deletes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e-one-error-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E. One error shape
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#outage-redis-stopped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outage — Redis stopped
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recovery-redis-restarted-no-application-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recovery — Redis restarted, no application restart
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-run-after-the-finding-3-fix-2026-09-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation run after the Finding 3 fix (2026-09-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-run-after-the-cache-failure-classification-2026-09-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation run after the cache-failure classification (2026-09-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reset-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recovery after the connection-reset fix (2026-09-21)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-reproduce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to reproduce
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="interop-test-report-distributed-cache-java-rust">Interop Test Report — Distributed Cache, Java ⇄ Rust<a class="headerlink" href="#interop-test-report-distributed-cache-java-rust" title="Permanent link">&para;</a></h1>
+<p><em>Live cross-engine validation between the Java engine
+(<a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>) and the official Rust
+implementation (<a href="https://github.com/Accenture/mercury">mercury</a>) of the
+<a href="../../guides/distributed-cache/">Distributed Cache</a> — conducted 2026-09-20 UTC (the evening of
+2026-09-19 Pacific) as the certification evidence for the <code>v1.cache.redis</code> lock-step: Java shipped the
+module in v4.12.9, the Rust port merged as mercury PR #285.</em> The same report is kept in the Java repository's <code>docs/test-reports/</code>; the Java engine is the reference implementation.</p>
+<p>This report is a permanent record. It validates the deployment shape the module was built for: a
+<strong>mixed fleet</strong> — some pods on the Java engine, some on the Rust engine — sharing <strong>one Redis cache</strong>,
+where a value written by any layer of either engine must read back, and be evicted, through any layer
+of the other. Everything here is reproducible from the two shipped <code>distributed-cache-example</code>
+applications and the Java repository's <code>helpers/redis-standalone</code> server.</p>
+<h2 id="why-this-drive-exists">Why this drive exists<a class="headerlink" href="#why-this-drive-exists" title="Permanent link">&para;</a></h2>
+<p>The cache contract is a <strong>cross-language wire contract</strong>: the key is <code>{redis.cache.key.prefix}{key}</code>
+(here <code>cache-demo:</code> plus the profile id), the value is opaque bytes the <em>application</em> owns, and every
+key carries its TTL from birth (<code>SETEX</code>). Nothing in the key or the value is engine-specific — so by
+design, which engine wrote a value and which engine reads it must be invisible to the caller. Four
+details are load-bearing for that guarantee, and each was pinned before the drive:</p>
+<ul>
+<li><strong>One action vocabulary.</strong> Both engines' <code>v1.cache.redis</code> take the same actions, the same headers
+  (<code>action</code> / <code>key</code> / <code>ttl</code>), the same configuration keys and return the same error messages — a mixed
+  fleet is configured once (Rust port spec §2–§3, byte-compatible by construction).</li>
+<li><strong>The example's value is a plain MsgPack map</strong> — Java <code>MsgPack.packMapOrList</code>, Rust <code>rmpv</code> — not a
+  Java <code>EventEnvelope.toBytes()</code> holder. The Java example was refactored to this form (PR #395)
+  precisely because the Rust port cannot read the envelope encoding.</li>
+<li><strong>One model, two engines.</strong> The Layer 2 flow (<code>l2-profile.yml</code>) and the Layer 3 graph
+  (<code>profile-cache.json</code>) are byte-identical files in the two repositories.</li>
+<li><strong>One error shape.</strong> A REST client sees <code>{status, message, type: error}</code> from either engine whether
+  the failure came from routing or from a function (Rust aligned in PR #285).</li>
+</ul>
+<h2 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java app</td>
+<td><code>examples/distributed-cache-example</code> from mercury-composable main (<code>c74ee6be</code>) plus the Layer 1 fix below; <code>java -jar distributed-cache-example-4.12.12.jar</code>, port <strong>8305</strong>; <code>/info</code> reports <code>4.12.12</code></td>
+</tr>
+<tr>
+<td>Rust app</td>
+<td><code>examples/distributed-cache-example</code> from mercury main (<code>5ac55eaf</code>, PR #285) plus the Layer 1 fix below; <code>distributed-cache-example -Drest.server.port=8306</code>, port <strong>8306</strong>; <code>/info</code> reports <code>4.12.7</code> (the Rust engine adopts the Java number at its catch-up release)</td>
+</tr>
+<tr>
+<td>Redis</td>
+<td><code>helpers/redis-standalone</code> 4.12.12 — a real <code>redis-server</code> as a plain <code>java -jar</code>, no Docker — port 6379, shared by both apps</td>
+</tr>
+<tr>
+<td>Cache settings (both apps)</td>
+<td><code>redis.cache.key.prefix=cache-demo:</code>, <code>redis.cache.default.ttl=1h</code>, <code>mandatory.health.dependencies=redis.health</code>, <code>app.env=dev</code></td>
+</tr>
+<tr>
+<td>Driver</td>
+<td>a Python script over plain HTTP (<code>urllib</code>), with <code>redis-py</code> and <code>msgpack</code> for raw key inspection; run three times — discovery, fix verification, certification (this record)</td>
+</tr>
+</tbody>
+</table>
+<p>The two apps stand in for the mixed fleet; a request to one port is "the load balancer picked a Java
+pod", to the other "a Rust pod". Layer 1 is the <code>v1.profile.l1</code> function driving the cache in code,
+Layer 2 the <code>l2-profile</code> Event Script flow, Layer 3 the <code>profile-cache</code> graph behind the standard
+<code>POST /api/graph/{graph_id}</code> endpoint.</p>
+<h2 id="method">Method<a class="headerlink" href="#method" title="Permanent link">&para;</a></h2>
+<p><strong>Main phase.</strong> (A) <code>/info</code> and <code>/health</code> on both engines. (B) Each engine writes one profile through
+each of its three layers — six writers — and every one of the six readers (three layers × two
+engines) reads all six: a 6 × 6 matrix, 18 of whose cells cross the engine boundary. (C) The raw keys
+are read straight from Redis: layout, TTL, and the bytes decoded as MsgPack; the same payload is then
+written by both engines to compare bytes. (D) Every layer of each engine deletes a profile the <em>other</em>
+engine wrote, the writer confirms the miss on yet another layer, and Redis confirms the key is gone.
+(E) The miss bodies of all three layers and the Layer 3 unknown-action rejection are compared
+field-by-field between the engines.</p>
+<p><strong>Outage phase.</strong> <code>redis-standalone</code> is stopped. Each engine's <code>/health</code> is read, then five probes —
+Layer 1 GET, POST and DELETE, Layer 2 GET, Layer 3 get — must each fail as an <em>error</em>: never a 404
+miss, never a <code>stored</code> acknowledgement.</p>
+<p><strong>Recovery phase.</strong> <code>redis-standalone</code> is restarted (empty — no persistence). Each engine must return
+to <code>/health</code> 200 <strong>without an application restart</strong>, serve a Layer 1 write again within 60 s, and the
+other engine must read that write on Layers 2 and 3. Two negative controls close the run: the earlier
+keys are gone (a real restart, not a reconnect illusion) and the POST attempted during the outage
+never landed.</p>
+<h2 id="results-certification-run-112112-checks-passed">Results — certification run: 112/112 checks passed<a class="headerlink" href="#results-certification-run-112112-checks-passed" title="Permanent link">&para;</a></h2>
+<p>Every hard check passed; one further <em>informational</em> comparison (§C) is recorded as expected. The
+discovery run had exposed one defect in both engines (Finding 1), fixed and re-verified before this
+run.</p>
+<h3 id="a-identity-and-health">A. Identity and health<a class="headerlink" href="#a-identity-and-health" title="Permanent link">&para;</a></h3>
+<p>Both <code>/info</code> endpoints answer 200 with the application block; both <code>/health</code> answer 200 with
+<code>redis.health</code> listed as the mandatory dependency.</p>
+<h3 id="b-the-6-6-matrix-every-reader-reads-every-writer">B. The 6 × 6 matrix — every reader reads every writer<a class="headerlink" href="#b-the-6-6-matrix-every-reader-reads-every-writer" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Writer \ Reader</th>
+<th>Java L1</th>
+<th>Java L2</th>
+<th>Java L3</th>
+<th>Rust L1</th>
+<th>Rust L2</th>
+<th>Rust L3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Java L1</strong> writes <code>java-l1</code></td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><strong>Java L2</strong> writes <code>java-l2</code></td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><strong>Java L3</strong> writes <code>java-l3</code></td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><strong>Rust L1</strong> writes <code>rust-l1</code></td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><strong>Rust L2</strong> writes <code>rust-l2</code></td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><strong>Rust L3</strong> writes <code>rust-l3</code></td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+</tbody>
+</table>
+<p>36/36 reads returned HTTP 200 with the exact profile map; the <strong>18 cross-engine cells</strong> are the interop
+proof, the 18 same-engine cells the control.</p>
+<h3 id="c-the-wire-key-layout-value-format-ttl">C. The wire — key layout, value format, TTL<a class="headerlink" href="#c-the-wire-key-layout-value-format-ttl" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Written by</th>
+<th>Raw value (hex)</th>
+<th>Decoded (MsgPack)</th>
+<th>TTL at read</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cache-demo:java-l1</code></td>
+<td>Java L1</td>
+<td><code>82a46e616d65ac4a617661204c617965722031a5656d61696cb36a6176612d6c31406578616d706c652e636f6d</code></td>
+<td><code>{"name":"Java Layer 1","email":"java-l1@example.com"}</code></td>
+<td>3600 s</td>
+</tr>
+<tr>
+<td><code>cache-demo:java-l2</code></td>
+<td>Java L2</td>
+<td><code>82a46e616d65ac4a617661204c617965722032a5656d61696cb36a6176612d6c32406578616d706c652e636f6d</code></td>
+<td><code>{"name":"Java Layer 2","email":"java-l2@example.com"}</code></td>
+<td>3600 s</td>
+</tr>
+<tr>
+<td><code>cache-demo:java-l3</code></td>
+<td>Java L3</td>
+<td><code>82a46e616d65ac4a617661204c617965722033a5656d61696cb36a6176612d6c33406578616d706c652e636f6d</code></td>
+<td><code>{"name":"Java Layer 3","email":"java-l3@example.com"}</code></td>
+<td>3600 s</td>
+</tr>
+<tr>
+<td><code>cache-demo:rust-l1</code></td>
+<td>Rust L1</td>
+<td><code>82a5656d61696cb3727573742d6c31406578616d706c652e636f6da46e616d65ac52757374204c617965722031</code></td>
+<td><code>{"email":"rust-l1@example.com","name":"Rust Layer 1"}</code></td>
+<td>3600 s</td>
+</tr>
+<tr>
+<td><code>cache-demo:rust-l2</code></td>
+<td>Rust L2</td>
+<td><code>82a5656d61696cb3727573742d6c32406578616d706c652e636f6da46e616d65ac52757374204c617965722032</code></td>
+<td><code>{"email":"rust-l2@example.com","name":"Rust Layer 2"}</code></td>
+<td>3600 s</td>
+</tr>
+<tr>
+<td><code>cache-demo:rust-l3</code></td>
+<td>Rust L3</td>
+<td><code>82a5656d61696cb3727573742d6c33406578616d706c652e636f6da46e616d65ac52757374204c617965722033</code></td>
+<td><code>{"email":"rust-l3@example.com","name":"Rust Layer 3"}</code></td>
+<td>3600 s</td>
+</tr>
+</tbody>
+</table>
+<p>Every value is a plain MsgPack map (<code>0x82</code> = a two-entry map) that decodes to the profile; every TTL is
+the 1 h default counting from the write; the keyspace held exactly the eight <code>cache-demo:</code> keys and
+nothing else.</p>
+<p><strong>Informational — the same payload, written by both engines, is not byte-identical:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Java  L1 → 82a46e616d65a45477696ea5656d61696cb07477696e406578616d706c652e636f6d
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>Rust  L1 → 82a5656d61696cb07477696e406578616d706c652e636f6da46e616d65a45477696e
+</code></pre></div>
+<p>Both decode to <code>{"name": "Twin", "email": "twin@example.com"}</code>. The Java packer writes the map in
+insertion order (<code>name</code>, <code>email</code>); the Rust packer serialises <code>serde_json</code>'s map, whose keys are sorted
+(<code>email</code>, <code>name</code>). MsgPack map order carries no meaning and is not part of the contract — the 36/36
+matrix above is the proof — but a byte-level comparison of stored values across engines must not be
+used as an equality test.</p>
+<h3 id="d-cross-engine-deletes">D. Cross-engine deletes<a class="headerlink" href="#d-cross-engine-deletes" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>Deleted by</th>
+<th>Miss confirmed by</th>
+<th>Redis key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>java-l1</code> (written by Java L1)</td>
+<td><strong>Rust L2</strong> → HTTP 200</td>
+<td><strong>Java L3</strong> → HTTP 404 <code>Profile not found</code></td>
+<td>gone</td>
+</tr>
+<tr>
+<td><code>rust-l1</code> (written by Rust L1)</td>
+<td><strong>Java L3</strong> → HTTP 200</td>
+<td><strong>Rust L2</strong> → HTTP 404 <code>Profile not found</code></td>
+<td>gone</td>
+</tr>
+<tr>
+<td><code>java-l2</code> (written by Java L2)</td>
+<td><strong>Rust L3</strong> → HTTP 200</td>
+<td><strong>Java L2</strong> → HTTP 404 <code>Profile not found</code></td>
+<td>gone</td>
+</tr>
+<tr>
+<td><code>rust-l2</code> (written by Rust L2)</td>
+<td><strong>Java L2</strong> → HTTP 200</td>
+<td><strong>Rust L3</strong> → HTTP 404 <code>Profile not found</code></td>
+<td>gone</td>
+</tr>
+<tr>
+<td><code>java-l3</code> (written by Java L3)</td>
+<td><strong>Rust L1</strong> → HTTP 200</td>
+<td><strong>Java L3</strong> → HTTP 404 <code>Profile not found</code></td>
+<td>gone</td>
+</tr>
+<tr>
+<td><code>rust-l3</code> (written by Rust L3)</td>
+<td><strong>Java L1</strong> → HTTP 200</td>
+<td><strong>Rust L1</strong> → HTTP 404 <code>Profile not found</code></td>
+<td>gone</td>
+</tr>
+</tbody>
+</table>
+<p>6/6 deletes crossed the engine boundary, each layer of each engine deleting once; every writer then
+missed on a third layer with the same body, and every key was gone from Redis.</p>
+<h3 id="e-one-error-shape">E. One error shape<a class="headerlink" href="#e-one-error-shape" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Java body</th>
+<th>Rust body</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Layer 1 miss</td>
+<td><code>{"message": "Profile not found", "status": 404, "type": "error"}</code></td>
+<td>identical</td>
+</tr>
+<tr>
+<td>Layer 2 miss</td>
+<td><code>{"message": "Profile not found", "status": 404, "type": "error"}</code></td>
+<td>identical</td>
+</tr>
+<tr>
+<td>Layer 3 miss</td>
+<td><code>{"message": "Profile not found", "status": 404, "target": "v1.profile.decode", "type": "error"}</code></td>
+<td>identical</td>
+</tr>
+<tr>
+<td>Layer 3 unknown action</td>
+<td><code>{"message": "Invalid action. Use get, save or delete", "status": 400}</code></td>
+<td>identical</td>
+</tr>
+</tbody>
+</table>
+<p>A client sees the same status, the same keys and the same values from either engine, with
+<code>content-type: application/json</code> on both.</p>
+<h3 id="outage-redis-stopped">Outage — Redis stopped<a class="headerlink" href="#outage-redis-stopped" title="Permanent link">&para;</a></h3>
+<p>Both <code>/health</code> endpoints answered <strong>HTTP 400</strong> with <code>"status": "DOWN"</code> and the dependency block
+reporting <code>redis.health</code> at 503 with a <code>{code, text}</code> message — the same contract on both engines,
+with the cause text engine-specific: Java <code>Redis is not reachable - Command timed out after 5 second(s)</code>, Rust <code>Redis is not reachable - broken pipe</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Engine</th>
+<th>Probe</th>
+<th>Result</th>
+<th>Latency</th>
+<th>Message</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java</td>
+<td>L1 GET</td>
+<td>HTTP 500</td>
+<td>5.02 s</td>
+<td><code>Timeout for 5000 ms</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td>L1 POST</td>
+<td>HTTP 500</td>
+<td>5.01 s</td>
+<td><code>Timeout for 5000 ms</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td>L1 DELETE</td>
+<td>HTTP 500</td>
+<td>5.01 s</td>
+<td><code>Timeout for 5000 ms</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td>L2 GET</td>
+<td>HTTP 500</td>
+<td>5.01 s</td>
+<td><code>Command timed out after 5 second(s)</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td>L3 get</td>
+<td>HTTP 500</td>
+<td>5.02 s</td>
+<td><code>Command timed out after 5 second(s)</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L1 GET</td>
+<td>HTTP 500</td>
+<td>0.0 s</td>
+<td><code>Redis error - broken pipe</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L1 POST</td>
+<td>HTTP 408</td>
+<td>5.01 s</td>
+<td><code>Request timeout for 5000 ms</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L1 DELETE</td>
+<td>HTTP 500</td>
+<td>4.46 s</td>
+<td><code>Redis error - Connection refused (os error 61)</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L2 GET</td>
+<td>HTTP 500</td>
+<td>5.01 s</td>
+<td><code>Redis request timed out after 5000ms</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L3 get</td>
+<td>HTTP 500</td>
+<td>4.46 s</td>
+<td><code>Redis error - Connection refused (os error 61)</code></td>
+</tr>
+</tbody>
+</table>
+<p>Every probe failed as an error — none answered a 404 miss, none acknowledged <code>stored</code>, and the POST
+never landed in Redis (verified after the restart). The latencies are Finding 2; the statuses Finding 3.</p>
+<blockquote>
+<p><strong>Amended after the run:</strong> with the Finding 3 fix in place, the three Java Layer 1 rows read <strong>HTTP 408</strong>
+<code>Timeout for 5000 ms</code> — first in a Java-only re-probe (2026-09-20 01:17 UTC), then in the full
+<a href="#validation-run-after-the-finding-3-fix-2026-09-20">validation run</a> below; the Java Layer 2 and 3 rows
+and every Rust row are unchanged.</p>
+</blockquote>
+<h3 id="recovery-redis-restarted-no-application-restart">Recovery — Redis restarted, no application restart<a class="headerlink" href="#recovery-redis-restarted-no-application-restart" title="Permanent link">&para;</a></h3>
+<p>The outage lasted 54 s (Redis stopped at 00:37:07 UTC, listening again at 00:38:01). Both <code>/health</code>
+endpoints answered 200 on the first read after the restart.</p>
+<table>
+<thead>
+<tr>
+<th>Engine</th>
+<th>Layer 1 write attempts after the restart</th>
+<th>Recovered</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java</td>
+<td>attempt 1 at +0 s → HTTP 500 (<code>Timeout for 5000 ms</code> — the shared Lettuce connection was still on its reconnect backoff); attempt 2 → HTTP 201 at <strong>+10.2 s</strong>, the moment Lettuce's scheduled reconnect fired (<code>Reconnected</code> logged at +10.5 s)</td>
+<td>yes, without a restart</td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>attempt 1 → HTTP 201 (its first probe, at +10.2 s, since the driver probes the engines in sequence); the <code>ConnectionManager</code> reconnects on demand, so it was ready as soon as Redis was</td>
+<td>yes, without a restart</td>
+</tr>
+</tbody>
+</table>
+<p>Each engine's post-recovery write was read by the other on Layers 2 and 3 (4/4); the restarted store
+had lost the earlier keys and held no key from the outage POST. The asymmetry is Finding 4.</p>
+<h2 id="findings">Findings<a class="headerlink" href="#findings" title="Permanent link">&para;</a></h2>
+<p><strong>1. Layer 1 turned a cache failure into a miss — on both engines. Fixed.</strong> In the discovery run,
+with Redis stopped, the Rust Layer 1 GET answered HTTP 404 <code>Profile not found</code> while the
+Rust log showed the cache function failing (<code>Redis error - broken pipe</code>); the Java Layer 1 answered
+HTTP 500 only because its RPC timed out first. Both <code>ProfileCacheL1</code> functions awaited the
+cache reply and tested its <em>body</em> — <code>byte[]</code>/<code>Value::Binary</code>, or <code>null</code> for a miss — without checking
+the reply's <strong>status</strong>. A function that throws replies with the error status and the message as a
+string body, so a fast failure (connection refused, an auth rejection) read as "nothing cached", and a
+POST would have acknowledged <code>stored</code>. Layers 2 and 3 never had the gap: the flow and graph engines
+check a task's status for the author — the <em>Event Script over code</em> principle, observed in the wild.
+The fix is one guard in each Layer 1 function (an error-status reply is rethrown as the function's own
+error), pinned on both sides by a test that swaps <code>v1.cache.redis</code> for a stub that fails fast, so the
+assertion depends neither on a Redis outage nor on which of two timeouts fires first. Both fixes ship with this report — the Rust one in the same change as this page (Increment 120), the Java one in the companion change in the mercury-composable repository (its twin of this page).</p>
+<p><strong>2. Failure latency differs by client library — timing, not semantics.</strong> During the outage the Java
+probes each took ~5 s: Lettuce buffers commands on a disconnected connection until its command timeout
+(<code>redis.timeout</code>, 5 s), and the Layer 1 RPC timeout (5 s) races it. The Rust probes were mixed: the
+first failed in 0 s (<code>broken pipe</code> on the dead multiplexed connection), the next ones waited on the
+<code>ConnectionManager</code>'s reconnect attempts (~4.5 s of exponential retries) or the RPC timeout. Same
+category on both sides — every probe an error — with different latency. Operators of a mixed fleet
+should expect the Java pods to fail slow (bounded by <code>redis.timeout</code>) and the Rust pods to fail faster.</p>
+<p><strong>3. An in-function RPC timeout surfaced as 500 on Java and 408 on Rust — the Java side was a
+platform-core mapping gap, since fixed.</strong> Java's <code>po.request(...).get()</code> rethrows the timeout inside an
+<code>ExecutionException</code>, and both places that turn a function's exception into a reply
+(<code>EventEnvelope.setException</code> and the worker's status mapping) read the status off the <em>outermost</em>
+exception while taking the message from the root cause — so the wrapper's default 500 shipped with the
+cause's message. The Java engine now resolves the status from the <strong>cause chain</strong> (the first <code>AppException</code>, <code>TimeoutException</code> → 408 or <code>IllegalArgumentException</code> → 400 wins; 500 only when none is present), one rule shared by its three mappers (mercury-composable PR #427); this engine already returned 408 — <code>po.request</code> yields an <code>AppError</code> 408 as a <code>Result</code>, and there is no wrapper class to hide it. The full drive was then run again against both mains — the
+<a href="#validation-run-after-the-finding-3-fix-2026-09-20">validation run</a> below: every RPC-timeout failure
+renders <strong>408</strong> on both engines and the pre-fix shape (500 with a timeout message) no longer occurs.
+Java's Layers 2 and 3 still answered 500 <code>Command timed out after 5 second(s)</code> in that run — Lettuce's own
+timeout exception, which carried no status — until the cache module learned to classify its own failures
+(Finding 6 and the <a href="#validation-run-after-the-cache-failure-classification-2026-09-20">second validation run</a>).</p>
+<p><strong>4. Recovery is bounded by the client library's reconnect policy, and health can be green first.</strong>
+The Rust <code>ConnectionManager</code> reconnects on the first command after Redis is back. Lettuce reconnects on
+its own <strong>exponential backoff, capped at 30 s</strong>: in this run its attempts fell at +0, +9, +17 and +34 s
+into the 54 s outage, and the next one — 30 s later, at +64 s — was the one that succeeded, 10.5 s
+after Redis had returned. In the fix-verification run, whose recovery window was only 10 s, that same
+backoff made every Java cache call fail for the whole window while <code>/health</code> already reported UP,
+because <code>redis.health</code> probes on a <strong>fresh</strong> connection rather than the cache's shared one. So after
+an outage longer than ~30 s a Java pod may serve up to ~30 s of cache errors while its health is
+green; the window closes by itself and no request is misreported (they fail as errors, Finding 1),
+but an operator watching <code>/health</code> alone would call the pod healthy before it served a cache call.
+Worth a follow-up ruling: reset the shared Lettuce connection when a command times out (so recovery
+is bounded by <code>redis.timeout</code> instead of the backoff), lower the reconnect cap, or document the
+window. Not changed here.</p>
+<p><em>Follow-up, 2026-09-21 — ruled and fixed on the Java side:</em> the <code>redis-connection</code> foundation resets the
+shared connection after a command timeout (at once when the connection is not open, on the second
+consecutive timeout when it is), so the next command reconnects and recovery is bounded by the command
+timeout; while Redis is still down that command fails fast with 503. The Rust engine needed no change (its
+client already reconnected on the first command after Redis returned). Live re-run of this scenario:
+see the <em>Recovery after the connection-reset fix</em> section below.</p>
+<p><strong>5. What matched exactly.</strong> The health contract (<code>UP</code>/<code>DOWN</code>, HTTP 200/400, the dependency block with
+<code>{code, text}</code>), the miss and rejection bodies on all three layers, the key layout, the TTL semantics,
+and — the point of the drive — 36/36 reads and 6/6 deletes across the engine boundary.</p>
+<p><strong>6. The cache module now classifies its own failures — 408 for a timeout, 503 for an unreachable
+Redis — in both engines.</strong> After Finding 3 closed, the Layer 2 and Layer 3 rows still read 500 during an
+outage: the flow and graph engines pass a task's status through faithfully, and the status they were given
+was the one the platform assigns to a client-library exception that carries none — Lettuce's
+<code>RedisCommandTimeoutException</code> on Java, the redis crate's I/O and timeout errors on Rust. Layer 1 read
+408 only because its own RPC timer won a race against Lettuce's command timeout by a few milliseconds.
+So the classification moved to where the failure is known: <code>v1.cache.redis</code> now maps a command timeout
+to <strong>408</strong> (Java keeps Lettuce's <code>Command timed out after N second(s)</code>; Rust <code>Redis request timed out
+after N ms</code>), a refused, dropped or unreachable connection — including a connect failure on the lazy
+build — to <strong>503</strong> <code>Redis unavailable - …</code>, the vocabulary of <code>redis.health</code>, and leaves anything the
+server answered (a wrong type, an unknown command) on the default 500. This engine classifies in the foundation's command path (<code>classify_command_error</code>, <code>command_timeout</code>, and the connect error's 503) so every consumer of <code>RedisBackend::query</code> inherits it; the Java engine classifies in its foundation's <code>RedisFailure</code>, applied by <code>RedisCache</code>, so the two engines fail alike. The
+<a href="#validation-run-after-the-cache-failure-classification-2026-09-20">second validation run</a> below shows
+the result: not one outage probe on any layer of either engine answers 500 any more.</p>
+<h2 id="validation-run-after-the-finding-3-fix-2026-09-20">Validation run after the Finding 3 fix (2026-09-20)<a class="headerlink" href="#validation-run-after-the-finding-3-fix-2026-09-20" title="Permanent link">&para;</a></h2>
+<p>The whole drive was run a fourth time against both mains once the Java fix had merged — Java
+mercury-composable <code>6f020544</code> (PR #427), Rust mercury <code>8424bc65</code> — with three assertions added to the
+outage phase: every RPC-timeout failure must render 408 on each engine, no probe may carry the pre-fix
+shape (500 with a timeout message), and the set of RPC-timeout statuses must be identical on both
+engines. <strong>116/116 hard checks passed</strong>, the same single informational byte
+comparison recorded as before.</p>
+<table>
+<thead>
+<tr>
+<th>Engine</th>
+<th>Probe</th>
+<th>Result</th>
+<th>Latency</th>
+<th>Message</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java</td>
+<td>L1 GET</td>
+<td>HTTP 408</td>
+<td>5.01 s</td>
+<td><code>Timeout for 5000 ms</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td>L1 POST</td>
+<td>HTTP 408</td>
+<td>5.01 s</td>
+<td><code>Timeout for 5000 ms</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td>L1 DELETE</td>
+<td>HTTP 408</td>
+<td>5.01 s</td>
+<td><code>Timeout for 5000 ms</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td>L2 GET</td>
+<td>HTTP 500</td>
+<td>5.02 s</td>
+<td><code>Command timed out after 5 second(s)</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td>L3 get</td>
+<td>HTTP 500</td>
+<td>5.02 s</td>
+<td><code>Command timed out after 5 second(s)</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L1 GET</td>
+<td>HTTP 500</td>
+<td>0.0 s</td>
+<td><code>Redis error - broken pipe</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L1 POST</td>
+<td>HTTP 408</td>
+<td>5.0 s</td>
+<td><code>Request timeout for 5000 ms</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L1 DELETE</td>
+<td>HTTP 500</td>
+<td>4.45 s</td>
+<td><code>Redis error - Connection refused (os error 61)</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L2 GET</td>
+<td>HTTP 500</td>
+<td>5.01 s</td>
+<td><code>Redis request timed out after 5000ms</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L3 get</td>
+<td>HTTP 500</td>
+<td>4.46 s</td>
+<td><code>Redis error - Connection refused (os error 61)</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Parity of the RPC-timeout shape.</strong> Java: L1 GET → 408, L1 POST → 408, L1 DELETE → 408 — all 408. Rust: L1 POST → 408 — all 408.
+The RPC-timeout status set is {408} on Java and {408} on Rust; no probe on either engine returned 500 with
+a timeout message. The
+remaining 500s are the client libraries' own failures surfacing through the flow and graph engines
+(Lettuce <code>Command timed out</code>, redis-rs <code>Connection refused</code>/<code>broken pipe</code>), which carry no status and
+are the same category on both sides.</p>
+<p><strong>Recovery, same shape as the certification run.</strong> <code>/health</code> back to 200 on the first read on both
+engines. Java's Layer 1 write: attempt 1 → HTTP 408 (the RPC timeout, now 408), attempt 2 →
+201 at +10.0 s, Lettuce's scheduled reconnect; Rust's: attempt 1 → 201 (its first probe,
+in sequence after Java's). Cross-engine reads of both post-recovery writes 4/4.</p>
+<p>What changed since the certification run is exactly the three Java Layer 1 rows — 500 → <strong>408</strong> — and
+nothing else.</p>
+<h2 id="validation-run-after-the-cache-failure-classification-2026-09-20">Validation run after the cache-failure classification (2026-09-20)<a class="headerlink" href="#validation-run-after-the-cache-failure-classification-2026-09-20" title="Permanent link">&para;</a></h2>
+<p>Finding 6 changes what an outage looks like on every layer, so the drive ran a fifth time against the two
+classified builds, with four more outage assertions: no probe on any layer of either engine answers 500;
+every timeout is 408; every unreachable-Redis failure is 503; and every probe is classified as one or the
+other. <strong>122/122 hard checks passed</strong>, the same single informational byte comparison
+recorded as before.</p>
+<table>
+<thead>
+<tr>
+<th>Engine</th>
+<th>Probe</th>
+<th>Result</th>
+<th>Latency</th>
+<th>Message</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java</td>
+<td>L1 GET</td>
+<td>HTTP 408</td>
+<td>5.01 s</td>
+<td><code>Timeout for 5000 ms</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td>L1 POST</td>
+<td>HTTP 408</td>
+<td>5.01 s</td>
+<td><code>Timeout for 5000 ms</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td>L1 DELETE</td>
+<td>HTTP 408</td>
+<td>5.01 s</td>
+<td><code>Timeout for 5000 ms</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td>L2 GET</td>
+<td>HTTP 408</td>
+<td>5.02 s</td>
+<td><code>Command timed out after 5 second(s)</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td>L3 get</td>
+<td>HTTP 408</td>
+<td>5.03 s</td>
+<td><code>Command timed out after 5 second(s)</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L1 GET</td>
+<td>HTTP 503</td>
+<td>0.0 s</td>
+<td><code>Redis unavailable - broken pipe</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L1 POST</td>
+<td>HTTP 408</td>
+<td>5.01 s</td>
+<td><code>Request timeout for 5000 ms</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L1 DELETE</td>
+<td>HTTP 503</td>
+<td>4.46 s</td>
+<td><code>Redis unavailable - Connection refused (os error 61)</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L2 GET</td>
+<td>HTTP 408</td>
+<td>5.01 s</td>
+<td><code>Redis request timed out after 5000ms</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>L3 get</td>
+<td>HTTP 503</td>
+<td>4.46 s</td>
+<td><code>Redis unavailable - Connection refused (os error 61)</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Classification.</strong> Timeouts — Java: L1 GET → 408, L1 POST → 408, L1 DELETE → 408, L2 GET → 408, L3 get → 408; Rust: L1 POST → 408, L2 GET → 408.
+Unreachable — Java: none; Rust: L1 GET → 503, L1 DELETE → 503, L3 get → 503. Nothing fell
+to "other", and no probe answered 500. Java's five probes are all timeouts because Lettuce buffers
+commands on a disconnected connection until its command timeout; Rust's mix of 503 and 408 reflects the
+redis crate failing fast on the dead connection and then waiting on its reconnect attempts.</p>
+<p><strong>Recovery, unchanged in shape.</strong> <code>/health</code> back to 200 on the first read on both engines; Java's Layer 1
+write: attempt 1 → HTTP 408, attempt 2 → 201 at +8.3 s
+(Lettuce's scheduled reconnect); Rust's: attempt 1 → 201. Cross-engine reads of both post-recovery writes 4/4.</p>
+<p>What changed since the previous validation run: Java L2 GET 500 → <strong>408</strong>; Java L3 get 500 → <strong>408</strong>; Rust L1 GET 500 → <strong>503</strong>; Rust L1 DELETE 500 → <strong>503</strong>; Rust L2 GET 500 → <strong>408</strong>; Rust L3 get 500 → <strong>503</strong>. Everything else is identical.</p>
+<h2 id="reset-recovery">Recovery after the connection-reset fix (2026-09-21)<a class="headerlink" href="#reset-recovery" title="Permanent link">&para;</a></h2>
+<p>Finding 4 was ruled on 2026-09-21 — <em>reset the shared connection on command timeout</em> — and fixed in the
+Java <code>redis-connection</code> foundation: a command timeout on a connection that is not open resets the shared
+connection at once (on an open connection, the second consecutive timeout does), the next command opens a
+fresh connection, and while Redis is still down that connect fails fast with 503 instead of waiting out
+another 5 s timeout. The Rust engine needed no change. The outage scenario was re-driven against the
+rebuilt Java example (<code>distributed-cache-example</code> 4.12.12 with the fix; <code>helpers/redis-standalone</code>
+4.12.12; Layer 1 <code>GET /api/l1/profile/{id}</code> probed every 5 s during the outage and every second after
+the restart, <code>/health</code> alongside). The embedded Redis restarts empty, so a live reply after the restart is
+a 404 miss; the write path was then exercised (201, then 200).</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>During the outage</th>
+<th>First call after Redis returned</th>
+<th>Before the fix (this report)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Redis down 40 s</td>
+<td>first probe 408 <code>Timeout for 5000 ms</code> (the command in flight when Redis died), then every probe <strong>503</strong> <code>Redis unavailable - Unable to connect …</code> within milliseconds; <code>/health</code> 400 throughout</td>
+<td><strong>live reply at +0.03 s</strong> (404 miss), <code>/health</code> 200 at the same poll; write path 201 → 200</td>
+<td>recovery 10.5 s after Redis returned, on Lettuce's next backoff attempt (Finding 4)</td>
+</tr>
+<tr>
+<td>Redis down 10 s</td>
+<td>first probe 408, then the restart</td>
+<td><strong>live reply at +0.03 s</strong>, <code>/health</code> 200; write path 201 → 200</td>
+<td>every cache call failed for the whole 10 s window while <code>/health</code> was green (Finding 4)</td>
+</tr>
+</tbody>
+</table>
+<p>Two things changed. Recovery is no longer bounded by the reconnect backoff — the first request after
+Redis returned succeeded in both runs, because the reset had already closed the dead connection and the
+first call opened a new one — and the outage itself now reads honestly: after the one in-flight timeout,
+callers see a fast 503 rather than a 5 s 408 per call, and <code>/health</code> and the cache path agree at every
+poll. The asymmetry Finding 4 described (health green, cache still failing) did not reappear.</p>
+<h2 id="how-to-reproduce">How to reproduce<a class="headerlink" href="#how-to-reproduce" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># 1. one Redis (the Java repository)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>java<span class="w"> </span>-jar<span class="w"> </span>helpers/redis-standalone/target/redis-standalone-x.y.z.jar
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># 2. the Java example (port 8305) and the Rust example (moved to 8306)</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>java<span class="w"> </span>-jar<span class="w"> </span>examples/distributed-cache-example/target/distributed-cache-example-x.y.z.jar
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>distributed-cache-example<span class="w"> </span>--<span class="w"> </span>-Drest.server.port<span class="o">=</span><span class="m">8306</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># 3. write on one engine and layer, read on the other engine's three layers</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:8305/api/l1/profile/alice<span class="w"> </span>-H<span class="w"> </span><span class="s1">'content-type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">     </span>-d<span class="w"> </span><span class="s1">'{"name":"Alice","email":"alice@example.com"}'</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://127.0.0.1:8306/api/l1/profile/alice
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://127.0.0.1:8306/api/l2/profile/alice
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://127.0.0.1:8306/api/graph/profile-cache<span class="w"> </span>-H<span class="w"> </span><span class="s1">'content-type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">     </span>-d<span class="w"> </span><span class="s1">'{"action":"get","id":"alice"}'</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># 4. evict from the Rust side, confirm the miss on the Java side</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>DELETE<span class="w"> </span>http://127.0.0.1:8306/api/l2/profile/alice
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>curl<span class="w"> </span>-s<span class="w"> </span>-i<span class="w"> </span>http://127.0.0.1:8305/api/l1/profile/alice<span class="w">        </span><span class="c1"># 404 Profile not found</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="c1"># 5. the outage leg: stop redis-standalone, repeat step 3 (every call is an error, never a 404),</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="c1">#    restart it and repeat step 3 again (both apps recover without a restart)</span>
+</code></pre></div>
+<p><code>x.y.z</code> is the current version in each repository's build file. Both examples read <code>REDIS_HOST</code> /
+<code>REDIS_PORT</code> from the environment when Redis is not on <code>127.0.0.1:6379</code>.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../suspend-resume-interop/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Interop Test Report — Suspend/Resume">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Interop Test Report — Suspend/Resume
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../minimalist-kafka-interop/" class="md-footer__link md-footer__link--next" aria-label="Next: Interop Test Report — Minimalist Kafka">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Interop Test Report — Minimalist Kafka
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache-2.0 &middot; mercury is the Rust port of <a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

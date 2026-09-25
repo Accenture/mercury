@@ -1,0 +1,3663 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The official Rust implementation of Mercury Composable — Accenture's event-driven, composable application platform: platform-core, Event Script, and the active knowledge graph.">
+      
+      
+        <meta name="author" content="Eric Law">
+      
+      
+        <link rel="canonical" href="https://accenture.github.io/mercury/test-reports/otel-dynatrace-certification/">
+      
+      
+        <link rel="prev" href="../streaming-return-route-polyglot/">
+      
+      
+        <link rel="next" href="../AI-companion-test/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Test Report — OpenTelemetry forwarder against Dynatrace - Composable for Rust</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../css/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#test-report-opentelemetry-forwarder-against-dynatrace" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Composable for Rust" class="md-header__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Composable for Rust
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Test Report — OpenTelemetry forwarder against Dynatrace
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/getting-started/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Orientation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Foundations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/event-driven/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 1 — Event-Driven
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/event-script/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 2 — Event Script
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/knowledge-graph/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 3 — Knowledge Graph
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/observability/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Operate & integrate
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../guides/configuration-reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Composable for Rust" class="md-nav__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    Composable for Rust
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orientation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Orientation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mercury-story/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    White Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mercury-family/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Mercury Family
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Foundations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Foundations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/ai-developer-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/event-driven/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 1 — Event-Driven
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 1 — Event-Driven
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/write-your-first-function/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Write Your First Function
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/function-execution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/rest-automation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST Automation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/event-script/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 2 — Event Script
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 2 — Event Script
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/syntax/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Script Syntax
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/flow-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/flow-schema-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Schema Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/knowledge-graph/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 3 — Knowledge Graph
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 3 — Knowledge Graph
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/build-your-first-graph/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Your First Graph
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/workflow-suspension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow Suspension
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/playground-and-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground & AI Companion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/composing-the-layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composing the Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/command-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MiniGraph Command Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/skills-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate & integrate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate & integrate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-over-http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event over HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/http-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Response Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/distributed-cache/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/minimalist-kafka/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Minimalist Kafka
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/polyglot-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Polyglot Functions (Python & Node.js)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/macros-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macros
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/registration-metadata-contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Registration Metadata Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-envelope-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EventEnvelope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/api-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform & PostOffice API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/reserved-names-and-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reserved Names & Headers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/actuators-and-http-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Actuators & HTTP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-over-http-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report (Java ⇄ Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../progressive-rendering-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Progressive Rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suspend-resume-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Suspend/Resume
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../distributed-cache-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Distributed Cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../minimalist-kafka-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Minimalist Kafka
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming-return-route-cross-pod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — Streaming Return Route (cross-pod)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming-return-route-polyglot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — Streaming Return Route (polyglot)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — OpenTelemetry Forwarder (Dynatrace)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — OpenTelemetry Forwarder (Dynatrace)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-scenario-under-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The scenario under test
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-1-the-switch-is-the-only-thing-that-turns-it-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 1 — the switch is the only thing that turns it on
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-2-five-spans-one-trace-zero-export-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 2 — five spans, one trace, zero export failures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-3-the-a-b-a-credential-experiment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 3 — the A-B-A credential experiment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-4-failures-that-name-their-own-cause" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 4 — failures that name their own cause
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observations-and-round-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observations and round notes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-5-confirmed-queryable-in-dynatrace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 5 — confirmed queryable in Dynatrace
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-6-field-acceptance-on-the-published-crate-2026-09-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 6 — field acceptance on the published crate (2026-09-22)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-7-two-engines-one-trace-2026-09-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 7 — two engines, one trace (2026-09-22)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scenario 7 — two engines, one trace (2026-09-22)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#findings-of-the-round" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings of the round
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-8-four-runtimes-one-trace-llm-tokens-rendered-progressively-through-the-polyglot-hosts-2026-09-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 8 — four runtimes, one trace: LLM tokens rendered progressively through the polyglot hosts (2026-09-22)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-9-one-connected-tree-per-request-the-round-trip-span-the-parented-client-leg-head-and-tail-stream-tracing-2026-09-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 9 — one connected tree per request: the round-trip span, the parented client leg, head-and-tail stream tracing (2026-09-22)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-remains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What remains
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../AI-companion-test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Companion Test Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/port-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Port Scope & Fidelity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arch-decisions/ADR/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arch-decisions/RFC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requests for Comments (RFC)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CHANGELOG.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CONTRIBUTING.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CODE_OF_CONDUCT.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code of Conduct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/INCLUSIVITY.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inclusivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-scenario-under-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The scenario under test
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-1-the-switch-is-the-only-thing-that-turns-it-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 1 — the switch is the only thing that turns it on
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-2-five-spans-one-trace-zero-export-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 2 — five spans, one trace, zero export failures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-3-the-a-b-a-credential-experiment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 3 — the A-B-A credential experiment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-4-failures-that-name-their-own-cause" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 4 — failures that name their own cause
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observations-and-round-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observations and round notes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-5-confirmed-queryable-in-dynatrace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 5 — confirmed queryable in Dynatrace
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-6-field-acceptance-on-the-published-crate-2026-09-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 6 — field acceptance on the published crate (2026-09-22)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-7-two-engines-one-trace-2026-09-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 7 — two engines, one trace (2026-09-22)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scenario 7 — two engines, one trace (2026-09-22)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#findings-of-the-round" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings of the round
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-8-four-runtimes-one-trace-llm-tokens-rendered-progressively-through-the-polyglot-hosts-2026-09-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 8 — four runtimes, one trace: LLM tokens rendered progressively through the polyglot hosts (2026-09-22)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-9-one-connected-tree-per-request-the-round-trip-span-the-parented-client-leg-head-and-tail-stream-tracing-2026-09-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 9 — one connected tree per request: the round-trip span, the parented client leg, head-and-tail stream tracing (2026-09-22)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-remains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What remains
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="test-report-opentelemetry-forwarder-against-dynatrace">Test Report — OpenTelemetry forwarder against Dynatrace<a class="headerlink" href="#test-report-opentelemetry-forwarder-against-dynatrace" title="Permanent link">&para;</a></h1>
+<p><em>Live validation of the <a href="../../guides/observability/#otel-forwarder">OpenTelemetry forwarder</a>
+(<code>extensions/opentelemetry-forwarder</code>, crate <code>mercury-opentelemetry-forwarder</code>) against a
+</em><em>Dynatrace SaaS OTLP endpoint</em><em>, conducted 2026-09-22 (UTC) on a single developer machine running
+the <code>hello-flow</code> example as the subject application. It is the twin of the Java module's
+certification (mercury-composable <code>docs/test-reports/otel-dynatrace-certification.md</code>, 2026-09-16)
+and follows the same method: what was run, the evidence, and the observations the round produced.</em></p>
+<p><em>No endpoint URL, token, or tenant identifier appears in this report or in any committed file. All
+three come from the environment at launch; the committed configuration keeps the feature off.</em></p>
+<h2 id="the-scenario-under-test">The scenario under test<a class="headerlink" href="#the-scenario-under-test" title="Permanent link">&para;</a></h2>
+<p>The engine emits its own distributed trace for every transaction. The forwarder turns each completed
+span into OTLP and ships it to a vendor backend, so a Mercury application appears in the same tracing
+tool as everything else the enterprise runs. This port does it <strong>without the OpenTelemetry SDK</strong> —
+the OTLP protobuf is written by the crate itself and sent through the platform's <code>async.http.request</code>
+client — so three things needed proving on real infrastructure rather than against the in-process
+collector double the unit and integration suites use:</p>
+<ol>
+<li><strong>The opt-in switch does what it claims.</strong> Linking the crate must register nothing;
+   <code>otel.forwarding=true</code> must be the only thing that turns the route on.</li>
+<li><strong>A real vendor backend accepts the hand-written wire format</strong> — the <code>ExportTraceServiceRequest</code>
+   bytes, <code>application/x-protobuf</code>, HTTPS from the platform client, the endpoint path and the
+   vendor-specific credential header, all together.</li>
+<li><strong>The exports are real</strong>, not a silent no-op — which zero failures alone cannot show.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Subject application</td>
+<td><code>examples/hello-flow</code>, the <code>hello-flow</code> flow behind <code>GET /api/hello/{user}?lang=fr</code></td>
+</tr>
+<tr>
+<td>Backend</td>
+<td>Dynatrace SaaS OTLP/HTTP traces endpoint (non-prod tenant), the <code>.../v1/traces</code> signal path</td>
+</tr>
+<tr>
+<td>Service name</td>
+<td><code>hello-flow</code> (the <code>${OTLP_SERVICE_NAME:hello-flow}</code> default); the drive was then repeated under <code>mercury-otel-cert</code>, the Java certification's service name, for the UI check (Scenario 3)</td>
+</tr>
+<tr>
+<td>Credential</td>
+<td><code>Authorization: Api-Token</code> + token, composed from <code>OTLP_AUTH_HEADER</code> and <code>OTLP_TOKEN</code></td>
+</tr>
+<tr>
+<td>Compression</td>
+<td>none (this engine honours <code>none</code> only)</td>
+</tr>
+<tr>
+<td>Instrumentation scope</td>
+<td><code>mercury-opentelemetry-forwarder</code>, version <code>4.12.12</code> (the workspace version of the build)</td>
+</tr>
+<tr>
+<td>Runtime</td>
+<td>rustc 1.98.1, cargo 1.98.1, macOS 26.7</td>
+</tr>
+<tr>
+<td>Build under test</td>
+<td>branch <code>feat/opentelemetry-forwarder</code>, commit <code>f6e69af5</code> (debug profile)</td>
+</tr>
+</tbody>
+</table>
+<p>The application was launched three times from the same binary with the switch on as a runtime
+override — the committed <code>application.yml</code> keeps it off:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>target/debug/hello-flow<span class="w"> </span>-Dotel.forwarding<span class="o">=</span><span class="nb">true</span><span class="w"> </span>-Dlog.format<span class="o">=</span>text
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>curl<span class="w"> </span>-si<span class="w"> </span><span class="s1">'http://127.0.0.1:8100/api/hello/otel-cert?lang=fr'</span>
+</code></pre></div>
+<h2 id="scenario-1-the-switch-is-the-only-thing-that-turns-it-on">Scenario 1 — the switch is the only thing that turns it on<a class="headerlink" href="#scenario-1-the-switch-is-the-only-thing-that-turns-it-on" title="Permanent link">&para;</a></h2>
+<p><code>hello-flow</code> links the crate (<code>use opentelemetry_forwarder as _;</code>) and ships <code>otel.forwarding: false</code>.
+The forwarder and its start-up hook are both <code>#[optional_service("otel.forwarding")]</code>, so with the
+switch off neither runs and the route does not exist — the application behaves exactly as it did
+before the dependency was added. This is pinned by a test in the example itself
+(<code>examples/hello-flow/tests/otel_forwarding_switch.rs</code>), so the "dependency present, feature off"
+property cannot regress silently.</p>
+<p>Launched with the switch on, the hook validates the configuration, announces the forwarder and the
+route appears:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>OpenTelemetry trace forwarder ready - service=hello-flow, OTLP endpoint=&lt;redacted&gt;,
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>compression=none, credential headers=["Authorization"]
+</code></pre></div>
+<p>Note what that line does <strong>not</strong> contain. It names the credential header but never its value, so
+the start-up log of a production pod cannot leak the token. (The <code>OTLP credential header resolved -
+["Authorization"]</code> line that precedes it is the one-time announcement the header supplier makes when
+the credential first resolves — here at start-up, because the variables were exported before launch.)</p>
+<h2 id="scenario-2-five-spans-one-trace-zero-export-failures">Scenario 2 — five spans, one trace, zero export failures<a class="headerlink" href="#scenario-2-five-spans-one-trace-zero-export-failures" title="Permanent link">&para;</a></h2>
+<p>One transaction, HTTP 200. The engine's own trace contains five spans — the REST edge, the flow
+engine's summary span, and the three tasks the flow ran — and the forwarder exported each one
+individually as it completed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>http.flow.adapter          9d1b702a12b83b91   server
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>├─ task.executor           a7cfd59289e31d87   internal   (from event.script.manager)
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>└─ language.router         aade817947c5678a   internal
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>   └─ greeting.composer    b552f03b28c643bf   internal
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>      └─ async.http.response  a35b2f11eb0def7c   internal
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>trace 0ad577c2bef646cba174147ebf923c01 — 2026-09-22T00:52:04.707Z
+</code></pre></div>
+<p>The tree above is drawn from the <code>parent_span_id</code> values the engine recorded in its telemetry
+datasets — the same ids the forwarder placed in the OTLP <code>Span.parent_span_id</code> field. Whether the
+backend reconstructs the same nesting is the UI check (Scenario 5): the backend is the authority on
+parentage, and it is what proves the W3C context survived the wire.</p>
+<p>Zero <code>OTLP export failed</code> lines. Because the forwarder exports one span per call <em>inline</em> in its
+worker — the HTTP round trip is awaited before the next dataset is taken from the mailbox — there is
+no batch window in which a failure could still be pending: every span's outcome is known, and logged,
+by the time the transaction's spans have drained.</p>
+<h2 id="scenario-3-the-a-b-a-credential-experiment">Scenario 3 — the A-B-A credential experiment<a class="headerlink" href="#scenario-3-the-a-b-a-credential-experiment" title="Permanent link">&para;</a></h2>
+<p><strong>Zero failures is only evidence if a failure was possible.</strong> A forwarder that silently skipped
+export, never attached the credential, or sent bytes the backend discarded with a 2xx, would also
+produce zero failures. So the same run was repeated with a deliberately invalid token, then restored:</p>
+<table>
+<thead>
+<tr>
+<th>Leg</th>
+<th>Credential</th>
+<th>Export failures</th>
+<th>App response</th>
+<th>Trace</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A</strong> — clean</td>
+<td>real token</td>
+<td><strong>0</strong> of 5</td>
+<td>HTTP 200</td>
+<td><code>0ad577c2bef646cba174147ebf923c01</code> at 00:52:04Z</td>
+</tr>
+<tr>
+<td><strong>B</strong> — negative control</td>
+<td>bogus token</td>
+<td><strong>5</strong> of 5</td>
+<td>HTTP 200</td>
+<td><code>eedf60cd9bbe47618859a1a7b5967837</code> at 00:52:15Z</td>
+</tr>
+<tr>
+<td><strong>A′</strong> — restored</td>
+<td>real token</td>
+<td><strong>0</strong> of 5</td>
+<td>HTTP 200</td>
+<td><code>092b2a1947e54f298d5ab945aa901331</code> at 00:52:26Z</td>
+</tr>
+</tbody>
+</table>
+<p>Leg B's diagnostic, one per span:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>OTLP export failed for span a401f13a50dd04c7 of trace eedf60cd9bbe47618859a1a7b5967837
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>- HTTP 401 - Token Authentication failed | the backend rejected the credential itself - check
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  otel.exporter.otlp.headers (the header name and any auth scheme must match what the backend expects)
+</code></pre></div>
+<p>Three conclusions follow, none of which the clean run alone could support:</p>
+<ul>
+<li>The forwarder <strong>really exports</strong> — five attempts, one per span, not a silent no-op — and the
+  credential header <strong>really reaches the backend</strong>: it is what Dynatrace rejected.</li>
+<li>A 401 is <strong>final</strong>, not retried: five failures for five spans, one attempt each. Retrying a
+  rejected credential would only have hidden the problem behind a delay.</li>
+<li>The bytes are <strong>well-formed OTLP</strong>: the backend authenticated the request before looking at the
+  payload, and with the real token the same payload produced no rejection — a malformed body would
+  have answered 400 in legs A and A′.</li>
+</ul>
+<p>Legs A and A′ bracket B, so the zero in each is not a token that happened to be unset — the bracket
+shows the credential was live before and after the failure was induced.</p>
+<p><strong>Repeated under the Java certification's service name.</strong> The maintainer's UI check looks for the
+service the Java module certified under, <code>mercury-otel-cert</code> (its <code>OTLP_SERVICE_NAME</code>), while this
+example's default is <code>hello-flow</code>. The same three legs were driven again with
+<code>OTLP_SERVICE_NAME=mercury-otel-cert</code> exported for the run — same binary, same endpoint, the
+service name being the only change — with the same outcome:</p>
+<table>
+<thead>
+<tr>
+<th>Leg</th>
+<th>Credential</th>
+<th>Export failures</th>
+<th>App response</th>
+<th>Trace</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A</strong> — clean</td>
+<td>real token</td>
+<td><strong>0</strong> of 5</td>
+<td>HTTP 200</td>
+<td><code>f658763c71844a998d02521c033c5918</code> at 01:18:25Z</td>
+</tr>
+<tr>
+<td><strong>B</strong> — negative control</td>
+<td>bogus token</td>
+<td><strong>5</strong> of 5</td>
+<td>HTTP 200</td>
+<td><code>ababd406bfcf43c181ded9446d1c0198</code> at 01:18:36Z</td>
+</tr>
+<tr>
+<td><strong>A′</strong> — restored</td>
+<td>real token</td>
+<td><strong>0</strong> of 5</td>
+<td>HTTP 200</td>
+<td><code>b0ee5e2087ff495a9b8f13977620c758</code> at 01:18:47Z</td>
+</tr>
+</tbody>
+</table>
+<h2 id="scenario-4-failures-that-name-their-own-cause">Scenario 4 — failures that name their own cause<a class="headerlink" href="#scenario-4-failures-that-name-their-own-cause" title="Permanent link">&para;</a></h2>
+<p>The Java certification met a dead end on its first live run: the SDK's HTTP failure exception
+rendered as a bare class name while the actual cause (a 404 from a base URL without the signal path)
+sat in a separate logger. This port inherited the lesson from the start: the forwarder's own warning
+line leads with the status, follows with the backend's explanation (whitespace-collapsed, at most
+256 characters) and adds a hint for the rejections that actually happen — a <strong>404</strong> points at the
+signal path (<code>.../v1/traces</code>) missing from the endpoint, a <strong>401</strong> at the credential, a <strong>403</strong> at a
+token that authenticated but lacks the ingest scope, which the body names. Request headers are never
+rendered. The 401 above is the live instance; the 404, 403 and bounded-body cases are pinned against
+the collector double in <code>tests/otlp_export.rs</code> and as unit tests in <code>src/export.rs</code>.</p>
+<h2 id="observations-and-round-notes">Observations and round notes<a class="headerlink" href="#observations-and-round-notes" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>The first drive measured nothing for two of its three legs, and said so only indirectly.</strong> Each
+  leg stopped its process with <code>SIGTERM</code>, waited one second and started the next; the engine's
+  graceful shutdown takes longer than that, so legs B and A′ found port 8100 still held by leg A's
+  process, their requests were served by it (real token, zero failures) and their own processes exited
+  with <code>Unable to bind port 8100</code>. The tell was "datasets logged: 0" for those legs — the spans were in
+  leg A's log. The redriven script waits for the port to change hands, checks that the listener is the
+  new pid, and hard-kills after ten seconds; the same lesson the Redis outage drive taught — assert the
+  hand-off, never assume the kill. Those three earlier requests reached Dynatrace with the real token
+  (traces <code>20cf869c977745c3b03bdf62eafdb096</code>, <code>b21f2e68e6714802a01a51f5ac870e31</code>,
+  <code>d62a0e41fef240339c909368103631b9</code> at 00:44Z, and <code>973bae01628f473c9156aa8fd03a538f</code>,
+  <code>54ab25e716474febbaa19957e0ddacd6</code> from the second run at 00:47Z, with its own bogus-token leg
+  rejected 5 of 5), so the tenant holds seven <code>hello-flow</code> traces from this session, all accepted —
+  plus the two accepted traces of the <code>mercury-otel-cert</code> repeat.</li>
+<li><strong>Name the service the reviewer will look under before the drive.</strong> The first drives used the
+  example's default service name; the maintainer's UI check expected the Java certification's
+  <code>mercury-otel-cert</code>. One environment variable and a 45-second re-drive fixed it, but the report's
+  Scenario 5 had pointed the reviewer at the wrong service — agree the service name (or pass it
+  explicitly) as part of the drive's set-up, exactly as the endpoint and the token are.</li>
+<li><strong>HTTPS from the platform client, first live use in this role.</strong> The endpoint is TLS; the client's
+  rustls stack with the OS trust store negotiated it without any configuration — the same path the
+  schema registry client uses, now against a public SaaS certificate.</li>
+<li><strong>The trace id came from the engine's telemetry log, not from a response header.</strong> The REST edge
+  did not return an <code>X-Trace-Id</code> response header on this endpoint; the id is in every
+  <code>distributed.tracing</code> dataset line, which is where the span trees above were read from.</li>
+<li><strong>One-shot announcements behaved.</strong> The header supplier announced the resolved credential exactly
+  once per process; the earlier double announcement seen during development came from the function
+  building its own exporter before the start-up hook had installed the shared one — the exporter is
+  now resolved on the first dataset, after the hooks have run.</li>
+<li><strong>The scope version is the build's.</strong> <code>mercury-opentelemetry-forwarder</code> at <code>4.12.12</code> — the
+  workspace version of this branch; the release cut re-sweeps it to <code>4.12.14</code>, so a span exported by
+  the released crate will read that version in the backend, the same free artifact check the Java
+  certification used to close its field acceptance.</li>
+</ul>
+<h2 id="scenario-5-confirmed-queryable-in-dynatrace">Scenario 5 — confirmed queryable in Dynatrace<a class="headerlink" href="#scenario-5-confirmed-queryable-in-dynatrace" title="Permanent link">&para;</a></h2>
+<p><strong>Confirmed by the maintainer in the Dynatrace non-prod UI, 2026-09-22 (Pacific 2026-09-21 evening),
+from screenshots of both <code>mercury-otel-cert</code> traces of the repeated drive</strong>,
+<code>f658763c71844a998d02521c033c5918</code> (start 18:18:25 Pacific = 01:18:25Z) and
+<code>b0ee5e2087ff495a9b8f13977620c758</code> (18:18:47 Pacific = 01:18:47Z):</p>
+<ul>
+<li><strong>Service</strong> <code>mercury-otel-cert</code>, trace titled <code>'http.flow.adapter' Trace</code>, response time 116 µs and
+  78 µs — the root span's <code>exec_time_ms</code> (0.116 / 0.078), which is what the forwarder sent as the
+  span duration.</li>
+<li><strong>The nesting is as the engine recorded it</strong>, reconstructed by the backend from the
+  <code>parent_span_id</code> values on the wire: <code>http.flow.adapter</code> at the root, <code>task.executor</code> as its child,
+  and <code>language.router</code> → <code>greeting.composer</code> → <code>async.http.response</code> as the other branch (the UI
+  lists the two children of the root in either order). Five spans per trace, none missing, none
+  orphaned.</li>
+<li><strong>Span kinds</strong> <code>Internal</code> on every child (the root is the <code>server</code> span); <strong>Status</strong> <code>OK</code>.</li>
+<li><strong>Instrumentation scope</strong> <code>mercury-opentelemetry-forwarder</code>, <strong>scope version</strong> <code>4.12.12</code> — the
+  workspace version of the build under test, so the spans came from this branch's build and from this
+  engine's forwarder, not from the Java module.</li>
+<li><strong>Attributes</strong> exactly as mapped: on the root <code>path: GET /api/hello/otel-cert?lang=fr</code>,
+  <code>from: http.request</code>, <code>route: http.flow.adapter</code>, <code>exec_time_ms</code>, <code>origin</code>, <code>status: 200</code>; on
+  <code>task.executor</code> the flow engine's annotations arrived as <code>annotation.execution</code> (<code>Run 2 tasks in 0
+  ms</code>), <code>annotation.flow</code> (<code>hello-flow</code>) and <code>annotation.tasks</code> (the task list with per-task <code>spent</code>),
+  plus <code>from: event.script.manager</code>; the trace and span ids in the UI match the engine's telemetry
+  datasets digit for digit.</li>
+</ul>
+<p>The leg B trace <code>ababd406bfcf43c181ded9446d1c0198</code> is not in the tenant — the 401s were real
+rejections, not deferred acceptances. With this the certification of the branch build is closed on
+both sides of the wire: the forwarder's own log on the sending side, the vendor UI on the receiving
+side.</p>
+<h2 id="scenario-6-field-acceptance-on-the-published-crate-2026-09-22">Scenario 6 — field acceptance on the published crate (2026-09-22)<a class="headerlink" href="#scenario-6-field-acceptance-on-the-published-crate-2026-09-22" title="Permanent link">&para;</a></h2>
+<p>The certification above ran the branch build (scope version 4.12.12). After the v4.12.14 release the
+same drive was repeated from <strong>the crates.io artifacts only</strong>: a standalone consumer application built
+outside the workspace with registry dependencies — <code>mercury-platform-core = "4.12.14"</code> and
+<code>mercury-opentelemetry-forwarder = "4.12.14"</code>, no <code>path</code> into this repository (<code>cargo tree</code> shows both
+resolved from the registry) — one traced endpoint <code>GET /api/accept/{id}</code> calling one worker function, so
+each request is a three-span trace (<code>accept.api</code> SERVER → <code>accept.work</code>, <code>async.http.response</code>). It was
+launched with <code>-Dotel.forwarding=true</code>, the endpoint and credential from the environment, service
+<code>mercury-otel-cert</code>, and <code>info.app.version</code> deliberately unset so the instrumentation-scope version is
+the published forwarder crate's own.</p>
+<table>
+<thead>
+<tr>
+<th>Leg</th>
+<th>Credential</th>
+<th>Export failures</th>
+<th>Traces (service <code>mercury-otel-cert</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A</strong> — clean, two requests</td>
+<td>real token</td>
+<td><strong>0</strong> of 6</td>
+<td><code>580cbdc0f96441aa9afd9c6ed51bc4ce</code> (02:41:23Z), <code>5fd1cd3db9ba41a0a8b8b5de8e603b1a</code> (02:41:24Z)</td>
+</tr>
+<tr>
+<td><strong>B</strong> — negative control</td>
+<td>bogus token</td>
+<td><strong>3</strong> of 3, <code>HTTP 401 - Token Authentication failed</code></td>
+<td><code>9b25cb38cb0944f786d91e9ad2e56af0</code> (absent)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Confirmed by the maintainer in the Dynatrace UI (screenshots, 2026-09-22):</strong> both leg-A traces under
+service <code>mercury-otel-cert</code>, titled <code>'accept.api' Trace</code>, three spans each — <code>accept.api</code> (206 µs / 217 µs,
+<code>path: GET /api/accept/A-1</code> and <code>A-2</code>, <code>from: http.request</code>, <code>route: accept.api</code>, <code>status: 200</code>,
+<code>annotation.acceptance.id: A-1</code> / <code>A-2</code>) with <code>accept.work</code> and <code>async.http.response</code> as its children.
+The scope version to read on any of those spans is <code>mercury-opentelemetry-forwarder</code> <strong>4.12.14</strong> — the
+artifact check: the spans came from the crate a field application downloads, not from a checkout.</p>
+<h2 id="scenario-7-two-engines-one-trace-2026-09-22">Scenario 7 — two engines, one trace (2026-09-22)<a class="headerlink" href="#scenario-7-two-engines-one-trace-2026-09-22" title="Permanent link">&para;</a></h2>
+<p>The maintainer's suggestion, and the strongest acceptance available: the minimalist-kafka interop of the
+K5 gate re-run with the OpenTelemetry forwarder <strong>on both engines</strong>, so one request's spans arrive at the
+backend from two processes and two forwarders. Setup: <code>kafka-standalone</code>, <code>redis-standalone</code> and
+<code>schema-registry-standalone</code> 4.12.14 (the six demo topics, ten partitions each); the Java
+<code>sync-over-async-demo</code> 4.12.14 rebuilt with the <code>opentelemetry-forwarder</code> dependency added for the
+drive, and this repository's <code>sync-over-async-demo</code> with the crate linked for the drive (neither edit
+committed — the examples ship without the forwarder); both launched with <code>-Dotel.forwarding=true</code>, the
+same endpoint and credential from the environment, and distinct service names so the hop is visible:
+<strong><code>mercury-otel-cert-java</code></strong> and <strong><code>mercury-otel-cert-rust</code></strong>. Each request is <code>POST /api/sync-to-async</code>
+with a caller-set <code>traceparent</code>, so the trace id below is the caller's; the facade publishes the request
+to Kafka, the backend on the <em>other</em> engine consumes it and publishes the reply, and the facade's
+<code>sync.await</code> completes through the Redis return route. A fresh broker per pairing (see finding 1).</p>
+<table>
+<thead>
+<tr>
+<th>Pairing</th>
+<th>Facade</th>
+<th>Backend</th>
+<th>Traces</th>
+<th>Spans exported (failures)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A</strong></td>
+<td>Java <code>:8500</code></td>
+<td>Rust</td>
+<td><code>f78de6d2d9a649d425acaec09a6bba53</code> (02:52:59Z), <code>72b2e692bac8478e1e2a9c148e3d1606</code> (02:53:01Z)</td>
+<td>Java 18 (0), Rust 6 (0)</td>
+</tr>
+<tr>
+<td><strong>B</strong></td>
+<td>Rust <code>:8400</code></td>
+<td>Java</td>
+<td><code>ec6b3fc64b769c9f79c1f80d50371a2e</code> (02:53:36Z), <code>3481c84b80e6804849a2df2ea6967237</code> (02:53:37Z)</td>
+<td>Rust 16 (0), Java 8 (0)</td>
+</tr>
+</tbody>
+</table>
+<p>Every trace crosses the engine boundary <strong>twice</strong>, and the parent ids on the wire say so — the Kafka
+record's <code>traceparent</code> header carries the span context across the hop in both directions. For trace
+<code>72b2e692…</code> (pairing A):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mercury-otel-cert-java   http.flow.adapter b3c801d640de134e            server
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>├─ task.executor, sync.prepare 8808c62ce9d7da7a
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>│  └─ simple.kafka.notification b97f815f845b01e7      ── Kafka: soa.request ──▶
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>│     mercury-otel-cert-rust   task.executor / system.of.record 8d94bd61ca44a0a6   (parent b97f815f…)
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>│                              └─ simple.kafka.notification 8ddccc5536bf7cdb  ── Kafka: soa.response ──▶
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>│     mercury-otel-cert-java   task.executor / soa.reply a8024e25466d1cf1       (parent 8ddccc55…)
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>└─ sync.await 93730de9cb688bc9 → async.http.response ac59e2472382cb4f
+</code></pre></div>
+<p>and for trace <code>3481c84b…</code> (pairing B) the mirror image: the Rust facade's <code>simple.kafka.notification</code>
+<code>a08a87cd3e5e34da</code> parents the Java backend's <code>system.of.record</code> <code>915af201c949fbc7</code>, and the Java
+backend's <code>simple.kafka.notification</code> <code>82563cebebb18192</code> parents the Rust facade's <code>soa.reply</code>
+<code>97813ba9f84bd050</code>. (The flow engine's <code>event.script.manager</code> records carry no span id of their own and
+are skipped by both forwarders, as designed.)</p>
+<p><strong>Confirmed by the maintainer in the Dynatrace UI (screenshots, 2026-09-22): one trace, two services.</strong>
+Trace <code>72b2e692…</code> opens under <code>mercury-otel-cert-java</code> as <code>'http.flow.adapter' Trace</code> (57 µs root,
+<code>path: POST /api/sync-to-async</code>, <code>from: http.request</code>, <code>status: 200</code>) and its waterfall — 22 ms end to
+end — nests the Rust service inside the Java one exactly as the wire said: under the Java facade's
+<code>simple.kafka.notification</code> sit <code>system.of.record</code>, <code>simple.kafka.notification</code> and <code>task.executor</code> of
+<strong><code>mercury-otel-cert-rust</code></strong>, and under the Rust notification sit the Java <code>task.executor</code> and
+<code>soa.reply</code>, while the Java <code>sync.await</code> runs alongside until <code>async.http.response</code> closes the request.
+The first drive's <code>47100c7c38ed835d34652799f6e635b9</code> (02:46:44Z, before the readiness rework) shows the
+same two-service nesting over 66 ms. Dynatrace reconstructed the cross-engine parentage from the ids on
+the wire; nothing was inferred locally.</p>
+<h3 id="findings-of-the-round">Findings of the round<a class="headerlink" href="#findings-of-the-round" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Java consumers do not leave their groups on SIGTERM; Rust consumers do.</strong> The first attempt at
+   pairing B answered 408 twice although the Java backend processed both requests within 40 ms and
+   published both replies: the broker log shows the Java <em>facade</em> of the previous pairing, stopped with
+   SIGTERM 4 s earlier, still a member of <code>soa-reply-group</code> holding all ten <code>soa.response</code> partitions —
+   it was <strong>fenced by session expiry 40 s later</strong> — so the Rust facade that had just joined the same group
+   owned nothing, and both replies landed on parked partitions. Every Java member in this drive went the
+   same way (<code>Member … fenced from the group because the member session expired</code>), every Rust member
+   <code>left the consumer group</code> on stop. On the Java side <code>KafkaFlowAdapter.close()</code> →
+   <code>KafkaFlowConsumer.close()</code> (wake-up + <code>consumer.close()</code>, which sends LeaveGroup) exists, but nothing
+   calls it at shutdown — <code>KafkaFlowAutoStart.start()</code> starts the adapter and registers no
+   <code>Platform.onShutdown(adapter::close)</code>; <code>KafkaRequestPublisher.close()</code> (a <code>producer.close()</code>, which
+   flushes) is in the same position. On Kubernetes that is a rolling restart parking the old pod's
+   partitions for the KIP-848 session timeout. Recorded for the Java engine as an open thread; the fix is
+   the platform shutdown lifecycle that already exists.</li>
+<li><strong>The Java demo's error handler assumes the return-route coordinator is up.</strong> In the first attempt at
+   pairing A the first request arrived 100 ms before the facade's <code>Return-route subscriber listening</code>
+   line; the flow aborted correctly, but <code>SyncErrorHandler</code> then called
+   <code>SyncRuntime.coordinator().abort(cid)</code> on a null coordinator and the client got a 500 from the NPE
+   instead of the flow's own error. A null check (or readiness gating) is the demo-level fix.</li>
+<li><strong>Readiness is per component, and a stopped member is not a gone member.</strong> The re-run waited for
+   each app's own readiness lines (Java: <code>Assigned partitions</code> for every binding and the return-route
+   subscriber; Rust: <code>Kafka flow adapter started</code>, <code>Return-route coordinator started</code> and a few seconds
+   for the joins) and gave each pairing a fresh broker — after which all four requests answered 200 and
+   all 48 spans exported. Same lesson as the earlier port-hand-off one: assert the hand-off, never assume
+   the kill.</li>
+</ol>
+<h2 id="scenario-8-four-runtimes-one-trace-llm-tokens-rendered-progressively-through-the-polyglot-hosts-2026-09-22">Scenario 8 — four runtimes, one trace: LLM tokens rendered progressively through the polyglot hosts (2026-09-22)<a class="headerlink" href="#scenario-8-four-runtimes-one-trace-llm-tokens-rendered-progressively-through-the-polyglot-hosts-2026-09-22" title="Permanent link">&para;</a></h2>
+<p>The lock-step milestone behind v4.12.15: the forwarder now exists on all four runtimes — this crate,
+the Java <code>opentelemetry-forwarder</code> module, and the two zero-dependency ports of this crate's OTLP
+encoder merged the same day into the Python host (mercury-python #33) and the Node.js host
+(mercury-nodejs #101). The maintainer's certification scenario drives the agent-orchestration
+experiment E0 across them: a Playground edge on each engine renders <strong>real Gemini tokens
+progressively</strong> out its HTTP edge, the tokens produced by the <code>llm.stream</code> AI node on a wrapper host,
+and every application forwards its spans under its own service name — one trace per request across
+an engine and a polyglot function host.</p>
+<p><strong>Set-up.</strong> This engine's Playground with its E0 twin ported that day (Increment 132, PR #314: the
+Java <code>support-triage</code> graph verbatim — it compiled unchanged here — and <code>LlmStreamRelay</code> on the
+<code>hello.remote.relay</code> pattern serving <code>POST /api/llm/stream</code>; this crate linked for the drive only),
+the Java Playground 4.12.14 (its forwarder module added for the drive only), the Python host
+(<code>mercury-serve examples/demo_app.py</code>, forwarder from #33, <code>llm.stream</code> since 4.12.1) and the Node.js
+host (<code>examples/demo-app.mjs</code>, forwarder from #101, the <code>llm.stream</code> node from #102 — Gemini and
+Anthropic over their REST APIs through <code>fetch</code>, no SDK). Rust on <code>:8090</code>, Java on <code>:8085</code>, Python on
+<code>:8086</code>, Node on <code>:8087</code>; every app launched with <code>-Dotel.forwarding=true</code>, the same endpoint and
+credential from the environment, and service names <code>mercury-otel-cert-rust</code>, <code>-java</code>, <code>-python</code>,
+<code>-node</code>; every request carrying a caller-set <code>traceparent</code>. The engine's peer map selects the host
+(<code>-Dllm.peer.port=8086|8087</code>), so both edges were driven against both hosts.</p>
+<table>
+<thead>
+<tr>
+<th>Edge → AI node</th>
+<th>Trace</th>
+<th>AI-node span start (UTC)</th>
+<th>Token frames</th>
+<th>Outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Rust → Python</strong></td>
+<td><code>a9686f1f87327466e46cc451ff34b319</code></td>
+<td>17:32:57.146Z</td>
+<td>2 + <code>done</code></td>
+<td><code>STOP</code>; <code>llm.stream</code> 21.2 s</td>
+</tr>
+<tr>
+<td><strong>Rust → Node</strong></td>
+<td><code>1232ab83511f3402a519e65a80e1a144</code></td>
+<td>17:34:56.602Z</td>
+<td>3 + <code>done</code></td>
+<td><code>STOP</code>; <code>llm.stream</code> 8.0 s</td>
+</tr>
+<tr>
+<td><strong>Java → Python</strong></td>
+<td><code>c90af9e36d8dbd3c2390db240b406d3a</code></td>
+<td>17:36:37.175Z</td>
+<td>2 + <code>done</code></td>
+<td><code>STOP</code>, 34 output tokens; 5.8 s</td>
+</tr>
+<tr>
+<td><strong>Java → Node</strong></td>
+<td><code>888a3f721907d31a9b0ec9836b2e580a</code></td>
+<td>17:32:46.862Z</td>
+<td>2 + <code>done</code></td>
+<td><code>STOP</code>, 39 output tokens; 5.7 s</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>support-triage</code> graph — <code>llm.chat</code> as a <code>graph.task</code> on the host, the graph deciding the route —
+answered through the same hops: Rust → Node <code>6077f5f3f9d64eb4f3bd9984f0804dca</code> (17:35:09Z, action
+<code>bug-filed</code>) and Java → Python <code>372b040e245495158330fdb09b412ada</code> (17:32:29Z, verdict <code>bug</code>). The
+<code>done</code> frame of every stream carried the model, <code>stop_reason</code>, usage and the trace and business
+correlation ids.</p>
+<p><strong>The lineage, read from both sides' own datasets.</strong> The engine's relay span is the parent of the
+host's <code>llm.stream</code> span, and the host's span is the parent of the engine's reply-lane deliveries —
+the same ids in two applications' logs:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Rust → Python a9686f1f…   rust   llm.stream.relay             b05fccf48da0d67a
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>                          python llm.stream                   02a46cfc25802ae5  (parent b05f…, 21.2 s)
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>                          rust   async.http.response.stream.0 9f9206c70ec1e37e  (parent 02a4…)
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>                          rust   async.http.response.stream.0 ad15a089c5a72849  (parent 02a4…)
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>Rust → Node   1232ab83…   rust   llm.stream.relay             bb0901151c32ebc2
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>                          node   llm.stream                   f26d329038c33432  (parent bb09…, 8.0 s)
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>                          rust   async.http.response.stream.0 84e8fb662b27cb96  (parent f26d…)
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>                          rust   async.http.response.stream.0 b292edc64bb18f87  (parent f26d…)
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>Java → Node   888a3f72…   java relay a79d434676214868 → node   3a89fa459f452bce → java deliveries bc9e32cf…, b424a08c…
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>Java → Python c90af9e3…   java relay babc1831e6f0d231 → python 8bd6892d99b278d8 → java deliveries 813208e5…, 902070e8…
+</code></pre></div>
+<p><strong>Exports.</strong> Zero export failures in every application in every run — five drives, 24 LLM calls: this
+Playground 8–10 spans per round, the Java Playground 8–10, the Python and Node hosts 1–2 each (their
+<code>llm.stream</code> executions; the graph's <code>llm.chat</code> is an RPC leg, which folds into the caller's span on
+every runtime, so the host exports no span for it — the engines' own rule).</p>
+<p><strong>Observations.</strong> (1) The provider, not the pipeline, decided which calls succeeded: Gemini answered
+<code>503 This model is currently experiencing high demand</code> on roughly half the calls across the drives,
+<code>429 RESOURCE_EXHAUSTED</code> once, and <code>gemini-2.5-flash</code> proved retired (<code>no longer available to new
+users</code> — the 404 text recommending <code>gemini-3.6-flash</code>, which then answered); the alias
+<code>gemini-flash-latest</code> was the one under demand, so the drives pinned <code>gemini-3.6-flash</code> with
+<code>-Dllm.model</code>. Every failure was itself a trace: the hosts rendered the provider's status through the
+portable error contract, the edges returned it, and all four forwarders exported those spans too.
+(2) The current flash models think before they answer: a 200-token budget was spent entirely on
+reasoning (<code>stop_reason: MAX_TOKENS</code>, <code>output_tokens: 0</code>, an empty stream); 1000 tokens rendered two
+or three token frames and a <code>STOP</code>. (3) Engine parity held without adjustment: the Java graph JSON
+compiled unchanged here, and the relay contract (the <code>accept: text/event-stream</code> opt-in, the 60 s
+idle allowance, the teaching 503 when no peer is mapped) is byte-for-byte the same on both edges.</p>
+<h2 id="scenario-9-one-connected-tree-per-request-the-round-trip-span-the-parented-client-leg-head-and-tail-stream-tracing-2026-09-22">Scenario 9 — one connected tree per request: the round-trip span, the parented client leg, head-and-tail stream tracing (2026-09-22)<a class="headerlink" href="#scenario-9-one-connected-tree-per-request-the-round-trip-span-the-parented-client-leg-head-and-tail-stream-tracing-2026-09-22" title="Permanent link">&para;</a></h2>
+<p>The maintainer read the four Scenario 8 traces in the Dynatrace UI and found the trees broken: no first leg
+above the relay, <code>async.http.request</code> floating without a parent, and — invisible in the UI but present in
+the datasets — one reply-lane span per relayed token with no parent. Read from both sides' datasets, the
+causes were three: the drive's caller-set <code>traceparent</code> named a random parent span that no application had
+exported, so every root pointed at a span the backend never received; the Java stream relay's client leg
+copied the trace onto its <code>async.http.request</code> event but not the sender's span; and the Java relay stamped
+the trace onto the raw token frames it synthesized, without a span. The design gap behind the first
+symptom was the one worth fixing: <strong>no span covered the HTTP round trip</strong> — the SERVER span was the first
+function's own execution, so a backend showed a 0.5 ms response time for a 6 s stream.</p>
+<p><strong>The fix, on both engines</strong> (this repository and the Java engine, both <code>fix/connected-edge-spans</code>; the Python and
+Node.js forwarders <code>fix/otel-span-kind-edge</code>):</p>
+<ul>
+<li>REST automation mints the edge's <strong>round-trip span</strong> at receipt and every dispatch parents onto it; the
+  record — <code>service: http.request</code>, the marker the first function already carried as <code>from</code> — is emitted
+  when the response completes, with <code>start</code> the receipt time, <code>exec_time</code> the round trip and
+  <code>parent_span_id</code> the inbound <code>traceparent</code> span. All four forwarders map this record, and only this
+  record, to a SERVER span; every function execution is INTERNAL.</li>
+<li>The stream relay's client leg parents onto the sender (the Rust port stopped zero-tracing the HTTP
+  client route: <code>skip.rpc.tracing</code> only suppresses the caller-side RPC <code>round_trip</code> record, as in Java).</li>
+<li><strong>A stream is traced at its head and its tail, never per token</strong>: the producer's writer stamps its trace
+  and span on the first segment and the terminal, data segments carry no trace, the consuming relay
+  forwards raw token frames untraced and parents its synthesized control frames on its own span, and the
+  reply lane annotates the terminal's record with <code>frames</code> — the number of data segments it rendered.</li>
+</ul>
+<p><strong>Re-drive</strong> (the same four-runtime set-up as Scenario 8; <code>gemini-3.6-flash</code>; the caller sent only
+<code>X-Trace-Id</code>, no <code>traceparent</code>, so the edge span is a true root; stream calls only):</p>
+<table>
+<thead>
+<tr>
+<th>Edge → AI node</th>
+<th>Trace (<code>X-Trace-Id</code>)</th>
+<th>Round trip (edge span)</th>
+<th>Outcome</th>
+<th>Terminal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Java → Python</strong></td>
+<td><code>f539673bcb798dd541c49f6553c0fb42</code></td>
+<td>1051.9 ms, status 429</td>
+<td>provider quota exhausted (<code>429</code>)</td>
+<td><code>frames: 0</code></td>
+</tr>
+<tr>
+<td><strong>Java → Node</strong></td>
+<td><code>a3cc25d9782826b32b67191c82e27537</code></td>
+<td>349.8 ms, status 429</td>
+<td>provider quota exhausted (<code>429</code>)</td>
+<td><code>frames: 0</code></td>
+</tr>
+<tr>
+<td><strong>Rust → Node</strong></td>
+<td><code>45e022338a474efaf4b607f08a53b93c</code></td>
+<td>289.8 ms, status 429</td>
+<td>provider quota exhausted (<code>429</code>)</td>
+<td><code>frames: 0</code></td>
+</tr>
+<tr>
+<td><strong>Rust → Python</strong></td>
+<td><code>d1a0957ce0194c42142ac8fab54483a4</code></td>
+<td>338.8 ms, status 429</td>
+<td>provider quota exhausted (<code>429</code>)</td>
+<td><code>frames: 0</code></td>
+</tr>
+</tbody>
+</table>
+<p>Gemini answered <code>429 You exceeded your current quota</code> on all four calls of this run (the day's quota on the
+certification key was spent by the earlier drives); the run immediately before it — the same fix, the
+engines not yet re-linked to their forwarders — carried one token-bearing stream, Rust → Python
+<code>86eb549fa3efd143ec7cb23559599dfe</code> (round trip 3427.8 ms, 3 token frames, terminal <code>frames: 2</code>),
+whose tree is the second one below. Its engine spans were logged but not exported (only the hosts
+exported that run), so the backend view of the token-bearing shape waits for the next drive with quota.</p>
+<p>Every trace reconstructs as one tree from the runtimes' own datasets — exactly one root, the edge; no
+record with a parent outside the trace; the host's <code>llm.stream</code> span under the relay; the engine's
+reply-lane records under the host's span, the head unannotated and the terminal carrying <code>frames</code>
+(the check is mechanical: a script rebuilds each tree from the six logs and fails on a dangling parent):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>Java → Python  f539673b…  (drive 8, exported by all four applications)
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>http.request [java]  round trip 1051.9 ms, status 429, exception "LLM provider error - 429 …"   ← the root, SERVER
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>└── llm.stream.relay [java]  from http.request, 0.5 ms
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    ├── async.http.request [java]  64.3 ms, destination http://127.0.0.1:8086/api/event
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    └── llm.stream [python]  928.1 ms
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>        └── async.http.response.stream.0 [java]  the terminal, frames: 0
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>Rust → Python  86eb549f…  (drive 7, the token-bearing shape; engine spans logged, not exported)
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>http.request [rust]  round trip 3427.8 ms, status 200                                              ← the root, SERVER
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>└── llm.stream.relay [rust]  from http.request, 0.1 ms
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    ├── async.http.request [rust]  3346.2 ms, destination http://127.0.0.1:8086/api/event
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    └── llm.stream [python]  3420.7 ms
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>        ├── async.http.response.stream.0 [rust]  the head
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>        └── async.http.response.stream.0 [rust]  the terminal, frames: 2   (the two token frames: no span)
+</code></pre></div>
+<p>Two things worth reading from the shape. The round trip now bounds the request — the edge span is the
+one a backend should use for the service's response time, and it is the only SERVER span. And the
+provider's failures are traces too: a stream the host could not start still yields a complete tree, its
+edge record carrying the provider's status and message and its terminal <code>frames: 0</code>.</p>
+<p><strong>Exports.</strong> the forwarder reported ready in all four applications (both Playgrounds re-linked to their forwarder for the drive, as in Scenario 8) and every application exported with zero failures — the engines 4 spans per trace (edge, relay, client leg, lane terminal), the hosts 1 each.</p>
+<p><strong>Backend view — CONFIRMED (2026-09-22, the maintainer's four screenshots).</strong> Dynatrace renders each of the four
+traces as one tree titled <code>'http.request' Trace</code>: the root is the edge span, the service's response time is the
+round trip (339 ms and 290 ms for this engine's two traces, 1.05 s and 350 ms for the Java pair — <code>status: 429</code>,
+one failure each), <code>llm.stream.relay</code> sits under it, <code>async.http.request</code> and the host's <code>llm.stream</code> (kind
+Internal, <code>from: llm.stream.relay</code>, scope <code>mercury-composable-python</code> or <code>mercury-composable-nodejs</code> 4.12.1)
+under the relay, and <code>async.http.response.stream.0</code> under the host's span — no span without a parent. The
+drive-7 token-bearing trace <code>86eb549f…</code> is not in the backend: only the hosts exported that run, and a lone child
+span without its root is not a trace the UI lists. The Scenario 8 traces, confirmed in the UI earlier the same
+day (two services each, scopes <code>mercury-composable-nodejs 4.12.1</code>, <code>mercury-composable-python 4.12.1</code>,
+<code>mercury-opentelemetry-forwarder 4.12.14</code>), are the before picture: the relay's parent absent,
+<code>async.http.request</code> unparented.</p>
+<p><strong>Token-bearing re-drive — drive 9, a mock provider (2026-09-22, later).</strong> The provider's quota being spent, the
+maintainer asked for a temporary mock of the Gemini REST API to shadow the real one: a 100-line aiohttp script
+answering <code>streamGenerateContent?alt=sse</code> with paced token chunks (eight batches of a two-sentence answer, 250 ms
+apart, <code>finishReason: STOP</code> and <code>usageMetadata</code> on the last) and <code>generateContent</code> with the triage verdict as
+schema-constrained JSON. Both hosts pointed at it with no code change — the python SDK honours
+<code>GOOGLE_GEMINI_BASE_URL</code>, the Node host <code>GEMINI_API_BASE</code> — so the tokens are canned and everything else is real:
+the hosts' AI nodes, the envelope-mode relay, the reply lanes, the edge and all four forwarders (ready everywhere,
+zero export failures). Same set-up as drive 8 otherwise: <code>X-Trace-Id</code> only, <code>-Dllm.model=mock-gemini-1</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Edge → AI node</th>
+<th>Trace (<code>X-Trace-Id</code>)</th>
+<th>Round trip (edge span)</th>
+<th>Host <code>llm.stream</code></th>
+<th>Token frames</th>
+<th>Terminal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Rust → Node</strong></td>
+<td><code>d990a65667a1c7c2a210d856b8e25685</code></td>
+<td>1780.1 ms</td>
+<td>1768.4 ms</td>
+<td>8 + <code>done</code></td>
+<td><code>frames: 8</code></td>
+</tr>
+<tr>
+<td><strong>Rust → Python</strong></td>
+<td><code>6b02a9eedc403dc6bcc04f0e8702279e</code></td>
+<td>1768.1 ms</td>
+<td>1762.4 ms</td>
+<td>8 + <code>done</code></td>
+<td><code>frames: 8</code></td>
+</tr>
+<tr>
+<td><strong>Java → Python</strong></td>
+<td><code>c92da95983f896537968b62e28cc53ca</code></td>
+<td>2506.6 ms</td>
+<td>2368.0 ms</td>
+<td>8 + <code>done</code></td>
+<td><code>frames: 8</code></td>
+</tr>
+<tr>
+<td><strong>Java → Node</strong></td>
+<td><code>43c0b4c621d0a13a9700089dd5533f87</code></td>
+<td>1881.9 ms</td>
+<td>1760.3 ms</td>
+<td>8 + <code>done</code></td>
+<td><code>frames: 8</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>support-triage</code> graph answered <code>bug-filed</code> through the same mock on both edges (Rust → Python
+<code>5193dd9c3d0bab31225e05c449c0a34b</code>, Java → Python <code>ebe403699fe0d85e658114275718901c</code>) — eight-record trees rooted
+at the edge, the graph's <code>llm.chat</code> folding into <code>graph.task</code> as the RPC rule says. Every one of the six trees
+rebuilds as a single tree from the six logs: one root, no dangling parent, the two reply-lane records under the
+host's span — the head unannotated, the terminal carrying the eight frames that were never spans:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Rust → Node  d990a656…  (drive 9, exported by all four applications)
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>http.request [rust]  round trip 1780.1 ms, status 200                                ← the root, SERVER
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>└── llm.stream.relay [rust]  from http.request, 0.05 ms
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    ├── async.http.request [rust]  13.4 ms, destination http://127.0.0.1:8087/api/event
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    └── llm.stream [node]  1768.4 ms
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>        ├── async.http.response.stream.0 [rust]  the head
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>        └── async.http.response.stream.0 [rust]  the terminal, frames: 8
+</code></pre></div>
+<p>The mock stays a scratch tool of the drive (it is not part of any repository); the shape it certifies is the one the
+real provider will produce the moment quota returns, because nothing between the AI node and the edge knows which
+server answered.</p>
+<p><strong>Confirmed in the UI — the maintainer's six screenshots (2026-09-22).</strong> Each of the four token-bearing traces renders
+as one <code>'http.request' Trace</code> whose response time is the round trip (1.78 s and 1.77 s for this engine's two, 2.51 s
+and 1.88 s for the Java pair; <code>status: 200</code>), with <code>llm.stream.relay</code> under the root, <code>async.http.request</code> and the
+host's <code>llm.stream</code> under the relay, and the two <code>async.http.response.stream.0</code> records under the host's span — the
+terminal carrying <code>annotation.frames: 8</code> (kind Internal, scope <code>mercury-opentelemetry-forwarder 4.12.14</code> on this
+engine, <code>org.platformlambda.opentelemetry-forwarder 4.12.14</code> on the Java edge). The two graph traces render the
+eight-record tree from the edge (5.99 ms here, 23.7 ms on Java) through <code>http.flow.adapter</code>, <code>task.executor</code>, the
+graph nodes (<code>annotation.node: file-bug</code> on the mapper) down to <code>async.http.response</code>. Scenario 9 is closed end to
+end: connected trees confirmed on error traces (drive 8) and on token streams (drive 9).</p>
+<h2 id="what-remains">What remains<a class="headerlink" href="#what-remains" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Nothing for Scenario 9.</strong> Its backend view is CONFIRMED twice over — on the drive-8 error traces and on the
+  drive-9 token streams (2026-09-22, the maintainer's screenshots: one tree per trace, the edge span the root and
+  the response time, <code>annotation.frames: 8</code> on the stream terminal) — and so is Scenario 8's. A real-provider
+  token stream of the same shape follows whenever quota returns; nothing between the AI node and the edge
+  depends on which server answered.</li>
+<li>Nothing else for 4.12.14: with Scenarios 6 and 7 confirmed in the UI, the forwarder's certification is
+  closed on both sides of the wire for the released crate — standalone and across the two engines.</li>
+<li>Splunk Observability Cloud: the <code>X-SF-Token:</code> header form is parsed and documented but not run
+  live.</li>
+<li><code>otel.exporter.otlp.compression=gzip</code> is a declared delta (warns, exports uncompressed); a
+  compression implementation is a follow-up only if a field installation needs it for volume.</li>
+</ul>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../streaming-return-route-polyglot/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Test Report — Streaming Return Route (polyglot)">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Test Report — Streaming Return Route (polyglot)
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../AI-companion-test/" class="md-footer__link md-footer__link--next" aria-label="Next: AI Companion Test Report">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                AI Companion Test Report
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache-2.0 &middot; mercury is the Rust port of <a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

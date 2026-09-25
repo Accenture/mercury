@@ -1,0 +1,3522 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The official Rust implementation of Mercury Composable — Accenture's event-driven, composable application platform: platform-core, Event Script, and the active knowledge graph.">
+      
+      
+        <meta name="author" content="Eric Law">
+      
+      
+        <link rel="canonical" href="https://accenture.github.io/mercury/test-reports/minimalist-kafka-interop/">
+      
+      
+        <link rel="prev" href="../distributed-cache-interop/">
+      
+      
+        <link rel="next" href="../streaming-return-route-cross-pod/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Interop Test Report — Minimalist Kafka, Java ⇄ Rust - Composable for Rust</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../css/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#interop-test-report-minimalist-kafka-java-rust" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Composable for Rust" class="md-header__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Composable for Rust
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Interop Test Report — Minimalist Kafka, Java ⇄ Rust
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/getting-started/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Orientation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Foundations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/event-driven/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 1 — Event-Driven
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/event-script/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 2 — Event Script
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/knowledge-graph/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 3 — Knowledge Graph
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/observability/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Operate & integrate
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../guides/configuration-reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Composable for Rust" class="md-nav__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    Composable for Rust
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orientation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Orientation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mercury-story/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    White Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mercury-family/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Mercury Family
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Foundations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Foundations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/ai-developer-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/event-driven/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 1 — Event-Driven
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 1 — Event-Driven
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/write-your-first-function/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Write Your First Function
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/function-execution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/rest-automation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST Automation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/event-script/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 2 — Event Script
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 2 — Event Script
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/syntax/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Script Syntax
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/flow-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/flow-schema-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Schema Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/knowledge-graph/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 3 — Knowledge Graph
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 3 — Knowledge Graph
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/build-your-first-graph/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Your First Graph
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/workflow-suspension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow Suspension
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/playground-and-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground & AI Companion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/composing-the-layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composing the Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/command-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MiniGraph Command Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/skills-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate & integrate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate & integrate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-over-http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event over HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/http-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Response Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/distributed-cache/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/minimalist-kafka/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Minimalist Kafka
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/polyglot-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Polyglot Functions (Python & Node.js)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/macros-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macros
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/registration-metadata-contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Registration Metadata Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-envelope-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EventEnvelope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/api-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform & PostOffice API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/reserved-names-and-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reserved Names & Headers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/actuators-and-http-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Actuators & HTTP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-over-http-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report (Java ⇄ Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../progressive-rendering-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Progressive Rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suspend-resume-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Suspend/Resume
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../distributed-cache-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Distributed Cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Minimalist Kafka
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Minimalist Kafka
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-1-direct-routing-rust-alone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 1 — direct routing, Rust alone
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-2-second-level-routing-rust-alone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 2 — second-level routing, Rust alone
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-3-the-failure-path-rust-alone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 3 — the failure path, Rust alone
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-4-interop-leg-1-rust-producer-java-flow-adapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 4 — interop leg 1: Rust producer → Java flow adapter
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-5-interop-leg-2-java-producer-rust-flow-adapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 5 — interop leg 2: Java producer → Rust flow adapter
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-6-a-mixed-engine-consumer-group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 6 — a mixed-engine consumer group
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-7-a-member-killed-hard-takeover-and-in-flight-redelivery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 7 — a member killed hard: takeover and in-flight redelivery
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#learnings-kept-as-the-playbook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Learnings, kept as the playbook
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#addendum-groupprotocolauto-re-ruled-and-proven-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Addendum — group.protocol=auto re-ruled and proven live
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#addendum-k5-sync-over-async-over-this-transport-and-the-schema-registry-legs-both-engines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Addendum — K5: sync-over-async over this transport, and the Schema Registry legs, both engines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Addendum — K5: sync-over-async over this transport, and the Schema Registry legs, both engines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setup_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-8-rust-facade-rust-backend-the-three-legs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 8 — Rust facade + Rust backend, the three legs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-9-the-timeout-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 9 — the timeout path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-10-java-backend-rust-facade-the-frames-cross-both-ways" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 10 — Java backend, Rust facade: the frames cross both ways
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-11-java-facade-rust-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 11 — Java facade, Rust backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-12-a-mixed-consumer-group-on-the-request-topic-and-the-return-route-across-engines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 12 — a mixed consumer group on the request topic, and the return route across engines
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-13-two-rust-facades" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 13 — two Rust facades
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings-k5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings (K5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verdict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verdict
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming-return-route-cross-pod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — Streaming Return Route (cross-pod)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming-return-route-polyglot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — Streaming Return Route (polyglot)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../otel-dynatrace-certification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — OpenTelemetry Forwarder (Dynatrace)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../AI-companion-test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Companion Test Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/port-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Port Scope & Fidelity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arch-decisions/ADR/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arch-decisions/RFC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requests for Comments (RFC)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CHANGELOG.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CONTRIBUTING.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CODE_OF_CONDUCT.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code of Conduct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/INCLUSIVITY.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inclusivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-1-direct-routing-rust-alone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 1 — direct routing, Rust alone
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-2-second-level-routing-rust-alone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 2 — second-level routing, Rust alone
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-3-the-failure-path-rust-alone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 3 — the failure path, Rust alone
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-4-interop-leg-1-rust-producer-java-flow-adapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 4 — interop leg 1: Rust producer → Java flow adapter
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-5-interop-leg-2-java-producer-rust-flow-adapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 5 — interop leg 2: Java producer → Rust flow adapter
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-6-a-mixed-engine-consumer-group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 6 — a mixed-engine consumer group
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-7-a-member-killed-hard-takeover-and-in-flight-redelivery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 7 — a member killed hard: takeover and in-flight redelivery
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#learnings-kept-as-the-playbook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Learnings, kept as the playbook
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#addendum-groupprotocolauto-re-ruled-and-proven-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Addendum — group.protocol=auto re-ruled and proven live
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#addendum-k5-sync-over-async-over-this-transport-and-the-schema-registry-legs-both-engines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Addendum — K5: sync-over-async over this transport, and the Schema Registry legs, both engines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Addendum — K5: sync-over-async over this transport, and the Schema Registry legs, both engines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setup_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-8-rust-facade-rust-backend-the-three-legs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 8 — Rust facade + Rust backend, the three legs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-9-the-timeout-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 9 — the timeout path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-10-java-backend-rust-facade-the-frames-cross-both-ways" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 10 — Java backend, Rust facade: the frames cross both ways
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-11-java-facade-rust-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 11 — Java facade, Rust backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-12-a-mixed-consumer-group-on-the-request-topic-and-the-return-route-across-engines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 12 — a mixed consumer group on the request topic, and the return route across engines
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-13-two-rust-facades" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 13 — two Rust facades
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#findings-k5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings (K5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verdict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verdict
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="interop-test-report-minimalist-kafka-java-rust">Interop Test Report — Minimalist Kafka, Java ⇄ Rust<a class="headerlink" href="#interop-test-report-minimalist-kafka-java-rust" title="Permanent link">&para;</a></h1>
+<p><em>Live validation of the Rust <code>minimalist-kafka</code> port (gate K4 of
+<a href="https://github.com/Accenture/mercury/blob/main/draft-design-specs/minimalist-kafka-port.md">the port spec</a>)
+against the Java module, conducted 2026-09-21 on one real broker: the Rust <code>kafka-demo</code> on its own,
+the Java and Rust engines chained in both directions, a consumer group with one member of each
+engine, and a member killed hard while records were in flight.</em></p>
+<p>This report is a permanent record. It documents what was tested, the evidence collected, and — in
+the interest of honest engineering — the defects the drive surfaced and how each was fixed or
+recorded. Everything here is reproducible from the shipped examples by following the
+<a href="https://github.com/Accenture/mercury/tree/main/examples/kafka-demo">Rust kafka-demo runbook</a> and its
+<a href="https://github.com/Accenture/mercury-composable/tree/main/examples/kafka-demo">Java twin</a>.</p>
+<h2 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Piece</th>
+<th>What ran</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Broker</td>
+<td>the Java repository's <code>helpers/kafka-standalone</code> 4.12.13 — Apache Kafka 4.3.1, one KRaft node on <code>127.0.0.1:9092</code>, started fresh (it deletes its topics on restart)</td>
+</tr>
+<tr>
+<td>Java app</td>
+<td><code>examples/kafka-demo</code> 4.12.13, unchanged: <code>demo.inbound</code> → <code>kafka-demo-flow</code>, <code>demo.orders</code> → the second-level routing rules; groups <code>kafka-demo-group</code> and <code>kafka-demo-orders-group</code></td>
+</tr>
+<tr>
+<td>Rust app</td>
+<td><code>examples/kafka-demo</code> (this port's twin, new at K4) on the K3 engine (<code>mercury-minimalist-kafka</code>, mercury #299) — the same topics, flows, rule list and <strong>the same group ids</strong> as the Java app, deliberately, so the two can share a group; the <code>interop</code> profile turns it into a relay between <code>demo.interop.in</code>, <code>demo.inbound</code>, <code>demo.outbound</code> and <code>demo.interop.out</code></td>
+</tr>
+<tr>
+<td>Helpers</td>
+<td>Node 22 with kafkajs 2.2.4 — the five programs copied from the Java demo (<code>create-topics</code>, <code>listen-outbound</code>, <code>listen-dlq</code>, <code>publish-inbound</code>, <code>publish-orders</code>); seven topics with 10 partitions each</td>
+</tr>
+<tr>
+<td>Protocol</td>
+<td>classic rebalance protocol on both clients during the drive — both bundled templates left <code>group.protocol</code> unset at the time (the Java line was commented out); re-ruled the same evening, see the <a href="#addendum-groupprotocolauto-re-ruled-and-proven-live">addendum</a></td>
+</tr>
+</tbody>
+</table>
+<p>Timestamps below are the machines' own: the Node programs and the Rust app print UTC (<code>Z</code>), the
+Java app and the broker print local time (UTC−7).</p>
+<h2 id="scenario-1-direct-routing-rust-alone">Scenario 1 — direct routing, Rust alone<a class="headerlink" href="#scenario-1-direct-routing-rust-alone" title="Permanent link">&para;</a></h2>
+<p>One message published to <code>demo.inbound</code>; the Rust adapter runs <code>kafka-demo-flow</code>; the flow publishes
+to <code>demo.outbound</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>publisher   [17:41:24.937Z] -&gt; demo.inbound cid=d4782a35-… traceId=19f866087b99895b4a14ce03a7c2c4ba hello composable kafka
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>rust app    17:41:24.939Z INFO [kafka_demo] Received from KAFKA /demo.inbound (cid=d4782a35-…, traceId=19f866087b99895b4a14ce03a7c2c4ba, incoming span=6872b7906f8391ca): hello composable kafka
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>listener    [17:41:24.948Z] &lt;- demo.outbound[p7] cid=d4782a35-… traceId=19f866087b99895b4a14ce03a7c2c4ba span=9e29a3ce17d28bcb {"processedAt":"2026-09-21T17:41:24.939Z","processedBy":"kafka-demo","received":"hello composable kafka","traceId":"19f866087b99895b4a14ce03a7c2c4ba"}
+</code></pre></div>
+<p>One trace id at the publisher, in the app and at the listener; the incoming span is the publisher's,
+the outbound span is a new one stamped by <code>simple.kafka.notification</code>. Eleven milliseconds end to end.</p>
+<h2 id="scenario-2-second-level-routing-rust-alone">Scenario 2 — second-level routing, Rust alone<a class="headerlink" href="#scenario-2-second-level-routing-rust-alone" title="Permanent link">&para;</a></h2>
+<p>Four records on <code>demo.orders</code>, one per rule of the binding's <code>flows</code> list (<code>serializer: 'json'</code>,
+<code>ttl: 15s</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Rule that fired</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>order {"item": "mobile-phone", "qty": 1}</code></td>
+<td><code>input.header.type(order)</code> → <code>flow://demo-order-flow</code></td>
+<td>app: <code>Order event routed by rule type(order) … {"item":"mobile-phone","qty":1}</code>; listener: <code>"routedBy":"input.header.type(order)"</code>, <code>"order":{"item":"mobile-phone","qty":1}</code> — the decoded map went in and JSON bytes came out</td>
+</tr>
+<tr>
+<td><code>order-123 {"item": "laptop", "qty": 1}</code></td>
+<td><code>input.header.type(order-*)</code> (wildcard) → the same flow</td>
+<td><code>"routedBy":"input.header.type(order-123)"</code></td>
+</tr>
+<tr>
+<td><code>refund {"order_id": "order-123"}</code></td>
+<td><code>input.body.event.kind(refund)</code> → <code>task://demo.refund.processor</code></td>
+<td>app: <code>Refund routed by rule input.body.event.kind(refund) (cid=88c67ed0-…, traceId=b67abc94…): {"event":{"kind":"refund"},"order_id":"order-123"}</code>; nothing on <code>demo.outbound</code> — a task target publishes nothing</td>
+</tr>
+<tr>
+<td><code>hello</code></td>
+<td><code>default</code> → <code>flow://demo-catch-all-flow</code></td>
+<td>app: <code>Unmatched record caught by the default rule … raw bytes (not a JSON object/array)</code>; listener: <code>"shape":"raw bytes (not a JSON object/array)","received":"hello","routedBy":"default"</code></td>
+</tr>
+</tbody>
+</table>
+<p>Every record kept its own publisher trace id through the app and onto the listener.</p>
+<h2 id="scenario-3-the-failure-path-rust-alone">Scenario 3 — the failure path, Rust alone<a class="headerlink" href="#scenario-3-the-failure-path-rust-alone" title="Permanent link">&para;</a></h2>
+<p><code>order hello</code>: the <code>type=order</code> header matches, the payload is not JSON, so the map-typed
+<code>demo.order.processor</code> cannot digest it.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>17:41:26.007Z WARN [minimalist_kafka::consumer] flow 'demo-order-flow' failed for a 'demo.orders' message (attempt 1/3); retrying - flow 'demo-order-flow' returned status 400
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>17:41:26.510Z WARN … (attempt 2/3); retrying …
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>17:41:27.012Z WARN … (attempt 3/3); retrying …
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>17:41:27.515Z WARN … failed for a 'demo.orders' message after 4 attempt(s); routing to Some("demo.orders.dlq") - flow 'demo-order-flow' returned status 400
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>dlq listener [17:41:27.528Z] &lt;- demo.orders.dlq[p9] cid=ba56c312-…
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>                origin: demo.orders
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>                error:  flow 'demo-order-flow' returned status 400
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>                body:   hello
+</code></pre></div>
+<p>Three retries at the configured 500 ms backoff, then the original record parked with
+<code>dlq.origin.topic</code> and <code>dlq.error</code>, headers and body preserved, 1.5 s after publication. The
+partition stayed live (the later scenarios ran on the same binding).</p>
+<h2 id="scenario-4-interop-leg-1-rust-producer-java-flow-adapter">Scenario 4 — interop leg 1: Rust producer → Java flow adapter<a class="headerlink" href="#scenario-4-interop-leg-1-rust-producer-java-flow-adapter" title="Permanent link">&para;</a></h2>
+<p>The Rust relay (<code>interop</code> profile) consumes <code>demo.interop.in</code>, processes, and publishes to
+<code>demo.inbound</code> — the Java app's inbound topic. The Java app processes and publishes to
+<code>demo.outbound</code>, which the Rust relay consumes again and forwards to <code>demo.interop.out</code>. One trace
+id, three hops, two engines:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>publisher   [17:42:39.987Z] -&gt; demo.interop.in cid=e0b18dcf-… traceId=be9231bede94493dcf53662fed94151a across two engines
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>rust relay  17:42:39.987Z Received from KAFKA /demo.interop.in (cid=e0b18dcf-…, traceId=be9231be…, incoming span=47d6f645edfe6186): across two engines
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>java app    10:42:40.038 DemoProcessor - Received from demo.inbound (cid=e0b18dcf-…, traceId=be9231be…, incoming span=bd3138f4bce13eea): {"processedAt":"2026-09-21T17:42:39.987Z","processedBy":"kafka-demo","received":"across two engines","traceId":"be9231be…"}
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>java app    10:42:40.043 Telemetry - {trace={path=KAFKA /demo.inbound, parent_span_id=bd3138f4bce13eea, span_id=abb35e81d7085f1c, service=demo.processor, … id=be9231be…}}
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>java app    10:42:40.070 Telemetry - {trace={path=KAFKA /demo.inbound, parent_span_id=abb35e81d7085f1c, span_id=83e43d5ca8106df5, service=simple.kafka.notification, … id=be9231be…}}
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>listener    [17:42:40.058Z] &lt;- demo.outbound[p6] cid=e0b18dcf-… traceId=be9231bede94493dcf53662fed94151a span=83e43d5ca8106df5 {…Java's output…}
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>rust relay  17:42:40.058Z Received from KAFKA /demo.outbound (cid=e0b18dcf-…, traceId=be9231be…, incoming span=83e43d5ca8106df5): {…Java's output…}
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>listener    [17:42:40.066Z] &lt;- demo.interop.out[p4] cid=e0b18dcf-… traceId=be9231bede94493dcf53662fed94151a span=bcc6d2ddb4eeb4b1 {"processedBy":"kafka-demo","received":"{ \"received\": \"{\\\"received\\\":\\\"across two engines\\\",…}\", \"processedBy\": \"kafka-demo\" …}", "traceId":"be9231be…"}
+</code></pre></div>
+<p>The span chain is exact across the engine boundary in both directions: the Java <code>demo.processor</code>'s
+parent span (<code>bd3138f4bce13eea</code>) is the span the Rust notification stamped, and the Rust relay's
+incoming span on <code>demo.outbound</code> (<code>83e43d5ca8106df5</code>) is the Java notification's span. The final
+record nests the three hops' outputs. 79 ms end to end.</p>
+<h2 id="scenario-5-interop-leg-2-java-producer-rust-flow-adapter">Scenario 5 — interop leg 2: Java producer → Rust flow adapter<a class="headerlink" href="#scenario-5-interop-leg-2-java-producer-rust-flow-adapter" title="Permanent link">&para;</a></h2>
+<p>The publisher writes to <code>demo.inbound</code> as in the plain demo; the Java app processes and publishes
+to <code>demo.outbound</code>; the Rust relay consumes and forwards.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>publisher   [17:42:40.497Z] -&gt; demo.inbound cid=44c92fd4-… traceId=97314d7cb7632d822787de512b4a0111 java first
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>java app    10:42:40.498 DemoProcessor - Received from demo.inbound (cid=44c92fd4-…, traceId=97314d7c…, incoming span=35b194c63185b1c6): java first
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>java app    10:42:40.500 Telemetry - {trace={… parent_span_id=ac30454f41980a44, span_id=bbf11dd82bad9169, service=simple.kafka.notification, … id=97314d7c…}}
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>rust relay  17:42:40.507Z Received from KAFKA /demo.outbound (cid=44c92fd4-…, traceId=97314d7c…, incoming span=bbf11dd82bad9169): {…Java's output…}
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>listener    [17:42:40.514Z] &lt;- demo.interop.out[p8] cid=44c92fd4-… traceId=97314d7cb7632d822787de512b4a0111 span=83bb59eb42f2caf5 {"processedBy":"kafka-demo","received":"{ … \"received\": \"java first\", \"processedBy\": \"kafka-demo\" }","traceId":"97314d7c…"}
+</code></pre></div>
+<h2 id="scenario-6-a-mixed-engine-consumer-group">Scenario 6 — a mixed-engine consumer group<a class="headerlink" href="#scenario-6-a-mixed-engine-consumer-group" title="Permanent link">&para;</a></h2>
+<p>The Rust app (plain profile) was started while the Java app was running, joining the same
+<code>kafka-demo-group</code> on <code>demo.inbound</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>broker  10:44:40.302 Preparing to rebalance group kafka-demo-group … (reason: Adding new member rdkafka-3aa7b8bf-…)
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>broker  10:44:40.914 Stabilized group kafka-demo-group generation 4 with 2 members.
+</code></pre></div>
+<p>A burst of 20 records: <strong>10 processed by the Java member, 10 by the Rust member</strong>, all 20 at the
+listener within one second, 20 unique, none delivered twice. A Java client and a librdkafka client
+share one classic group (the <code>range</code> assignor is common to both), so a consumer group can be
+migrated between engines member by member.</p>
+<h2 id="scenario-7-a-member-killed-hard-takeover-and-in-flight-redelivery">Scenario 7 — a member killed hard: takeover and in-flight redelivery<a class="headerlink" href="#scenario-7-a-member-killed-hard-takeover-and-in-flight-redelivery" title="Permanent link">&para;</a></h2>
+<p><strong>7a — the timeout.</strong> The Rust member was killed with <code>SIGKILL</code> at 17:44:45; the coordinator
+declared it dead 45 s later, the client default <code>session.timeout.ms</code> on both engines:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>broker  10:45:30.677 Member rdkafka-3aa7b8bf-… in group kafka-demo-group has failed, removing it from the group.
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>broker  10:45:30.677 Preparing to rebalance group kafka-demo-group … (reason: removing member … on heartbeat expiration.)
+</code></pre></div>
+<p><strong>7b — in flight at death.</strong> With the mixed group re-formed (generation 6, 2 members), four poison
+orders (<code>order poison-N</code>) were published to <code>demo.orders</code> and the Rust member killed 0.7 s later —
+mid-retry: its log ends at <code>attempt 1/3</code> of one of them, nothing dead-lettered yet. After the
+takeover the Java member retried and dead-lettered every one of them: the DLQ holds exactly four
+records (17:46:57 to 17:47:02), each with the Java error text
+<code>java.lang.IllegalStateException: flow 'demo-order-flow' returned status 500</code> — the record the Rust
+member had in flight was redelivered, not lost, and not duplicated on the DLQ.</p>
+<p><strong>7c — records published while the member is dead.</strong> 20 records to <code>demo.inbound</code> at 17:46:10.6:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>listener  [17:46:10.783Z] &lt;- demo.outbound[p9]   … the 10 records on the live Java member's partitions arrive at once …
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>listener  [17:46:10.864Z] &lt;- demo.outbound[p4]
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>broker    10:46:52.983 Member rdkafka-8a6b68d7-… in group kafka-demo-group has failed, removing it from the group.
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>broker    10:46:55.977 Stabilized group kafka-demo-group generation 7 with 1 members.
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>listener  [17:46:56.121Z] &lt;- demo.outbound[p6]   … the 10 records on the dead member's partitions arrive after the takeover …
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>listener  [17:46:56.200Z] &lt;- demo.outbound[p0]
+</code></pre></div>
+<p>20 of 20 unique at the listener, none delivered twice; the second half waited 45.5 s for the
+coordinator to expire the dead member and hand its partitions to the Java member. That is the
+at-least-once contract as deployed: nothing is lost on a pod death, and the recovery time is the
+session timeout.</p>
+<p><strong>7d — the graceful counterpart.</strong> Stopping the Rust app with <code>SIGINT</code> drains each binding's
+consumer after its in-flight record and leaves the group explicitly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>rust app  Kafka flow consumer for topic 'demo.inbound' stopping / stopped   (both bindings)
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>broker    10:42:25.634 Member rdkafka-6ed7af08-… has left group through explicit `LeaveGroup` request …
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>broker    10:42:25.636 Preparing to rebalance group kafka-demo-group … (reason: explicit `LeaveGroup` request …)
+</code></pre></div>
+<p>The rebalance is immediate, where the hard kill cost 45 s.</p>
+<h2 id="findings">Findings<a class="headerlink" href="#findings" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>A headless Rust application exited right after boot — fixed on this branch.</strong> The first live
+   run processed nothing: the app compiled its flows, started both consumers and exited 200 ms later,
+   while the broker held the six records the publishers had written. <code>AutoStart::run</code> parked the
+   process only when serving HTTP or websockets; a Kafka-consuming app with no REST server had
+   nothing else holding it open — on the JVM the module's consumer threads are non-daemon, so the
+   Java app never had the problem, and the Rust e2e never saw it because a test function keeps the
+   runtime alive. Fix: <code>Platform::keep_running(reason)</code>, declared once by the flow adapter when its
+   consumers start and honoured by <code>AutoStart::run</code> exactly like HTTP serving
+   (<code>Kafka flow adapter (2 binding(s)) keeps the application running until it is stopped</code>, then
+   <code>Application running - press Ctrl-C to stop</code>). The adapter also registers its consumers' stop as
+   a shutdown hook, which is what produced scenario 7d.</li>
+<li><strong><code>SIGTERM</code> is not handled by the Rust entry point — follow-up, platform-wide.</strong> <code>AutoStart::run</code>
+   waits on Ctrl-C (<code>SIGINT</code>) only. A Kubernetes pod stop sends <code>SIGTERM</code>, so a rolling restart of a
+   Rust consumer today looks like scenario 7c (partitions held until the 45 s session timeout)
+   rather than 7d (immediate <code>LeaveGroup</code>). The Java process runs its shutdown hooks on <code>SIGTERM</code>.
+   This is not Kafka-specific — every headless or REST Rust application is affected — and was
+   recorded for platform-core rather than patched in the K4 change. <strong>Closed the same day</strong>
+   (branch <code>fix/sigterm-graceful-stop</code>, the maintainer's direction): <code>AutoStart::run</code> now stops on
+   <code>SIGTERM</code> exactly as on Ctrl-C, and the flow adapter's shutdown hook waits — bounded by a 10 s
+   grace — for every binding consumer to finish its in-flight record before the process goes on, so a
+   pod stop takes the scenario 7d path: the record commits, the member leaves the group explicitly,
+   the rebalance is immediate.</li>
+<li><strong>Presentation differences, not defects.</strong> (a) The dead-letter <code>dlq.error</code> text differs: the
+   Rust engine reports <code>flow 'demo-order-flow' returned status 400</code> (a typed function's input that
+   cannot be deserialized is a 400), the Java engine
+   <code>java.lang.IllegalStateException: flow 'demo-order-flow' returned status 500</code> (a Java type
+   mismatch is a 500). Both are the same contract — the original record parked with the failure
+   named. (b) The Java demo's outbound JSON is pretty-printed (its mapper's default), the Rust
+   demo's is compact; both are valid JSON and any consumer reads either. (c) The reused
+   <code>demo.processor</code> logged a fixed topic name; the Rust demo now logs the injected trace path
+   (<code>KAFKA /&lt;topic&gt;</code>), which is what made the relay hops in scenarios 4 and 5 legible.</li>
+<li><strong>A new consumer group starts from <code>auto.offset.reset=earliest</code></strong> (the bundled template's
+   default): when the relay's <code>kafka-demo-interop-out</code> group first joined, it consumed the four
+   records already on <code>demo.outbound</code> from scenarios 1 and 2 and forwarded them to
+   <code>demo.interop.out</code>. Expected, and worth knowing when reading an interop listener.</li>
+</ol>
+<h2 id="learnings-kept-as-the-playbook">Learnings, kept as the playbook<a class="headerlink" href="#learnings-kept-as-the-playbook" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Wait for the broker's word before publishing.</strong> A consumer's group join takes seconds; the
+  drive polled the broker log for <code>Stabilized group &lt;id&gt;</code> before each publish. The kafkajs listeners
+  (<code>fromBeginning: false</code>) likewise see nothing published before their assignment.</li>
+<li><strong>Distinguish engines by their logs</strong>, not by the payload: both demos stamp
+  <code>processedBy: kafka-demo</code>. The Rust log names the hop (<code>Received from KAFKA /&lt;topic&gt;</code>), the Java
+  log is the DemoProcessor line plus the telemetry span path.</li>
+<li><strong>The wire contract that makes the trace continuous across engines</strong> is the record-header pair
+  <code>cid</code> + W3C <code>traceparent</code>, with the notification stamping a fresh span per hop. The nested
+  <code>received</code> field on the interop listener shows the hop order for free.</li>
+<li><strong>Recovery time after a hard death is the session timeout</strong>, identical on both clients (45 s);
+  a graceful stop rebalances at once. Finding 2 is what stands between a Rust pod and the graceful
+  path in Kubernetes.</li>
+<li><strong>Run the failure path against the real broker at least once</strong>: the mock cluster proves the
+  logic, the live broker proves the timing (retry spacing, DLQ latency, takeover) that operators
+  will actually see.</li>
+</ul>
+<h2 id="addendum-groupprotocolauto-re-ruled-and-proven-live">Addendum — <code>group.protocol=auto</code> re-ruled and proven live<a class="headerlink" href="#addendum-groupprotocolauto-re-ruled-and-proven-live" title="Permanent link">&para;</a></h2>
+<p>The maintainer asked, after the drive, why the Rust port had not switched to the KIP-848 consumer
+protocol on a broker that supports it. The evidence: the broker finalizes <code>group.version=1</code>; the Java
+template shipped <code>group.protocol</code> commented out, so the Java demo had joined classic as well; the
+Rust template set no key. The K3 delta (<code>auto</code> = <code>classic</code>, for want of a feature probe in librdkafka)
+was replaced the same evening by an <strong>optimistic <code>auto</code></strong> — start each binding's consumer with
+<code>consumer</code>, and if the broker refuses it, rebuild the consumer once with <code>classic</code> — because librdkafka
+reports the refusal as a fatal <code>ConsumerGroupHeartbeat</code> error (<code>UNSUPPORTED_VERSION</code> when the
+coordinator has the protocol disabled, <code>_UNSUPPORTED_FEATURE</code> when the API is not advertised), and a
+refused join never becomes a group member. <strong>Both engines now ship <code>auto</code> uncommented in their bundled
+consumer templates</strong> (maintainer decision, 2026-09-21).</p>
+<p><strong>Proof A — the default template against the KIP-848 broker</strong> (<code>kafka-standalone</code>, <code>group.version=1</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>rust app  group.protocol=auto - trying the KIP-848 consumer rebalance protocol first; a broker without it resolves the binding to classic at its first join
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>rust app  Kafka flow adapter binding: topic 'demo.inbound' -&gt; flow 'kafka-demo-flow' (consumer group 'kafka-demo-group', dlq-topic 'demo.inbound.dlq', protocol consumer (auto))
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>broker    [GroupId kafka-demo-group] Member NzRWAus/TUaUSqJb63ZcWg joins the consumer group using the consumer protocol.
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>broker    [GroupId kafka-demo-group] Bumped group epoch to 2 with metadata hash 2421248355301747518.
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>broker    [GroupId kafka-demo-orders-group] Computed a new target assignment for epoch 2 with 'uniform' assignor in 3ms.
+</code></pre></div>
+<p>A published message was consumed; <code>SIGTERM</code> produced <code>Member … left the consumer group</code> — the
+KIP-848 explicit leave.</p>
+<p><strong>Proof B — the same binary against a coordinator with the consumer protocol disabled</strong>
+(the standalone broker started with <code>group.coordinator.rebalance.protocols=classic</code> through the
+Spring Boot <code>PropertiesLauncher</code> and a <code>loader.path</code> override of <code>server.properties</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>rust app  ERROR librdkafka: FATAL [thrd:main]: Fatal error: Broker: API version not supported: ConsumerGroupHeartbeat fatal error: Broker: API version not supported
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>rust app  WARN  group.protocol=auto resolved to classic for topic 'demo.inbound' - the broker does not support the consumer rebalance protocol (ConsumerGroupHeartbeat fatal error: Broker: API version not supported); rejoining with the classic protocol
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>broker    Dynamic member with unknown member id joins group kafka-demo-group in Empty state. Created a new member id rdkafka-0b6d4827-…
+</code></pre></div>
+<p>Both bindings rejoined classic and consumed the published message. The client logs the refusal at
+<code>ERROR</code> (twice per binding, librdkafka's own "Fatal error" and "Global error" lines) before the
+adapter's <code>WARN</code> states the resolution — loud, but the outcome is the Java resolver's.</p>
+<p>The flow adapter's own e2e now runs <code>auto</code> against <code>MockCluster</code>, which accepts the consumer protocol:
+every binding logs <code>protocol consumer (auto)</code> and none falls back. Spec §7 item 7 records the
+re-ruling.</p>
+<h2 id="addendum-k5-sync-over-async-over-this-transport-and-the-schema-registry-legs-both-engines">Addendum — K5: sync-over-async over this transport, and the Schema Registry legs, both engines<a class="headerlink" href="#addendum-k5-sync-over-async-over-this-transport-and-the-schema-registry-legs-both-engines" title="Permanent link">&para;</a></h2>
+<p><em>Conducted 2026-09-21, after K5a (the Schema Registry codec, branch
+<code>feat/minimalist-kafka-schema-registry</code>) and K5b (the facade tasks <code>sync.prepare</code> / <code>sync.await</code> /
+<code>soa.reply</code> in <code>mercury-sync-over-async</code>, and the <code>sync-over-async-demo</code> mirrored from Java with its
+<code>facade</code> and <code>backend</code> roles) were built. The same broker as above plus the Java repository's other two
+helpers; the Java demo unchanged at 4.12.13.</em></p>
+<h3 id="setup_1">Setup<a class="headerlink" href="#setup_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Piece</th>
+<th>What ran</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Broker</td>
+<td><code>helpers/kafka-standalone</code> 4.12.13 (Apache Kafka 4.3.1, KRaft, <code>127.0.0.1:9092</code>), started fresh; the six demo topics with 10 partitions each created by the demo's <code>create-topics.js</code></td>
+</tr>
+<tr>
+<td>Redis</td>
+<td><code>helpers/redis-standalone</code> 4.12.13 on <code>6379</code> — the return route (<code>request:{cid}</code> / <code>queue:{cid}</code> keys, one return channel per pod)</td>
+</tr>
+<tr>
+<td>Registry</td>
+<td><code>helpers/schema-registry-standalone</code> 4.12.13 on <code>8081</code>, seeded from the demo's <code>registry/1.json</code> (subject <code>sync-demo-json</code>, a JSON Schema) and <code>2.json</code> (subject <code>sync-demo-avro</code>, an Avro record)</td>
+</tr>
+<tr>
+<td>Java app</td>
+<td><code>examples/sync-over-async-demo</code> 4.12.13, unchanged: profile <code>facade</code> (REST on <code>:8500</code> here) with Confluent's own serializers behind <code>simple.kafka.notification</code>, profile <code>backend</code></td>
+</tr>
+<tr>
+<td>Rust app</td>
+<td><code>examples/sync-over-async-demo</code> (this port's mirror, new at K5b): profile <code>facade</code> (<code>:8400</code>, a second instance on <code>:8401</code>), profile <code>backend</code>; the Confluent legs through this engine's own codec</td>
+</tr>
+<tr>
+<td>Protocol</td>
+<td>every Rust binding joined with the KIP-848 consumer protocol — <code>protocol consumer (auto)</code> for all six bindings; the Java demo's bundled template is <code>auto</code> too and its clients joined the same groups</td>
+</tr>
+</tbody>
+</table>
+<h3 id="scenario-8-rust-facade-rust-backend-the-three-legs">Scenario 8 — Rust facade + Rust backend, the three legs<a class="headerlink" href="#scenario-8-rust-facade-rust-backend-the-three-legs" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>[raw-1]  HTTP 200 trace=00000000000000000000000002e2d06d
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>{"processedAt":"2026-09-21T23:06:11.977Z","processedBy":"system-of-record","request":{"action":"create","order":"raw-1"},"status":"processed","traceId":"00000000000000000000000002e2d06d"}
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>[json-1] HTTP 200 trace=0000000000000000000000007993c3cf   ... "traceId":"0000000000000000000000007993c3cf"
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>[avro-1] HTTP 200 trace=00000000000000000000000002395ee0
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>{"action":"create","processedBy":"system-of-record","status":"processed","traceId":"00000000000000000000000002395ee0"}
+</code></pre></div>
+<p>Every reply's <code>traceId</code> is the trace id of the <code>traceparent</code> the caller sent — REST edge → <code>sync.prepare</code>
+→ Kafka → the backend flow → Kafka → <code>soa.reply</code> → the Redis return route → <code>sync.await</code>, one trace. The
+Avro request reached the backend as <code>{"action":"create","processedBy":"","status":"","traceId":""}</code>:
+the codec applied the record's defaults on the way out and dropped <code>order</code> (a closed-shape record), and
+the flat reply came back the same way. Facade start-up:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>Schema codec ready (registry=http://127.0.0.1:8081, cache=schema.registry, ttlMs=1800000, types=[JSON, AVRO], strictJson=false, csfle=unsupported, auth=none)
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>Kafka flow adapter binding: topic 'soa.response' -&gt; flow 'soa-reply' (consumer group 'soa-reply-group', protocol consumer (auto))
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>Kafka flow adapter binding: topic 'json-topic-2' -&gt; flow 'soa-reply-json' (consumer group 'soa-reply-json-group', schema decode on, protocol consumer (auto))
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>Kafka flow adapter binding: topic 'avro-topic-2' -&gt; flow 'soa-reply-avro' (consumer group 'soa-reply-avro-group', schema decode on, protocol consumer (auto))
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>Return-route coordinator started for pod a5fab940c34a45cbb908dfca85febaed (redis 127.0.0.1:6379, ssl=false, channel svc-return:a5fab940c34a45cbb908dfca85febaed)
+</code></pre></div>
+<p><strong>The first attempt answered 404 on every endpoint</strong> — <code>Skip [POST] /api/sync-to-async - Service
+http.flow.adapter not available</code>, no bindings, no codec. The demo binary named no symbol of the flow
+engine or the Kafka crate (it activates both by configuration alone), so the linker dropped their
+inventories — exactly the caveat of spec §7 item 6, met again one crate further out. Two lines fixed it
+(<code>use event_script as _; use minimalist_kafka as _;</code>); recorded as Finding 5.</p>
+<h3 id="scenario-9-the-timeout-path">Scenario 9 — the timeout path<a class="headerlink" href="#scenario-9-the-timeout-path" title="Permanent link">&para;</a></h3>
+<p>The Rust backend stopped; a request with <code>x-sync-timeout: 2000</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>[timeout-1] HTTP 408 trace=0000000000000000000000007493789d      (3 s wall clock, curl included)
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>{"message":"Timed out awaiting response for e425aa446692460f81e151d5f8c403b7","status":408,"type":"error"}
+</code></pre></div>
+<p><code>sync.await</code> failed with 408, the flow's exception handler (<code>sync.error.handler</code>) passed it through and
+aborted the pending entry. The request itself sat on <code>soa.request</code>; when the Java backend joined the group
+20 s later (Scenario 10) it processed it — <code>Processing request (cid=e425aa44…): {action=create,
+order=timeout-1}</code> — and its reply found no return route: the orphan contract (<code>delivered: false</code>), nothing
+retried, nothing leaked.</p>
+<h3 id="scenario-10-java-backend-rust-facade-the-frames-cross-both-ways">Scenario 10 — Java backend, Rust facade: the frames cross both ways<a class="headerlink" href="#scenario-10-java-backend-rust-facade-the-frames-cross-both-ways" title="Permanent link">&para;</a></h3>
+<p>The Rust facade's three legs against the Java backend, all <code>200</code> with continuous trace ids. On the request
+legs Confluent's deserializers decoded this engine's frames; on the reply legs this engine's codec decoded
+Confluent's serializers' frames:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>java backend  Processing request (cid=c5ea4622…): {action=create, order=raw-j1}
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>java backend  Processing request (cid=fbe85bc8…): {action=create, order=json-j1}
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>java backend  Processing Avro request (cid=8f4b6241…): {traceId=, action=create, processedBy=, status=}
+</code></pre></div>
+<p>The JSON leg carried <code>order</code> through (the schema is <code>additionalProperties: true</code>); the Avro leg arrived
+with the defaults this engine's codec applied. Java logged <code>AssociatedNameStrategy: Associations endpoint
+not found (404), using fallback strategy</code> per schema call — the mock registry lacks that endpoint;
+Confluent falls back, harmless.</p>
+<h3 id="scenario-11-java-facade-rust-backend">Scenario 11 — Java facade, Rust backend<a class="headerlink" href="#scenario-11-java-facade-rust-backend" title="Permanent link">&para;</a></h3>
+<p>The Java facade on <code>:8500</code> (<code>-Dspring.profiles.active=facade -Drest.server.port=8500</code>) with the Rust
+backend: raw, JSON Schema and Avro all <code>200</code>; the Rust backend processed all three and the Java facade's
+reply flows decoded this engine's frames — <code>{trace={path=KAFKA /json-topic-2, … service=soa.reply.json,
+success=true, … status=200}}</code>.</p>
+<h3 id="scenario-12-a-mixed-consumer-group-on-the-request-topic-and-the-return-route-across-engines">Scenario 12 — a mixed consumer group on the request topic, and the return route across engines<a class="headerlink" href="#scenario-12-a-mixed-consumer-group-on-the-request-topic-and-the-return-route-across-engines" title="Permanent link">&para;</a></h3>
+<p>Both backends in <code>system-of-record-group</code>; 20 raw requests through the Rust facade (<code>:8400</code>): <strong>20 of 20
+answered 200</strong>, split <strong>9 processed by the Rust backend, 11 by the Java backend</strong>. The Java facade had
+stayed a member of <code>soa-reply-group</code> from Scenario 11 — and consumed <strong>8 of the 20 replies</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>a8827fe5: rust=0, java=3   096e73b7: rust=0, java=3   48ffee4f: rust=0, java=3   3aa5975d: rust=0, java=3
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>5ab5360d: rust=0, java=3   b3ae1288: rust=0, java=3   b177c127: rust=0, java=3   122fa39d: rust=0, java=3
+</code></pre></div>
+<p>(per trace id: the facade whose log carries the <code>KAFKA /soa.response</code> → <code>soa.reply</code> span). Each of those
+eight requests still returned 200 to the Rust facade that was waiting: the Java <code>soa.reply</code> handed the
+reply to <em>its</em> coordinator, which published to the Rust pod's return channel, and the Rust <code>sync.await</code>
+woke. <strong>The return route works across pods and across engines</strong> — the Redis keys and the channel name
+are the wire contract, and both engines honour it.</p>
+<h3 id="scenario-13-two-rust-facades">Scenario 13 — two Rust facades<a class="headerlink" href="#scenario-13-two-rust-facades" title="Permanent link">&para;</a></h3>
+<p>A second Rust facade on <code>:8401</code> joined <code>soa-reply-group</code> (three members with the Java facade). Six requests
+alternating between <code>:8401</code> and <code>:8400</code>, all <code>200</code>; three replies were consumed by the answering facade,
+three by the Java facade and delivered cross-pod as in Scenario 12. In this sample no reply for a <code>:8401</code>
+request landed on <code>:8400</code> (ten partitions, three members, random placement of keyless records) — the
+Rust-to-Rust hop is the same mechanism the Java-to-Rust hop already exercised.</p>
+<h3 id="findings-k5">Findings (K5)<a class="headerlink" href="#findings-k5" title="Permanent link">&para;</a></h3>
+<p><strong>Finding 5 — configuration-only activation needs the link line in every binary.</strong> The demo's <code>Cargo.toml</code>
+declared <code>mercury-event-script</code> and <code>mercury-minimalist-kafka</code>, its YAML used both, and the binary shipped
+without either: the Rust linker drops an rlib no symbol references, inventory entries included, so the REST
+endpoints had no <code>http.flow.adapter</code> and no consumer started — the application answered 404 and looked
+configured. The MVP e2e in the extension had the two <code>use … as _;</code> lines and was green; the binary did
+not. Fixed in the demo (<code>src/main.rs</code>), stated in its README and the guide; spec §7 item 6 already
+recorded the caveat for the Kafka crate, this drive shows it applies to every crate activated by
+configuration alone (the flow engine too). <strong>Lesson:</strong> run the real binary against the real helpers before
+calling a configuration-only feature done — the in-process test links what the binary may not.</p>
+<p>Observed, not defects: the orphan reply after a facade timeout (Scenario 9) and Confluent's associations
+WARN against the mock registry (Scenario 10).</p>
+<h3 id="verdict">Verdict<a class="headerlink" href="#verdict" title="Permanent link">&para;</a></h3>
+<p>The K5b gate holds: the Java <code>RestFlowMvpTest</code> analog (<code>extensions/sync-over-async/tests/rest_flow_mvp.rs</code>)
+is green in Rust — REST → flow → mock cluster → flow → return route → 200 with the echoed request and a
+continuous trace id, and 408 when the backend drops the request — and the live drive proves the facade
+pattern on the Rust engine alone, in both cross-engine pairings including the Confluent JSON Schema and
+Avro legs in both directions, with a mixed consumer group on the request topic and the return route
+delivering across engines.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../distributed-cache-interop/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Interop Test Report — Distributed Cache">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Interop Test Report — Distributed Cache
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../streaming-return-route-cross-pod/" class="md-footer__link md-footer__link--next" aria-label="Next: Test Report — Streaming Return Route (cross-pod)">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Test Report — Streaming Return Route (cross-pod)
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache-2.0 &middot; mercury is the Rust port of <a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

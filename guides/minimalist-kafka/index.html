@@ -1,0 +1,4567 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The official Rust implementation of Mercury Composable — Accenture's event-driven, composable application platform: platform-core, Event Script, and the active knowledge graph.">
+      
+      
+        <meta name="author" content="Eric Law">
+      
+      
+        <link rel="canonical" href="https://accenture.github.io/mercury/guides/minimalist-kafka/">
+      
+      
+        <link rel="prev" href="../distributed-cache/">
+      
+      
+        <link rel="next" href="../polyglot-functions/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Minimalist Kafka - Composable for Rust</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../css/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#minimalist-kafka" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Composable for Rust" class="md-header__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Composable for Rust
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Minimalist Kafka
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Orientation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Foundations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../event-driven/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 1 — Event-Driven
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../event-script/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 2 — Event Script
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../knowledge-graph/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 3 — Knowledge Graph
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../observability/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Operate & integrate
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../configuration-reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Composable for Rust" class="md-nav__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    Composable for Rust
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orientation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Orientation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mercury-story/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    White Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mercury-family/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Mercury Family
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Foundations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Foundations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ai-developer-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../event-driven/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 1 — Event-Driven
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 1 — Event-Driven
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-driven/write-your-first-function/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Write Your First Function
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-driven/function-execution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rest-automation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST Automation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-driven/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../event-script/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 2 — Event Script
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 2 — Event Script
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-script/syntax/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Script Syntax
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-script/flow-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flow-schema-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Schema Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-script/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../knowledge-graph/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 3 — Knowledge Graph
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 3 — Knowledge Graph
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knowledge-graph/build-your-first-graph/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Your First Graph
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knowledge-graph/workflow-suspension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow Suspension
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knowledge-graph/playground-and-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground & AI Companion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knowledge-graph/composing-the-layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composing the Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knowledge-graph/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knowledge-graph/command-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MiniGraph Command Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knowledge-graph/skills-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate & integrate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate & integrate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-over-http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event over HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Response Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../distributed-cache/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Minimalist Kafka
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Minimalist Kafka
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#enable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enabling the library
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Enabling the library">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#opt-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Switching off a client you do not use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adapter-yaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inbound: the adapter YAML
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inbound: the adapter YAML">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Message dataset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Second-level routing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Second-level routing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#routing-payload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Payload prerequisites and serializer: 'json'
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer group
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pinning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partition pinning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern subscription
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kafka client configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reliability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reliability: delivery mode, retry, and dead-letter
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reliability: delivery mode, retry, and dead-letter">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#delivery-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delivery mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#retry-and-dead-letter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Retry and dead-letter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#liveness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer liveness: rebalances and the processing deadline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rebalance-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer rebalance protocol (KIP-848)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shutdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shutdown: leaving the group
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outbound" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outbound: publishing to Kafka
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Outbound: publishing to Kafka">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#partitioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partitioning strategies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tracing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trace continuity across Kafka
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#health" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Health check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema Registry: typed payloads (opt-in)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schema Registry: typed payloads (opt-in)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#schema-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registry authentication (OAuth 2.0 / basic)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-produce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Produce: subject-driven
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#csfle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSFLE (Client-Side Field Level Encryption)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-consumer-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A separate registry identity for the consumer side
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-consume" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consume: decode by embedded id
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deltas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Differences from the Java engine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../polyglot-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Polyglot Functions (Python & Node.js)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../macros-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macros
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../registration-metadata-contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Registration Metadata Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-envelope-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EventEnvelope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform & PostOffice API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reserved-names-and-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reserved Names & Headers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../actuators-and-http-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Actuators & HTTP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test-reports/event-over-http-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report (Java ⇄ Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test-reports/progressive-rendering-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Progressive Rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test-reports/suspend-resume-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Suspend/Resume
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test-reports/distributed-cache-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Distributed Cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test-reports/minimalist-kafka-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Minimalist Kafka
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test-reports/streaming-return-route-cross-pod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — Streaming Return Route (cross-pod)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test-reports/streaming-return-route-polyglot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — Streaming Return Route (polyglot)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test-reports/otel-dynatrace-certification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — OpenTelemetry Forwarder (Dynatrace)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test-reports/AI-companion-test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Companion Test Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/port-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Port Scope & Fidelity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arch-decisions/ADR/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arch-decisions/RFC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requests for Comments (RFC)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CHANGELOG.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CONTRIBUTING.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CODE_OF_CONDUCT.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code of Conduct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/INCLUSIVITY.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inclusivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#enable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enabling the library
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Enabling the library">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#opt-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Switching off a client you do not use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adapter-yaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inbound: the adapter YAML
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inbound: the adapter YAML">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Message dataset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Second-level routing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Second-level routing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#routing-payload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Payload prerequisites and serializer: 'json'
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer group
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pinning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partition pinning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern subscription
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kafka client configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reliability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reliability: delivery mode, retry, and dead-letter
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reliability: delivery mode, retry, and dead-letter">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#delivery-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delivery mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#retry-and-dead-letter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Retry and dead-letter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#liveness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer liveness: rebalances and the processing deadline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rebalance-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer rebalance protocol (KIP-848)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shutdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shutdown: leaving the group
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outbound" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outbound: publishing to Kafka
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Outbound: publishing to Kafka">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#partitioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partitioning strategies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tracing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trace continuity across Kafka
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#health" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Health check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema Registry: typed payloads (opt-in)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schema Registry: typed payloads (opt-in)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#schema-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registry authentication (OAuth 2.0 / basic)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-produce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Produce: subject-driven
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#csfle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSFLE (Client-Side Field Level Encryption)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-consumer-identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A separate registry identity for the consumer side
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-consume" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consume: decode by embedded id
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deltas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Differences from the Java engine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="minimalist-kafka">Minimalist Kafka<a class="headerlink" href="#minimalist-kafka" title="Permanent link">&para;</a></h1>
+<p><em>Guide: the opt-in <code>mercury-minimalist-kafka</code> crate — route Kafka topics into Event Script flows,
+publish events to Kafka, speak the Confluent Schema Registry wire format, and health-check the
+cluster.</em></p>
+<blockquote>
+<p><strong>At a glance</strong></p>
+<ul>
+<li><strong>What</strong> — <code>minimalist-kafka</code> is an opt-in library with two composable building blocks: an <strong>inbound</strong>
+  Kafka Flow Adapter that routes each topic (or regex-matched set of topics) into an Event Script flow (the
+  Kafka counterpart of <code>rest.yaml</code>), and an <strong>outbound</strong> notification function that publishes an event to
+  a topic.</li>
+<li><strong>Config, not code</strong> — Kafka client connection/security comes from external <code>kafka-producer.yml</code> /
+  <code>kafka-consumer.yml</code> templates (librdkafka parameter names); the YAML binds topics (literal or regex) to
+  flows with optional consumer group, partition pinning, a per-binding dead-letter topic, and a per-binding
+  delivery mode. Enterprise SASL/OAuth2/mTLS is configured, never coded.</li>
+<li><strong>Reliable, with a throughput escape hatch</strong> — at-least-once consume (commit-after-process) by default,
+  bounded retry then a per-binding dead-letter topic, and continuous W3C trace context across the Kafka
+  hop; a binding may opt into Kafka-native auto-commit for higher throughput instead.</li>
+<li><strong>Typed payloads, opt-in</strong> — the Confluent Schema Registry wire format for JSON Schema and Avro values,
+  subject-driven on the way out and decoded by embedded id on the way in.</li>
+<li><strong>For</strong> developers and operators triggering flows from Kafka, or emitting Kafka events from a flow.</li>
+</ul>
+</blockquote>
+<p>Everything on this page describes this repository's engine (<code>crates/minimalist-kafka</code>, crate
+<code>mercury-minimalist-kafka</code>). It is the lock-step twin of the Java engine's <code>system/minimalist-kafka</code>: the
+same adapter YAML, the same flow dataset, the same record headers, the same Confluent frame — so a Rust
+flow adapter consumes what a Java flow publishes and vice versa (the two-engine drive is recorded in the
+<a href="../../test-reports/minimalist-kafka-interop/">interop test report</a>). Where this engine's Kafka client
+forces a difference, the <a href="#deltas">deltas</a> section states it.</p>
+<p>The built-in HTTP flow adapter routes HTTP requests into flows. <code>minimalist-kafka</code> does the same for Kafka:
+a topic listener mints an <code>EventEnvelope</code> and hands it to the Event Script engine, so the flow's tasks — not
+the I/O layer — do the work. It is <strong>not</strong> a service mesh (the Java engine's <code>cloud.connector=kafka</code>, which
+this port does not carry); this library is an application-level building block you opt into.</p>
+<blockquote>
+<p><strong>This is an opt-in library.</strong> Add the <code>mercury-minimalist-kafka</code> dependency and set
+<code>yaml.kafka.flow.adapter</code> to activate the inbound adapter. The outbound <code>simple.kafka.notification</code>
+function and the <code>kafka.health</code> check register automatically.</p>
+</blockquote>
+<h2 id="enable">Enabling the library<a class="headerlink" href="#enable" title="Permanent link">&para;</a></h2>
+<ol>
+<li>
+<p>Depend on the crate (it depends on <code>mercury-event-script</code> and <code>mercury-platform-core</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[dependencies]</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">mercury-minimalist-kafka</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"x.y.z"</span><span class="w">   </span><span class="c1"># the current Mercury version</span>
+</code></pre></div>
+</li>
+<li>
+<p>Link it. The library registers its functions and its start-up hook through the same annotation
+   inventory the rest of the engine uses, and inventory entries register at link time — so an application
+   that activates the module <strong>purely by configuration</strong> must reference the crate once, or the Rust linker
+   drops it as an unused dependency (the one line a Rust application needs where the Java jar needs only the
+   dependency):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">use</span><span class="w"> </span><span class="n">mercury_minimalist_kafka</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">_</span><span class="p">;</span>
+</code></pre></div>
+</li>
+<li>
+<p>Point <code>yaml.kafka.flow.adapter</code> at your adapter config (inbound). Without it, no consumer starts.</p>
+</li>
+<li>Provide the Kafka client templates (see <a href="#client-config">client config</a>) — the bundled defaults work
+   for local dev.</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># application.yml</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">yaml.kafka.flow.adapter</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">classpath:/kafka-flow-adapter.yaml</span>
+</code></pre></div>
+<p>The library autoloads at startup (a main-application hook, after every composable function is registered):
+it builds the <a href="#schema">Schema Registry codec</a> when <code>schema.registry.url</code> is set, the shared producer, and,
+if <code>yaml.kafka.flow.adapter</code> is set, starts one consumer task per topic binding. A headless application —
+one with no REST endpoint — stays running on its consumers: the adapter declares itself the process's
+reason to exist, and on Ctrl-C or <code>SIGTERM</code> the consumers finish their in-flight record and leave the
+group before the process exits. Either client can be <a href="#opt-out">switched off</a> when the cluster has no
+credentials for it.</p>
+<h3 id="opt-out">Switching off a client you do not use<a class="headerlink" href="#opt-out" title="Permanent link">&para;</a></h3>
+<p>Both clients start by default. When the cluster grants credentials for only <strong>one</strong> of them — the usual case
+for one leg of a bridge, where a Confluent console issues an API key for producing <em>or</em> consuming — switch
+the unused one off:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># a consume-only leg: this cluster issues no producer credentials</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">kafka.producer.enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Effect when <code>false</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kafka.producer.enabled</code></td>
+<td>No producer is built. <code>simple.kafka.notification</code> stays registered but fails with a message naming this key, so a flow that publishes anyway points at the config rather than at a missing route.</td>
+</tr>
+<tr>
+<td><code>kafka.consumer.enabled</code></td>
+<td>No adapter consumer starts, even with <code>yaml.kafka.flow.adapter</code> set, and <a href="#health"><code>kafka.health</code></a> probes through the producer template instead.</td>
+</tr>
+</tbody>
+</table>
+<p>Two rules worth knowing:</p>
+<ul>
+<li><strong>The flag is a veto, not a trigger.</strong> Leaving it at the default starts nothing that is not otherwise
+  configured — an inbound adapter still needs <code>yaml.kafka.flow.adapter</code>. Only the literal <code>false</code>
+  switches a client off; any other value leaves it on.</li>
+<li><strong>A dead-letter topic needs a producer.</strong> Dead letters are published through this cluster's own
+  producer, so a binding that declares <code>dlq-topic</code> while <code>kafka.producer.enabled=false</code> <strong>fails the
+  deployment at startup</strong>, naming both settings. It is the contradiction that matters: without the
+  guard an exhausted message would be dropped with a <code>DATA LOSS</code> log and its offset committed. Enable
+  the producer, or drop the <code>dlq-topic</code>.</li>
+</ul>
+<p>Disabling both is allowed — the module goes inert and says so with a startup <code>WARN</code> — which makes a
+"Kafka off in this profile" switch possible without removing the dependency (the <code>sync-over-async-demo</code>
+does exactly that for its broker-free streaming roles).</p>
+<h2 id="adapter-yaml">Inbound: the adapter YAML<a class="headerlink" href="#adapter-yaml" title="Permanent link">&para;</a></h2>
+<p><code>kafka-flow-adapter.yaml</code> lists <code>topic -&gt; flow</code> bindings:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">consumer</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="s">'incoming-orders'</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">flow</span><span class="p">:</span><span class="w"> </span><span class="s">'process-order'</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="s">'sales-order-group'</span><span class="w">        </span><span class="c1"># optional</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">dlq-topic</span><span class="p">:</span><span class="w"> </span><span class="s">'incoming-orders-dlq'</span><span class="w">  </span><span class="c1"># optional; no DLQ if omitted (failed messages dropped w/ ERROR)</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="s">'incoming-payments'</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="nt">flow</span><span class="p">:</span><span class="w"> </span><span class="s">'process-payment'</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="nt">partition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">                      </span><span class="c1"># optional</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">topic-pattern</span><span class="p">:</span><span class="w"> </span><span class="s">'events\.[a-z]{2}'</span><span class="w"> </span><span class="c1"># optional; regex subscribe instead of a literal 'topic'</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="nt">flow</span><span class="p">:</span><span class="w"> </span><span class="s">'process-region-event'</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="s">'region-events-group'</span><span class="w">      </span><span class="c1"># required for topic-pattern bindings</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="s">'clickstream'</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="nt">flow</span><span class="p">:</span><span class="w"> </span><span class="s">'ingest-clickstream'</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="nt">auto-commit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                 </span><span class="c1"># optional; trades pod-death redelivery for throughput</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="nt">max-poll-records</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">500</span><span class="w">             </span><span class="c1"># optional; the client's prefetch depth on this engine</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="s">'mixed-events'</span><span class="w">             </span><span class="c1"># second-level routing: pick the target per record</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="nt">serializer</span><span class="p">:</span><span class="w"> </span><span class="s">'json'</span><span class="w">                </span><span class="c1"># optional; best-effort JSON decode on a non-schema topic</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span><span class="nt">flows</span><span class="p">:</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'input.header.type(order)</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">flow://order-flow'</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'input.body.event.kind(refund)</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">task://v1.refund.processor'</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'default</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">flow://catch-all-flow'</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>topic</code></td>
+<td>one of <code>topic</code>/<code>topic-pattern</code></td>
+<td>Literal source Kafka topic.</td>
+</tr>
+<tr>
+<td><code>topic-pattern</code></td>
+<td>one of <code>topic</code>/<code>topic-pattern</code></td>
+<td>Regex subscription instead of a literal topic (see <a href="#pattern">pattern subscription</a>).</td>
+</tr>
+<tr>
+<td><code>flow</code></td>
+<td>one of <code>flow</code>/<code>flows</code></td>
+<td>Event Script flow id every message of this binding is routed into (direct routing).</td>
+</tr>
+<tr>
+<td><code>flows</code></td>
+<td>one of <code>flow</code>/<code>flows</code></td>
+<td>Second-level routing rule list — inspect a key-value of each record to pick the target flow or function per message (see <a href="#routing">second-level routing</a>).</td>
+</tr>
+<tr>
+<td><code>group</code></td>
+<td>no (required for <code>topic-pattern</code>)</td>
+<td>Consumer group id (see <a href="#group">consumer group</a>). Defaults to <code>kafka-flow-adapter.&lt;topic&gt;</code> for a literal topic; no default exists for a pattern.</td>
+</tr>
+<tr>
+<td><code>partition</code></td>
+<td>no</td>
+<td>Pins a single partition (see <a href="#pinning">partition pinning</a>). Omit for group-managed assignment. Cannot be combined with <code>topic-pattern</code>.</td>
+</tr>
+<tr>
+<td><code>schema.enabled</code></td>
+<td>no</td>
+<td>When <code>true</code>, decode the Confluent-framed value into a map before routing it into the flow (see <a href="#schema">Schema Registry</a>). Default <code>false</code> (raw bytes). Flat (<code>schema.enabled: true</code>) or nested (<code>schema:</code> / <code>enabled: true</code>) spelling.</td>
+</tr>
+<tr>
+<td><code>serializer</code></td>
+<td>no</td>
+<td><code>'json'</code> = best-effort JSON decode of the record value on a non-schema topic (see <a href="#routing-payload">payload prerequisites</a>). Mutually exclusive with <code>schema.enabled</code>.</td>
+</tr>
+<tr>
+<td><code>ttl</code></td>
+<td>no</td>
+<td>Deadline for <code>task://</code> routing targets (duration syntax, e.g. <code>30s</code>, <code>5m</code>; default 30s) — a bare function has no flow ttl. Flow targets always use their own flow <code>ttl</code>.</td>
+</tr>
+<tr>
+<td><code>dlq-topic</code></td>
+<td>no</td>
+<td>Pre-provisioned topic for exhausted messages (see <a href="#reliability">reliability</a>). No DLQ if omitted.</td>
+</tr>
+<tr>
+<td><code>auto-commit</code></td>
+<td>no</td>
+<td>When <code>true</code>, use Kafka-native auto-commit instead of the default manual commit-after-process (see <a href="#delivery-mode">delivery mode</a>). Default <code>false</code>.</td>
+</tr>
+<tr>
+<td><code>max-poll-records</code></td>
+<td>no</td>
+<td>On this engine, the client's per-partition prefetch depth (<code>queued.min.messages</code>) — see <a href="#delivery-mode">delivery mode</a>.</td>
+</tr>
+<tr>
+<td><code>correlation.id.header</code></td>
+<td>no</td>
+<td>Per-binding override of the global <code>kafka.correlation.id.header</code> (default <code>cid</code>) — impedance matching for an upstream that publishes its own correlation-id header name (e.g. <code>X-Correlation-ID</code>).</td>
+</tr>
+<tr>
+<td><code>trace.id.header</code></td>
+<td>no</td>
+<td>Per-binding override of the global <code>kafka.trace.id.header</code> — a fallback trace-id source for an upstream that does not send a W3C <code>traceparent</code> (which always takes precedence).</td>
+</tr>
+<tr>
+<td><code>traceparent.header</code></td>
+<td>no</td>
+<td>Per-binding override of the global <code>kafka.traceparent.header</code> (default <code>traceparent</code>) — the header carrying the <strong>full W3C trace context</strong>, for <strong>backward compatibility with a legacy upstream only</strong> (departure from the W3C/OTel standard is discouraged). The standard <code>traceparent</code> always wins; the custom name is read only when the standard is absent.</td>
+</tr>
+</tbody>
+</table>
+<p>The file is read by the configuration reader, so <strong>every value supports <code>${ENV_VAR:default}</code>
+substitution</strong> — e.g. <code>group: '${KAFKA_CONSUMER_GROUP:sales-order-group}'</code>. A malformed entry (missing
+<code>topic</code>/<code>topic-pattern</code>, missing or duplicated <code>flow</code>/<code>flows</code>, a malformed routing rule or one referencing an
+unknown flow or task route, <code>serializer</code> combined with <code>schema.enabled</code>, <code>schema.enabled</code> without a
+<code>schema.registry.url</code>, an invalid regex, a <code>dlq-topic</code> that equals or matches its own source, etc.) fails
+startup fast and loud rather than being silently skipped.</p>
+<h3 id="dataset">Message dataset<a class="headerlink" href="#dataset" title="Permanent link">&para;</a></h3>
+<p>Every message hands the flow a map with three top-level objects — <code>input.body</code>, <code>input.header</code>, and
+<code>input.metadata</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>body</code></td>
+<td>bytes or map</td>
+<td>The message payload; a map when <a href="#schema"><code>schema.enabled</code></a> decodes a Confluent-framed value or <a href="#routing-payload"><code>serializer: 'json'</code></a> parses a JSON object (a list for a JSON array), raw bytes otherwise.</td>
+</tr>
+<tr>
+<td><code>header</code></td>
+<td>map of strings</td>
+<td>The record's Kafka headers, including <code>traceparent</code> (consumed for <a href="#tracing">trace continuity</a>) and <code>cid</code> (correlation id) when the producer set them.</td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td>map</td>
+<td>The record's own envelope facts — <code>topic</code>, <code>partition</code>, <code>offset</code>, <code>timestamp</code> (epoch milliseconds), and <code>key</code> (omitted when the record carries no key).</td>
+</tr>
+</tbody>
+</table>
+<p><code>metadata.topic</code> and <code>metadata.partition</code> are the record's <strong>actual</strong> topic and partition — not the
+binding's configured <code>topic</code>/<code>topic-pattern</code>. For a literal <code>topic</code> binding this is redundant (the flow
+already knows the topic from its own YAML), but for a <a href="#pattern"><code>topic-pattern</code></a> binding it is the <em>only</em>
+way a flow recovers which of the many matched topics a given message came from, since every matched topic
+shares one <code>flow</code>. It is equally useful for a reprocessing flow bound to a <code>dlq-topic</code>: <code>metadata.topic</code>
+there is the DLQ topic itself, while the <code>dlq.origin.topic</code> header (see <a href="#reliability">reliability</a>) carries
+the original source topic — together they let a reprocessor recover both "where this landed" and "where it
+came from" without any framework-side rule/schema code.</p>
+<p>Because <code>metadata</code> is just another field on <code>input</code>, a task's own <code>input:</code> mapping can pass it straight to
+a composable function's parameter — no <code>model.*</code> relay needed. This is what makes
+<a href="#pattern"><code>topic-pattern</code></a> practical for a "serving" function that must vary its behavior by the concrete
+topic a message arrived on, even though every matched topic shares one <code>flow</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># in the first task of a topic-pattern flow, passed straight to the composable function</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">input</span><span class="p">:</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'input.metadata.topic</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">topic'</span><span class="w">      </span><span class="c1"># e.g. 'events.de' - the function decides per-topic behavior</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'input.metadata.partition</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">partition'</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'input.body</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">body'</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="nt">process</span><span class="p">:</span><span class="w"> </span><span class="s">'topic.aware.dispatcher'</span>
+</code></pre></div>
+<p><code>model.*</code> is only needed when a <em>later</em> task (not the one receiving the message) needs the value — store it
+once (<code>'input.metadata.topic -&gt; model.source_topic'</code>) and reference <code>model.source_topic</code> from there on.</p>
+<h3 id="routing">Second-level routing<a class="headerlink" href="#routing" title="Permanent link">&para;</a></h3>
+<p>Direct routing sends every record of a binding to one flow. When one topic carries mixed event types
+(a common Kafka pattern — e.g. a <code>type</code> header distinguishing orders from shipments), <strong>second-level
+routing</strong> picks the target per record instead: replace <code>flow</code> with a <code>flows</code> rule list (exactly one of
+the two, never both):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">consumer</span><span class="p">:</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="s">'mixed-events'</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">serializer</span><span class="p">:</span><span class="w"> </span><span class="s">'json'</span><span class="w">                 </span><span class="c1"># optional; enables the input.body rule below</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="nt">ttl</span><span class="p">:</span><span class="w"> </span><span class="s">'30s'</span><span class="w">                         </span><span class="c1"># optional; deadline for task:// targets (default 30s)</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="nt">flows</span><span class="p">:</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'input.header.type(order)</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">flow://order-flow'</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'input.header.type(order-*)</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">flow://order-variant-flow'</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'input.header.type(regex:</span><span class="nv"> </span><span class="s">^shipment-(eu|us)$)</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">flow://shipment-flow'</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'input.body.event.kind(refund)</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">task://v1.refund.processor'</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'default</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">flow://catch-all-flow'</span>
+</code></pre></div>
+<p>Each rule is <code>&lt;selector&gt;(&lt;matcher&gt;) -&gt; &lt;target&gt;</code>, plus the <strong>mandatory</strong> <code>default -&gt; &lt;target&gt;</code> fallback.</p>
+<p><strong>Selectors</strong> inspect one key-value of the inbound record:</p>
+<ul>
+<li><code>input.header.&lt;name&gt;</code> — a Kafka record header. The header <strong>name</strong> lookup is case-insensitive
+  (Kafka preserves the producer's wire casing, so a rule must not depend on it); the value comparison
+  stays case-sensitive.</li>
+<li><code>input.body</code> followed by a dot-bracket composite path — a map body via <code>input.body.order.type</code>, a
+  <strong>top-level list body</strong> via <code>input.body[0].type</code>, and any nesting of the two
+  (<code>input.body.items[1].kind</code>). Body rules match only when the body is a map or list — see
+  <a href="#routing-payload">payload prerequisites</a> below.</li>
+</ul>
+<p><strong>Matchers</strong> — three modes, explicit over sniffing:</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>Mode</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type(order)</code></td>
+<td>exact</td>
+<td>case-sensitive value comparison</td>
+</tr>
+<tr>
+<td><code>type(order-*)</code></td>
+<td>wildcard</td>
+<td>the presence of <code>*</code> makes it one; each <code>*</code> matches any run of characters</td>
+</tr>
+<tr>
+<td><code>type(regex: &lt;expr&gt;)</code></td>
+<td>regex</td>
+<td>always explicit — the exception, not the norm</td>
+</tr>
+</tbody>
+</table>
+<p>Wildcard and regex matchers use <strong>full-string</strong> matching (the <code>topic-pattern</code> precedent), so
+<code>regex: shipment</code> does not match <code>my-shipment-1</code>.</p>
+<p><strong>Evaluation.</strong> Order matters: the <strong>first matching rule wins</strong>, in declaration order — put the most
+specific rule first. A missing header/key, a non-map body for an <code>input.body</code> rule, or a non-text
+value is a <strong>non-match, never an error</strong>; when no rule matches, <code>default</code> decides.</p>
+<p><strong>Targets:</strong></p>
+<ul>
+<li><code>flow://&lt;flow-id&gt;</code> — dispatch to an Event Script flow exactly as direct routing does: same
+  <a href="#dataset">dataset</a>, same <code>model.cid</code> seeding, same <a href="#tracing">trace continuity</a>, same flow <code>ttl</code>.</li>
+<li><code>task://&lt;route&gt;</code> — invoke a registered composable function <strong>directly</strong>, for processing simple enough
+  that a flow is overweight. No input/output data mapping: all inbound record headers are copied to the
+  function's input headers, the whole payload (bytes or decoded map) is the body, and trace context
+  plus the business correlation-id propagate exactly as on the flow path (the function reads
+  <code>my_correlation_id</code> from its input headers, or <code>PostOffice::my_correlation_id()</code>, as usual). There is
+  no <code>metadata</code> map on this path — a function that needs the record's envelope facts should be fronted by
+  a flow instead. A bare function has no flow <code>ttl</code>, so the binding's optional <code>ttl</code> (duration syntax:
+  <code>30s</code>, <code>5m</code>; default 30s) is the invocation deadline.</li>
+</ul>
+<p>Both target kinds sit in the <strong>unchanged reliability envelope</strong>: unless <code>auto-commit</code> is on, the offset
+commits only after the selected flow or task finishes successfully, and a failure follows the same
+bounded-retry-then-<a href="#reliability"><code>dlq-topic</code></a> path. A routing non-match is not a failure — it selects
+<code>default</code>.</p>
+<p>All rules are validated at startup, fail-fast: every rule must parse (regexes compile; body keys use
+the dot-bracket composite-path convention), exactly one <code>default</code> is required, every <code>flow://</code> target
+must be a compiled flow, and every <code>task://</code> target must be a registered route (functions preload
+before the adapter starts) other than the flow engine itself — dispatch flows with <code>flow://</code>, never
+<code>task://event.script.manager</code>.</p>
+<h4 id="routing-payload">Payload prerequisites and <code>serializer: 'json'</code><a class="headerlink" href="#routing-payload" title="Permanent link">&para;</a></h4>
+<p><code>input.body.*</code> rules need a map body. On a <a href="#schema"><code>schema.enabled</code></a> binding the Confluent decode
+already yields one. For a registry-less topic (not every installation uses a schema registry), the
+optional per-binding <code>serializer: 'json'</code> tells the adapter to <strong>try</strong> deserializing each record value as
+JSON before routing:</p>
+<ul>
+<li>a JSON <strong>object</strong> becomes a map — <code>input.body.&lt;key&gt;</code> rules match, and the selected flow/task
+  receives the decoded map;</li>
+<li>a JSON <strong>array</strong> becomes a list — addressable by bracket rules (<code>input.body[0].type(order)</code>) and
+  delivered as decoded;</li>
+<li>anything else — a scalar, or <strong>malformed text</strong> — keeps the <strong>raw bytes</strong>, which simply pass to the
+  selected target. There is no special poison handling in the adapter: a target that cannot digest
+  the bytes fails normally into the retry/DLQ path, while a <code>default</code> target designed for raw bytes
+  handles them directly.</li>
+</ul>
+<p><code>serializer</code> is mutually exclusive with <code>schema.enabled</code> (the registry owns that decode) and is useful
+on a plain <code>flow</code> binding too — the flow receives a map body without a schema registry. The parameter
+is open-ended for later extension; <code>json</code> is the only supported value today. Numbers keep their JSON
+width in the dynamic body (an integer stays an integer, a decimal a float).</p>
+<h3 id="group">Consumer group<a class="headerlink" href="#group" title="Permanent link">&para;</a></h3>
+<p><code>group</code> is the Kafka consumer group id, used <strong>exactly as given</strong>. Enterprise DevSecOps teams typically
+provision topics, ACLs, and consumer groups administratively, so the library never decorates the value. For
+a literal <code>topic</code> it defaults to <code>kafka-flow-adapter.&lt;topic&gt;</code> for convenience in dev/test; a <code>topic-pattern</code>
+binding has no sensible default (a regex string is not a group id) and must set <code>group</code> explicitly. All
+instances that share a group load-balance that binding's partitions; set it explicitly to your assigned
+group in production.</p>
+<h3 id="pinning">Partition pinning<a class="headerlink" href="#pinning" title="Permanent link">&para;</a></h3>
+<p>When <code>partition</code> is present, the consumer <strong>manually assigns</strong> that single topic-partition instead of joining
+the consumer group for dynamic assignment. This bypasses group rebalancing — the pinned consumer reads
+exactly that partition — so you own the deployment model (one consumer per partition, or each pod pinning a
+distinct partition via <code>partition: ${POD_PARTITION}</code>). Offsets still commit under the configured group.
+Omit <code>partition</code> for normal group-managed consumption. Mutually exclusive with <code>topic-pattern</code> (below), since
+manual assignment needs concrete topic-partitions up front.</p>
+<h3 id="pattern">Pattern subscription<a class="headerlink" href="#pattern" title="Permanent link">&para;</a></h3>
+<p>Set <code>topic-pattern</code> instead of <code>topic</code> to subscribe to every topic matching a regex, using the client's
+native regex subscription: the client tracks which topics currently match and adds/removes them from the
+subscription automatically as matching topics are created — no adapter-side polling of topic metadata, no
+restart needed when a new matching topic appears (it joins at the next full metadata refresh,
+<code>topic.metadata.refresh.interval.ms</code>, five minutes by default). All messages from every matched topic
+route into the same <code>flow</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">topic-pattern</span><span class="p">:</span><span class="w"> </span><span class="s">'events\.[a-z]{2}'</span><span class="w">   </span><span class="c1"># matches events.de, events.fr, events.us, ...</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span><span class="nt">flow</span><span class="p">:</span><span class="w"> </span><span class="s">'process-region-event'</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="s">'region-events-group'</span><span class="w">        </span><span class="c1"># required - no sensible default for a regex string</span>
+</code></pre></div>
+<p>The pattern is <strong>full-string</strong>, as on the Java engine: the adapter hands the client <code>^(&lt;pattern&gt;)$</code>. It is
+validated at startup by this engine's regex library and compiled again by the client, so a dialect
+difference surfaces as a subscribe error at startup, never silently.</p>
+<p>Two rules follow from this: <code>topic-pattern</code> cannot be combined with <code>partition</code> (manual assignment needs
+concrete topic-partitions up front, which a pattern does not provide), and <code>group</code> must be set explicitly.
+<code>dlq-topic</code>, if configured, must not itself match the pattern (see <a href="#reliability">reliability</a>).</p>
+<h2 id="client-config">Kafka client configuration<a class="headerlink" href="#client-config" title="Permanent link">&para;</a></h2>
+<p>Connection and security settings live in <strong>template files</strong>, not code, because enterprise Kafka varies
+widely (on-prem, cloud, SaaS, Confluent; SASL/PLAIN, SASL/SCRAM, OAuth2, mTLS):</p>
+<ul>
+<li><code>kafka-producer.yml</code> — used by the publisher and the dead-letter writer.</li>
+<li><code>kafka-consumer.yml</code> — base config for every adapter consumer.</li>
+<li><code>schema-registry.yml</code> — the Confluent Schema Registry client (see
+  <a href="#schema-auth">registry authentication</a>).</li>
+</ul>
+<p>By default, each is loaded from the bundled template (the application's own <code>resources/</code> copy shadows it
+— <code>classpath:/kafka-producer.yml</code>, with a <code>.properties</code> twin also accepted). Set
+<code>kafka.producer.properties</code>, <code>kafka.consumer.properties</code>, or <code>schema.registry.properties</code> only when you
+want a different location. A single location is normal; a comma-separated list is an optional fallback
+chain, useful when CI/CD renders an external file into a deployment volume and you still want to fall back
+to the bundled template. All template values support <code>${ENV_VAR:default}</code> substitution. The keys are
+<strong>librdkafka parameter names</strong> — the same <code>bootstrap.servers</code>-style keys the Java templates use, so a
+field template ports nearly verbatim; the genuinely JVM-only keys (<code>key.serializer</code>, <code>sasl.jaas.config</code>,
+<code>partitioner.class</code>, …) are ignored with a startup log line naming each one. The library <strong>pins</strong> only
+the parameters its contract depends on and lets the template own everything else:</p>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Pinned by the library</th>
+<th>From the template</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Serialization</td>
+<td>— (the client is byte-native; nothing to pin)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Delivery semantics (consumer)</td>
+<td><code>enable.auto.commit</code> / <code>queued.min.messages</code> — per-binding overlay (see <a href="#delivery-mode">delivery mode</a>)</td>
+<td><code>auto.offset.reset</code></td>
+</tr>
+<tr>
+<td>Partitioning (producer)</td>
+<td><code>partitioner</code> <strong>defaulted</strong> (not pinned) to <code>murmur2_random</code></td>
+<td>any <code>partitioner</code> set here wins</td>
+</tr>
+<tr>
+<td>Connection / security</td>
+<td>—</td>
+<td><code>bootstrap.servers</code>, <code>security.protocol</code>, <code>sasl.*</code>, <code>ssl.*</code>, <code>acks</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>bootstrap.servers</code> is template-only via <code>${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}</code>, and the shipped
+consumer template sets <code>auto.offset.reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}</code> — a brand-new consumer
+group starts from the beginning of the topic; committed offsets govern thereafter. The bytes wire contract
+keeps the building blocks serializer-free; richer encodings layer on top via the
+<a href="#schema">Schema Registry integration</a> (JSON Schema / Avro), opt-in per binding.</p>
+<blockquote>
+<p><strong>Why a random partitioner?</strong> Kafka's default is a <em>sticky</em> partitioner — throughput-friendly, but at
+low volume it lands everything on one partition, leaving a multi-instance consumer group mostly idle.
+The library defaults the client's built-in <code>murmur2_random</code> partitioner: keyless records spread
+uniformly at random, keyed records keep the <strong>Java-producer-compatible murmur2 key hash</strong> — so a key
+maps to the same partition from either engine, which is what makes a mixed Java+Rust consumer group
+behave. Records with an explicit <code>partition</code> header bypass it. Set <code>partitioner</code> in
+<code>kafka-producer.yml</code> to override.</p>
+<p><strong>Enterprise security is a template block.</strong> SASL_SSL, SCRAM and OAUTHBEARER (<code>sasl.oauthbearer.method:
+oidc</code> with the token endpoint, client id and secret) are librdkafka settings the bundled templates carry
+commented out. They need the crate's <code>ssl</code> feature (<code>mercury-minimalist-kafka = { version = "x.y.z",
+features = ["ssl"] }</code>), which builds the client with its vendored OpenSSL. There is no JVM allow-list
+for OAuth token URLs on this engine — nothing to register.</p>
+</blockquote>
+<h2 id="reliability">Reliability: delivery mode, retry, and dead-letter<a class="headerlink" href="#reliability" title="Permanent link">&para;</a></h2>
+<h3 id="delivery-mode">Delivery mode<a class="headerlink" href="#delivery-mode" title="Permanent link">&para;</a></h3>
+<p>By default (<code>auto-commit: false</code>, or omitted) the consumer commits offsets <strong>only after</strong> the flow finishes
+a message, one message at a time — this engine's consumer receives records one at a time by construction,
+so the Java module's <code>max.poll.records=1</code> pin has nothing to pin. If the instance crashes before the commit,
+Kafka redelivers to a surviving instance in the group — the deliberate resilience-over-throughput
+trade-off.</p>
+<p>Set <code>auto-commit: true</code> on a binding to trade that guarantee for throughput: Kafka commits offsets on its
+own periodic timer regardless of processing outcome. A message being processed when a pod dies may already
+be considered committed and is <strong>not</strong> redelivered. Retry/dead-letter handling on flow failure is unaffected
+either way — auto-commit only changes <em>when</em> Kafka considers the offset committed, not whether a failure is
+retried or dead-lettered. Choose this per binding for high-volume topics (e.g. clickstream/telemetry) that
+can tolerate occasional loss on crash in exchange for throughput; leave strict topics on the default.</p>
+<p>An explicit <code>max-poll-records</code> maps to the client's per-partition <strong>prefetch depth</strong>
+(<code>queued.min.messages</code>) — the nearest fetch-tuning analog on this engine; the mapping is stated in the
+startup log. The Java module's mode defaults (1 manual / 500 auto-commit) are not applied: manual mode's
+batch-of-one is inherent here, and auto-commit mode keeps the client's own prefetch defaults.</p>
+<p>A flow <strong>succeeds</strong> when it replies with a status below <code>400</code> (any 2xx/3xx). A <code>4xx</code>/<code>5xx</code> status — or a
+thrown error, including a <strong>timeout</strong> when the flow does not reply within its own <code>ttl</code> — is a <strong>failure</strong>.
+(Kafka is asynchronous, so unlike an HTTP entry the adapter has no inherent request timeout: the flow's
+<code>ttl</code> <em>is</em> the processing deadline. There is no separate flow-timeout knob.)</p>
+<h3 id="retry-and-dead-letter">Retry and dead-letter<a class="headerlink" href="#retry-and-dead-letter" title="Permanent link">&para;</a></h3>
+<p>On a <strong>failure</strong>, the message is retried up to <code>kafka.flow.max.retries</code> times (with
+<code>kafka.flow.retry.backoff.ms</code> between attempts), then written to the binding's configured <code>dlq-topic</code>:</p>
+<ul>
+<li><strong>One DLQ topic per binding</strong>, not per concrete topic — a <code>topic-pattern</code> binding that matches many topics
+  still has a single <code>dlq-topic</code> (or none). The same flow that consumes a matched topic can reprocess a
+  dead-lettered message later regardless of which concrete topic it originated from; that provenance is
+  preserved via the <code>dlq.origin.topic</code> header, so a shared DLQ is not the "mixing source schemas"
+  anti-pattern it would be for unrelated topics. <code>dlq-topic</code> must not equal the source <code>topic</code>, nor match
+  <code>topic-pattern</code>, or a dead-lettered message would be re-consumed by the same binding and fail forever —
+  the adapter rejects that configuration at startup.</li>
+<li><code>dlq-topic</code> is <strong>optional</strong>. When omitted, a message that exhausts retries is dropped with a logged
+  <code>ERROR</code> instead of being dead-lettered — the same fallback used when the DLQ write itself fails (below).</li>
+<li>The DLQ write is <strong>confirmed</strong> (it awaits the broker acknowledgement, bounded by <code>kafka.dlq.timeout.ms</code>);
+  on success the offset commits (or, in auto-commit mode, is left to Kafka's own timer as usual).</li>
+<li><strong>DLQ topics must be pre-provisioned</strong> (Kafka auto-creation is off in production). The original record's
+  headers are preserved, plus <code>dlq.origin.topic</code> and <code>dlq.error</code>.</li>
+<li><strong>A schema decode failure is a poison message</strong> and skips the retry loop: on a
+  <a href="#schema-consume"><code>schema.enabled</code></a> binding, a record that is not Confluent-framed or whose embedded id
+  cannot be resolved is dead-lettered at once with the raw record — retrying cannot help.</li>
+</ul>
+<blockquote>
+<p><strong>When there is no DLQ, or the DLQ write itself fails (data loss).</strong> A failed write to the DLQ is an
+<em>exception of an exception</em> with no further fallback. Blocking the partition to retry forever would re-run
+the failing flow and re-attempt the failing DLQ write indefinitely — a self-sustaining <strong>recovery storm</strong>
+(a known cause of prolonged outages). So the adapter instead logs a loud <code>ERROR</code> and <strong>commits</strong> (in
+manual-commit mode), deliberately <strong>dropping that one message</strong> to keep the partition live. This is a
+conscious data-loss trade-off; a planned improvement is a classic resilience <strong>alternative path</strong> —
+persisting the record to a durable store for later replay instead of dropping it.</p>
+</blockquote>
+<p><strong>Reprocessing</strong> (read the DLQ topic → fix → replay) is business-domain logic and is intentionally out of
+scope: the library guarantees durable capture (when a <code>dlq-topic</code> is configured and reachable), not replay.</p>
+<h3 id="liveness">Consumer liveness: rebalances and the processing deadline<a class="headerlink" href="#liveness" title="Permanent link">&para;</a></h3>
+<p>Two robustness behaviors keep a binding alive through the realities of consumer-group life:</p>
+<ul>
+<li><strong>The poll loop survives transient consumer errors.</strong> A group rebalance (scale-out, pod churn)
+  routinely fails an in-flight offset commit. The loop logs a <code>WARN</code> and continues — the uncommitted
+  records simply redeliver to whichever consumer owns the partitions after the rejoin, preserving
+  at-least-once delivery (flows must be idempotent, as always). Any <em>other</em> unexpected error keeps the
+  binding alive too, with an escalating pause (1s doubling to 30s) and an <code>ERROR</code> per occurrence — loud
+  but alive, instead of a consumer task that dies silently until the pod restarts.</li>
+<li><strong><code>max.poll.interval.ms</code> is derived from the binding's worst-case processing time.</strong> Message processing
+  happens between two polls (the flow's <code>ttl</code> is the deadline), so the worst case is the full retry
+  envelope — <code>(kafka.flow.max.retries + 1) ×</code> the slowest reachable flow/task <code>ttl</code> <code>+ retries × backoff</code>
+  — plus headroom. If that exceeds Kafka's <code>max.poll.interval.ms</code> (default 5 minutes), the group
+  coordinator evicts the consumer mid-processing and the subsequent commit fails. The adapter therefore
+  computes the envelope per binding at startup and raises <code>max.poll.interval.ms</code> to cover it (never
+  lowering it below the Kafka default; the derivation is logged). An explicit <code>max.poll.interval.ms</code> in the
+  consumer template is an operator decision and is respected as-is — with a <code>WARN</code> when the computed
+  envelope exceeds it. Raising the interval is low-risk: a crashed pod is still detected by heartbeats
+  (<code>session.timeout.ms</code>; broker-side group configuration under the
+  <a href="#rebalance-protocol">KIP-848 consumer protocol</a>); this setting only bounds time between polls.</li>
+</ul>
+<h3 id="rebalance-protocol">Consumer rebalance protocol (KIP-848)<a class="headerlink" href="#rebalance-protocol" title="Permanent link">&para;</a></h3>
+<p>Kafka's <em>classic</em> rebalance protocol is client-driven with a group-wide synchronization barrier: when
+cloud infrastructure interrupts one pod, <strong>every</strong> member of the group stops, rejoins, and re-syncs —
+and a flapping member repeats that storm. The <strong>KIP-848 consumer rebalance protocol</strong> (GA since Apache
+Kafka 4.0) moves coordination to the broker's group coordinator and makes reassignment fully
+incremental: only the interrupted member's partitions move, survivors keep consuming. On clusters that
+support it, this materially reduces rebalance time and the CPU churn of unscheduled rebalances.</p>
+<p>The protocol is selected per cluster in <code>kafka-consumer.yml</code> via <code>group.protocol</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(unset)</em> / <code>classic</code></td>
+<td>Kafka's classic protocol — works on every broker.</td>
+</tr>
+<tr>
+<td><code>consumer</code></td>
+<td>The KIP-848 protocol, unconditionally. Fails at runtime if the cluster does not support it.</td>
+</tr>
+<tr>
+<td><code>auto</code></td>
+<td>Start with <code>consumer</code>; if the broker refuses the protocol at the first join, rebuild the binding's consumer once with <code>classic</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>The bundled <code>kafka-consumer.yml</code> sets <code>group.protocol: ${KAFKA_GROUP_PROTOCOL:auto}</code>, so <strong><code>auto</code> is the
+default</strong>: a KIP-848 cluster gets the incremental protocol without configuration, an older cluster keeps
+<code>classic</code>. Override it with the <code>KAFKA_GROUP_PROTOCOL</code> environment variable or in your own template. The
+Java engine ships the same default.</p>
+<p><strong>How <code>auto</code> decides.</strong> The Java module probes the cluster's finalized <code>group.version</code> feature once at
+startup; this engine's client exposes no feature probe, so <code>auto</code> is <strong>optimistic</strong>: each binding's
+consumer starts with the consumer protocol, and a broker that lacks it reports the refused join as a fatal
+<code>ConsumerGroupHeartbeat</code> error (<code>UNSUPPORTED_VERSION</code> where the coordinator has the protocol disabled, an
+unsupported-feature error before Kafka 4.0). The adapter recognizes exactly that error, logs a <code>WARN</code>, and
+rejoins the binding with <code>classic</code>. A refused join never becomes a group member, so there is no probe
+group and no extra member; other fatal errors (a group authorization failure, say) are the consumer's own
+and are not masked. The decision is per binding and stated in the log.</p>
+<p><strong>Client tuning that conflicts.</strong> Under the consumer protocol, <code>session.timeout.ms</code>,
+<code>heartbeat.interval.ms</code> and <code>partition.assignment.strategy</code> move to broker-side group configuration — a
+client that sets them together with <code>group.protocol=consumer</code> is refused. When the template sets any of
+them, <code>auto</code> therefore resolves to <code>classic</code> with a <code>WARN</code> naming the conflicting keys: remove them to let
+<code>auto</code> upgrade. Everything the adapter itself manages — <code>group.id</code>, the delivery-mode overlay, the
+<a href="#liveness">derived <code>max.poll.interval.ms</code></a> — is valid under both protocols.</p>
+<p><strong>Prerequisites and managed services.</strong> The cluster must run Apache Kafka 4.0+ with the
+<code>group.version</code> feature enabled (new 4.0+ clusters enable it at format time; upgraded clusters enable
+it explicitly — check with <code>kafka-features.sh describe</code>). Confluent Platform 8.x carries the Apache
+4.x core; for other managed or Kafka-compatible services (Confluent Cloud, AWS MSK, Azure Event Hubs),
+verify against your actual cluster — wherever the protocol is refused, <code>auto</code> simply keeps <code>classic</code>.
+Migration is online: a group converts when members join with the consumer protocol (mixed members
+interoperate during a rolling deploy) and reverts if all new-protocol members leave. To force the classic
+protocol regardless of cluster support, set <code>group.protocol: classic</code> explicitly.</p>
+<h3 id="shutdown">Shutdown: leaving the group<a class="headerlink" href="#shutdown" title="Permanent link">&para;</a></h3>
+<p>On process shutdown — <code>SIGTERM</code> from an orchestrator's rolling restart, or Ctrl-C — the flow adapter stops
+every binding's consumer before the process exits, and the consumer's close sends the group coordinator a
+<strong>LeaveGroup</strong>: the member's partitions are reassigned to the surviving members at once. Without that,
+the broker only notices the dead member when its session expires — 45 seconds by default under the
+KIP-848 consumer protocol — and every partition it held sits unread for that long, which on a rolling
+deploy is a pause of the same length for the pod's share of the traffic. The adapter registers the stop on
+the platform's shutdown lifecycle (<code>Platform::on_shutdown</code>) when its consumers start, next to the
+<a href="#enable">keep-running declaration</a>, and the entry point runs the hooks once the signal arrives. Each
+consumer finishes the record in hand first — the stop is honoured between records, never mid-flow — and the
+hook waits up to ten seconds for all of them, so a stuck flow cannot hold the shutdown hostage (a record
+still in flight after the grace redelivers: at-least-once). The log confirms each step — <code>Kafka flow
+consumer for topic '&lt;topic&gt;' stopping</code>, then <code>stopped</code>, then <code>Kafka flow consumers stopped</code> — and the
+broker's own log shows the member leaving instead of being fenced. After the consumers, the shared producer
+is <strong>flushed</strong> — every record already accepted by <code>simple.kafka.notification</code> or a dead-letter write is
+delivered before the process exits — and then forgotten, so a late caller is told the producer is not
+started; the log line is <code>Kafka producer flushed and closed</code>. The flush waits through the client's linger
+(<code>linger.ms</code>, 5 ms by default) for the acknowledgements and is bounded by the same ten seconds:
+a stopping pod must not wait on a dead broker past its termination grace, so when the broker cannot take
+the records in time the log names how many were left undelivered (<code>Kafka producer flush incomplete after
+10 s - N message(s) undelivered</code>). The Java engine shuts down in the same order; its producer close waits
+without bound.</p>
+<h2 id="outbound">Outbound: publishing to Kafka<a class="headerlink" href="#outbound" title="Permanent link">&para;</a></h2>
+<p><code>simple.kafka.notification</code> is a composable function that publishes an event to a topic. Send it an
+<code>EventEnvelope</code> with a <code>topic</code> header (required), an optional <code>partition</code> header (see
+<a href="#partitioning">partitioning strategies</a>), a body, and any other headers (forwarded as Kafka headers):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">po</span><span class="p">.</span><span class="n">send</span><span class="p">(</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span><span class="n">EventEnvelope</span><span class="p">::</span><span class="n">new</span><span class="p">()</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">        </span><span class="p">.</span><span class="n">set_to</span><span class="p">(</span><span class="s">"simple.kafka.notification"</span><span class="p">)</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">        </span><span class="p">.</span><span class="n">set_header</span><span class="p">(</span><span class="s">"topic"</span><span class="p">,</span><span class="w"> </span><span class="s">"outgoing-events"</span><span class="p">)</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">        </span><span class="p">.</span><span class="n">set_header</span><span class="p">(</span><span class="s">"cid"</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">business_correlation_id</span><span class="p">)</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">        </span><span class="p">.</span><span class="n">set_raw_body</span><span class="p">(</span><span class="n">rmpv</span><span class="p">::</span><span class="n">Value</span><span class="p">::</span><span class="n">Binary</span><span class="p">(</span><span class="n">payload_bytes</span><span class="p">)),</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="p">)</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="p">.</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
+</code></pre></div>
+<p>The body is bytes (published verbatim — the minimalist default), or a <strong>map/list, automatically
+serialized to JSON bytes</strong> — the outbound symmetry of the inbound <a href="#routing-payload"><code>serializer: 'json'</code></a>:
+the producing application writes a map, the wire carries JSON bytes, and a consuming binding with
+<code>serializer: 'json'</code> hands its flow a map again. This JSON convenience applies to <strong>non-schema-registry
+topics only</strong>; <code>null</code> stays <code>null</code> (a Kafka tombstone).</p>
+<p>Publishing is <strong>drop-n-forget</strong> (Kafka's commit log is the durable buffer), but async delivery failures are
+logged rather than silently masked.</p>
+<p>Two contract details worth knowing: any <strong>other body type</strong> (a string, a number) is rejected loudly with a
+400 — convert to bytes or a map/list first. And the <strong>correlation-id header is auto-stamped as a
+fallback</strong>: when the flow maps no value under the configured header (default <code>cid</code>), the publisher stamps
+the flow's own business correlation id (<code>model.cid</code>); an explicitly mapped value always wins. With a
+customized <code>kafka.correlation.id.header</code>, map to the configured name — a <code>header.cid</code> mapping under a
+custom name is forwarded as a literal <code>cid</code> record header, never renamed.</p>
+<p>One header opts a publish into the Confluent wire format instead of raw bytes: <code>subject</code> (with an optional
+<code>version</code>; see <a href="#schema">Schema Registry</a>). It is an encoding directive — consumed by the function, not
+forwarded as a Kafka header. On this schema path <strong>the body must be bytes (a pre-serialized JSON document)
+— passing a map or list is rejected with a 400</strong>; the map/list JSON convenience applies to non-schema
+topics only.</p>
+<blockquote>
+<p><strong>The codec is shared.</strong> On this engine the Schema Registry codec is thread-safe, so the notification
+function's default pool of five workers shares one codec — there is no per-worker encoder and no
+kernel-thread constraint (the Java page's "keep the worker pool small" note has no analog here). Raise
+<code>instances</code> only if profiling shows the publishing path is the genuine bottleneck.</p>
+</blockquote>
+<h3 id="partitioning">Partitioning strategies<a class="headerlink" href="#partitioning" title="Permanent link">&para;</a></h3>
+<p>Three mechanisms decide which partition an outbound message lands on, in precedence order:</p>
+<ol>
+<li><strong>Explicit <code>partition</code> header</strong> — the caller (usually a flow's data mapping) names the target
+   partition and every partitioner is bypassed. This is the building block for <strong>content-based
+   partitioning</strong> (below).</li>
+<li><strong>A partitioner in the producer template</strong> — the externalized <code>kafka-producer.yml</code> may set the
+   client's <code>partitioner</code> to any of its built-ins (<code>murmur2_random</code>, <code>murmur2</code>, <code>consistent_random</code>,
+   <code>consistent</code>, <code>random</code>, <code>fnv1a</code>, …); the library defaults it and never overrides a template's value.
+   A partitioner sees the record's key, not its headers or payload — header-based or content-based
+   partitioning belongs in the flow (below), on this engine as on Java.</li>
+<li><strong><code>murmur2_random</code> — the library default</strong>: keyless records spread uniformly at random (Kafka's own
+   sticky default batches onto one partition, which starves multi-instance consumer groups at low
+   volume); keyed records keep the Java-compatible murmur2 hashing.</li>
+</ol>
+<p><strong>Content-based partitioning — the composable pattern.</strong> When the partition must be derived from a
+record header or a payload key-value (a tenant, an entity id), compute it in the flow — where the
+whole record is visible — and pass the explicit <code>partition</code> header. A tiny selector function plus
+data mapping, no client plumbing:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">tasks</span><span class="p">:</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">input</span><span class="p">:</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">      </span><span class="c1"># any header can drive the decision - including ones a Kafka partitioner could never see</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'input.header.x-routing-value</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">header.routing-value'</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'input.body</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">*'</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="nt">process</span><span class="p">:</span><span class="w"> </span><span class="s">'partition.selector'</span><span class="w">          </span><span class="c1"># e.g. hash(routing-value) % partition count</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="nt">output</span><span class="p">:</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'result.partition</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">model.partition'</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'result.payload</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">model.payload'</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">'Derive</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">target</span><span class="nv"> </span><span class="s">partition</span><span class="nv"> </span><span class="s">from</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">record</span><span class="nv"> </span><span class="s">content'</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">    </span><span class="nt">execution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sequential</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">    </span><span class="nt">next</span><span class="p">:</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'simple.kafka.notification'</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">input</span><span class="p">:</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'text(outgoing-events)</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">header.topic'</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'model.partition</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">header.partition'</span><span class="w">   </span><span class="c1"># explicit partition bypasses all partitioners</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'model.payload</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">*'</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">    </span><span class="nt">process</span><span class="p">:</span><span class="w"> </span><span class="s">'simple.kafka.notification'</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="w">    </span><span class="nt">output</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">'Publish</span><span class="nv"> </span><span class="s">to</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">selected</span><span class="nv"> </span><span class="s">partition'</span>
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="w">    </span><span class="nt">execution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">end</span>
+</code></pre></div>
+<p>A deterministic selector (same value → same partition) gives per-entity ordering — the classic reason
+for content-based placement. This is the outbound mirror of <a href="#routing">second-level routing</a>: content
+inspection expressed in the application layer, where it is legible and governable and can see the
+whole record, rather than buried in client configuration.</p>
+<h3 id="tracing">Trace continuity across Kafka<a class="headerlink" href="#tracing" title="Permanent link">&para;</a></h3>
+<p>Rather than forwarding the caller's stale <code>traceparent</code>, the notification function stamps a <strong>fresh</strong> W3C
+<code>traceparent</code> from its own current span; the adapter parses it on the way in and chains the flow onto that
+span. The result is one continuous distributed trace across the asynchronous Kafka boundary — the two
+notification hops are the bridge spans, and the span chain is exact across the engine boundary too (the
+interop report shows a Java span parenting a Rust one). See <a href="../observability/">Observability</a>.</p>
+<h2 id="health">Health check<a class="headerlink" href="#health" title="Permanent link">&para;</a></h2>
+<p>The library ships a ready-made health-check function at route <strong><code>kafka.health</code></strong> (registered automatically
+when the crate is linked). Opt in by listing it as a health dependency in <code>application.yml</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">mandatory.health.dependencies</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka.health</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="c1"># or, when Kafka should be reported but not fail /health:</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># optional.health.dependencies: kafka.health</span>
+</code></pre></div>
+<p>The probe is deliberately minimal: one Kafka <strong>Metadata</strong> request using the module's
+<a href="#client-config">consumer template</a> — it joins no consumer group, commits no offsets, and needs no admin
+privileges. The Metadata request itself requires <strong>no ACL</strong>: brokers filter the response to the topics the
+principal may Describe rather than rejecting the request, so under a fully locked-down principal the probe
+still succeeds (with a visible topic count of 0) — the successful round trip proves connectivity, TLS/SASL
+authentication, and a served API request. A reachable cluster reports a status map (<code>Kafka cluster is
+reachable</code>, with the visible topic count); an unreachable one fails the check with a <strong>503</strong> status and a
+key-value message (<code>text</code> for the DevOps reader, <code>code</code> for the status code), so <code>/health</code> marks the
+dependency down and the endpoint answers non-2xx while the application is DOWN.</p>
+<p>During application start-up the check returns a <strong>placeholder healthy</strong> status (<code>Kafka client is starting
+up</code>) while the client warms up in the background — <code>/health</code> neither fails nor blocks before the client and
+the rest of the start-up sequence complete. After the first successful probe, or once the grace period
+expires, every check is live. Two keys tune the behavior: <code>kafka.health.timeout</code> (default <code>5s</code>) and
+<code>kafka.health.startup.grace</code> (default <code>30s</code>).</p>
+<p>The probe's client configuration is resolved <strong>lazily</strong> — when the probe client is built, and again
+whenever a failed probe forces a rebuild — never at construction time. <code>kafka.health</code> is registered before
+your main application runs, so a bootstrap that fetches secrets and publishes them as configuration
+overrides (the vault pattern) has not executed yet — a template frozen at construction would interpolate
+such a credential as <em>missing</em> and fail every probe from then on. With lazy resolution the first probe
+after the credential lands simply succeeds; nothing needs a restart. While the template is still incomplete
+— the client cannot even be built from it — the check reports a <strong>passing</strong> <code>Waiting for Kafka connection</code>
+status rather than a failure: failing <code>/health</code> would invite the container orchestrator to restart the pod,
+and a restart cannot produce the credential. A real connectivity failure (client built, cluster
+unreachable) fails the check with status 503.</p>
+<blockquote>
+<p><strong>On a produce-only leg the probe uses the producer template.</strong> With
+<a href="#opt-out"><code>kafka.consumer.enabled=false</code></a> there are no consumer credentials to build a probe from,
+yet a bridge is healthy only when both clusters are reachable. So the probe follows whichever client
+the deployment configured, reading connection and security settings (<code>bootstrap.servers</code>,
+<code>security.protocol</code>, <code>sasl.*</code>, <code>ssl.*</code> — named identically in both client surfaces) from
+<code>kafka-producer.yml</code>. Producer-only settings such as <code>acks</code> are filtered out. Nothing else about the
+probe changes; it still joins no group and needs no ACL.</p>
+</blockquote>
+<p>The Java page's notes on JVM classloaders and class-valued settings describe a JVM concern with no analog
+on this engine.</p>
+<h2 id="schema">Schema Registry: typed payloads (opt-in)<a class="headerlink" href="#schema" title="Permanent link">&para;</a></h2>
+<p>The default wire contract is raw bytes, which keeps the building blocks serializer-free. To interoperate
+with existing Confluent client projects, the library can also speak the <strong>Confluent Schema Registry wire
+format</strong> — <code>[magic 0x00][4-byte global schema id][payload]</code> — for <strong>JSON Schema and Avro</strong> values. The Java
+module uses Confluent's own serializers as a library; there is no Confluent client for Rust, so this engine
+implements the frame, the subject/version resolution and the two codecs itself, on the Apache Avro
+reference crate (<code>apache-avro</code>) and a JSON Schema validator (<code>jsonschema</code>). The wire format is byte-for-byte
+the same: a JSON Schema payload is the JSON document, an Avro payload is the binary datum against the
+registered writer schema, and the two engines' demos exchange both over one topic pair (see the
+<a href="../../test-reports/minimalist-kafka-interop/">interop report</a>).</p>
+<blockquote>
+<p><strong>Protobuf is not supported.</strong> The Java module unwired it before its first release because Confluent's
+<code>kafka-protobuf-provider</code> depends on a discontinued artifact carrying an unpatched denial-of-service CVE
+(<a href="https://github.com/square/wire/security/advisories/GHSA-7xpr-hc2w-34m9">CVE-2026-45799 / GHSA-7xpr-hc2w-34m9</a>);
+this engine keeps parity. <code>PROTOBUF</code> is still recognized as a schema type so a misconfigured attempt
+fails clearly (a 501 naming the type), not silently.</p>
+</blockquote>
+<p>Set <code>schema.registry.url</code> to turn the feature on (point it at a real Confluent registry or the Java
+repository's local <a href="https://accenture.github.io/mercury-composable/guides/schema-registry-mock/"><code>schema-registry-standalone</code></a>
+mock, a plain dev server with no Docker). When it is unset, schema features stay off and the library keeps
+its raw-bytes behavior.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">schema.registry.url</span><span class="p">:</span><span class="w"> </span><span class="s">'${SCHEMA_REGISTRY_URL:http://127.0.0.1:8081}'</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nt">schema.registry.cache.ttl</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30m</span><span class="w">                         </span><span class="c1"># TTL for the in-memory schema cache (by id)</span>
+</code></pre></div>
+<h3 id="schema-auth">Registry authentication (OAuth 2.0 / basic)<a class="headerlink" href="#schema-auth" title="Permanent link">&para;</a></h3>
+<p>The registry client's authentication parameters live in the <strong><code>schema-registry.yml</code> template</strong> (same
+mechanics as the producer/consumer templates: bundled by default, optionally relocated with
+<code>schema.registry.properties</code>). The keys and values are the Confluent Schema Registry client's own, so a
+Java-side <code>schema-registry.properties</code> ports by renaming the file — with one difference to know: the Java
+module passes the template <strong>verbatim</strong> to the Confluent client, while this engine <strong>interprets</strong> it. The
+keys below are honoured by name; any other key is logged at startup as ignored, never silently.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bearer.auth.credentials.source</code></td>
+<td><code>OAUTHBEARER</code> (client credentials), <code>STATIC_TOKEN</code>, or <code>SASL_OAUTHBEARER_INHERIT</code> (reuse the Kafka client template's <code>sasl.oauthbearer.*</code> settings — one credential for broker and registry).</td>
+</tr>
+<tr>
+<td><code>bearer.auth.issuer.endpoint.url</code>, <code>bearer.auth.client.id</code>, <code>bearer.auth.client.secret</code>, <code>bearer.auth.scope</code></td>
+<td>The client-credentials grant.</td>
+</tr>
+<tr>
+<td><code>bearer.auth.token</code></td>
+<td>The fixed token for <code>STATIC_TOKEN</code> (dev/test).</td>
+</tr>
+<tr>
+<td><code>bearer.auth.cache.expiry.buffer.seconds</code></td>
+<td>Refresh the token this long before it expires (default 300).</td>
+</tr>
+<tr>
+<td><code>bearer.auth.logical.cluster</code>, <code>bearer.auth.identity.pool.id</code></td>
+<td>Confluent Cloud: sent as the <code>target-sr-cluster</code> and <code>Confluent-Identity-Pool-Id</code> headers.</td>
+</tr>
+<tr>
+<td><code>basic.auth.credentials.source</code></td>
+<td><code>USER_INFO</code> (<code>basic.auth.user.info</code> = <code>user:password</code>), <code>URL</code> (credentials carried in <code>schema.registry.url</code>), or <code>SASL_INHERIT</code> (the Kafka template's <code>sasl.username</code> / <code>sasl.password</code>).</td>
+</tr>
+</tbody>
+</table>
+<p>OAuth 2.0 client-credentials (e.g. Azure AD / Entra ID):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">bearer.auth.credentials.source</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">OAUTHBEARER</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="nt">bearer.auth.issuer.endpoint.url</span><span class="p">:</span><span class="w"> </span><span class="s">'${SCHEMA_REGISTRY_OAUTH_TOKEN_URL:}'</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="nt">bearer.auth.client.id</span><span class="p">:</span><span class="w"> </span><span class="s">'${SCHEMA_REGISTRY_CLIENT_ID:}'</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="nt">bearer.auth.client.secret</span><span class="p">:</span><span class="w"> </span><span class="s">'${SCHEMA_REGISTRY_CLIENT_SECRET:}'</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="nt">bearer.auth.scope</span><span class="p">:</span><span class="w"> </span><span class="s">'${SCHEMA_REGISTRY_OAUTH_SCOPE:}'</span>
+</code></pre></div>
+<p>The client fetches the bearer token from the issuer endpoint exactly as Kafka's own retriever does (the
+client id and secret as HTTP Basic on the token request, <code>grant_type=client_credentials</code> and the scope in
+the form body), sends it as <code>Authorization: Bearer</code> on every registry request, and <strong>caches it</strong>, refreshing
+before expiry (<code>expires_in</code>, else the token's own <code>exp</code> claim). Keep secrets in environment variables via
+the <code>${ENV_VAR}</code> substitution; the shipped template is fully commented out, so an unauthenticated registry
+(like the local mock) keeps working with zero configuration.</p>
+<p><strong>TLS trust comes from the operating system's trust store</strong> — the registry is reached through the
+platform's own HTTP client, which trusts what the OS trusts (the same rule as the JDK default). A private
+CA is installed in the OS store; the Java template's <code>schema.registry.ssl.*</code> truststore keys have no analog
+here and are reported as ignored.</p>
+<h3 id="schema-produce">Produce: subject-driven<a class="headerlink" href="#schema-produce" title="Permanent link">&para;</a></h3>
+<p><code>simple.kafka.notification</code> serializes the body into the wire format when you supply a <code>subject</code> header:</p>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>subject</code></td>
+<td>The registry <strong>subject</strong> to serialize against. The schema must be <strong>pre-registered</strong>; the producer resolves the subject to a global schema id (and its type — <code>JSON</code> or <code>AVRO</code>) from the registry and never registers.</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>Optional. The subject version to resolve: a positive integer to <strong>pin</strong> a specific version, or <code>latest</code> to track the current version. Defaults to <code>latest</code>.</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># in a flow task that publishes via simple.kafka.notification</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="nt">input</span><span class="p">:</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'text(orders)</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">header.topic'</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'text(orders-value)</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">header.subject'</span><span class="w">    </span><span class="c1"># version omitted → latest</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'model.payload</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">*'</span><span class="w">        </span><span class="c1"># the body: must be bytes (a JSON document) on the schema path</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="nt">process</span><span class="p">:</span><span class="w"> </span><span class="s">'simple.kafka.notification'</span>
+</code></pre></div>
+<p>The producer resolves the subject (+ version) to a <strong>global schema id</strong> and its <strong>schema type</strong> from the
+registry, converts the document with that type's codec and frames it with the id. The wire format carries
+only the global id, and the consumer (id-from-wire) is unchanged; only the producer's <em>input</em> is a subject
+rather than an explicit id+type. Whoever registers the schema — CI, a client project, an admin tool — owns
+the subject naming strategy (TopicName / RecordName / TopicRecordName are all fine, and a topic can carry
+many record types). This assumes schemas are <strong>governed artifacts registered out-of-band</strong>, as they are in
+practice; the producer never auto-registers. The <code>subject</code> and <code>version</code> headers are encoding directives:
+they never reach Kafka as record headers.</p>
+<h3 id="csfle">CSFLE (Client-Side Field Level Encryption)<a class="headerlink" href="#csfle" title="Permanent link">&para;</a></h3>
+<p><strong>Not supported on this engine — and refused rather than degraded.</strong> The Java module supports
+<a href="https://docs.confluent.io/cloud/current/security/encrypt/csfle/overview.html">Confluent CSFLE</a> by
+<em>delegation</em>: a schema's <code>ruleSet</code> (its <code>ENCRYPT</code> rules tagging fields) travels with the schema, and
+Confluent's own serializer/deserializer run those rules — with a KMS driver on the classpath — during the
+same serialize/deserialize call the library already makes. This engine has no Confluent serializer to
+delegate to, and the alternative — writing plaintext where the schema declares encryption — would be a
+silent security regression. So a fetched schema that carries a <code>ruleSet</code> (an <code>ENCRYPT</code> rule or any other
+Confluent data-contract rule) fails its lookup with a 501 naming the rules: the producer refuses to publish,
+and a consumer dead-letters the record. The same holds for <strong>schema references</strong> (<code>references</code> on a
+registered schema): register self-contained schemas for the topics a Rust pod produces or consumes.</p>
+<p>The Java module's <code>schema.registry.serde.*</code> pass-through is read for the one setting with an analog here —
+<code>schema.registry.serde.json.fail.invalid.schema</code> (see the <a href="#schema-notes">notes</a>); any other key under that
+prefix is logged as unsupported.</p>
+<h3 id="schema-consumer-identity">A separate registry identity for the consumer side<a class="headerlink" href="#schema-consumer-identity" title="Permanent link">&para;</a></h3>
+<p>By default <strong>one</strong> codec — one Schema Registry identity, taken from <code>schema-registry.yml</code> — serves both
+directions: <code>simple.kafka.notification</code> encodes and the flow adapter decodes with it. Some Confluent
+installations grant a service's registry access <strong>per direction</strong> — a <em>produce</em> identity pool and a
+<em>consume</em> identity pool — so no single identity covers everything the service consumes. Set
+<code>schema.registry.consumer.properties</code> to give the flow adapter its own codec, built under the
+<code>schema.registry.consumer</code> key prefix against the <strong>same</strong> <code>schema.registry.url</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Producer identity (unchanged)</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="nt">schema.registry.url</span><span class="p">:</span><span class="w"> </span><span class="s">'${SCHEMA_REGISTRY_URL}'</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="nt">schema.registry.properties</span><span class="p">:</span><span class="w"> </span><span class="s">'classpath:/schema-registry.yml'</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="c1"># Consumer identity: a second template carrying the consume identity</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="nt">schema.registry.consumer.properties</span><span class="p">:</span><span class="w"> </span><span class="s">'classpath:/schema-registry-consumer.yml'</span>
+</code></pre></div>
+<p>The same rules as on the Java engine (<a href="https://accenture.github.io/mercury-composable/guides/minimalist-kafka/#schema-consumer-identity">guide</a>),
+with one difference to know:</p>
+<ul>
+<li><strong>Unset or blank = unchanged.</strong> The adapter shares the producer's codec exactly as before; the <code>${ENV_VAR:}</code>
+  idiom (blank when the variable is unset) keeps it that way per environment. The opt-in does not turn schema
+  features on — <code>schema.registry.url</code> stays the switch and is shared: a consumer decodes messages whose ids
+  were minted by the registry its producers use.</li>
+<li><strong>The consumer keys derive from the prefix:</strong> <code>schema.registry.consumer.properties</code> (the template — reuse the
+  producer's file or point at a second one) and <code>schema.registry.consumer.cache.ttl</code> (its own caches).</li>
+<li><strong>The identity lives in the template on this engine.</strong> There is no Confluent serde layer here, so the Java
+  module's <code>schema.registry.consumer.serde.*</code> override route has no analog (a key under it is reported as
+  ignored, like any other serde key) and CSFLE does not apply. The consume identity — typically the producer's
+  OAuth client with a different <code>bearer.auth.identity.pool.id</code> — goes in the consumer template, and the codec
+  sends it on every registry call.</li>
+</ul>
+<h3 id="schema-consume">Consume: decode by embedded id<a class="headerlink" href="#schema-consume" title="Permanent link">&para;</a></h3>
+<p>Set <code>schema.enabled: true</code> on a consumer binding. The adapter reads the magic byte + embedded id, looks up
+the registered schema's type, dispatches to the matching decoder, and hands the flow a <strong>map</strong> as
+<code>input.body</code> (instead of bytes). No flow-YAML change is needed (<code>input.body -&gt; *</code> is type-neutral); a
+schema-fed flow task simply takes a map instead of bytes. The decoded document also feeds the binding's
+<a href="#routing">routing rules</a>, so <code>input.body.*</code> selectors work on a schema topic.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">consumer</span><span class="p">:</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="s">'orders'</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="nt">flow</span><span class="p">:</span><span class="w"> </span><span class="s">'process-order'</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="s">'order-group'</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span><span class="nt">schema.enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+<p>A <strong>decode failure is a poison message</strong> (retrying will not help), so the raw record is dead-lettered
+immediately via the <a href="#reliability">DLQ path</a> rather than retried — the <code>dlq.error</code> header names the cause
+(an unframed payload, an unresolvable id, a document that does not match its schema).</p>
+<h3 id="schema-notes">Notes<a class="headerlink" href="#schema-notes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>One subject-driven path, two formats.</strong> The producer and consumer are type-generic; only the <code>subject</code>
+  (and the registered schema behind it) differ — the producer reads the schema type from the registry, so
+  the flow never names it. JSON Schema is <em>open</em> (<code>additionalProperties</code>), while Avro records are
+  <em>closed-shape</em> — a message must match the declared fields, and a non-schema field is dropped on the
+  wire. The JSON→Avro conversion walks the writer schema, so an absent field takes its <strong>schema default</strong>
+  and a missing field with no default fails fast (as Avro requires); unions are tried in declaration
+  order, <code>bytes</code>/<code>fixed</code> values are written as Avro's byte-string text or a list of byte values, and a
+  decoded record keeps its <code>bytes</code> binary. Avro decodes generically (no generated types), rendered to a
+  map.</li>
+<li><strong>JSON validation is opt-in.</strong> Like Confluent's serializer, a JSON document is validated against its
+  schema only when <code>json.fail.invalid.schema=true</code> — in the registry template or as
+  <code>schema.registry.serde.json.fail.invalid.schema</code> — on both produce and consume.</li>
+<li><strong>Schema cache.</strong> Lookups by id are cached <strong>in memory</strong> (the platform's <code>ManagedCache</code>, TTL
+  <code>schema.registry.cache.ttl</code>, default <code>30m</code>) to cut registry round-trips, and the parsed schema (the Avro
+  schema with its named types, or the compiled JSON validator) is cached with the text, so per-record
+  encode/decode never re-parses. A global schema id is immutable, so a cache hit is always the right
+  schema. <strong>Positive results only</strong> — a not-found id is never cached, so a schema registered while the app
+  is running becomes visible on the next lookup. The TTL lets schema changes be picked up without
+  restarting pods (handy in dev / lower environments); lengthen it in production where schemas change
+  rarely. The cache is rebuildable and <strong>cleared at startup</strong>.</li>
+<li><strong>Subject→id resolution cache.</strong> The producer also caches the <em>subject (+ version) → schema id</em>
+  resolution, and how long depends on the version. A <strong>pinned numeric version</strong> (<code>subject</code> + <code>version: N</code>)
+  maps to one immutable schema id, so it is cached <strong>long</strong> (<code>schema.registry.version.cache.ttl</code>, default
+  <code>10d</code>, bounded to 3000 entries). <code>latest</code> (the default) can change when a new version is registered, so
+  it shares the short-TTL id cache and is re-resolved frequently, picking up a new current version without
+  a restart. Pin a version in production paths where the schema must not shift underneath you; use
+  <code>latest</code> in dev / lower environments where tracking the newest schema is convenient.</li>
+<li><strong>A second registry is a second codec.</strong> The default codec reads the <code>schema.registry.*</code> keys; a
+  library that talks to another cluster's registry builds its own under another key prefix, with its own
+  caches — global ids are only unique within one registry.</li>
+<li><strong>Worked example.</strong> The <a href="https://github.com/Accenture/mercury/tree/main/examples/sync-over-async-demo">sync-over-async demo</a>
+  runs the same end-to-end flow over both formats (<code>json-topic-1/2</code>, <code>avro-topic-1/2</code>) alongside the raw
+  bytes path, against the Java demo on the same topics.</li>
+</ul>
+<h2 id="config">Configuration keys<a class="headerlink" href="#config" title="Permanent link">&para;</a></h2>
+<p>All keys are documented in the <a href="../configuration-reference/#kafka-flow-adapter">Configuration Reference</a>.
+The essentials:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>yaml.kafka.flow.adapter</code></td>
+<td>—</td>
+<td>Adapter config location; unset = inbound adapter off.</td>
+</tr>
+<tr>
+<td><code>kafka.producer.enabled</code></td>
+<td><code>true</code></td>
+<td>Set <code>false</code> on a consume-only leg to build no producer — see <a href="#opt-out">switching off a client</a>. A binding with <code>dlq-topic</code> then fails startup.</td>
+</tr>
+<tr>
+<td><code>kafka.consumer.enabled</code></td>
+<td><code>true</code></td>
+<td>Set <code>false</code> on a produce-only leg to start no adapter consumer; <a href="#health"><code>kafka.health</code></a> then probes through the producer template.</td>
+</tr>
+<tr>
+<td><code>kafka.producer.properties</code></td>
+<td><code>classpath:/kafka-producer.yml</code></td>
+<td>Producer template location (a <code>.properties</code> twin is also accepted). Set to an external file path (or explicit fallback list) to externalize.</td>
+</tr>
+<tr>
+<td><code>kafka.consumer.properties</code></td>
+<td><code>classpath:/kafka-consumer.yml</code></td>
+<td>Consumer template location. Set to an external file path (or explicit fallback list) to externalize.</td>
+</tr>
+<tr>
+<td><code>kafka.dlq.timeout.ms</code></td>
+<td><code>10000</code></td>
+<td>Confirm-write timeout for the dead-letter publish. (Flow processing has no timeout knob — the flow's own <code>ttl</code> is the deadline.)</td>
+</tr>
+<tr>
+<td><code>kafka.flow.max.retries</code></td>
+<td><code>3</code></td>
+<td>Retry attempts before dead-lettering.</td>
+</tr>
+<tr>
+<td><code>kafka.flow.retry.backoff.ms</code></td>
+<td><code>500</code></td>
+<td>Pause between retry attempts.</td>
+</tr>
+<tr>
+<td><code>kafka.correlation.id.header</code></td>
+<td><code>cid</code></td>
+<td>The record header carrying the business correlation id, both directions (per-binding override: <code>correlation.id.header</code>).</td>
+</tr>
+<tr>
+<td><code>kafka.trace.id.header</code></td>
+<td>—</td>
+<td>An optional legacy trace-id header stamped outbound and read inbound when no <code>traceparent</code> is present.</td>
+</tr>
+<tr>
+<td><code>kafka.traceparent.header</code></td>
+<td><code>traceparent</code></td>
+<td>The header carrying the W3C trace context; when customized, the context is stamped under both names.</td>
+</tr>
+<tr>
+<td><code>kafka.health.timeout</code></td>
+<td><code>5s</code></td>
+<td>The probe's round-trip deadline.</td>
+</tr>
+<tr>
+<td><code>kafka.health.startup.grace</code></td>
+<td><code>30s</code></td>
+<td>How long <code>/health</code> reports the placeholder status while the client warms up.</td>
+</tr>
+<tr>
+<td><code>schema.registry.url</code></td>
+<td>—</td>
+<td>Confluent Schema Registry URL; unset = <a href="#schema">schema features</a> off (raw bytes).</td>
+</tr>
+<tr>
+<td><code>schema.registry.properties</code></td>
+<td><code>classpath:/schema-registry.yml</code></td>
+<td>Registry client template location — authentication parameters interpreted by name (see <a href="#schema-auth">registry authentication</a>). Set to an external file path (or explicit fallback list) to externalize.</td>
+</tr>
+<tr>
+<td><code>schema.registry.cache.ttl</code></td>
+<td><code>30m</code></td>
+<td>TTL for the in-memory schema cache (by id); positive results only; cleared at startup.</td>
+</tr>
+<tr>
+<td><code>schema.registry.version.cache.ttl</code></td>
+<td><code>10d</code></td>
+<td>TTL for the pinned subject+version resolutions (bounded to 3000 entries).</td>
+</tr>
+<tr>
+<td><code>schema.registry.serde.json.fail.invalid.schema</code></td>
+<td><code>false</code></td>
+<td>Validate JSON documents against their schema on produce and consume.</td>
+</tr>
+<tr>
+<td><code>schema.registry.consumer.properties</code></td>
+<td>—</td>
+<td>Opt in to a <a href="#schema-consumer-identity">separate registry identity for the consumer side</a>: the flow adapter's own registry client template (the producer's file or a second one). Unset or blank = the adapter shares the producer's codec.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="deltas">Differences from the Java engine<a class="headerlink" href="#deltas" title="Permanent link">&para;</a></h2>
+<p>The behaviour above is the Java module's; these are the places where this engine's client (librdkafka
+through <code>rdkafka</code>) or the Rust ecosystem forces a difference — each is also recorded in the port's design
+spec (<code>draft-design-specs/minimalist-kafka-port.md</code>, §7):</p>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Java engine</th>
+<th>This engine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Activation</td>
+<td>the jar on the classpath is enough</td>
+<td>one <code>use mercury_minimalist_kafka as _;</code> line when nothing else references the crate</td>
+</tr>
+<tr>
+<td>Client templates</td>
+<td>Kafka Java client keys</td>
+<td>librdkafka keys (the same <code>bootstrap.servers</code>-style names; JVM-only keys ignored with a log line); SASL_SSL/OAUTHBEARER need the crate's <code>ssl</code> feature</td>
+</tr>
+<tr>
+<td>Default partitioner</td>
+<td>the <code>SimpleRandomPartitioner</code> class</td>
+<td>the client's built-in <code>murmur2_random</code> (same semantics, Java-compatible key hash)</td>
+</tr>
+<tr>
+<td><code>max-poll-records</code></td>
+<td>the poll batch size (mode defaults 1 / 500)</td>
+<td>the client's prefetch depth (<code>queued.min.messages</code>); one record at a time is inherent</td>
+</tr>
+<tr>
+<td><code>group.protocol=auto</code></td>
+<td>one <code>group.version</code> feature probe per cluster</td>
+<td>optimistic: <code>consumer</code> first, rebuilt once as <code>classic</code> when the broker refuses the join</td>
+</tr>
+<tr>
+<td><code>topic-pattern</code></td>
+<td><code>subscribe(Pattern)</code></td>
+<td>the anchored <code>^(&lt;pattern&gt;)$</code> handed to the client's regex subscription; a new matching topic joins at the next metadata refresh</td>
+</tr>
+<tr>
+<td>Threading</td>
+<td>Kafka-driving functions on kernel threads; Confluent serdes owner-confined</td>
+<td>native client threads + async tasks; one shared, thread-safe codec</td>
+</tr>
+<tr>
+<td>Headless app</td>
+<td>the JVM stays up on non-daemon consumer threads</td>
+<td>the adapter declares that it keeps the process running; <code>SIGTERM</code>/Ctrl-C stop the consumers gracefully (<a href="#shutdown">shutdown</a>)</td>
+</tr>
+<tr>
+<td>Shutdown</td>
+<td>closes every consumer, then flushes and closes the producer, waiting without bound</td>
+<td>stops every consumer (each leaves its group on close), then flushes the producer within the 10 s grace and forgets it; records the grace could not deliver are counted in the log</td>
+</tr>
+<tr>
+<td>Schema codecs</td>
+<td>Confluent's serializers as a library</td>
+<td>this engine's own JSON Schema and Avro codecs on <code>jsonschema</code> / <code>apache-avro</code>; the frame and payloads are byte-identical</td>
+</tr>
+<tr>
+<td>Registry template</td>
+<td>passed verbatim to the Confluent client</td>
+<td>interpreted by name (unknown keys logged); TLS trust from the OS store</td>
+</tr>
+<tr>
+<td>CSFLE, rules, references</td>
+<td>delegated to the Confluent serdes and KMS drivers</td>
+<td>refused with a 501 (never plaintext); register self-contained schemas</td>
+</tr>
+<tr>
+<td>Avro conversion</td>
+<td>the first non-null union branch; a string for <code>bytes</code> fails at the serializer</td>
+<td>unions tried in declaration order; <code>bytes</code> from a byte-string or a byte list</td>
+</tr>
+<tr>
+<td><code>twin-kafka</code></td>
+<td>the second-cluster bridge module</td>
+<td>not ported (deferred until a bridge need exists); the codec and template loader carry the key-prefix seam it would use</td>
+</tr>
+</tbody>
+</table>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../../test-reports/minimalist-kafka-interop/">Interop test report — Minimalist Kafka</a> — the two-engine drive
+  on the Java <code>kafka-standalone</code> helper: routing, DLQ, a mixed Java+Rust consumer group, rebalance chaos,
+  the Schema Registry legs.</li>
+<li><a href="../observability/">Observability</a> — how trace context stays continuous across the Kafka hop.</li>
+<li><a href="../configuration-reference/#kafka-flow-adapter">Configuration Reference</a> — every Kafka flow-adapter key.</li>
+<li><a href="../event-script/syntax/">Event Script syntax</a> — the flow YAML the adapter dispatches into.</li>
+<li>The Java engine's <a href="https://accenture.github.io/mercury-composable/guides/minimalist-kafka/">Minimalist Kafka guide</a>
+  (the canon this page twins), its <a href="https://accenture.github.io/mercury-composable/guides/sync-over-async/">Sync-over-Async guide</a>
+  and <a href="https://accenture.github.io/mercury-composable/guides/twin-kafka/">Twin Kafka</a> (not ported).</li>
+<li>The worked examples: <a href="https://github.com/Accenture/mercury/tree/main/examples/kafka-demo"><code>kafka-demo</code></a>
+  (both routing styles + notification) and
+  <a href="https://github.com/Accenture/mercury/tree/main/examples/sync-over-async-demo"><code>sync-over-async-demo</code></a>
+  (synchronous REST over Kafka with the Redis return route, raw / JSON Schema / Avro legs).</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../distributed-cache/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Distributed Cache">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Distributed Cache
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../polyglot-functions/" class="md-footer__link md-footer__link--next" aria-label="Next: Polyglot Functions (Python &amp; Node.js)">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Polyglot Functions (Python & Node.js)
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache-2.0 &middot; mercury is the Rust port of <a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
