@@ -14,18 +14,19 @@
 
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22). The current release is the `latest_release` field below (both engines release in lock-step, one number for the same content). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
-- **latest_release:** v4.12.18 (2026-09-25 20:55:02Z — **the graph.math rulings shipped on both engines, lock-step with the Java
-  engine**: release PR #331 merged as `568d71b2`; tag `v4.12.18` → `7d07e9bd` (one memory-only commit past the merge), workspace
-  version verified at the tag; the GitHub release body is the CHANGELOG entry). Content — Increment 141 (#330): graph.math typed
-  and finite — a boolean is never a number, unknown functions and overflow fail by name, `CONDITION`
-  ([[graph-math-typed-arithmetic-rust]]; READ: a graph that relied on `true` computing as 1/0 or on `Infinity` propagating now
-  fails at that statement) — plus the Rust-only Increment 140 (#329, two timing-sensitive tests hardened). Sweep 13 Cargo.toml /
-  24 + `Cargo.lock`. Readiness 603 / 0 / 9. **crates.io: 12 of 12 PUBLISHED 2026-09-25 20:58:10–20:58:23Z**, one `cargo publish
-  --workspace`. **Lockstep:** Java v4.12.18 the same minute (mercury-composable #464 squash `1e419a29`, tag → `70e00474`,
-  20:56:19Z — also carrying Java's #463 Snyk dependency bumps, no analogue here); the python/node packs stay at 4.12.15. Main's
-  `rust` run was in progress on the tag commit at close. Origin 2026-09-25-195421.md.
-  **Unreleased on main since 2026-09-25:** #332 merge `d3d82a3f` — `graph.model.automation` accepts a list of manifests, later
-  wins ([[graph-manifest-list-later-wins-rust]], Increment 142; Java #465 `40ce30a7`) — the 4.12.19 content so far.
+- **latest_release:** v4.12.19 (2026-09-25 23:59:10Z — **the rapid-prototyping deploy lane completed on both engines, lock-step with
+  the Java engine (v4.12.19, 23:58:19Z)**: release PR #333 → merge `ff6e269c`, tag `v4.12.19` → `e659c683` (one memory-only commit
+  past the merge), workspace version verified at the tag; the GitHub release body is the CHANGELOG entry; the twelve crates at
+  4.12.19 on crates.io (verified 12/12). **Content:** Increment 142 (#332) — `graph.model.automation` accepts a comma-separated list
+  of manifests, each with its own `location`, and the later manifest wins ([[graph-manifest-list-later-wins-rust]]; READ: a graph id
+  listed in two manifests now resolves to the later one, and its rejection makes the id 404) plus the deploy-without-rebuild recipe
+  with the `-D` program-argument form. Sweep BUILD FILES ONLY 13 Cargo.toml / 24 + 24 lock entries (unchanged). Gates: `cargo test
+  --workspace` 606 passed / 0 failed, clippy, audit, claims, links. Java: #466 squash `a261ff18`, tag → `35000ef2`. The `rust` run on
+  the tag commit completed success at close; the python/node packs stay at 4.12.15. Origin 2026-09-25-232953.md.
+  Prior: v4.12.18 (2026-09-25 20:55:02Z — the graph.math rulings on both engines, Increments 140–141; #331 → `568d71b2`, tag →
+  `7d07e9bd`; [[graph-math-typed-arithmetic-rust]] — READ: `true` never computes as 1/0 and `Infinity` never propagates; crates
+  12/12; Java v4.12.18 #464 `1e419a29` → `70e00474`, also carrying Java's #463 Snyk bumps with no analogue here. Origin
+  2026-09-25-195421.md.)
   Prior: v4.12.17 (2026-09-25 00:20:16Z — the field's Kafka gap closed on both engines; PR #328 → `ad957930`, tag → `af9d6f30`;
   Increment 139 `SchemaCodec::for_consumer` ([[schema-registry-native-codec]]) plus the Rust-only 137 `yaml_serde` and 138 `cargo
   audit`; 603 / 0 / 9; crates 12/12 00:24Z; Java #461 `e9cde291`. Origin 2026-09-24-235353.md.)
