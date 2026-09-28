@@ -308,6 +308,16 @@
       "quote": "accepts a comma-separated list of manifests, each carrying its own location, and when two manifests list the same graph id the later manifest wins",
       "test": "crates/knowledge-graph::compiler::later_manifest_wins_for_a_duplicate_graph_id",
       "since": "4.12.19+"
+    },
+    {
+      "id": "math-expression-dialect",
+      "claim": "The graph.math expression dialect is exactly: number, string and boolean literals; the operators ** (right-associative; a unary operand needs parentheses), unary + - !, * / %, + - (+ concatenates when either side is a string), < <= > >= (two numbers, or two strings compared lexically), == != (same type only), && || (short-circuit), the ternary ?: and parentheses; the eighteen built-in functions sin, cos, tan, asin, acos, atan, sqrt, abs, floor, ceil, round, log, log10, exp, min, max, pow, random (each also under Math.); and the constants PI and E. Nothing else parses: no bitwise operators, no assignment or user variables, no user-defined functions - an unlisted function fails by name.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "This list is the whole dialect: an operator, function or constant not listed here is rejected by name, never silently accepted.",
+      "test": "crates/knowledge-graph::expression_dialect::the_dialect_is_exactly_the_documented_functions_and_constants",
+      "since": "4.9.0+"
     }
   ]
 }

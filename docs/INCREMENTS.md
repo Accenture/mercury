@@ -3925,3 +3925,28 @@ later one now wins, and its rejection makes the id answer 404.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
 `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+## Increment 143 — The graph.math expression dialect documented as a closed set and pinned (2026-09-28)
+
+The Rust twin of the Java engine's #467 (+ #468). During a live MiniGraph demo an AI agent building `a + b ** 2` had to read
+the evaluator source to know whether `**` parses: the command grammar said the dialect has "no function calls", the skills
+reference listed a partial function set, and no page named the operators. The doc-improvement loop's bar is that a fresh
+agent generates from the guide alone, so the dialect — identical on both engines — is now documented as the closed set it
+is, on every surface an agent reads, and pinned so it cannot drift from the evaluator in either direction.
+
+- **`skills-reference.md#math-dialect`** — a new *The expression dialect* section: literals; `{namespace.key}` variables and
+  how they render (a text value becomes a quoted string literal in a boolean context); every operator by precedence with the
+  strict `**` unary rule, `%`, string `+`, lexical string comparison, same-type equality, short-circuit `&&` / `||` and the
+  ternary; the eighteen functions with their arity (`Math.` mirror); `PI` and `E`; and the exclusions. The grammar page's
+  summary corrected (it said "no function calls") and linked; the in-band `help graph-math` gains the same catalog under
+  *Expressions*; `minigraph-commands.json` gains an `expression_dialect` object on the `graph.math` entry for machine
+  validation.
+- **Pinned** by claim `math-expression-dialect` and `tests/expression_dialect.rs` (twin of the Java
+  `ClaimMathExpressionDialectTest`, grouped one concern per test from the start — Sonar's S5961 caught the Java original at
+  29 assertions in one method): set-equality on `EvalContext::with_defaults()` — a function or constant added or removed
+  fails the build — every documented function evaluated at its arity, a wrong arity by name, every documented operator
+  accepted, every documented exclusion rejected. `EvalContext::names()` and `namespace_names()` are the Java
+  `snapshot().keySet()` analog the pin reads (the one code change; no behaviour change).
+
+No engine behaviour change. Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+`cargo test -p mercury-knowledge-graph`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.

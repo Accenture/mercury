@@ -126,6 +126,31 @@ impl EvalContext {
         self
     }
 
+    /// The names defined at the top level of this context — every function,
+    /// constant and variable, sorted (the Java `snapshot().keySet()` analog).
+    /// The documented dialect is pinned against this set: a function or
+    /// constant added or removed here must be documented in
+    /// `skills-reference.md#math-dialect`, `help graph-math.md` and
+    /// `minigraph-commands.json` together (claim `math-expression-dialect`).
+    pub fn names(&self) -> Vec<String> {
+        let mut names: Vec<String> = self.root.keys().cloned().collect();
+        names.sort();
+        names
+    }
+
+    /// The member names of a namespace such as `Math`, sorted; `None` when
+    /// the name is not defined or is not a namespace.
+    pub fn namespace_names(&self, namespace: &str) -> Option<Vec<String>> {
+        match self.root.get(namespace) {
+            Some(ContextValue::Namespace(map)) => {
+                let mut names: Vec<String> = map.keys().cloned().collect();
+                names.sort();
+                Some(names)
+            }
+            _ => None,
+        }
+    }
+
     pub(crate) fn lookup(&self, name: &str) -> Option<&ContextValue> {
         self.root.get(name)
     }

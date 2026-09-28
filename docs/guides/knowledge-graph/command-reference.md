@@ -615,8 +615,12 @@ unaffected: the island sinks, so the execution path never enters the knowledge l
 > **`graph.js` is retired in this Rust port** (disabled for security — the runtime rejects it with
 > *"Skill graph.js is retired for security reasons - use graph.math or graph.task instead."*). Use
 > `graph.math` for inline compute/branch, or `graph.task` for anything richer. Its expression dialect
-> is a narrow JS-like subset — arithmetic/comparison/boolean operators only, **no bitwise ops, no
-> function calls, no variables**; `COMPUTE` yields a double (integers serialize as e.g. `8.0`).
+> is a narrow JS-like subset — arithmetic (including `**`), comparison, boolean and ternary operators,
+> **eighteen built-in math functions** (`pow`, `min`, `max`, `abs`, `round`, `sqrt` … also under
+> `Math.`) and the constants `PI` and `E`; **no bitwise operators, no assignment or user variables, no
+> user-defined functions**. The complete catalog — every operator, function and constant the parser
+> accepts — is [the expression dialect](skills-reference.md#math-dialect); `COMPUTE` yields a double
+> (integers serialize as e.g. `8.0`).
 
 A `graph.math` node runs an ordered list of `statement[]` lines. Six statement types:
 
