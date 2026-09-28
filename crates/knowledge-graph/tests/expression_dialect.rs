@@ -86,15 +86,25 @@ fn the_dialect_is_exactly_the_documented_functions_and_constants() {
     // every top-level function and constant is mirrored under Math.* - and nothing else is
     let mirrored = ctx.namespace_names("Math");
     assert_eq!(mirrored, Some(documented_names(false)));
-    assert_eq!(ctx.namespace_names("PI"), None, "a constant is not a namespace");
+    assert_eq!(
+        ctx.namespace_names("PI"),
+        None,
+        "a constant is not a namespace"
+    );
     let engine = ExpressionEngine::new();
     for name in FUNCTIONS.split_whitespace() {
         // a function value used without '()' is rejected by name, never read as a number
         let message = number_error(&engine, name);
-        assert!(message.contains("function"), "{name} must be a function: {message}");
+        assert!(
+            message.contains("function"),
+            "{name} must be a function: {message}"
+        );
     }
     for name in CONSTANTS.split_whitespace() {
-        assert!(engine.eval_number(name).is_ok(), "{name} must be a numeric constant");
+        assert!(
+            engine.eval_number(name).is_ok(),
+            "{name} must be a numeric constant"
+        );
     }
 }
 
@@ -104,9 +114,15 @@ fn one_argument_functions_evaluate() {
     approx(0.0, engine.eval_number("sin(0)").unwrap());
     approx(1.0, engine.eval_number("cos(0)").unwrap());
     approx(0.0, engine.eval_number("tan(0)").unwrap());
-    approx(std::f64::consts::FRAC_PI_2, engine.eval_number("asin(1)").unwrap());
+    approx(
+        std::f64::consts::FRAC_PI_2,
+        engine.eval_number("asin(1)").unwrap(),
+    );
     approx(0.0, engine.eval_number("acos(1)").unwrap());
-    approx(std::f64::consts::FRAC_PI_4, engine.eval_number("atan(1)").unwrap());
+    approx(
+        std::f64::consts::FRAC_PI_4,
+        engine.eval_number("atan(1)").unwrap(),
+    );
     approx(4.0, engine.eval_number("sqrt(16)").unwrap());
     approx(2.5, engine.eval_number("abs(-2.5)").unwrap());
     approx(2.0, engine.eval_number("floor(2.9)").unwrap());
@@ -175,7 +191,9 @@ fn arithmetic_operators_are_accepted() {
 fn comparison_logical_and_ternary_operators_are_accepted() {
     let engine = ExpressionEngine::new();
     // relational on numbers and on two strings (lexical - ISO-8601 timestamps compare correctly)
-    let relational = engine.eval_boolean("1 < 2 && 2 <= 2 && 3 > 2 && 3 >= 3").unwrap();
+    let relational = engine
+        .eval_boolean("1 < 2 && 2 <= 2 && 3 > 2 && 3 >= 3")
+        .unwrap();
     assert!(relational);
     let timestamps = engine.eval_boolean("'2026-03-02T01:00:01Z' > '2026-03-02T01:00:00Z'");
     assert!(timestamps.unwrap());
@@ -183,7 +201,10 @@ fn comparison_logical_and_ternary_operators_are_accepted() {
     let equality = engine.eval_boolean("5 == 5.0 && 1 != 2 && 'a' == 'a' && true == true");
     assert!(equality.unwrap());
     let mismatch = eval_error(&engine, "'1' == 1");
-    assert!(mismatch.message().contains("Type mismatch for equality"), "{mismatch}");
+    assert!(
+        mismatch.message().contains("Type mismatch for equality"),
+        "{mismatch}"
+    );
     // logical not / and / or (short-circuit) and the ternary
     assert!(engine.eval_boolean("!false && (false || true)").unwrap());
     approx(1.0, engine.eval_number("2 > 1 ? 1 : 0").unwrap());
@@ -210,11 +231,17 @@ fn the_documented_exclusions_are_rejected() {
     // no bitwise or shift operators, no assignment, no user identifiers, no user-defined functions
     for expr in ["1 & 2", "1 | 2", "1 ^ 2", "~1", "1 << 2", "x = 1"] {
         let rejected = eval_error(&engine, expr);
-        assert!(matches!(rejected, MathError::Parse(_)), "'{expr}' must not parse: {rejected}");
+        assert!(
+            matches!(rejected, MathError::Parse(_)),
+            "'{expr}' must not parse: {rejected}"
+        );
     }
     let e1 = number_error(&engine, "total + 1");
     assert!(e1.starts_with("Unknown identifier: total"), "{e1}");
-    assert_eq!("Unknown function: hypot", number_error(&engine, "hypot(3, 4)"));
+    assert_eq!(
+        "Unknown function: hypot",
+        number_error(&engine, "hypot(3, 4)")
+    );
     let namespaced = number_error(&engine, "Math.hypot(3, 4)");
     assert_eq!("Unknown function: Math.hypot", namespaced);
 }
