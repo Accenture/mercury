@@ -121,10 +121,48 @@ instance, so a walk that accumulates a list reseeds it in the pre-block
 (`MAPPING: f:json(text([])) -> model.codes`). Full rules + worked example:
 [for_each](command-reference.md#math-for-each).
 
-**Numbers and booleans.** The dialect is a **narrow** JS-like subset — arithmetic, comparison and
-boolean operators, the built-in math functions (`min`, `max`, `abs`, `floor`, `ceil`, `round`,
-`sqrt`, `pow`, `exp`, `log`, `log10`, also under `Math.`), no bitwise operators, no variables. Its
-rules, each enforced by a named failure rather than a silent value:
+### The expression dialect {#math-dialect}
+
+Everything a `COMPUTE`, `CONDITION` or `IF` expression may contain. The engine parses it with its
+own evaluator — a **narrow JS-like subset**, not a JavaScript runtime (`graph.js` is retired in this
+port) — so the dialect is a closed set. This list is the whole dialect: an operator, function or
+constant not listed here is rejected by name, never silently accepted.
+
+- **Literals** — numbers `42`, `3.14`, `.5`, `1e-5`; strings `'text'` or `"text"` (escapes `\'`,
+  `\"`, `\\`, `\n`, `\t`); booleans `true`, `false`.
+- **Variables** — `{namespace.key}` substitutions **only**: `{input.body.qty}`, `{model.total}`,
+  `{book.price}`, `{check.result.eligible}`. They are resolved into the text before it is parsed: a
+  number or boolean as itself; a text value as a quoted string literal in a boolean context (`IF`,
+  `CONDITION`, or a `COMPUTE` carrying a comparison or boolean operator), so
+  `{model.state} == 'CA'` compares text. An unresolved selector fails by name **before** evaluation
+  (`Unknown identifier: model.threshold (unresolved variable in …)`). There is no assignment and no
+  user-defined variable.
+- **Operators**, tightest-binding first:
+    - `**` exponent — right-associative (`2 ** 3 ** 2` is `512`); the strict JavaScript rule applies,
+      so a unary operand needs parentheses: `-(2 ** 2)`, never `-2 ** 2` (a parse error).
+    - unary `+`, `-`, `!` — `!` negates truthiness.
+    - `*`, `/`, `%` — multiply, divide, remainder; a division by zero fails by name.
+    - `+`, `-` — add, subtract; `+` **concatenates** when either side is a string (`'id-' + 7` is
+      `id-7`).
+    - `<`, `<=`, `>`, `>=` — two numbers, or two strings compared lexically (ISO-8601 timestamps
+      compare correctly).
+    - `==`, `!=` — same type on both sides; `'1' == 1` fails (`Type mismatch for equality`).
+    - `&&`, then `||` — short-circuit; a number or string operand is truthy the JavaScript way (`0`
+      and `''` are false).
+    - `test ? a : b` — the ternary, lowest precedence; `( … )` groups.
+- **Functions** — one argument: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `sqrt`, `abs`,
+  `floor`, `ceil`, `round`, `log` (natural), `log10`, `exp`; two: `pow(x, y)`; any number:
+  `min(a, b, …)`, `max(a, b, …)`; none: `random()`. Every function is also reachable under `Math.`
+  (`Math.pow(2, 3)`). A wrong arity fails by name (`Function pow expects 2 args, got 1`); an
+  unlisted name fails `Unknown function: hypot`.
+- **Constants** — `PI`, `E` (also `Math.PI`, `Math.E`).
+- **Not in the dialect** — bitwise and shift operators (`&`, `|`, `^`, `~`, `<<`), assignment
+  (`=`), user identifiers, user-defined functions, arrays, objects, string methods. Each is a parse
+  error or an `Unknown identifier` / `Unknown function` failure; anything richer than this list
+  belongs in a [`graph.task`](#task) function.
+
+**Numbers and booleans.** The dialect's rules, each enforced by a named failure rather than a silent
+value:
 
 - **A boolean is not a number.** A boolean where arithmetic, a `<`/`>` comparison or a function
   argument needs a number fails naming the selector (`Boolean operand: model.flag (true) in

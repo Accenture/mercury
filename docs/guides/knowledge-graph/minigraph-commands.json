@@ -410,6 +410,111 @@
     {
       "route": "graph.math",
       "help": "help graph-math.md",
+      "expression_dialect": {
+        "note": "CLOSED SET - everything a COMPUTE/CONDITION/IF expression may contain; an operator, function or constant not listed here is rejected by name (Unknown function: hypot), never silently accepted. Evaluated by the engine's own parser, not a JavaScript runtime (graph.js is retired in this port). Generate expressions from this object alone.",
+        "literals": [
+          "number: 42, 3.14, .5, 1e-5",
+          "string: 'text' or \"text\" (escapes \\' \\\" \\\\ \\n \\t)",
+          "boolean: true, false"
+        ],
+        "variables": "{namespace.key} substitution ONLY (e.g. {input.body.qty}, {model.total}, {book.price}, {node.result.var}) - resolved into the text before parsing: a number or boolean as itself, a text value as a quoted string literal in a boolean context (IF, CONDITION, a COMPUTE carrying a comparison or boolean operator) so {model.state} == 'CA' compares text; an unresolved selector fails by name BEFORE evaluation (Unknown identifier: model.threshold (unresolved variable in ...)). No assignment, no user-defined variables.",
+        "operators_by_precedence": [
+          {
+            "op": "**",
+            "meaning": "exponent",
+            "note": "right-associative (2 ** 3 ** 2 = 512); strict JS rule - a unary operand needs parentheses: -(2 ** 2), never -2 ** 2 (parse error)"
+          },
+          {
+            "op": "+ - !",
+            "meaning": "unary plus, minus, logical not",
+            "note": "! negates truthiness"
+          },
+          {
+            "op": "* / %",
+            "meaning": "multiply, divide, remainder",
+            "note": "division by zero fails by name"
+          },
+          {
+            "op": "+ -",
+            "meaning": "add, subtract",
+            "note": "+ concatenates when either side is a string ('id-' + 7 = id-7)"
+          },
+          {
+            "op": "< <= > >=",
+            "meaning": "relational",
+            "note": "two numbers, or two strings compared lexically (ISO-8601 timestamps compare correctly)"
+          },
+          {
+            "op": "== !=",
+            "meaning": "equality",
+            "note": "same type on both sides; '1' == 1 fails (Type mismatch for equality)"
+          },
+          {
+            "op": "&&",
+            "meaning": "logical and",
+            "note": "short-circuit; 0 and '' are falsy, other numbers and strings truthy"
+          },
+          {
+            "op": "||",
+            "meaning": "logical or",
+            "note": "short-circuit"
+          },
+          {
+            "op": "test ? a : b",
+            "meaning": "ternary",
+            "note": "lowest precedence"
+          },
+          {
+            "op": "( )",
+            "meaning": "grouping",
+            "note": ""
+          }
+        ],
+        "functions": {
+          "one_argument": [
+            "sin",
+            "cos",
+            "tan",
+            "asin",
+            "acos",
+            "atan",
+            "sqrt",
+            "abs",
+            "floor",
+            "ceil",
+            "round",
+            "log",
+            "log10",
+            "exp"
+          ],
+          "two_arguments": [
+            "pow(x, y)"
+          ],
+          "variadic": [
+            "min(a, b, ...)",
+            "max(a, b, ...)"
+          ],
+          "no_argument": [
+            "random()"
+          ],
+          "note": "each function is also reachable under Math. (Math.pow(2, 3)); a wrong arity fails by name (Function pow expects 2 args, got 1); round is half up toward positive infinity; log is the natural logarithm"
+        },
+        "constants": [
+          "PI",
+          "E",
+          "Math.PI",
+          "Math.E"
+        ],
+        "not_in_dialect": [
+          "bitwise and shift operators (& | ^ ~ <<)",
+          "assignment (=)",
+          "user identifiers / user-defined variables",
+          "user-defined functions",
+          "arrays, objects, string methods",
+          "any Math member not listed above"
+        ],
+        "pinned_by": "claims-registry: math-expression-dialect"
+      },
       "required": [
         "statement[]"
       ],

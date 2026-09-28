@@ -67,11 +67,29 @@ properties/result into a COMPUTE or IF expression, e.g.
 hyphenated names - {unit-price} is the value of "unit-price", never parsed
 as a subtraction - so use communicative hyphenated names freely.
 
-The dialect is a NARROW JavaScript-like subset: arithmetic, comparison and
-boolean operators, and the built-in math functions (min, max, abs, floor,
-ceil, round, sqrt, pow, exp, log, log10, also under Math.). No bitwise
-operators, no variables inside the expression. COMPUTE yields a double, so an
-integer result serializes as e.g. 8.0 (numerically exact).
+The dialect is a NARROW JavaScript-like subset evaluated by the engine's own
+parser, not a JavaScript runtime - a closed set. It accepts exactly the
+following; an operator, function or constant not listed here is rejected by
+name ("Unknown function: hypot"), never silently. COMPUTE yields a double, so
+an integer result serializes as e.g. 8.0 (numerically exact).
+
+```
+Literals   : numbers (42, 3.14, .5, 1e-5), strings ('text' or "text"), booleans (true, false)
+Variables  : {namespace.key} substitution only - e.g. {input.body.qty}, {model.total}, {book.price};
+             an unresolved selector fails by name before evaluation
+Operators  : **  exponent, right-associative; a unary operand needs parentheses: -(2 ** 2), never -2 ** 2
+             unary + - !          * / % (remainder)          + - (+ concatenates when either side is a string)
+             < <= > >= (two numbers, or two strings compared lexically)
+             == != (same type on both sides)          && || (short-circuit)          test ? a : b          ( )
+Functions  : sin, cos, tan, asin, acos, atan, sqrt, abs, floor, ceil, round, log, log10, exp   (one argument)
+             pow(x, y)          min(a, b, ...)          max(a, b, ...)          random()
+             every function is also available as Math.name, e.g. Math.pow(2, 3)
+Constants  : PI, E (also Math.PI, Math.E)
+Not in the dialect: bitwise and shift operators (& | ^ ~ <<), assignment (=), user-defined variables
+             and functions, arrays, objects, string methods - use a graph.task function instead
+```
+
+Precedence, tightest first: ** > unary > * / % > + - > relational > equality > && > || > ?:
 
 Numbers and booleans - each rule is enforced by a named failure, never a
 silent value:
