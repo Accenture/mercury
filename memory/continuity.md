@@ -391,6 +391,21 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   the recipe lives in `ai-agent-guide.md#deploy-without-rebuild`.
   <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 3 | tier: active | origin: 2026-09-25-224149 -->
 
+- **The graph.math expression dialect is documented as the closed set it is, and pinned — the Rust twin of mercury-composable
+  #467/#468 (Increment 143, 2026-09-28; PR #334 OPEN; UNRELEASED).** A live MiniGraph demo showed the gap: an agent building
+  `a + b ** 2` had to read the evaluator to know whether `**` parses — the grammar page said "no function calls", the skills
+  reference listed a partial function set, no page named the operators. Now `skills-reference.md#math-dialect` lists everything a
+  `COMPUTE`/`CONDITION`/`IF` may contain (literals; `{…}` variables and how they render — a text value becomes a quoted string
+  literal in a boolean context; operators by precedence with the strict `**` unary rule; the eighteen functions with arity, all
+  under `Math.` too; `PI`, `E`; the exclusions), the grammar summary links to it, the in-band `help graph-math` carries the same
+  catalog, and `minigraph-commands.json` has an `expression_dialect` object. **Gated:** claim `math-expression-dialect` →
+  `tests/expression_dialect.rs`, set-equality on `EvalContext::with_defaults()` through the new `EvalContext::names()` /
+  `namespace_names()` (the Java `snapshot()` analog; the one code change, no behaviour change) — a function or constant added or
+  removed fails the build on both engines. **Rule:** a dialect is a closed set; document it as one and pin the set, or every agent
+  re-derives it from source. Grouped one concern per test from the start (Sonar S5961 flagged the Java original at 29 assertions
+  in one method — #468). Extends [[graph-math-typed-arithmetic-rust]] and [[conventions-rust-baseline]].
+  <!-- id: graph-math-dialect-closed-set-rust | created: 2026-09-28 | last_used: 2026-09-28 | uses: 1 | tier: working | origin: 2026-09-28-234016 -->
+
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
   `refresh-metadata`, so an undeclared consultation reads as non-use and decays the fact. In the
