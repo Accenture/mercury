@@ -392,7 +392,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 3 | tier: active | origin: 2026-09-25-224149 -->
 
 - **The graph.math expression dialect is documented as the closed set it is, and pinned — the Rust twin of mercury-composable
-  #467/#468 (Increment 143, 2026-09-28; PR #334 OPEN; UNRELEASED).** A live MiniGraph demo showed the gap: an agent building
+  #467/#468 (Increment 143, 2026-09-28; PR #334 merge `41a7f418` MERGED 2026-09-28; UNRELEASED — ships in the next patch release).** A live MiniGraph demo showed the gap: an agent building
   `a + b ** 2` had to read the evaluator to know whether `**` parses — the grammar page said "no function calls", the skills
   reference listed a partial function set, no page named the operators. Now `skills-reference.md#math-dialect` lists everything a
   `COMPUTE`/`CONDITION`/`IF` may contain (literals; `{…}` variables and how they render — a text value becomes a quoted string
