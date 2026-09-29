@@ -42,14 +42,20 @@
   facade, `Platform::keep_running`, `group.protocol=auto`; 12 crates. Origin 2026-09-22-010413.md.) Prior: v4.12.12
   (2026-09-21 — the catch-up release 4.12.7 → 4.12.12 in one step, PR #296 → `983e7550`, tag → `1ef183cb`; Increments 118–124.)
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-09-25 | through 2026-09-25-010828.md (ON COMMAND, Eric — at the 600-line cap after the v4.12.17 cycle; SIZE
-  review: archived 1 (`fork-join-awaits-on-calling-task`, faded at 21 > 20 once the review's own log entered the window), swept 0 (three
-  closed threads at completion ages 2/10/11, 37 narrative lines ≤ 150), reactivated 0; condensed six shipped-decision facts
-  (their ship narrative lives in INCREMENTS and the origin logs; every rule, READ note, footer and [[link]] kept), the stale
-  release clause in `status`, and the v4.12.14/v4.12.12 release priors — lines 600 → ~520, facts 29 → 28; three facts re-tiered active → archive-candidate. Invariants not due
-  (26 of 40 since 2026-09-17); no unchecked thread, so no stalled-thread gate; contradiction scan found none — one stale
-  "Open: v4.12.15 on Eric's go" line in `connected-edge-spans` corrected to SHIPPED.)
-  Prior: 2026-09-24 | through 2026-09-24-003204.md (advisory sweep at the v4.12.16 seam) · 2026-09-23 | 2026-09-23-014725.md.
+- **last_review:** 2026-09-28 | through 2026-09-28-234016.md (ON COMMAND, Eric — 7 sessions since the 2026-09-25 review, run right after
+  the same-day smoke test (13/13) whose staleness fixes had just landed; `refresh-metadata` found nothing left to refresh (its earlier pass
+  the same session re-tiered `schema-registry-native-codec` active → archive-candidate at sslu 9 and bumped two `uses`); archived 0 (no
+  fact past `archive_window` 20), swept 0 (three closed threads at completion ages 10/19/18 — `ot-sync-over-async-port` crosses the window
+  next session — 37 narrative lines ≤ 150), reactivated 0, superseded 0, archive-verify pass (memory-lint 0/0); invariants not due (34 of
+  40 since 2026-09-17-004239); no unchecked thread, so no stalled-thread gate; contradiction scan: the smoke test's findings (the
+  `instructions.md` crate list and port-backlog wording, `vision.md`'s current-state runway, the "UNRELEASED" manifest-list fact, the
+  `vision:` line, the invariants trailer) were corrected in `d482723a` and the four newest decision facts moved under Key Decisions;
+  nothing further found. Lines 483, facts 24 (memory-lint live count).)
+  Prior: 2026-09-25 | through 2026-09-25-010828.md (ON COMMAND, Eric — SIZE review at the 600-line cap after the v4.12.17 cycle: archived 1
+  (`fork-join-awaits-on-calling-task`, faded), swept 0, reactivated 0; six shipped-decision facts, the stale `status` release clause and two
+  release priors condensed — lines 600 → ~520, facts 29 → 28; three facts re-tiered active → archive-candidate; one stale "Open" line in
+  `connected-edge-spans` corrected to SHIPPED) · 2026-09-24 | through 2026-09-24-003204.md (advisory sweep at the v4.12.16 seam) ·
+  2026-09-23 | 2026-09-23-014725.md.
 - **last_invariant_check:** 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, team-eric-maintainer, vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable; both derived Blueprint gaps closed 2026-09-17 — none open, new gaps surface as `(blueprint)` threads)
