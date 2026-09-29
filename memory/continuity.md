@@ -52,7 +52,7 @@
   Prior: 2026-09-24 | through 2026-09-24-003204.md (advisory sweep at the v4.12.16 seam) · 2026-09-23 | 2026-09-23-014725.md.
 - **last_invariant_check:** 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, team-eric-maintainer, vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
-- **vision:** `memory/vision.md` (north star, set at enable — Blueprint gaps to be derived)
+- **vision:** `memory/vision.md` (north star, set at enable; both derived Blueprint gaps closed 2026-09-17 — none open, new gaps surface as `(blueprint)` threads)
 
 ## Stack & Tools
 
@@ -117,8 +117,8 @@ scanning (→ compile-time registration; no runtime scanning in Rust). platform-
   Java normalized signature is the acceptance instrument (see increment 64).
   <!-- id: inv-telemetry-presentation-parity | created: 2026-07-23 | last_used: 2026-07-23 | uses: 1 | tier: core | origin: 2026-07-23-152724.md -->
 
-*(More invariants will be distilled from mercury-composable's docs/ADRs as each layer is
-ported — e.g. stateless functions, HTTP-style status codes.)*
+*(Further invariants are distilled from mercury-composable's ADRs when a port surfaces one — none has since the three
+layers shipped; the two above have held through every re-verify.)*
 
 ## Key Decisions
 
@@ -218,7 +218,7 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   lock-step with Java #458/#460):** the consume side may carry its own registry identity — `SchemaCodec::for_consumer`
   builds a second codec under `<prefix>.consumer` when `<prefix>.consumer.properties` names a template (presence = opt-in,
   blank = unset, same URL); the identity lives in the template here, there being no serde layer to override.
-  <!-- id: schema-registry-native-codec | created: 2026-09-21 | last_used: 2026-09-24 | uses: 5 | tier: active | origin: 2026-09-21-233114 -->
+  <!-- id: schema-registry-native-codec | created: 2026-09-21 | last_used: 2026-09-24 | uses: 5 | tier: archive-candidate | origin: 2026-09-21-233114 -->
 
 - **The OpenTelemetry forwarder is this engine's own OTLP encoder over the platform HTTP client — no OpenTelemetry SDK —
   opt-in by `otel.forwarding`, and a late credential arrives as a runtime override (Eric, 2026-09-21; Increment 129, PR
@@ -284,6 +284,88 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   [[redis-connection-foundation-rust]], [[redis-failure-classification-rust]]; closes the polyglot report's note 3.
   <!-- id: redis-restart-aware-retry | created: 2026-09-22 | last_used: 2026-09-23 | uses: 2 | tier: archive-candidate | origin: 2026-09-22-235800 -->
 
+- **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic function by ONE
+  `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric, 2026-09-20; Increment 123, a doc
+  gap and no engine change, PR #293; Java twin #430).** `initialize_with_node_properties` copies every node's properties
+  into the state machine at instantiation (skill node → non-reserved keys at `{node}.{key}`; skill-less node → the whole
+  map at `{node}`) and the shared LHS resolver reads any selector, so `state-rules -> table` maps the table in one entry.
+  **Presentation (Eric):** each value is a JSON array written as text — `keys=[ "a", "b" ]`, `a=[ "CA", "TX" ]` — which
+  reads as a table on the node and arrives as a string the function reconstructs (`serde_json::from_str`); `key[]=` lines
+  build a real list; a nested table is one triple-quoted JSON text parsed by `f:json(state-rules.table)` at mapping time.
+  **Why:** the product owner certifies the rules on the graph in the business vocabulary, and one table replaces a ladder
+  of IF-THEN-ELSE. **The common case needs no function (Increment 124, PR #294; Java #431):** the `f:lookup(table, value,
+  default)` simple plugin resolves the rule in one `graph.data.mapper` entry — table as map or JSON text, lists as lists
+  or JSON arrays written as text, case-insensitive text compare, the optional third argument the default on a miss, the
+  Java error messages verbatim. **A null mapping source — CHANGED 2026-09-23 (Increment 136, PR #323; mercury-composable
+  #453):** Event Script's rule now applies — a null or unresolved source CLEARS a `model.*` target (removed; set to null
+  when the source key exists or the target is indexed) and is IGNORED for any other target — via `common::apply_null_source`
+  in the mapping entry, `for_each`, the `model.*` half of fetcher/extension parameters (a null parameter is not supplied)
+  and the fetcher/task/extension output mapping; until 4.12.15 it removed ANY target (the claim `null-source-removes-target`
+  now states the shared rule). A default for a model variable comes from the source side (the plugin's third argument or
+  `f:defaultValue`), never from default-then-overlay; the same increment makes graph.math name every unresolved
+  `{selector}` instead of the rendered text `null`. **Rule:** the product owner reads and certifies the table ON the graph,
+  a new table is a new graph version and never a code change, and the function stays generic by reading rule names from
+  `table.keys`. In `skills-reference.md`, the in-Playground help and the AI agent guide's checklist; pinned by
+  `unit-test-task-9` (`graph_runtime.rs`) in lockstep with Java. Extends [[conventions-rust-baseline]].
+  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-23 | uses: 2 | tier: archive-candidate | origin: 2026-09-20-152809 -->
+
+- **graph.math is typed and finite — a boolean is never a number, an unknown function and an overflow fail by name, and
+  `CONDITION` is the declared boolean statement (Eric's rulings on a field page of nine "wrong answer" behaviours,
+  2026-09-25; Increment 141, PR #330 squash `d97eab9b` MERGED 2026-09-25; the Java twin
+  `feat/graph-math-condition-and-typed-arithmetic`, PR mercury-composable#462).** Both evaluators had the
+  same shape — `as_number` coerced a boolean to 1/0 for arithmetic, `<`/`>` and function arguments while equality
+  type-checked, `eval_call` failed generically, no finite check — so the same JSON `true` in a numeric slot computed
+  three different ways and an overflow travelled on as `Infinity` to fail a later node as `Unknown identifier: Infinity`
+  (the field's case: a boolean threshold negated into a number charged $3.5M where $1.5M was owed). **Rules, each a
+  named failure and never a silent value:** `Boolean operand in '<op>': Boolean(true)` from the evaluator, mapped back to
+  the selector by `name_offending_selectors` (the generalized `name_null_identifier`) as `Boolean operand: model.flag
+  (true) in '…' - a boolean is not a number; store a boolean with CONDITION or assert the type with f:validate`;
+  `eval_number` rejects a boolean RESULT; `Unknown function: mn` / `'PI' is not a function`; `finite()` on every unary,
+  binary and call result (`Arithmetic overflow in '*' (result Infinity)`, `Division by zero or arithmetic overflow in
+  '/'`, NaN by name). `CONDITION: var -> expr` substitutes in a logical context whatever operators it carries
+  (`substitute_var_if_any_logical(text, state, true)`), evaluates with `eval_boolean`, stores a boolean at
+  `{node}.result.{var}`; the compile gate counts it as a statement. **Minimalist boundary (Eric):** exact-decimal money
+  (a rounding mode, integer cents) is NOT added to the dialect — a small composable function on `graph.task` with a
+  decimal crate; the math package does not grow. **Documentation rulings, not engine changes:** `run` on the same
+  Playground instance keeps `model.*` (a `model.x[]` append appends again) and `instantiate graph` / `start` is the
+  reset (a fresh instance; a deployed graph gets one per request); a taken `IF` inside a `for_each` body ends the walk,
+  so per-row rules are arithmetic gates; the end node is the terminus (last writer wins). READ: a graph that relied on
+  `true`/`false` computing as 1/0, a boolean COMPUTE result storing 1.0, or `Infinity` propagating now fails at that
+  statement by name. Pinned by `unit-test-math-2` (`graph_runtime.rs`) and `expression_engine.rs`, lockstep with Java.
+  Extends [[static-decision-table-is-graph-data-rust]] (the same evaluator's null-source rule, Increment 136) and
+  [[conventions-rust-baseline]].
+  <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-09-28 | uses: 4 | tier: active | origin: 2026-09-25-190229 -->
+
+- **`graph.model.automation` accepts a comma-separated list of manifests, and the later manifest wins — the Rust twin
+  (Increment 142, 2026-09-25; PR #332 merge `d3d82a3f` MERGED 2026-09-25, lock-step with mercury-composable #465 squash
+  `40ce30a7`; SHIPPED in v4.12.19 on both engines).** Each manifest
+  carries its own `location`, they compile in order, one that fails to load is skipped with a warning; `graphs.rs` records
+  each graph's source location, and `list graphs` / the `import graph from` fallback span every location. **Rule (Eric):**
+  the later manifest OWNS a duplicate id — its copy replaces the earlier one (`Graph X from B replaces the copy from A`) and
+  a rejected later copy leaves the id not executable (404), never a silent fallback — because the prototyping loop is
+  `import graph from` a deployed graph → correct → dry-run → export → stage in the deploy folder with its manifest → restart
+  with BOTH manifests → curl the deployed behaviour → bundle. Here the override is a `-D` PROGRAM ARGUMENT
+  (`overrides::apply_runtime_args`; `cargo run -p minigraph-playground -- -Dgraph.model.automation='classpath:/graphs.yaml,
+  file:/tmp/graph/deploy/graphs.yaml'`), not a JVM flag. Entries are manifests, never bare folders (the manifest is the
+  gate's allowlist). Claim `graph-manifest-list-later-wins` pinned to `compiler::later_manifest_wins_for_a_duplicate_graph_id`;
+  the recipe lives in `ai-agent-guide.md#deploy-without-rebuild`.
+  <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-09-28 | uses: 4 | tier: active | origin: 2026-09-25-224149 -->
+
+- **The graph.math expression dialect is documented as the closed set it is, and pinned — the Rust twin of mercury-composable
+  #467/#468 (Increment 143, 2026-09-28; PR #334 merge `41a7f418` MERGED 2026-09-28; UNRELEASED — ships in the next patch release).** A live MiniGraph demo showed the gap: an agent building
+  `a + b ** 2` had to read the evaluator to know whether `**` parses — the grammar page said "no function calls", the skills
+  reference listed a partial function set, no page named the operators. Now `skills-reference.md#math-dialect` lists everything a
+  `COMPUTE`/`CONDITION`/`IF` may contain (literals; `{…}` variables and how they render — a text value becomes a quoted string
+  literal in a boolean context; operators by precedence with the strict `**` unary rule; the eighteen functions with arity, all
+  under `Math.` too; `PI`, `E`; the exclusions), the grammar summary links to it, the in-band `help graph-math` carries the same
+  catalog, and `minigraph-commands.json` has an `expression_dialect` object. **Gated:** claim `math-expression-dialect` →
+  `tests/expression_dialect.rs`, set-equality on `EvalContext::with_defaults()` through the new `EvalContext::names()` /
+  `namespace_names()` (the Java `snapshot()` analog; the one code change, no behaviour change) — a function or constant added or
+  removed fails the build on both engines. **Rule:** a dialect is a closed set; document it as one and pin the set, or every agent
+  re-derives it from source. Grouped one concern per test from the start (Sonar S5961 flagged the Java original at 29 assertions
+  in one method — #468). Extends [[graph-math-typed-arithmetic-rust]] and [[conventions-rust-baseline]].
+  <!-- id: graph-math-dialect-closed-set-rust | created: 2026-09-28 | last_used: 2026-09-28 | uses: 1 | tier: working | origin: 2026-09-28-234016 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -324,87 +406,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
   listed in `system/ai-contract-provider/resources/skill/files.list` — the snapshot test
   `inventory_equals_the_documentation_closure` walks both trees (PR #286's first push failed on a new report).
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-09-02 | uses: 113 | tier: core | origin: 2026-07-15-224707.md -->
-
-- **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic function by ONE
-  `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric, 2026-09-20; Increment 123, a doc
-  gap and no engine change, PR #293; Java twin #430).** `initialize_with_node_properties` copies every node's properties
-  into the state machine at instantiation (skill node → non-reserved keys at `{node}.{key}`; skill-less node → the whole
-  map at `{node}`) and the shared LHS resolver reads any selector, so `state-rules -> table` maps the table in one entry.
-  **Presentation (Eric):** each value is a JSON array written as text — `keys=[ "a", "b" ]`, `a=[ "CA", "TX" ]` — which
-  reads as a table on the node and arrives as a string the function reconstructs (`serde_json::from_str`); `key[]=` lines
-  build a real list; a nested table is one triple-quoted JSON text parsed by `f:json(state-rules.table)` at mapping time.
-  **Why:** the product owner certifies the rules on the graph in the business vocabulary, and one table replaces a ladder
-  of IF-THEN-ELSE. **The common case needs no function (Increment 124, PR #294; Java #431):** the `f:lookup(table, value,
-  default)` simple plugin resolves the rule in one `graph.data.mapper` entry — table as map or JSON text, lists as lists
-  or JSON arrays written as text, case-insensitive text compare, the optional third argument the default on a miss, the
-  Java error messages verbatim. **A null mapping source — CHANGED 2026-09-23 (Increment 136, PR #323; mercury-composable
-  #453):** Event Script's rule now applies — a null or unresolved source CLEARS a `model.*` target (removed; set to null
-  when the source key exists or the target is indexed) and is IGNORED for any other target — via `common::apply_null_source`
-  in the mapping entry, `for_each`, the `model.*` half of fetcher/extension parameters (a null parameter is not supplied)
-  and the fetcher/task/extension output mapping; until 4.12.15 it removed ANY target (the claim `null-source-removes-target`
-  now states the shared rule). A default for a model variable comes from the source side (the plugin's third argument or
-  `f:defaultValue`), never from default-then-overlay; the same increment makes graph.math name every unresolved
-  `{selector}` instead of the rendered text `null`. **Rule:** the product owner reads and certifies the table ON the graph,
-  a new table is a new graph version and never a code change, and the function stays generic by reading rule names from
-  `table.keys`. In `skills-reference.md`, the in-Playground help and the AI agent guide's checklist; pinned by
-  `unit-test-task-9` (`graph_runtime.rs`) in lockstep with Java. Extends [[conventions-rust-baseline]].
-  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-23 | uses: 2 | tier: archive-candidate | origin: 2026-09-20-152809 -->
-- **graph.math is typed and finite — a boolean is never a number, an unknown function and an overflow fail by name, and
-  `CONDITION` is the declared boolean statement (Eric's rulings on a field page of nine "wrong answer" behaviours,
-  2026-09-25; Increment 141, PR #330 squash `d97eab9b` MERGED 2026-09-25; the Java twin
-  `feat/graph-math-condition-and-typed-arithmetic`, PR mercury-composable#462).** Both evaluators had the
-  same shape — `as_number` coerced a boolean to 1/0 for arithmetic, `<`/`>` and function arguments while equality
-  type-checked, `eval_call` failed generically, no finite check — so the same JSON `true` in a numeric slot computed
-  three different ways and an overflow travelled on as `Infinity` to fail a later node as `Unknown identifier: Infinity`
-  (the field's case: a boolean threshold negated into a number charged $3.5M where $1.5M was owed). **Rules, each a
-  named failure and never a silent value:** `Boolean operand in '<op>': Boolean(true)` from the evaluator, mapped back to
-  the selector by `name_offending_selectors` (the generalized `name_null_identifier`) as `Boolean operand: model.flag
-  (true) in '…' - a boolean is not a number; store a boolean with CONDITION or assert the type with f:validate`;
-  `eval_number` rejects a boolean RESULT; `Unknown function: mn` / `'PI' is not a function`; `finite()` on every unary,
-  binary and call result (`Arithmetic overflow in '*' (result Infinity)`, `Division by zero or arithmetic overflow in
-  '/'`, NaN by name). `CONDITION: var -> expr` substitutes in a logical context whatever operators it carries
-  (`substitute_var_if_any_logical(text, state, true)`), evaluates with `eval_boolean`, stores a boolean at
-  `{node}.result.{var}`; the compile gate counts it as a statement. **Minimalist boundary (Eric):** exact-decimal money
-  (a rounding mode, integer cents) is NOT added to the dialect — a small composable function on `graph.task` with a
-  decimal crate; the math package does not grow. **Documentation rulings, not engine changes:** `run` on the same
-  Playground instance keeps `model.*` (a `model.x[]` append appends again) and `instantiate graph` / `start` is the
-  reset (a fresh instance; a deployed graph gets one per request); a taken `IF` inside a `for_each` body ends the walk,
-  so per-row rules are arithmetic gates; the end node is the terminus (last writer wins). READ: a graph that relied on
-  `true`/`false` computing as 1/0, a boolean COMPUTE result storing 1.0, or `Infinity` propagating now fails at that
-  statement by name. Pinned by `unit-test-math-2` (`graph_runtime.rs`) and `expression_engine.rs`, lockstep with Java.
-  Extends [[static-decision-table-is-graph-data-rust]] (the same evaluator's null-source rule, Increment 136) and
-  [[conventions-rust-baseline]].
-  <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 3 | tier: active | origin: 2026-09-25-190229 -->
-
-- **`graph.model.automation` accepts a comma-separated list of manifests, and the later manifest wins — the Rust twin
-  (Increment 142, 2026-09-25; PR #332 merge `d3d82a3f` MERGED 2026-09-25, lock-step with mercury-composable #465 squash
-  `40ce30a7`; UNRELEASED — ships in 4.12.19).** Each manifest
-  carries its own `location`, they compile in order, one that fails to load is skipped with a warning; `graphs.rs` records
-  each graph's source location, and `list graphs` / the `import graph from` fallback span every location. **Rule (Eric):**
-  the later manifest OWNS a duplicate id — its copy replaces the earlier one (`Graph X from B replaces the copy from A`) and
-  a rejected later copy leaves the id not executable (404), never a silent fallback — because the prototyping loop is
-  `import graph from` a deployed graph → correct → dry-run → export → stage in the deploy folder with its manifest → restart
-  with BOTH manifests → curl the deployed behaviour → bundle. Here the override is a `-D` PROGRAM ARGUMENT
-  (`overrides::apply_runtime_args`; `cargo run -p minigraph-playground -- -Dgraph.model.automation='classpath:/graphs.yaml,
-  file:/tmp/graph/deploy/graphs.yaml'`), not a JVM flag. Entries are manifests, never bare folders (the manifest is the
-  gate's allowlist). Claim `graph-manifest-list-later-wins` pinned to `compiler::later_manifest_wins_for_a_duplicate_graph_id`;
-  the recipe lives in `ai-agent-guide.md#deploy-without-rebuild`.
-  <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-09-25 | uses: 3 | tier: active | origin: 2026-09-25-224149 -->
-
-- **The graph.math expression dialect is documented as the closed set it is, and pinned — the Rust twin of mercury-composable
-  #467/#468 (Increment 143, 2026-09-28; PR #334 merge `41a7f418` MERGED 2026-09-28; UNRELEASED — ships in the next patch release).** A live MiniGraph demo showed the gap: an agent building
-  `a + b ** 2` had to read the evaluator to know whether `**` parses — the grammar page said "no function calls", the skills
-  reference listed a partial function set, no page named the operators. Now `skills-reference.md#math-dialect` lists everything a
-  `COMPUTE`/`CONDITION`/`IF` may contain (literals; `{…}` variables and how they render — a text value becomes a quoted string
-  literal in a boolean context; operators by precedence with the strict `**` unary rule; the eighteen functions with arity, all
-  under `Math.` too; `PI`, `E`; the exclusions), the grammar summary links to it, the in-band `help graph-math` carries the same
-  catalog, and `minigraph-commands.json` has an `expression_dialect` object. **Gated:** claim `math-expression-dialect` →
-  `tests/expression_dialect.rs`, set-equality on `EvalContext::with_defaults()` through the new `EvalContext::names()` /
-  `namespace_names()` (the Java `snapshot()` analog; the one code change, no behaviour change) — a function or constant added or
-  removed fails the build on both engines. **Rule:** a dialect is a closed set; document it as one and pin the set, or every agent
-  re-derives it from source. Grouped one concern per test from the start (Sonar S5961 flagged the Java original at 29 assertions
-  in one method — #468). Extends [[graph-math-typed-arithmetic-rust]] and [[conventions-rust-baseline]].
-  <!-- id: graph-math-dialect-closed-set-rust | created: 2026-09-28 | last_used: 2026-09-28 | uses: 1 | tier: working | origin: 2026-09-28-234016 -->
 
 - **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
   edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
@@ -460,7 +461,6 @@ ported — e.g. stateless functions, HTTP-style status codes.)*
 > workstreams and never decay. Mark a completed thread `- [x]` in its file and leave
 > it — the review sweeps it to the archive once older than `archive_window` sessions.
 > Don't archive by hand. See `.agent/schema.md`.
-
 
 ## User Preferences
 

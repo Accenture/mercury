@@ -28,7 +28,8 @@ delivered increment become the next Current State (the VBDI loop — see `DECAY.
 
 ## Repository Structure
 
-Cargo workspace; the seven published crates live under `crates/`:
+Cargo workspace; twelve published crates (verified 12/12 on crates.io at v4.12.19) — the seven core
+crates under `crates/` and the optional add-ons under `extensions/` (one test double stays unpublished):
 
 ```
 crates/
@@ -38,8 +39,18 @@ crates/
   event-script-macros    ← #[simple_plugin]
   knowledge-graph        ← MiniGraph: graph executor, skills, Playground
   knowledge-graph-macros ← #[fetch_feature]
+  minimalist-kafka       ← opt-in Kafka library: flow adapter (inbound) + notification (outbound),
+                           with this engine's own Schema Registry codec (ported K1–K5, v4.12.14)
+extensions/
+  redis-connection       ← the shared Redis client foundation (standalone or cluster, health probe)
+  sync-over-async        ← the Redis rendezvous transport (streaming return route across pods)
+  distributed-cache      ← v1.cache.redis — one action function over opaque bytes, Java byte-compatible
   minigraph-state-redis  ← pluggable suspend/resume state store
+  opentelemetry-forwarder← the no-SDK OTLP trace forwarder, opt-in by otel.forwarding
+  redis-test-double      ← test-only Redis double (publish = false)
 examples/<name>/         ← standalone workspace crates, never cargo examples in a library crate
+                           (hello-world, hello-flow, minigraph-playground, sync-over-async-demo,
+                           distributed-cache-example, kafka-demo)
 templates/<name>/        ← copy-out starter projects for the three layers (starter-function,
                            starter-flow, starter-graph — workspace-built; a copy drops the path keys)
 system/ai-contract-provider ← serves the version-matched AI documentation contract
@@ -88,7 +99,9 @@ authoritative behavior spec is that repo + its `docs/guides/` — we **map, don'
   (`cloud-connector`, `service-monitor`, `kafka-connector`, `kafka-presence`),
   `helpers/*-standalone`.
 - NOTE: `system/minimalist-kafka` and `system/twin-kafka` are lightweight cloud-native
-  connectors, NOT mesh — reclassified to future-port backlog (with `sync-over-async`).
+  connectors, NOT mesh — reclassified 2026-07-20 to the port backlog with `sync-over-async`.
+  Since then: `sync-over-async` shipped 2026-09-13, `minimalist-kafka` shipped in v4.12.14
+  (K1–K5, Schema Registry included; thread closed 2026-09-23); `twin-kafka` stays deferred.
 - **Spring adapters** (`rest-spring-3/-4`) — Spring is Java-only. Note: platform-core's *own*
   REST automation (`automation/` package, Vert.x-based, no Spring) **is** in scope as a later
   increment — the Rust port gets its HTTP boundary from there.
@@ -101,8 +114,9 @@ event-bus foundation (EventEnvelope/Platform/PostOffice) is increment 2. Config 
 config files port between the Java and Rust versions unchanged. See
 `draft-design-specs/platform-core-port.md`.
 
-**Deferred / TBD** (decide when reached): `mini-scheduler`; `extensions/*`; `examples/*`
-(port a reference example to validate the foundation).
+**Deferred / TBD** (decide when reached): `mini-scheduler`; `twin-kafka`. Of the once-deferred
+`extensions/*`, five are ported (see Repository Structure); `examples/*` now holds six reference
+apps, `hello-world` being the foundation validator.
 
 ## Conventions Observed
 
