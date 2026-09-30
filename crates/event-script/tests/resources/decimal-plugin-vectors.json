@@ -1,0 +1,696 @@
+{
+ "format": "mercury-decimal-plugin-vectors",
+ "version": 1,
+ "note": "Shared conformance vectors for the decimal simple plugins (RFC-0001 item 8, ADR-0025): every engine that executes flows runs these. 'plugin' is the plugin name, 'args' the call's arguments (a JSON number is a Double or Long/Integer, a string is text), 'expect' the canonical decimal string (decimalCompare: -1, 0 or 1), 'error' an engine-neutral code matched by each engine against its own message. 'expression' is the same computation as a DECIMAL statement; where present, both must give 'expect', which is what keeps the plugins and the statement from drifting.",
+ "vectors": [
+  {
+   "id": "add-trap",
+   "plugin": "decimalAdd",
+   "args": [
+    "0.1",
+    "0.2"
+   ],
+   "expression": "0.1 + 0.2",
+   "expect": "0.3"
+  },
+  {
+   "id": "add-scale-larger",
+   "plugin": "decimalAdd",
+   "args": [
+    "1.50",
+    "2.5"
+   ],
+   "expression": "1.50 + 2.5",
+   "expect": "4.00"
+  },
+  {
+   "id": "add-variadic",
+   "plugin": "decimalAdd",
+   "args": [
+    "1.1",
+    "2.2",
+    "3.3"
+   ],
+   "expression": "1.1 + 2.2 + 3.3",
+   "expect": "6.6"
+  },
+  {
+   "id": "add-number-operands",
+   "plugin": "decimalAdd",
+   "args": [
+    0.1,
+    0.2
+   ],
+   "expression": "0.1 + 0.2",
+   "expect": "0.3"
+  },
+  {
+   "id": "add-zero-any-scale",
+   "plugin": "decimalAdd",
+   "args": [
+    "0.50",
+    "-0.50"
+   ],
+   "expression": "0.50 + -0.50",
+   "expect": "0"
+  },
+  {
+   "id": "add-large",
+   "plugin": "decimalAdd",
+   "args": [
+    "99999999999999999999.99",
+    "0.01"
+   ],
+   "expression": "99999999999999999999.99 + 0.01",
+   "expect": "100000000000000000000.00"
+  },
+  {
+   "id": "sub-basic",
+   "plugin": "decimalSubtract",
+   "args": [
+    "10.00",
+    "0.01"
+   ],
+   "expression": "10.00 - 0.01",
+   "expect": "9.99"
+  },
+  {
+   "id": "sub-variadic",
+   "plugin": "decimalSubtract",
+   "args": [
+    "10",
+    "1.5",
+    "2.5"
+   ],
+   "expression": "10 - 1.5 - 2.5",
+   "expect": "6.0"
+  },
+  {
+   "id": "sub-negative",
+   "plugin": "decimalSubtract",
+   "args": [
+    "1",
+    "2.5"
+   ],
+   "expression": "1 - 2.5",
+   "expect": "-1.5"
+  },
+  {
+   "id": "mul-trap",
+   "plugin": "decimalMultiply",
+   "args": [
+    "1.1",
+    "3"
+   ],
+   "expression": "1.1 * 3",
+   "expect": "3.3"
+  },
+  {
+   "id": "mul-scale-sum",
+   "plugin": "decimalMultiply",
+   "args": [
+    "1.50",
+    "2.50"
+   ],
+   "expression": "1.50 * 2.50",
+   "expect": "3.7500"
+  },
+  {
+   "id": "mul-variadic",
+   "plugin": "decimalMultiply",
+   "args": [
+    "2",
+    "3",
+    "4"
+   ],
+   "expression": "2 * 3 * 4",
+   "expect": "24"
+  },
+  {
+   "id": "mul-zero",
+   "plugin": "decimalMultiply",
+   "args": [
+    "0.00",
+    "5"
+   ],
+   "expression": "0.00 * 5",
+   "expect": "0"
+  },
+  {
+   "id": "div-exact",
+   "plugin": "decimalDiv",
+   "args": [
+    "7",
+    "2"
+   ],
+   "expression": "7 / 2",
+   "expect": "3.5"
+  },
+  {
+   "id": "div-whole",
+   "plugin": "decimalDiv",
+   "args": [
+    "6",
+    "3"
+   ],
+   "expression": "6 / 3",
+   "expect": "2"
+  },
+  {
+   "id": "div-one-third",
+   "plugin": "decimalDiv",
+   "args": [
+    "1",
+    "3"
+   ],
+   "expression": "1 / 3",
+   "expect": "0.3333333333333333333333333333333333"
+  },
+  {
+   "id": "div-two-thirds",
+   "plugin": "decimalDiv",
+   "args": [
+    "2",
+    "3"
+   ],
+   "expression": "2 / 3",
+   "expect": "0.6666666666666666666666666666666667"
+  },
+  {
+   "id": "div-to-whole",
+   "plugin": "decimalDiv",
+   "args": [
+    "100",
+    "0.5"
+   ],
+   "expression": "100 / 0.5",
+   "expect": "200"
+  },
+  {
+   "id": "div-by-zero",
+   "plugin": "decimalDiv",
+   "args": [
+    "1",
+    "0"
+   ],
+   "error": "division-by-zero"
+  },
+  {
+   "id": "div-by-zero-scaled",
+   "plugin": "decimalDiv",
+   "args": [
+    "1",
+    "0.00"
+   ],
+   "error": "division-by-zero"
+  },
+  {
+   "id": "mod-basic",
+   "plugin": "decimalMod",
+   "args": [
+    "7.5",
+    "2"
+   ],
+   "expression": "7.5 % 2",
+   "expect": "1.5"
+  },
+  {
+   "id": "mod-negative",
+   "plugin": "decimalMod",
+   "args": [
+    "-7",
+    "3"
+   ],
+   "expression": "-7 % 3",
+   "expect": "-1"
+  },
+  {
+   "id": "mod-by-zero",
+   "plugin": "decimalMod",
+   "args": [
+    "7",
+    "0"
+   ],
+   "error": "division-by-zero"
+  },
+  {
+   "id": "round-1.005-half-up",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005",
+    2,
+    "HALF_UP"
+   ],
+   "expression": "round(1.005, 2, HALF_UP)",
+   "expect": "1.01"
+  },
+  {
+   "id": "round-1.005-half-even",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005",
+    2,
+    "HALF_EVEN"
+   ],
+   "expression": "round(1.005, 2, HALF_EVEN)",
+   "expect": "1.00"
+  },
+  {
+   "id": "round-1.005-half-down",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005",
+    2,
+    "HALF_DOWN"
+   ],
+   "expression": "round(1.005, 2, HALF_DOWN)",
+   "expect": "1.00"
+  },
+  {
+   "id": "round-1.005-up",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005",
+    2,
+    "UP"
+   ],
+   "expression": "round(1.005, 2, UP)",
+   "expect": "1.01"
+  },
+  {
+   "id": "round-1.005-down",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005",
+    2,
+    "DOWN"
+   ],
+   "expression": "round(1.005, 2, DOWN)",
+   "expect": "1.00"
+  },
+  {
+   "id": "round-1.005-ceiling",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005",
+    2,
+    "CEILING"
+   ],
+   "expression": "round(1.005, 2, CEILING)",
+   "expect": "1.01"
+  },
+  {
+   "id": "round-1.005-floor",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005",
+    2,
+    "FLOOR"
+   ],
+   "expression": "round(1.005, 2, FLOOR)",
+   "expect": "1.00"
+  },
+  {
+   "id": "round-2.5-half-up",
+   "plugin": "decimalRound",
+   "args": [
+    "2.5",
+    0,
+    "HALF_UP"
+   ],
+   "expression": "round(2.5, 0, HALF_UP)",
+   "expect": "3"
+  },
+  {
+   "id": "round-2.5-half-even",
+   "plugin": "decimalRound",
+   "args": [
+    "2.5",
+    0,
+    "HALF_EVEN"
+   ],
+   "expression": "round(2.5, 0, HALF_EVEN)",
+   "expect": "2"
+  },
+  {
+   "id": "round-2.5-half-down",
+   "plugin": "decimalRound",
+   "args": [
+    "2.5",
+    0,
+    "HALF_DOWN"
+   ],
+   "expression": "round(2.5, 0, HALF_DOWN)",
+   "expect": "2"
+  },
+  {
+   "id": "round-2.5-up",
+   "plugin": "decimalRound",
+   "args": [
+    "2.5",
+    0,
+    "UP"
+   ],
+   "expression": "round(2.5, 0, UP)",
+   "expect": "3"
+  },
+  {
+   "id": "round-2.5-down",
+   "plugin": "decimalRound",
+   "args": [
+    "2.5",
+    0,
+    "DOWN"
+   ],
+   "expression": "round(2.5, 0, DOWN)",
+   "expect": "2"
+  },
+  {
+   "id": "round-2.5-ceiling",
+   "plugin": "decimalRound",
+   "args": [
+    "2.5",
+    0,
+    "CEILING"
+   ],
+   "expression": "round(2.5, 0, CEILING)",
+   "expect": "3"
+  },
+  {
+   "id": "round-2.5-floor",
+   "plugin": "decimalRound",
+   "args": [
+    "2.5",
+    0,
+    "FLOOR"
+   ],
+   "expression": "round(2.5, 0, FLOOR)",
+   "expect": "2"
+  },
+  {
+   "id": "round-minus-2.5-half-up",
+   "plugin": "decimalRound",
+   "args": [
+    "-2.5",
+    0,
+    "HALF_UP"
+   ],
+   "expression": "round(-2.5, 0, HALF_UP)",
+   "expect": "-3"
+  },
+  {
+   "id": "round-minus-2.5-half-even",
+   "plugin": "decimalRound",
+   "args": [
+    "-2.5",
+    0,
+    "HALF_EVEN"
+   ],
+   "expression": "round(-2.5, 0, HALF_EVEN)",
+   "expect": "-2"
+  },
+  {
+   "id": "round-minus-2.5-half-down",
+   "plugin": "decimalRound",
+   "args": [
+    "-2.5",
+    0,
+    "HALF_DOWN"
+   ],
+   "expression": "round(-2.5, 0, HALF_DOWN)",
+   "expect": "-2"
+  },
+  {
+   "id": "round-minus-2.5-up",
+   "plugin": "decimalRound",
+   "args": [
+    "-2.5",
+    0,
+    "UP"
+   ],
+   "expression": "round(-2.5, 0, UP)",
+   "expect": "-3"
+  },
+  {
+   "id": "round-minus-2.5-down",
+   "plugin": "decimalRound",
+   "args": [
+    "-2.5",
+    0,
+    "DOWN"
+   ],
+   "expression": "round(-2.5, 0, DOWN)",
+   "expect": "-2"
+  },
+  {
+   "id": "round-minus-2.5-ceiling",
+   "plugin": "decimalRound",
+   "args": [
+    "-2.5",
+    0,
+    "CEILING"
+   ],
+   "expression": "round(-2.5, 0, CEILING)",
+   "expect": "-2"
+  },
+  {
+   "id": "round-minus-2.5-floor",
+   "plugin": "decimalRound",
+   "args": [
+    "-2.5",
+    0,
+    "FLOOR"
+   ],
+   "expression": "round(-2.5, 0, FLOOR)",
+   "expect": "-3"
+  },
+  {
+   "id": "round-mode-lowercase",
+   "plugin": "decimalRound",
+   "args": [
+    "10.5",
+    2,
+    "half_up"
+   ],
+   "expect": "10.50"
+  },
+  {
+   "id": "round-keeps-scale",
+   "plugin": "decimalRound",
+   "args": [
+    "10.5",
+    2,
+    "HALF_UP"
+   ],
+   "expression": "round(10.5, 2, HALF_UP)",
+   "expect": "10.50"
+  },
+  {
+   "id": "round-to-zero-is-zero",
+   "plugin": "decimalRound",
+   "args": [
+    "0.004",
+    2,
+    "HALF_UP"
+   ],
+   "expression": "round(0.004, 2, HALF_UP)",
+   "expect": "0"
+  },
+  {
+   "id": "round-double-operand",
+   "plugin": "decimalRound",
+   "args": [
+    1.005,
+    2,
+    "HALF_UP"
+   ],
+   "expression": "round(1.005, 2, HALF_UP)",
+   "expect": "1.01"
+  },
+  {
+   "id": "round-two-arguments",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005",
+    2
+   ],
+   "error": "round-arity"
+  },
+  {
+   "id": "round-one-argument",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005"
+   ],
+   "error": "round-arity"
+  },
+  {
+   "id": "round-bad-mode",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005",
+    2,
+    "NEAREST"
+   ],
+   "error": "rounding-mode"
+  },
+  {
+   "id": "round-unnecessary-mode",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005",
+    2,
+    "UNNECESSARY"
+   ],
+   "error": "rounding-mode"
+  },
+  {
+   "id": "round-fractional-scale",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005",
+    1.5,
+    "HALF_UP"
+   ],
+   "error": "scale"
+  },
+  {
+   "id": "round-negative-scale",
+   "plugin": "decimalRound",
+   "args": [
+    "1.005",
+    -1,
+    "HALF_UP"
+   ],
+   "error": "scale"
+  },
+  {
+   "id": "compare-less",
+   "plugin": "decimalCompare",
+   "args": [
+    "1.5",
+    "2"
+   ],
+   "expect": -1
+  },
+  {
+   "id": "compare-equal-scales",
+   "plugin": "decimalCompare",
+   "args": [
+    "2.0",
+    "2.00"
+   ],
+   "expect": 0
+  },
+  {
+   "id": "compare-greater",
+   "plugin": "decimalCompare",
+   "args": [
+    "10.25",
+    "9.5"
+   ],
+   "expect": 1
+  },
+  {
+   "id": "compare-number-and-string",
+   "plugin": "decimalCompare",
+   "args": [
+    200,
+    "200"
+   ],
+   "expect": 0
+  },
+  {
+   "id": "compare-negative",
+   "plugin": "decimalCompare",
+   "args": [
+    "-1",
+    "1"
+   ],
+   "expect": -1
+  },
+  {
+   "id": "operand-double-shortest-text",
+   "plugin": "decimalAdd",
+   "args": [
+    0.0005,
+    0
+   ],
+   "expression": "0.0005 + 0",
+   "expect": "0.0005"
+  },
+  {
+   "id": "operand-double-whole",
+   "plugin": "decimalAdd",
+   "args": [
+    100.0,
+    0
+   ],
+   "expression": "100 + 0",
+   "expect": "100"
+  },
+  {
+   "id": "operand-boolean",
+   "plugin": "decimalAdd",
+   "args": [
+    true,
+    "1"
+   ],
+   "error": "boolean-operand"
+  },
+  {
+   "id": "operand-null",
+   "plugin": "decimalAdd",
+   "args": [
+    null,
+    "1"
+   ],
+   "error": "not-a-number"
+  },
+  {
+   "id": "operand-non-canonical-string",
+   "plugin": "decimalAdd",
+   "args": [
+    "1e3",
+    "1"
+   ],
+   "error": "not-a-number"
+  },
+  {
+   "id": "operand-leading-zero-string",
+   "plugin": "decimalAdd",
+   "args": [
+    "007",
+    "1"
+   ],
+   "error": "not-a-number"
+  },
+  {
+   "id": "operand-text",
+   "plugin": "decimalMultiply",
+   "args": [
+    "abc",
+    "2"
+   ],
+   "error": "not-a-number"
+  },
+  {
+   "id": "add-one-argument",
+   "plugin": "decimalAdd",
+   "args": [
+    "1"
+   ],
+   "error": "arity"
+  },
+  {
+   "id": "div-three-arguments",
+   "plugin": "decimalDiv",
+   "args": [
+    "1",
+    "2",
+    "3"
+   ],
+   "error": "arity"
+  }
+ ]
+}

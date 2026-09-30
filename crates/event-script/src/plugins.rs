@@ -48,7 +48,7 @@ use crate::plugins_e8::value_type_name;
 /// The number of built-in `#[simple_plugin]` declarations the engine itself
 /// ships (this module + `plugins_e8`) — the startup floor the
 /// `SimplePluginLoader` asserts against linker elision.
-pub const BUILTIN_PLUGIN_COUNT: usize = 51;
+pub const BUILTIN_PLUGIN_COUNT: usize = 58;
 
 /// A plugin body (Java `PluginFunction.calculate`): evaluated argument values
 /// in, one value out; a descriptive error is the Java

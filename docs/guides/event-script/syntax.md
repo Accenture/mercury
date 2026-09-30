@@ -1441,6 +1441,13 @@ For example:
 | **Arithmetic**      | increment       | A single number (whole ⇒ long; decimal ⇒ double)                                                                     |
 | **Arithmetic**      | decrement       | A single number (whole ⇒ long; decimal ⇒ double)                                                                     |
 | **Arithmetic**      | round           | A number and optional decimal places (whole ≥ 0, default 0) — half-up rounding on the decimal representation (1.005 → 1.01 at 2 places) |
+| **Arithmetic**      | decimalAdd      | At least two numbers — **exact decimal** sum as a canonical decimal string (the larger operand scale). See *Exact decimal plugins* below |
+| **Arithmetic**      | decimalSubtract | At least two numbers — the first minus the rest, exactly, as a canonical decimal string                               |
+| **Arithmetic**      | decimalMultiply | At least two numbers — exact product as a canonical decimal string (the scale is the sum of the operand scales)       |
+| **Arithmetic**      | decimalDiv      | Two numbers — never truncates: the exact quotient when it terminates, otherwise 34 significant digits, half-even; division by zero is an error |
+| **Arithmetic**      | decimalMod      | Two numbers — exact remainder; division by zero is an error                                                           |
+| **Arithmetic**      | decimalRound    | Exactly three arguments, `x`, `scale` (whole, 0 to 1000) and `mode` (`text(HALF_UP)`, `HALF_EVEN`, `HALF_DOWN`, `UP`, `DOWN`, `CEILING` or `FLOOR`) — the result has exactly `scale` places |
+| **Arithmetic**      | decimalCompare  | Two numbers — `-1`, `0` or `1` by numeric value (`2.0` equals `2.00`)                                                 |
 | **Generator**       | uuid            | None                                                                                                                  |
 | **Generator**       | dateTime        | None.                                                                                                                 |
 | **Generator**       | now             | text(iso), text(local) or text(ms)                                                                                    |
@@ -1493,6 +1500,36 @@ For example:
     supplementary-plane characters count **1 here, 2 in Java**. Out-of-bounds semantics
     and error messages are unchanged (bounds measured in scalar values).
 
+
+*Exact decimal plugins*
+
+The `add` family above computes in `i64` or `f64`, which is right for counts and wrong for money
+(`0.1 + 0.2` is `0.30000000000000004`). The `decimal` family computes in exact decimal arithmetic, with the same rules as
+the `DECIMAL` statement of a knowledge graph, so a flow and a graph agree. Every result is a **canonical decimal string**:
+plain notation, never scientific, the computed scale kept, and a zero of any scale written `"0"`. A string is the same after
+`graph.suspend`, an event hop or a JSON response, where a number would be rounded by the parser.
+
+- **Operands:** a whole number, a string that is a canonical number (`"0.0375"`), or a float, which is taken through the
+  shortest decimal text it prints as (`5.0E-4` is `0.0005`). A float that was already computed in floating point is only
+  as exact as that computation, so **send money as strings**. A boolean, a `null`, a non-canonical string (`"1e3"`, `"007"`)
+  and NaN or Infinity are errors naming the plugin.
+- **Scales:** `+` and `-` keep the larger operand scale, `*` adds the scales, and `decimalRound` gives exactly the scale you
+  ask for, so `f:decimalRound(model.fee, int(2), text(HALF_UP))` of `10.5` is `"10.50"`.
+- **Rounding is always explicit:** there is no one- or two-argument `decimalRound` and no default mode. `f:round` stays the
+  half-up `f64` companion (ties away from zero, so `-2.5` is `-3`).
+- **Division** never truncates: `f:decimalDiv(int(7), int(2))` is `"3.5"`, where `f:div` gives the integer `3`.
+
+```yaml
+  - input:
+      - 'input.body.amount -> model.amount'
+      - 'input.body.rate -> model.rate'
+      - 'f:decimalMultiply(model.amount, model.rate) -> model.fee'
+      - 'f:decimalRound(model.fee, int(2), text(HALF_UP)) -> model.fee'
+      - 'f:decimalAdd(model.amount, model.fee) -> output.body.total'
+```
+
+Plugin calls do not nest, so the rounding is its own entry, as above. The result of `decimalRound` is a string: send it on as a
+string, and compare it with `f:decimalCompare` (the `gt` and `lt` plugins take whole numbers).
 
 *DateTime plugins*
 

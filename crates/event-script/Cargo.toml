@@ -33,6 +33,8 @@ chrono-tz = "0.10"
 iana-time-zone = "0.1"
 mercury-event-script-macros = { version = "4.12.19", path = "../event-script-macros" }
 uuid = { version = "1", features = ["v4"] }
+# RFC-0001 / ADR-0025: exact decimal arithmetic for the f:decimal* plugins and the DECIMAL statement
+bigdecimal = "0.4"
 
 [dev-dependencies]
 # compile-fail guards for the macro surfaces (tests/ui)
