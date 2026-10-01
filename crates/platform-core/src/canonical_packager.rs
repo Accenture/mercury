@@ -33,7 +33,9 @@
 //! * a null value is written as nil and is never dropped;
 //! * integers use the smallest encoding, and only signed 64-bit values are canonical (a larger one is written as
 //!   text by the caller);
-//! * a floating-point number is a finite float64; an `f32`, NaN and Infinity are rejected;
+//! * a floating-point number is a finite float64; an `f32` is accepted like any other number and widened through its
+//!   shortest decimal text (`0.1f32` is the float64 `0.1`, never `0.10000000149011612`), so the same value gives the same
+//!   bytes in every engine; NaN and Infinity are rejected;
 //! * text and bytes are str and bin, each with the shortest header;
 //! * an exact number travels as a string, written by the caller in plain notation with its scale kept and a zero
 //!   of any scale as `"0"` (the rule of RFC-0001); a date is an ISO-8601 string;
@@ -343,17 +345,10 @@ fn canonicalize(value: &Value, path: &str, depth: usize) -> Result<Value, Packag
             }
             Ok(value.clone())
         }
-        Value::F32(_) => Err(invalid(format!(
-            "A Float is not canonical at {path} - use a Double"
-        ))),
-        Value::F64(d) => {
-            if !d.is_finite() {
-                return Err(invalid(format!(
-                    "A non-finite number is not canonical at {path}: {d}"
-                )));
-            }
-            Ok(value.clone())
-        }
+        // a 32-bit float is accepted like any other number and widened to float64 through its shortest decimal text
+        // (0.1f32 is the float64 0.1, never 0.10000000149011612), so the same value gives the same bytes as in Java
+        Value::F32(f) => finite_double(widen(*f), path),
+        Value::F64(d) => finite_double(*d, path),
         Value::String(s) => {
             if s.as_str().is_none() {
                 return Err(invalid(format!("Text that is not valid UTF-8 at {path}")));
@@ -370,6 +365,20 @@ fn canonicalize(value: &Value, path: &str, depth: usize) -> Result<Value, Packag
         Value::Map(entries) => canonicalize_map(entries, path, depth),
         Value::Ext(..) => Err(invalid(format!("Unsupported type ext at {path}"))),
     }
+}
+
+/// The float64 a 32-bit float widens to: the double its shortest decimal text spells.
+fn widen(f: f32) -> f64 {
+    f.to_string().parse().unwrap_or(f64::NAN)
+}
+
+fn finite_double(d: f64, path: &str) -> Result<Value, PackagerError> {
+    if !d.is_finite() {
+        return Err(invalid(format!(
+            "A non-finite number is not canonical at {path}: {d}"
+        )));
+    }
+    Ok(Value::F64(d))
 }
 
 fn canonicalize_map(

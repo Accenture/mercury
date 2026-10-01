@@ -139,6 +139,7 @@ nav:
       - HTTP Response Streaming: guides/http-streaming.md
       - Distributed Cache: guides/distributed-cache.md
       - Minimalist Kafka: guides/minimalist-kafka.md
+      - Canonical Package Format: guides/canonical-package-format.md
       - Polyglot Functions (Python & Node.js): guides/polyglot-functions.md
   - Reference:
       - Configuration Keys: guides/configuration-reference.md

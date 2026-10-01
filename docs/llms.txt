@@ -159,6 +159,10 @@ repo's own source, so it answers the question without opening `crates/`.
   (`mercury-opentelemetry-forwarder`, opt-in by `otel.forwarding=true`) and its `otel.*` keys.
 - [Actuators & HTTP client](guides/actuators-and-http-client.md) — the built-in health and
   introspection endpoints, and the async outbound HTTP client; both without extra wiring.
+- [Canonical Package Format](guides/canonical-package-format.md) — the language-neutral deterministic MsgPack package
+  contract (keys sorted by UTF-8 bytes at every depth, `{manifest, maps}`, one canonical profile, strict read, integrity left to
+  the application) and the shared vector file that proves Java and Rust write identical bytes; self-contained — implement a new
+  engine from this page alone.
 - [Event over HTTP](guides/event-over-http.md) — call a function in another instance over the same
   route-name + envelope contract; the only cross-instance coupling, opt-in by design.
 

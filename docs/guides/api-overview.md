@@ -297,6 +297,46 @@ request (the log context is on by default — see the
 reserved context keys (`cid`, `traceId`, `tracePath`, `spanId`, `parentSpanId`, `service`,
 `utc`) are rejected with status 400; outside a trace the call is a silent no-op.
 
+## Deterministic packaging: `canonical_packager`
+
+`platform_core::canonical_packager` turns a set of maps into **one byte array whose bytes depend only on its content**: the same
+maps give the same bytes whatever order their keys were built in, and the Java engine writes the same bytes. Use it when related
+documents (graphs, flows, rules, tables) are promoted as one artifact whose identity must be recorded or compared. The format is
+specified in [Canonical Package Format](canonical-package-format.md); this section is the Rust API.
+
+```rust
+use platform_core::canonical_packager::{self, Builder};
+use rmpv::Value;
+
+let bytes = Builder::new()
+    .manifest("graph_id", "quote")?          // caller-defined string fields; format and format_version are reserved
+    .manifest("version", "1.0.0")?
+    .add("quote.json", quote)?               // a Value::Map: keys are sorted at every depth by the packager
+    .add("quote-fees.json", fees)?
+    .build()?;                               // the order of manifest() and add() calls does not matter
+
+let package = canonical_packager::unpack(&bytes)?;      // strict: rejects bytes that are not canonical
+let graph_id = package.manifest.iter().find(|(k, _)| k == "graph_id");
+let quote: &Value = &package.maps[1].1;                 // ordered, the order the bytes hold
+canonical_packager::unpack_with(&bytes, false)?;        // non-strict: decodes any valid content
+```
+
+- **The ordering is the packager's own step.** A `Value::Map` keeps the order it was built in, so the packager converts keys to
+  text and sorts them in **UTF-8 byte order** at every depth (maps inside lists included); a `String` sort on the JVM would be
+  UTF-16, which differs from this engine's bytes above U+FFFF.
+- **The caller writes exact numbers and dates as strings**, because `rmpv::Value` has no decimal, big-integer or date type: a
+  decimal in plain notation with its scale kept and a zero of any scale as `"0"`, a big integer as its digits, a date as
+  ISO-8601. An integer above 2^63-1 is rejected (`PackagerError::Invalid`: write it as text), as are NaN, Infinity, an extension type and a null key. An `f32` is
+  accepted like any other number and widened through its shortest decimal text (`0.1f32` is the float64 `0.1`).
+- **The packager is faithful to a value's type**: the integer `1` and the float `1.0` are different content, and strings are
+  written as given with no Unicode normalization.
+- **Errors:** `PackagerError::Invalid` is a value or builder call the profile rejects; `PackagerError::Malformed` is bytes that are
+  not a canonical package (a non-text or duplicate key, trailing bytes, a wrong `format` or `format_version`, nesting beyond 64
+  levels, a package whose bytes differ from the canonical form of its content). `encode(&Value)` and `decode(&[u8])` expose the
+  same profile for any value.
+- **No integrity logic.** A hash or a signature, and its algorithm, is your application's decision: compute it over the exact
+  bytes `build()` returns, for example a SHA-256 recorded in a release record, or a detached signature from your own signer.
+
 ## Errors: `AppError`
 
 Both APIs (and every function) speak `AppError` — an HTTP-style status code plus a message:
