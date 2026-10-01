@@ -62,6 +62,13 @@ through the `graph-executor` flow:
 curl -X POST 'http://127.0.0.1:8085/api/graph/{graph-id}' -H 'content-type: application/json' -d '{...}'
 ```
 
+All fourteen tutorials and `support-triage` are deployed in this app (`resources/graphs.yaml`). Tutorial 13,
+for one, fetches a profile from the app's own dev mock endpoint:
+
+```bash
+curl -X POST 'http://127.0.0.1:8085/api/graph/tutorial-13' -H 'content-type: application/json' -d '{"person_id": 100}'
+```
+
 **Production note** — the Playground is dev-only. Set `app.env` to anything but
 `dev` and the workbench (command service, websocket UI, companion endpoints)
 does not register; deployed graphs still run through `POST /api/graph/{graph-id}`.
@@ -106,6 +113,11 @@ the relay and the AI node (see the OpenTelemetry certification report).
 | `src/main.rs` | the one-line main; links the engine's inventory |
 | `resources/application.yml` | app name, `app.env=dev`, port, temp folder |
 | `resources/rest.yaml` | the Playground/companion endpoint bindings |
+| `resources/graphs.yaml` | the deployment manifest: the fourteen tutorials and `support-triage` (compiled or 404) |
+| `resources/flows.yaml` | the flows this app deploys: `graph-executor` and `flow-11` |
+| `resources/flows/graph-executor.yml` | the standard exposure flow behind `POST /api/graph/{graph-id}` |
+| `resources/flows/flow-11.yml` | the echo flow that tutorial 11's `graph.extension` node calls (`flow://flow-11`) |
+| `resources/graph/support-triage.json` | the E0 triage graph; the tutorials' own models travel with the engine crate |
 | `../../crates/knowledge-graph/webapp/` | the React webapp source (`npm run release`) |
 | `../../crates/knowledge-graph/resources/public/` | the served bundle (built) |
 | `../../crates/knowledge-graph/resources/help/` | the `describe`/help markdown |

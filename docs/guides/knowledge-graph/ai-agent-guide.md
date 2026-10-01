@@ -322,12 +322,16 @@ the browser notices).
 | `resources/application.yml` | App name, `rest.server.port`, `app.env: dev` for the Playground | keep (edit values) |
 | `resources/rest.yaml` | REST routes | keep — trim **by profile, below** |
 | `resources/graphs.yaml` | The CompileGraph deployment gate — list every graph id you serve, and point `location:` at your own models | replace with yours |
+| `resources/flows.yaml` + `resources/flows/graph-executor.yml` | Binds `POST /api/graph/{graph_id}` to the graph executor — the standard exposure flow | keep |
+| `resources/flows/flow-11.yml` and its `flows.yaml` entry (the example only) | Tutorial 11's echo flow, the `graph.extension` target | drop unless used |
 | Your `resources/graph/*.json` models | Deployed graph models | yours |
 | `src/main.rs` | App entry point | keep (adapt) |
 | `scripts/` (session broker + README) | Lets an AI agent **host** the Playground session — keep-alive, auto-reconnect, control API (see [hosting](#hosting)) | keep |
 
-(The `graph-executor` flow binding is engine-provided in the Rust engine — unlike the Java
-template there is no `flows.yaml` to carry over.)
+(The template and the example carry the flows, as the Java ones do. The engine ships the same
+`graph-executor` flow as its default, so the pair is not what makes graphs servable — it is
+there so the configuration is visible in your project. An application's own `resources` win
+over the engine's, so an edit to your copy is the one that takes effect.)
 
 **`rest.yaml` — two named profiles.** The example's route list mixes three kinds of routes;
 know which bar you are building to:

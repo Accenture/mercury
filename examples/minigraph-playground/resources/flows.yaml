@@ -1,0 +1,13 @@
+#
+# The flows this application deploys, each read from 'location': this app's resources/flows first,
+# then the engine's own copy (the application's resources win, so these files are the ones in effect).
+#
+#   graph-executor  the standard exposure flow: POST /api/graph/{graph_id} (rest.yaml) runs the graph
+#                   engine on the deployed model
+#   flow-11         the echo flow that tutorial 11's graph.extension node calls (extension=flow://flow-11)
+#
+flows:
+  - 'graph-executor.yml'
+  - 'flow-11.yml'
+
+location: 'classpath:/flows/'

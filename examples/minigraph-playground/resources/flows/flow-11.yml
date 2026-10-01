@@ -1,0 +1,30 @@
+flow:
+  id: 'flow-11'
+  description: 'This event flow will echo all input parameters for Tutorial 11'
+  ttl: 60s
+  exception: 'simple.exception.handler'
+
+first.task: 'no.op'
+
+tasks:
+  - input:
+      # pass all input parameters as arguments
+      - 'input.body -> *'
+    process: 'no.op'
+    output:
+      - 'result -> output.body'
+    description: 'echo everything in the input payload'
+    execution: end
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'simple.exception.handler'
+    output:
+      # In normal response, the status code is available in 'status'.
+      # Since this is an exception handler, the status code is obtained from the result set.
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just an exception handler'
+    execution: end

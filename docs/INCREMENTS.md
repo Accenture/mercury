@@ -4084,3 +4084,38 @@ the same wording change and the same report. The Rust engine did not change.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
 `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+
+---
+
+## Increment 149 — The starter template and the playground example carry their flows; tutorial 13 is deployed (2026-10-01)
+
+Consistency with the Java twins' configuration, and one stale comment that kept a tutorial out of the example. The engine did not
+change.
+
+- **The flows are visible in the project.** `templates/starter-graph/resources/flows.yaml` and `flows/graph-executor.yml`, and
+  `examples/minigraph-playground/resources/flows.yaml`, `flows/graph-executor.yml` and `flows/flow-11.yml`: the flow files are
+  byte-identical with the Java template's and the Java example's (the engine's own defaults for the example), the two manifests carry
+  a short comment. The knowledge-graph engine already shipped these flows, so nothing changes at run time: the application's own
+  `resources` come first, the engine's are appended, and a file missing from the application falls through to the engine's
+  per file. Both directions were proven with controls rather than assumed: with the example's flows config deleted its tests still
+  pass; with `flow-11.yml` taken out of the example's `flows.yaml` tutorial 11 fails with `flow://flow-11 does not exist`; a
+  template `flows.yaml` that lists a missing flow fails the deployed-graph test with `Flow graph-executor not found`.
+- **Tutorial 13 is deployed in the example.** `graphs.yaml` listed tutorials 1 to 12 and 14 behind a comment that tutorial 13 needs
+  `v1.hello.task`, "an engine-test fixture function this app does not register". Increment 83 retired that function when tutorial 13
+  became an `async.http.request` client of the app's own dev mock endpoint, and the comment outlived it (the Java example's
+  manifest omitted tutorial 13 for the same reason since the CompileGraph gate landed). The comment is gone, tutorial 13 is listed,
+  and the app compiles 15 graphs: the fourteen tutorials and `support-triage`.
+- **`examples/minigraph-playground/tests/tutorials.rs`:** all fifteen graphs are deployed; tutorial 13 over HTTP (the profile and the
+  `X-TTL` echo) and its unknown-profile error; tutorial 11 through the example's own `flows.yaml`. The app must boot on a known
+  port here, because CompileGraph resolves `${rest.server.port:8080}` when the model is loaded. A second test keeps the sample flow
+  files equal to the engine's defaults (the template's copy apart from its opening comment): a stale copy would hide an engine fix,
+  because the application's resources win.
+- Docs: the starter template's and the example's file tables, the AI agent guide's boilerplate manifest (it said the Rust template had
+  no `flows.yaml` to carry over), and two sentences in `composing-the-layers`.
+- Not here: `v1.hello.task` (retired; tutorial 13 does not need it); the Java example's manifest, which omitted tutorial 13 for
+  the same reason (its fix belongs to the Java repo); the distributed-cache example, which lists `graph-executor.yml` and resolves
+  it from the engine without a local copy.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test` for the example and the
+template, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.

@@ -1,0 +1,33 @@
+flow:
+  id: 'graph-executor'
+  description: 'MiniGraph Traveler'
+  ttl: 60s
+  exception: 'graph.exception.handler'
+
+first.task: 'graph.executor'
+
+tasks:
+  - input:
+      # pass flow instance ID so the task can access the input and model namespaces in the flow instance
+      - 'model.instance -> header.instance'
+      - 'input.path_parameter.graph_id -> header.graph'
+    process: 'graph.executor'
+    output:
+      - 'status -> output.status'
+      - 'header -> output.header'
+      - 'result -> output.body'
+    description: 'Perform active graph traversal and execute nodes'
+    execution: end
+
+  - input:
+      - 'error.code -> status'
+      - 'error.message -> message'
+      - 'error.stack -> stack'
+    process: 'graph.exception.handler'
+    output:
+      # In normal response, the status code is available in 'status'.
+      # Since this is an exception handler, the status code is obtained from the result set.
+      - 'result.status -> output.status'
+      - 'result -> output.body'
+    description: 'Just an exception handler'
+    execution: end

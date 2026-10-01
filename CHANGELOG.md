@@ -15,9 +15,23 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 Each change merged to `main` after v4.12.20 is listed here; it moves under its release heading when the version is cut.
 
+### Added
+
+1. **The starter template and the playground example carry their flows (Increment 149).** `templates/starter-graph` gains
+   `resources/flows.yaml` and `flows/graph-executor.yml`; `examples/minigraph-playground` gains `resources/flows.yaml`,
+   `flows/graph-executor.yml` and `flows/flow-11.yml`. The flow files are byte-identical with the Java twins'. The engine already
+   shipped the same flows as its defaults, so nothing changes at run time: the application's own `resources` win over the engine's,
+   and with the copies deleted the same tests pass. They are there so the configuration is visible in your project, as in Java.
+2. **Tutorial 13 is deployed in the playground example.** The manifest left it out behind a comment that it needs `v1.hello.task`, a
+   function retired in Increment 83 when tutorial 13 became an `async.http.request` client of the app's own dev mock endpoint. The
+   comment is gone and all fourteen tutorials plus `support-triage` compile (15 graphs):
+   `curl -X POST http://127.0.0.1:8085/api/graph/tutorial-13 -H 'content-type: application/json' -d '{"person_id": 100}'`.
+   `examples/minigraph-playground/tests/tutorials.rs` runs tutorials 13 and 11 through the example's own configuration and keeps the
+   sample flow files equal to the engine's defaults.
+
 ### Changed
 
-1. **The MiniGraph Playground's AI nodes point at the LLM helper app (Increment 148).** `llm.chat` (the `support-triage` graph) and
+3. **The MiniGraph Playground's AI nodes point at the LLM helper app (Increment 148).** `llm.chat` (the `support-triage` graph) and
    `llm.stream` (the `/api/llm/stream` relay) are functions in the new LLM helper of the Python and Node.js packs
    (`examples/llm-helper`, on the Anthropic SDK), not in their demo apps; the ports and the route map are unchanged, so nothing
    to reconfigure. The relay's "not configured" 503 now names the helper and its credential. The engine is unchanged and holds
@@ -27,11 +41,13 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
 
 ### Documentation
 
-2. **The LLM helper certification report** (`docs/test-reports/llm-helper-certification.md`, byte-identical to the Java engine's):
+4. **The LLM helper certification report** (`docs/test-reports/llm-helper-certification.md`, byte-identical to the Java engine's):
    Rust and Java, each in front of the Python and the Node.js helper, driven through a streaming service, an Event Script flow
    and two graphs with real Claude calls. It shows that every token batch the helper forwards reaches the engine edge as its own
    frame, that the cadence of progressive rendering is the API's and differs by model (Haiku streams continuously, Opus in bursts
    about every 600 ms), and that the error contract holds on the real SDKs.
+5. The AI agent guide's boilerplate manifest no longer says the Rust template has no `flows.yaml` to carry over; the template's and
+   the example's file tables list the flows files.
 
 ---
 ## Version 4.12.20, 10/1/2026
