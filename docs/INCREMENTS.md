@@ -3950,3 +3950,30 @@ is, on every surface an agent reads, and pinned so it cannot drift from the eval
 
 No engine behaviour change. Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
 `cargo test -p mercury-knowledge-graph`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+## Increment 144 — The `f:decimal*` simple plugins, exact decimal arithmetic for flows (2026-09-30)
+
+The Rust twin of the Java engine's #475 (RFC-0001 item 8, ADR-0025); the second of the two PRs that port the decimal work, the
+`DECIMAL:` statement of `graph.math` following as Increment 145. A flow and a graph must agree on money arithmetic, and a flow had
+only the `i64`/`f64` plugin family.
+
+- **`event_script::decimal`** — one public core on `bigdecimal` (0.4, already in the lockfile through `apache-avro`): the
+  canonical decimal string (plain notation, the computed scale kept, a zero of any scale `"0"`), operand reading (a whole number,
+  a float through its shortest decimal text, a canonical-number string; anything else is an error naming the plugin), exact
+  `+ - * %` with the Java scales, `round(x, scale, mode)` with the seven named modes, and the division. **The crate's `/` is
+  neither Java's exact-if-terminating nor decimal128**, so the division is written on `BigInt`: the exact quotient at the smallest
+  scale when it terminates, otherwise 34 significant digits half-even decided on the exact remainder (no double rounding, and a
+  carry into a 35th digit is folded back). The Java engine keeps two implementations (the plugins and the statement) and
+  cross-checks them; here the core is shared, so the statement cannot drift from the plugins.
+- **Seven plugins** in `plugins_decimal.rs` (`BUILTIN_PLUGIN_COUNT` 51 to 58): camelCase names, like every simple plugin.
+- **Conformance:** `tests/decimal_plugin_vectors.rs` runs the 68 shared vectors, `tests/resources/decimal-plugin-vectors.json`
+  byte-identical to the Java engine's, with engine-neutral error codes matched against this engine's messages; unit tests pin the
+  canonical form, the float operand, the division carry and the bounds.
+- **Docs:** the plugin table in `event-script/syntax.md` and an *Exact decimal plugins* section.
+
+The `bigdecimal` check that preceded the port ran the 68 vectors through a scratch harness: `+ - *`, `%`, all seven rounding modes
+and `powi` match Java; only the division needed its own algorithm.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+

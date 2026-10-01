@@ -11,6 +11,22 @@ The full increment-by-increment record lives in [`docs/INCREMENTS.md`](docs/INCR
 the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 ---
+## Unreleased
+
+Changes merged to `main` since the last release. Each item moves under its release heading when the version is cut.
+
+### Added
+
+- **`f:decimalAdd`, `f:decimalSubtract`, `f:decimalMultiply`, `f:decimalDiv`, `f:decimalMod`, `f:decimalRound` and
+  `f:decimalCompare` simple plugins (Increment 144; the Java engine's #475; RFC-0001 item 8, ADR-0025).** Exact decimal
+  arithmetic for flows and mapper nodes: a canonical decimal string result, scales propagated (`+ -` the larger, `*` the
+  sum), `/` exact when it terminates and otherwise 34 digits half-even, and `decimalRound(x, scale, mode)` with an explicit
+  mode only. An operand is a whole number, a canonical-number string or a float (through its shortest decimal text); a
+  boolean, a `null` and a non-canonical string are errors. The `f:add` family is unchanged. The core is one public module,
+  `event_script::decimal`, which the `DECIMAL:` statement of `graph.math` will share. **Upgrade action:** none — new
+  plugin names only.
+
+---
 ## Version 4.12.19, 9/25/2026
 
 The lock-step twin of Java 4.12.19 (Increment 142): `graph.model.automation` accepts a comma-separated list of graph
