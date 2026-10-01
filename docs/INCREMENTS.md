@@ -4007,3 +4007,21 @@ introduced. Field installations need money and rate arithmetic that is exact and
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
 `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
 
+## Increment 146 — The bounce tests wait for the heal instead of assuming it is instant (2026-10-01)
+
+Test-only; no crate that ships is touched. Main's rust run on the #336 merge failed
+`sync-over-async::store_bounce_recovery::append_and_pop_stay_fail_fast_across_a_bounce`: after the expected fail-fast
+error, the caller's immediate retry met the dead link too (`Redis error - broken pipe`). The `redis` crate's connection
+manager arms its reconnect when a command fails, and the very next command can still meet the old link while that
+reconnect is in flight; the documented contract is that the caller's retry lands once the connection has healed, which is
+bounded, not instantaneous. The same PR's next run passed, and the failure did not reproduce locally (0 of 204 runs,
+twelve copies at once), so the timing-dependent step is removed rather than tuned, the Increment 140 way.
+
+- `retry_until_healed` (a test helper, 25 ms spacing, 5 s bound) replaces the single immediate retry in
+  `store_bounce_recovery` (the append and the pop) and in `redis-connection`'s `non_idempotent_command_is_not_replayed`,
+  which asserted the same thing. Both still pin the contract that matters: the first call fails fast, nothing is replayed
+  or lost (the pushed length and the popped segment prove it), and the connection heals.
+
+Gates: `cargo fmt --all --check`, `cargo clippy -p mercury-sync-over-async -p mercury-redis-connection --all-targets
+-- -D warnings`, the two bounce binaries repeated 120 times under load.
+
