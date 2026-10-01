@@ -42,8 +42,10 @@ Statements
 - DECIMAL: {var} -> {expression} - the high-precision COMPUTE: the expression
   is evaluated with exact decimal arithmetic and the result is stored in the
   node's result namespace as a canonical decimal string (plain notation, the
-  computed scale kept, a zero of any scale written "0"). COMPUTE is untouched,
-  so a graph that never says DECIMAL behaves exactly as before. See
+  computed scale kept, a zero of any scale written "0"). COMPUTE still computes
+  in binary floating point, and a graph that never says DECIMAL keeps its
+  arithmetic; two rules reach it all the same: a string that is a canonical
+  number compares as a number, and round() is half up, away from zero. See
   "DECIMAL statement" below.
 - CONDITION: {var} -> {boolean expression} - the declared boolean statement:
   evaluated as a boolean whatever operators it carries (a bare {model.flag}
@@ -148,6 +150,12 @@ is refused by name: sqrt, log, log10, exp, trigonometry, random(), PI and E -
 keep that step in a COMPUTE or a graph.task function. A DECIMAL statement
 computes a number; a comparison may appear only inside a ternary test. A COMPUTE
 on a decimal string computes in binary floating point, so use DECIMAL for money.
+
+A zero of any scale is stored as "0" (round(0.004, 2, HALF_UP), 1.50 - 1.50 and
+0.00 all give "0"), and "0" + "1.50" is "1.50": the next scaled addend restores
+the scale. The remainder (%) follows the sign of the dividend (-7 % 3 is "-1").
+The decimal plugins (f:decimalAdd, f:decimalRound ...) work in a MAPPING
+statement.
 
 IF / THEN / ELSE
 ----------------

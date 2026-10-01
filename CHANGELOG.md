@@ -50,6 +50,15 @@ Changes merged to `main` since the last release. Each item moves under its relea
   `-3`. It now rounds through the shared decimal core: `round(-2.5)` is `-3`; positive halves and non-halves are unchanged.
   **Upgrade action:** read if a graph rounds a negative value that is exactly x.5 — the result moves away from zero.
 
+### Documentation
+
+- **The DECIMAL guide gains the money loop, the transaction patterns and the compatibility correction (the Java engine's
+  #480).** The command reference adds an engine-verified `DECIMAL` twin of the line-totals example (the `COMPUTE` version
+  accumulates in double; money uses the twin), the skills reference adds *Transaction patterns* (the zero rule, the remainder's
+  sign, the decimal plugins in a mapping, the input rules), and the DECIMAL intro no longer says a graph that never says
+  `DECIMAL` behaves exactly as before: the numeric-string comparison and `round` half-up reach it. The in-Playground help and
+  `minigraph-commands.json` carry the same.
+
 ---
 ## Version 4.12.19, 9/25/2026
 

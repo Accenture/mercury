@@ -1,0 +1,69 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "the DECIMAL running sum over a for_each loop, the documented money loop (RFC-0001)",
+        "name": "unit-test-decimal-loop"
+      }
+    },
+    {
+      "alias": "totaler",
+      "types": [
+        "Loop"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "for_each": [
+          "input.body.prices -> model.price",
+          "input.body.quantities -> model.qty"
+        ],
+        "statement": [
+          "MAPPING: text(0) -> model.total",
+          "BEGIN",
+          "DECIMAL: line -> {model.price} * {model.qty}",
+          "DECIMAL: total -> {model.total} + {totaler.result.line}",
+          "MAPPING: totaler.result.total -> model.total",
+          "END",
+          "DECIMAL: rounded -> round({model.total}, 2, HALF_UP)",
+          "MAPPING: totaler.result.rounded -> output.body.total",
+          "MAPPING: f:decimalAdd(model.total, text(0.10)) -> output.body.plus_dime",
+          "MAPPING: f:decimalRound(model.total, int(0), text(HALF_UP)) -> output.body.whole"
+        ],
+        "purpose": "line totals with an exact running sum: the seed is the string 0, each pass adds the exact line, the post-block rounds at the currency scale; a decimal plugin runs in a mapping"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "totaler",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "totaler",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

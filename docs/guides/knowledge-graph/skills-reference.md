@@ -194,7 +194,7 @@ For anything richer than the dialect, use `graph.task` (a composable function).
 
 ### The DECIMAL statement {#math-decimal}
 
-`DECIMAL` is the high-precision `COMPUTE`: exact decimal arithmetic whose result is a canonical decimal string, and `COMPUTE` is untouched. A graph that never says `DECIMAL` behaves exactly as before; use it for money, rates and anything a double would round.
+`DECIMAL` is the high-precision `COMPUTE`: exact decimal arithmetic whose result is a canonical decimal string, and `COMPUTE` is untouched. `COMPUTE` still computes in binary floating point, and a graph that never says `DECIMAL` keeps its arithmetic; two rules reach it all the same, and both are READ items at release: a string that is a canonical number now compares as a number in `COMPUTE`, `IF` and `CONDITION` (`'9.5' > '10.25'` is false, `'1.0' == '1'` is true), and `round` is half up, away from zero (`round(-2.5)` is `-3`). Use `DECIMAL` for money, rates and anything a double would round.
 
 ```
 skill=graph.math
@@ -238,6 +238,40 @@ statement[]=DECIMAL: total -> {input.body.qty} * {price.result.rounded}
   (see the [built-in plugins](../event-script/syntax.md#built-in-plugins)).
 - **`COMPUTE` on a decimal string computes in binary floating point**, exactly as it does today, and a
   `COMPUTE` result is a double. Nothing stops you; use `DECIMAL` for money.
+
+#### Transaction patterns {#math-decimal-patterns}
+
+What settles a transaction is written on the graph, with no function. The worked loop —
+line totals, an exact running sum, rounding at the currency scale — is in the
+[command reference](command-reference.md#worked-example-decimal-loop).
+
+| Pattern | Where it lives |
+|---|---|
+| Extend a line, sum lines, tax, discount, FX, cap, floor, threshold | `DECIMAL` with `for_each`, `min`/`max`, `IF` |
+| Equal split, the residual to one named account | `DECIMAL`: `round(amount / n, 2, HALF_DOWN)`, then `amount - share * n` |
+| A fixed schedule of marginal bands | `DECIMAL`, unrolled with `min` and `max`, one line per band, so the product owner reads the schedule on the graph |
+| Simple interest, when `days` is already a number | `DECIMAL`: `round(principal * rate * days / basis, scale, HALF_UP)` |
+| Actual/360, 30/360 or business days | a [`graph.task`](#task) function computes `days`; the interest formula is then `DECIMAL` |
+| Bands that arrive with each request, "the residual to the last line", IRR, NPV, fractional `pow`, `exp`, `log` | a [`graph.task`](#task) function — the result is not exact, or the data is not graph data |
+
+- **Rates:** a percent is `rate / 100`, a basis point is `rate / 10000`, and a tax-inclusive amount is
+  `round(gross * rate / (1 + rate), scale, HALF_UP)`. The scale can itself be data (`0`, `2`, `3`).
+- **A per-line exception** that must not break the loop is a `CONDITION`, then
+  `DECIMAL: tax -> {node.result.taxable} ? round(...) : 0`. A taken `IF` inside a `for_each` ends the walk, so use it
+  for the decision that stops the walk, never for a per-line branch.
+- **A zero is `"0"`, whatever its scale**: `round(0.004, 2, HALF_UP)`, `1.50 - 1.50` and `0.00` all store `"0"`, and
+  `"0" + "1.50"` is `"1.50"`: the next scaled addend restores the scale. A final balance of zero is `"0"`; showing
+  `"0.00"` is a presentation step, not a second stored scale. Seed an accumulator with `text(0)`; `int(0)` works too,
+  because a whole number is exact.
+- **The remainder follows the dividend's sign**: `-7 % 3` is `"-1"`. An allocation that wants a non-negative remainder
+  says so explicitly.
+- **The decimal plugins work in a mapping** as well: `MAPPING: f:decimalAdd(model.total, text(0.10)) -> output.body.x`
+  in a `graph.math` node, or the same line in a `graph.data.mapper`.
+- **Inputs:** send money and rates as strings; keep a `COMPUTE` result out of a `DECIMAL` statement; assert the type
+  with `f:validate(input.body.rate, text(rate; String; required))` when the caller must. A JSON number longer than a
+  double holds, and a value already computed in floating point (`COMPUTE: 1.005 * 100` is `100.49999999999999`), is not
+  repaired by `DECIMAL`.
+
 
 ## graph.js {#js}
 

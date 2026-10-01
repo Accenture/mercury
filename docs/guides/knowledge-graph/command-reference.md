@@ -808,6 +808,35 @@ seeds the accumulator once, each pass computes `total + price*qty` and writes it
 `MAPPING: f:add(model.total, totaler.result.line) -> model.total` — numeric promotion carries
 the `COMPUTE` doubles through `f:add` (both forms are engine-verified).
 
+#### Worked example (engine-verified) — the money loop, `DECIMAL` {#worked-example-decimal-loop}
+
+The `COMPUTE` example above accumulates in IEEE double (`500.0`). **Money uses this twin**, which keeps every
+amount an exact canonical string:
+
+```
+create node totaler
+with type Loop
+with properties
+skill=graph.math
+for_each[]=input.body.prices -> model.price
+for_each[]=input.body.quantities -> model.qty
+statement[]=MAPPING: text(0) -> model.total
+statement[]=BEGIN
+statement[]=DECIMAL: line -> {model.price} * {model.qty}
+statement[]=DECIMAL: total -> {model.total} + {totaler.result.line}
+statement[]=MAPPING: totaler.result.total -> model.total
+statement[]=END
+statement[]=DECIMAL: rounded -> round({model.total}, 2, HALF_UP)
+statement[]=MAPPING: totaler.result.rounded -> output.body.total
+```
+
+With `prices=["10.50","20.25","30"]` and `quantities=[7,8,9]` the run yields `total: "505.50"`
+(`73.50 + 162.00 + 270`): the pre-block seeds the accumulator once as the string `0`, each pass adds the exact
+line total, and the post-block rounds at the currency scale. A balance that passes through zero stores `"0"` and the
+next scaled addend restores the scale. The decimal plugins run in a mapping too —
+`MAPPING: f:decimalAdd(model.total, text(0.10)) -> output.body.plus_dime` — see
+[the DECIMAL statement](skills-reference.md#math-decimal) for the patterns and the input rules.
+
 ## Invariants {#invariants}
 
 Hard rules the engine enforces — violate them and generation fails (invariant 4 is the one
