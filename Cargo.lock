@@ -1297,6 +1297,7 @@ dependencies = [
  "async-channel",
  "async-trait",
  "base64",
+ "bigdecimal",
  "futures-util",
  "http-body-util",
  "hyper",

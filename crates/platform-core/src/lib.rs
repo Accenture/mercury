@@ -33,6 +33,7 @@
 pub mod actuator;
 pub mod app_starter;
 pub mod automation;
+pub mod canonical_packager;
 pub mod envelope;
 pub mod event_stream;
 pub mod function;
