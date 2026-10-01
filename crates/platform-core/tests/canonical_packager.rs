@@ -270,3 +270,22 @@ fn nesting_beyond_the_bound_is_refused_on_both_sides() {
     let e = packager::decode(&bytes).unwrap_err();
     assert!(e.message().contains("Nesting deeper"), "{e}");
 }
+
+#[test]
+fn the_example_on_the_canonical_package_format_page_is_the_canonical_package() {
+    // docs/guides/canonical-package-format.md: no caller fields, one map only.json holding {"a": 1}
+    let bytes = Builder::new()
+        .add("only.json", map(vec![("a", Value::from(1))]))
+        .unwrap()
+        .build()
+        .unwrap();
+    assert_eq!(
+        "82a86d616e696665737482a6666f726d6174af6d6572637572792d7061636b616765ae666f726d61745f76657273696f6ea131a46d61707381a96f6e6c792e6a736f6e81a16101",
+        hex(&bytes)
+    );
+    use sha2::{Digest, Sha256};
+    assert_eq!(
+        "56ebc3ba08b5181e1afa0fdcbb499f2e82c3958490d9da31d295c0553c926de7",
+        hex(&Sha256::digest(&bytes))
+    );
+}
