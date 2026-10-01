@@ -1553,6 +1553,34 @@ async fn decimal_statement_matches_java_semantics(platform: &Platform) {
         "1",
         knowledge_graph::math::DecimalEvaluator::evaluate("'3.759375' > '10.50' ? 0 : 1").unwrap()
     );
+
+    // the documented money loop: the seed is the string 0, each pass adds the exact line total, the post-block
+    // rounds at the currency scale, and a decimal plugin runs in a mapping. 73.50 + 162.00 + 270 = 505.50
+    let loop_run = |body: serde_json::Value| async move {
+        let reply = run_graph(
+            platform,
+            "unit-test-decimal-loop",
+            body,
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(200, reply.status(), "{:?}", reply.body());
+        body_map(&reply)
+    };
+    let sum =
+        loop_run(serde_json::json!({"prices": ["10.50", "20.25", "30"], "quantities": [7, 8, 9]}))
+            .await;
+    assert_eq!("505.50", text(&sum, "total"));
+    assert_eq!("505.60", text(&sum, "plus_dime"));
+    assert_eq!("506", text(&sum, "whole"));
+    // 1.50 - 1.50 stores "0" (a zero of any scale is "0"); the next scaled addend restores the scale
+    let zero =
+        loop_run(serde_json::json!({"prices": ["1.50", "-1.50"], "quantities": [1, 1]})).await;
+    assert_eq!("0", text(&zero, "total"));
+    assert_eq!("0.10", text(&zero, "plus_dime"));
+    let cents =
+        loop_run(serde_json::json!({"prices": ["0.10", "0.20"], "quantities": [1, 1]})).await;
+    assert_eq!("0.30", text(&cents, "total"));
 }
 
 async fn graph_task_matches_java_semantics(platform: &Platform) {

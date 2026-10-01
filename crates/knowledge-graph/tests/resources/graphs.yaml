@@ -21,6 +21,7 @@ graphs:
   - 'helloext'
   - 'unit-test-1'
   - 'unit-test-decimal'
+  - 'unit-test-decimal-loop'
   - 'unit-test-task-1'
   - 'unit-test-task-2'
   - 'unit-test-task-3'
