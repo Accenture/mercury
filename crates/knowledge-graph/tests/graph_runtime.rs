@@ -583,6 +583,7 @@ async fn graph_runtime_end_to_end() {
     let platform = boot().await;
     graphs_run_end_to_end_like_java(&platform).await;
     graph_task_matches_java_semantics(&platform).await;
+    decimal_statement_matches_java_semantics(&platform).await;
     join_loop_retirement_and_health(&platform).await;
     api_fetcher_matches_java_semantics(&platform).await;
     fetcher_cache_key_uses_dictionary_declared_inputs_only(&platform).await;
@@ -1477,6 +1478,81 @@ async fn graphs_run_end_to_end_like_java(platform: &Platform) {
     // 'text(5000) -> headers.x-ttl' sets the HTTP timeout and rides the wire
     // as the X-TTL request header - the mock echoes what it observed
     assert_eq!(Some(Value::from("5000")), mm.get_element("observed_ttl"));
+}
+
+/// Java parity (`DecimalStatementTest`): the DECIMAL statement end to end (RFC-0001), the high-precision
+/// COMPUTE. Decimal strings and whole numbers go in, canonical decimal strings come out, a JSON number is
+/// accepted through its shortest decimal text, and COMPUTE keeps its meaning.
+async fn decimal_statement_matches_java_semantics(platform: &Platform) {
+    let run = |body: serde_json::Value| async move {
+        let reply = run_graph(platform, "unit-test-decimal", body, serde_json::json!({})).await;
+        assert_eq!(200, reply.status(), "{:?}", reply.body());
+        body_map(&reply)
+    };
+    let text = |mm: &MultiLevelMap, key: &str| {
+        let value = mm
+            .get_element(key)
+            .unwrap_or_else(|| panic!("{key} is missing"));
+        assert!(
+            value.is_str(),
+            "{key} is a decimal string, never a JSON number: {value:?}"
+        );
+        event_script::conversions::display(&value)
+    };
+
+    // decimal strings in, canonical strings out: 100.25 * 0.0375 is exact (the scales add, 2 + 4 = 6)
+    let body = run(serde_json::json!({"amount": "100.25", "rate": "0.0375", "qty": 3})).await;
+    assert_eq!("3.759375", text(&body, "fee"));
+    assert_eq!("3.76", text(&body, "rounded"));
+    // a whole number is exact; 3 * 3.76 keeps the scale of the rounded amount
+    assert_eq!("11.28", text(&body, "total"));
+    // a zero of any scale is "0"
+    assert_eq!("0", text(&body, "zero"));
+
+    // IF compares the decimal string as a number: '187.50' > '99.5' although it sorts before it as text
+    let big = run(serde_json::json!({"amount": "5000.00", "rate": "0.0375", "qty": 1})).await;
+    assert_eq!("187.50", text(&big, "rounded"));
+    assert_eq!("big", text(&big, "size"));
+    let small = run(serde_json::json!({"amount": "100.25", "rate": "0.0375", "qty": 1})).await;
+    assert_eq!("small", text(&small, "size"));
+
+    // COMPUTE still stores a double: a JSON number, not a string
+    let doubled = body.get_element("doubled").expect("doubled");
+    assert_eq!(Some(6.0), doubled.as_f64(), "{doubled:?}");
+
+    // a JSON number is accepted through its shortest decimal text - the lenient choice the guide declares
+    let number = run(serde_json::json!({"amount": "100.25", "rate": 0.0375, "qty": 3})).await;
+    assert_eq!("3.759375", text(&number, "fee"));
+    assert_eq!("11.28", text(&number, "total"));
+
+    // a number and the same decimal as a string give the same answer: 0.0005 prints as 5.0E-4, which would
+    // parse as 0.00050 - a spurious trailing zero the conversion removes
+    let as_string = run(serde_json::json!({"amount": "1000", "rate": "0.0005", "qty": 1})).await;
+    let as_number = run(serde_json::json!({"amount": "1000", "rate": 0.0005, "qty": 1})).await;
+    assert_eq!("0.5000", text(&as_string, "fee"));
+    for key in ["fee", "rounded", "total", "zero", "size"] {
+        assert_eq!(
+            as_string.get_element(key),
+            as_number.get_element(key),
+            "{key}"
+        );
+    }
+
+    // a decimal survives the serializer that suspend and resume use: it is a string, the same before and after
+    let model = Value::Map(vec![
+        (Value::from("fee"), Value::from("3.759375")),
+        (Value::from("zero"), Value::from("0")),
+    ]);
+    let restored = unpack_value(&pack_value(&model));
+    assert_eq!(model, restored);
+    assert_eq!(
+        "14.259375",
+        knowledge_graph::math::DecimalEvaluator::evaluate("'3.759375' + '10.50'").unwrap()
+    );
+    assert_eq!(
+        "1",
+        knowledge_graph::math::DecimalEvaluator::evaluate("'3.759375' > '10.50' ? 0 : 1").unwrap()
+    );
 }
 
 async fn graph_task_matches_java_semantics(platform: &Platform) {

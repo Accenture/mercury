@@ -19,13 +19,14 @@
 //! comparison, same-type-only equality (NaN never equals NaN).
 
 use super::context::{ContextValue, EvalContext};
-use super::{eval_err, Expr, MathError, Value};
+use super::{eval_err, numeric_strings, Expr, MathError, Value};
 
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // the Java record toString forms, used in error messages
         match self {
             Value::Number(n) => write!(f, "Number({})", super::java_double_to_string(*n)),
+            Value::Decimal(d) => write!(f, "Decimal({})", event_script::decimal::canonical(d)),
             Value::Bool(b) => write!(f, "Boolean({b})"),
             Value::Str(s) => write!(f, "String({s})"),
         }
@@ -35,6 +36,9 @@ impl std::fmt::Display for Value {
 pub(crate) fn eval(e: &Expr, ctx: &EvalContext) -> Result<Value, MathError> {
     match e {
         Expr::NumberLiteral(n) => Ok(Value::Number(*n)),
+        Expr::DecimalLiteral(_) => {
+            Err(eval_err("A decimal literal belongs to a DECIMAL statement"))
+        }
         Expr::StringLiteral(s) => Ok(Value::Str(s.clone())),
         Expr::BooleanLiteral(b) => Ok(Value::Bool(*b)),
         Expr::Variable(name) => eval_var(name, ctx),
@@ -179,6 +183,10 @@ fn eval_binary(op: &str, left: &Expr, right: &Expr, ctx: &EvalContext) -> Result
     // relational / equality with string and number support
     match op {
         "<" | "<=" | ">" | ">=" => {
+            // a string that is a canonical number compares as a number (RFC-0001)
+            if let Some(numeric) = numeric_strings::compare(&lv, &rv) {
+                return Ok(Value::Bool(numeric_strings::relation(op, numeric)));
+            }
             let outcome = if let (Value::Str(ls), Value::Str(rs)) = (&lv, &rv) {
                 let cmp = ls.as_str().cmp(rs.as_str());
                 match op {
@@ -200,6 +208,10 @@ fn eval_binary(op: &str, left: &Expr, right: &Expr, ctx: &EvalContext) -> Result
             Ok(Value::Bool(outcome))
         }
         "==" | "!=" => {
+            // a string that is a canonical number compares as a number: '200' == 200 is 200 == 200 (RFC-0001)
+            if let Some(numeric) = numeric_strings::compare(&lv, &rv) {
+                return Ok(Value::Bool((op == "==") == numeric.is_eq()));
+            }
             let eq = match (&lv, &rv) {
                 (Value::Str(l), Value::Str(r)) => l == r,
                 (Value::Bool(l), Value::Bool(r)) => l == r,
@@ -244,6 +256,7 @@ fn resolve_object<'a>(e: &Expr, ctx: &'a EvalContext) -> Option<&'a ContextValue
 fn as_number(v: &Value, context: &str) -> Result<f64, MathError> {
     match v {
         Value::Number(n) => Ok(*n),
+        Value::Decimal(d) => Ok(bigdecimal::ToPrimitive::to_f64(d).unwrap_or(f64::NAN)),
         Value::Bool(_) => Err(eval_err(format!("Boolean operand in '{context}': {v}"))),
         Value::Str(_) => Err(eval_err(format!("Expected number in {context}, got {v}"))),
     }
@@ -278,6 +291,7 @@ fn as_string(v: &Value) -> String {
     match v {
         Value::Str(s) => s.clone(),
         Value::Number(n) => number_to_string(*n),
+        Value::Decimal(d) => event_script::decimal::canonical(d),
         Value::Bool(b) => b.to_string(),
     }
 }

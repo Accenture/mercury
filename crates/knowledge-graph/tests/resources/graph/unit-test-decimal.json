@@ -1,0 +1,149 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "the DECIMAL statement: exact decimal arithmetic, the high-precision COMPUTE (RFC-0001)",
+        "name": "unit-test-decimal"
+      }
+    },
+    {
+      "alias": "price",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "DECIMAL: fee -> {input.body.amount} * {input.body.rate}",
+          "DECIMAL: rounded -> round({price.result.fee}, 2, HALF_UP)",
+          "DECIMAL: total -> {input.body.qty} * {price.result.rounded}",
+          "DECIMAL: zero -> {input.body.amount} - {input.body.amount}",
+          "COMPUTE: doubled -> {input.body.qty} * 2"
+        ],
+        "purpose": "decimal strings and a whole number in, canonical decimal strings out; COMPUTE is untouched"
+      }
+    },
+    {
+      "alias": "gate",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "IF: {price.result.rounded} > '99.5'\nTHEN: big\nELSE: small"
+        ],
+        "purpose": "a decimal string against a numeric string literal compares as numbers: '187.50' > '99.5' although it sorts before it as text"
+      }
+    },
+    {
+      "alias": "big",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(big) -> output.body.size",
+          "price.result.fee -> output.body.fee",
+          "price.result.rounded -> output.body.rounded",
+          "price.result.total -> output.body.total",
+          "price.result.zero -> output.body.zero",
+          "price.result.doubled -> output.body.doubled"
+        ],
+        "purpose": "the large branch"
+      }
+    },
+    {
+      "alias": "small",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(small) -> output.body.size",
+          "price.result.fee -> output.body.fee",
+          "price.result.rounded -> output.body.rounded",
+          "price.result.total -> output.body.total",
+          "price.result.zero -> output.body.zero",
+          "price.result.doubled -> output.body.doubled"
+        ],
+        "purpose": "the small branch"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "price",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "price",
+      "target": "gate",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "gate",
+      "target": "big",
+      "relations": [
+        {
+          "type": "large",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "gate",
+      "target": "small",
+      "relations": [
+        {
+          "type": "small",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "big",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "small",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

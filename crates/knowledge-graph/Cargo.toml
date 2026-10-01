@@ -21,6 +21,8 @@ mercury-platform-core = { version = "4.12.19", path = "../platform-core" }
 # MultiLevelMap) is shared with event-script, and deployed graphs are
 # exposed through event-script flows
 mercury-event-script = { version = "4.12.19", path = "../event-script" }
+# RFC-0001 / ADR-0025: the DECIMAL statement reads and computes exact decimals
+bigdecimal = "0.4"
 mercury-knowledge-graph-macros = { version = "4.12.19", path = "../knowledge-graph-macros" }
 async-trait = "0.1"
 log = "0.4"

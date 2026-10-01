@@ -69,7 +69,17 @@ impl Op {
 /// Parse an expression with the strict JS `**` rule (the only mode the
 /// engine uses).
 pub(crate) fn parse(src: &str) -> Result<Expr, MathError> {
-    let mut parser = Parser::new(src, true)?;
+    parse_with(src, false)
+}
+
+/// Parse a DECIMAL statement's expression: number literals go from their text straight into exact decimals,
+/// never through a double.
+pub(crate) fn parse_decimal(src: &str) -> Result<Expr, MathError> {
+    parse_with(src, true)
+}
+
+fn parse_with(src: &str, decimal: bool) -> Result<Expr, MathError> {
+    let mut parser = Parser::new(src, true, decimal)?;
     let expr = parser.parse_expression_until(&[TokenType::Eof])?;
     parser.expect(TokenType::Eof)?;
     Ok(expr)
@@ -79,16 +89,23 @@ struct Parser {
     lexer: Lexer,
     lookahead: Token,
     strict_js_exponentiation_rule: bool,
+    // a DECIMAL statement parses number literals from their text straight into exact decimals
+    decimal: bool,
 }
 
 impl Parser {
-    fn new(src: &str, strict_js_exponentiation_rule: bool) -> Result<Self, MathError> {
+    fn new(
+        src: &str,
+        strict_js_exponentiation_rule: bool,
+        decimal: bool,
+    ) -> Result<Self, MathError> {
         let mut lexer = Lexer::new(src);
         let lookahead = lexer.next()?;
         Ok(Parser {
             lexer,
             lookahead,
             strict_js_exponentiation_rule,
+            decimal,
         })
     }
 
@@ -106,7 +123,11 @@ impl Parser {
                 // ----- primaries -----
                 TokenType::Number => {
                     self.consume()?;
-                    values.push(Expr::NumberLiteral(parse_double(&t.lexeme, t.position)?));
+                    values.push(if self.decimal {
+                        parse_decimal_literal(&t.lexeme, t.position)?
+                    } else {
+                        Expr::NumberLiteral(parse_double(&t.lexeme, t.position)?)
+                    });
                     expect_operand = false;
                     self.parse_postfix_chain_on_top(&mut values)?;
                 }
@@ -468,4 +489,12 @@ fn not_contains_lparen(ops: &[Op]) -> bool {
 fn parse_double(s: &str, position: usize) -> Result<f64, MathError> {
     s.parse::<f64>()
         .map_err(|_| parse_err(format!("Invalid number '{s}' at position {position}")))
+}
+
+fn parse_decimal_literal(s: &str, position: usize) -> Result<Expr, MathError> {
+    s.parse::<bigdecimal::BigDecimal>()
+        .ok()
+        .and_then(super::decimal_evaluator::literal)
+        .map(Expr::DecimalLiteral)
+        .ok_or_else(|| parse_err(format!("Invalid number '{s}' at position {position}")))
 }

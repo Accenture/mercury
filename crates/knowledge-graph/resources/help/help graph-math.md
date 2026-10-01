@@ -15,6 +15,7 @@ Properties
 ```
 skill=graph.math
 statement[]=COMPUTE: {var} -> {expression}
+statement[]=DECIMAL: {var} -> {expression}   (exact decimal arithmetic - see below)
 statement[]=CONDITION: {var} -> {boolean expression}
 statement[]=IF: / THEN: / ELSE:              (multi-line - see below)
 statement[]=MAPPING: {source} -> {target}
@@ -38,6 +39,12 @@ Statements
 - COMPUTE: {var} -> {expression} - evaluate the expression; the result is
   stored in THIS node's result namespace, readable as
   {this-node}.result.{var} or moved onward with a MAPPING statement.
+- DECIMAL: {var} -> {expression} - the high-precision COMPUTE: the expression
+  is evaluated with exact decimal arithmetic and the result is stored in the
+  node's result namespace as a canonical decimal string (plain notation, the
+  computed scale kept, a zero of any scale written "0"). COMPUTE is untouched,
+  so a graph that never says DECIMAL behaves exactly as before. See
+  "DECIMAL statement" below.
 - CONDITION: {var} -> {boolean expression} - the declared boolean statement:
   evaluated as a boolean whatever operators it carries (a bare {model.flag}
   included) and stored as a boolean in THIS node's result namespace; an IF
@@ -98,15 +105,49 @@ silent value:
   "Boolean operand: model.flag (true) in '{model.flag} + 1' - a boolean is
   not a number; store a boolean with CONDITION or assert the type with
   f:validate". A JSON true in a numeric slot never computes as 1. Equality
-  (==, !=) type-checks its two sides.
+  (==, !=) type-checks its two sides; a string that is a canonical number
+  counts as a number, so '200' == 200, 200 == '200' and '200' == '200' are the
+  same comparison and '9.5' < '10.25' compares 9.5 with 10.25.
 - A misspelled or unsupported function fails by name ("Unknown function: mn").
 - Arithmetic is IEEE double precision. An overflow to infinity, a division by
   zero and a NaN each fail naming the operator ("Arithmetic overflow in '*'
   (result Infinity)", "Division by zero or arithmetic overflow in '/'");
-  integers beyond 2^53 lose precision. Money that needs exact decimal
-  arithmetic, a stated rounding mode or integer cents does not belong in this
-  skill: implement it as a small composable function and call it with
-  graph.task. The math package stays minimal by design.
+  integers beyond 2^53 lose precision; round() is half up, away from zero
+  (round(-2.5) is -3), the same as f:round. Money that needs exact decimal
+  arithmetic or a stated rounding mode belongs in a DECIMAL statement, the
+  high-precision COMPUTE; COMPUTE stays floating point.
+
+DECIMAL statement
+-----------------
+```
+statement[]=DECIMAL: fee -> {input.body.amount} * {input.body.rate}
+statement[]=DECIMAL: rounded -> round({price.result.fee}, 2, HALF_UP)
+```
+
+Numbers or strings - a conscious decision: a decimal may arrive as a string
+("0.0375") or as a JSON number (0.0375), and both give the same answer. A JSON
+number is a double, and DECIMAL converts it through the shortest decimal text
+it prints as, at its minimal scale (5.0E-4 becomes 0.0005, 100.0 becomes 100).
+That is exact over the text received, but a double that was already computed in
+floating point is only as exact as that computation: COMPUTE: 1.005 * 100 is
+100.49999999999999, and rounding that in a DECIMAL statement gives 100 where
+the exact 100.5 gives 101; and a JSON number longer than a double holds was
+rounded by the parser. So send money as strings and keep a COMPUTE result out
+of a DECIMAL statement; to insist on strings, assert the type:
+f:validate(input.body.rate, text(rate; String; required)). Whole numbers are
+exact either way. The result is a string on purpose: graph.suspend saves the
+state machine and graph.resume restores it, and a string is the same after as
+before.
+
+Arithmetic: + - * are exact; / never truncates (the exact quotient when it
+terminates, otherwise 34 significant digits, half-even); % is the remainder;
+** and pow(x, n) take a whole exponent from -999 to 999; abs, floor, ceil, min
+and max are exact. Rounding is always explicit: round(x, scale, mode) with mode
+HALF_UP, HALF_EVEN, HALF_DOWN, UP, DOWN, CEILING or FLOOR. What cannot be exact
+is refused by name: sqrt, log, log10, exp, trigonometry, random(), PI and E -
+keep that step in a COMPUTE or a graph.task function. A DECIMAL statement
+computes a number; a comparison may appear only inside a ternary test. A COMPUTE
+on a decimal string computes in binary floating point, so use DECIMAL for money.
 
 IF / THEN / ELSE
 ----------------

@@ -311,13 +311,43 @@
     },
     {
       "id": "math-expression-dialect",
-      "claim": "The graph.math expression dialect is exactly: number, string and boolean literals; the operators ** (right-associative; a unary operand needs parentheses), unary + - !, * / %, + - (+ concatenates when either side is a string), < <= > >= (two numbers, or two strings compared lexically), == != (same type only), && || (short-circuit), the ternary ?: and parentheses; the eighteen built-in functions sin, cos, tan, asin, acos, atan, sqrt, abs, floor, ceil, round, log, log10, exp, min, max, pow, random (each also under Math.); and the constants PI and E. Nothing else parses: no bitwise operators, no assignment or user variables, no user-defined functions - an unlisted function fails by name.",
+      "claim": "The graph.math expression dialect is exactly: number, string and boolean literals; the operators ** (right-associative; a unary operand needs parentheses), unary + - !, * / %, + - (+ concatenates when either side is a string), < <= > >= (two numbers, or two strings compared lexically), == != (same type only, except that a string that is a canonical number compares as a number in all six comparison operators), && || (short-circuit), the ternary ?: and parentheses; the eighteen built-in functions sin, cos, tan, asin, acos, atan, sqrt, abs, floor, ceil, round, log, log10, exp, min, max, pow, random (each also under Math.); and the constants PI and E. Nothing else parses: no bitwise operators, no assignment or user variables, no user-defined functions - an unlisted function fails by name.",
       "pages": [
         "docs/guides/knowledge-graph/skills-reference.md"
       ],
       "quote": "This list is the whole dialect: an operator, function or constant not listed here is rejected by name, never silently accepted.",
       "test": "crates/knowledge-graph::expression_dialect::the_dialect_is_exactly_the_documented_functions_and_constants",
       "since": "4.9.0+"
+    },
+    {
+      "id": "math-decimal-statement",
+      "claim": "A graph.math DECIMAL statement is the high-precision COMPUTE: the expression is evaluated with exact decimal arithmetic and the result is stored as a canonical decimal string (plain notation, the computed scale kept, a zero of any scale written \"0\"); a Double or Float value is converted through its shortest decimal text at its minimal scale (exact over that text, and only as exact as the computation that produced it); rounding is always explicit, round(x, scale, mode); sqrt, log, log10, exp, trigonometry, random() and the constants PI and E are refused by name; COMPUTE is unchanged.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "`DECIMAL` is the high-precision `COMPUTE`: exact decimal arithmetic whose result is a canonical decimal string, and `COMPUTE` is untouched.",
+      "test": "crates/knowledge-graph::decimal_vectors::every_vector_holds_in_the_decimal_evaluator",
+      "since": "4.12.20+"
+    },
+    {
+      "id": "math-numeric-strings-compare-as-numbers",
+      "claim": "In graph.math a string that is a canonical number (plain notation: an optional minus sign, digits without leading zeros, an optional fraction) compares as a number in == != < <= > >=, so '200' == '200', 200 == 200 and 200 == '200' are the same comparison and '9.5' < '10.25' compares 9.5 with 10.25; the comparison is exact, and text that is not a canonical number keeps the strict rules.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "A string that is a canonical number compares as a number",
+      "test": "crates/knowledge-graph::numeric_string_comparison::the_three_spellings_of_one_comparison_are_the_same",
+      "since": "4.12.20+"
+    },
+    {
+      "id": "math-decimal-number-inputs",
+      "claim": "In a graph.math DECIMAL statement a JSON number (a Double or Float) is accepted and converted through the shortest decimal text it prints as, at its minimal scale and in plain notation (5.0E-4 is 0.0005, 100.0 is 100), so a number and the same decimal written as a string give the same answer; it is exact over that text and only as exact as the computation that produced the number, which the guide declares so that sending numbers instead of strings is a conscious decision.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "A JSON number is a double, and `DECIMAL` converts it through the shortest decimal text it prints as, at its minimal scale",
+      "test": "crates/knowledge-graph::graph_runtime::decimal_statement_matches_java_semantics",
+      "since": "4.12.20+"
     }
   ]
 }

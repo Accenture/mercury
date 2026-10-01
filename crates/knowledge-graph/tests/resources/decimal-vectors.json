@@ -1,0 +1,762 @@
+{
+ "format": "mercury-decimal-vectors",
+ "version": 1,
+ "note": "Shared conformance vectors for the DECIMAL statement (RFC-0001): every engine that executes graphs runs these. 'expression' is the statement text after its variables were rendered into it; 'expect' is the canonical decimal string; 'error' is an engine-neutral code, matched by each engine against its own message.",
+ "vectors": [
+  {
+   "id": "trap-point1-plus-point2",
+   "expression": "0.1 + 0.2",
+   "expect": "0.3"
+  },
+  {
+   "id": "trap-1.1-times-3",
+   "expression": "1.1 * 3",
+   "expect": "3.3"
+  },
+  {
+   "id": "trap-seven-over-two",
+   "expression": "7 / 2",
+   "expect": "3.5"
+  },
+  {
+   "id": "trap-one-third",
+   "expression": "1 / 3",
+   "expect": "0.3333333333333333333333333333333333"
+  },
+  {
+   "id": "trap-two-thirds",
+   "expression": "2 / 3",
+   "expect": "0.6666666666666666666666666666666667"
+  },
+  {
+   "id": "trap-exact-quotient",
+   "expression": "10 / 4",
+   "expect": "2.5"
+  },
+  {
+   "id": "trap-whole-quotient",
+   "expression": "6 / 3",
+   "expect": "2"
+  },
+  {
+   "id": "trap-quotient-to-whole",
+   "expression": "100 / 0.5",
+   "expect": "200"
+  },
+  {
+   "id": "trap-1.005-half-up",
+   "expression": "round(1.005, 2, HALF_UP)",
+   "expect": "1.01"
+  },
+  {
+   "id": "trap-1.005-half-even",
+   "expression": "round(1.005, 2, HALF_EVEN)",
+   "expect": "1.00"
+  },
+  {
+   "id": "trap-1.005-half-down",
+   "expression": "round(1.005, 2, HALF_DOWN)",
+   "expect": "1.00"
+  },
+  {
+   "id": "round-2.5-half_up",
+   "expression": "round(2.5, 0, HALF_UP)",
+   "expect": "3"
+  },
+  {
+   "id": "round-2.5-half_even",
+   "expression": "round(2.5, 0, HALF_EVEN)",
+   "expect": "2"
+  },
+  {
+   "id": "round-2.5-half_down",
+   "expression": "round(2.5, 0, HALF_DOWN)",
+   "expect": "2"
+  },
+  {
+   "id": "round-2.5-up",
+   "expression": "round(2.5, 0, UP)",
+   "expect": "3"
+  },
+  {
+   "id": "round-2.5-down",
+   "expression": "round(2.5, 0, DOWN)",
+   "expect": "2"
+  },
+  {
+   "id": "round-2.5-ceiling",
+   "expression": "round(2.5, 0, CEILING)",
+   "expect": "3"
+  },
+  {
+   "id": "round-2.5-floor",
+   "expression": "round(2.5, 0, FLOOR)",
+   "expect": "2"
+  },
+  {
+   "id": "round--2.5-half_up",
+   "expression": "round(-2.5, 0, HALF_UP)",
+   "expect": "-3"
+  },
+  {
+   "id": "round--2.5-half_even",
+   "expression": "round(-2.5, 0, HALF_EVEN)",
+   "expect": "-2"
+  },
+  {
+   "id": "round--2.5-half_down",
+   "expression": "round(-2.5, 0, HALF_DOWN)",
+   "expect": "-2"
+  },
+  {
+   "id": "round--2.5-up",
+   "expression": "round(-2.5, 0, UP)",
+   "expect": "-3"
+  },
+  {
+   "id": "round--2.5-down",
+   "expression": "round(-2.5, 0, DOWN)",
+   "expect": "-2"
+  },
+  {
+   "id": "round--2.5-ceiling",
+   "expression": "round(-2.5, 0, CEILING)",
+   "expect": "-2"
+  },
+  {
+   "id": "round--2.5-floor",
+   "expression": "round(-2.5, 0, FLOOR)",
+   "expect": "-3"
+  },
+  {
+   "id": "round-0.5-half_up",
+   "expression": "round(0.5, 0, HALF_UP)",
+   "expect": "1"
+  },
+  {
+   "id": "round-0.5-half_even",
+   "expression": "round(0.5, 0, HALF_EVEN)",
+   "expect": "0"
+  },
+  {
+   "id": "round-0.5-half_down",
+   "expression": "round(0.5, 0, HALF_DOWN)",
+   "expect": "0"
+  },
+  {
+   "id": "round-0.5-up",
+   "expression": "round(0.5, 0, UP)",
+   "expect": "1"
+  },
+  {
+   "id": "round-0.5-down",
+   "expression": "round(0.5, 0, DOWN)",
+   "expect": "0"
+  },
+  {
+   "id": "round-0.5-ceiling",
+   "expression": "round(0.5, 0, CEILING)",
+   "expect": "1"
+  },
+  {
+   "id": "round-0.5-floor",
+   "expression": "round(0.5, 0, FLOOR)",
+   "expect": "0"
+  },
+  {
+   "id": "round--0.5-half_up",
+   "expression": "round(-0.5, 0, HALF_UP)",
+   "expect": "-1"
+  },
+  {
+   "id": "round--0.5-half_even",
+   "expression": "round(-0.5, 0, HALF_EVEN)",
+   "expect": "0"
+  },
+  {
+   "id": "round--0.5-half_down",
+   "expression": "round(-0.5, 0, HALF_DOWN)",
+   "expect": "0"
+  },
+  {
+   "id": "round--0.5-up",
+   "expression": "round(-0.5, 0, UP)",
+   "expect": "-1"
+  },
+  {
+   "id": "round--0.5-down",
+   "expression": "round(-0.5, 0, DOWN)",
+   "expect": "0"
+  },
+  {
+   "id": "round--0.5-ceiling",
+   "expression": "round(-0.5, 0, CEILING)",
+   "expect": "0"
+  },
+  {
+   "id": "round--0.5-floor",
+   "expression": "round(-0.5, 0, FLOOR)",
+   "expect": "-1"
+  },
+  {
+   "id": "scale-add",
+   "expression": "1.50 + 2.5",
+   "expect": "4.00"
+  },
+  {
+   "id": "scale-multiply",
+   "expression": "1.5 * 2.50",
+   "expect": "3.750"
+  },
+  {
+   "id": "scale-subtract",
+   "expression": "10.50 - 0.5",
+   "expect": "10.00"
+  },
+  {
+   "id": "scale-integers",
+   "expression": "2 * 3",
+   "expect": "6"
+  },
+  {
+   "id": "scale-small-product",
+   "expression": "0.10 * 0.10",
+   "expect": "0.0100"
+  },
+  {
+   "id": "scale-add-whole",
+   "expression": "1.0 + 1",
+   "expect": "2.0"
+  },
+  {
+   "id": "zero-literal",
+   "expression": "0.00",
+   "expect": "0"
+  },
+  {
+   "id": "zero-difference",
+   "expression": "1.5 - 1.5",
+   "expect": "0"
+  },
+  {
+   "id": "zero-rounded",
+   "expression": "round(0.004, 2, HALF_UP)",
+   "expect": "0"
+  },
+  {
+   "id": "zero-product",
+   "expression": "0.0 * 5",
+   "expect": "0"
+  },
+  {
+   "id": "zero-negated",
+   "expression": "-0.000",
+   "expect": "0"
+  },
+  {
+   "id": "plain-exponent-up",
+   "expression": "1e3",
+   "expect": "1000"
+  },
+  {
+   "id": "plain-exponent-down",
+   "expression": "1.5e-3",
+   "expect": "0.0015"
+  },
+  {
+   "id": "plain-tiny",
+   "expression": "1e-7",
+   "expect": "0.0000001"
+  },
+  {
+   "id": "plain-exponent-scale",
+   "expression": "1.50E+2",
+   "expect": "150"
+  },
+  {
+   "id": "plain-leading-zeros",
+   "expression": "007",
+   "expect": "7"
+  },
+  {
+   "id": "plain-leading-dot",
+   "expression": ".5",
+   "expect": "0.5"
+  },
+  {
+   "id": "large-sum",
+   "expression": "99999999999999999999.99 + 0.01",
+   "expect": "100000000000000000000.00"
+  },
+  {
+   "id": "large-product",
+   "expression": "12345678901234567890 * 98765432109876543210",
+   "expect": "1219326311370217952237463801111263526900"
+  },
+  {
+   "id": "long-scale-product",
+   "expression": "0.1234567890123456789012345678901234567890 * 10",
+   "expect": "1.2345678901234567890123456789012345678900"
+  },
+  {
+   "id": "pow-operator",
+   "expression": "2 ** 10",
+   "expect": "1024"
+  },
+  {
+   "id": "pow-negative",
+   "expression": "2 ** -2",
+   "expect": "0.25"
+  },
+  {
+   "id": "pow-decimal-base",
+   "expression": "1.5 ** 2",
+   "expect": "2.25"
+  },
+  {
+   "id": "pow-function",
+   "expression": "pow(2, 3)",
+   "expect": "8"
+  },
+  {
+   "id": "pow-right-associative",
+   "expression": "2 ** 3 ** 2",
+   "expect": "512"
+  },
+  {
+   "id": "pow-zero",
+   "expression": "10 ** 0",
+   "expect": "1"
+  },
+  {
+   "id": "pow-whole-decimal-exponent",
+   "expression": "2 ** 10.0",
+   "expect": "1024"
+  },
+  {
+   "id": "pow-negative-one",
+   "expression": "3 ** -1",
+   "expect": "0.3333333333333333333333333333333333"
+  },
+  {
+   "id": "unary-minus",
+   "expression": "-(0.1 + 0.2)",
+   "expect": "-0.3"
+  },
+  {
+   "id": "unary-plus",
+   "expression": "+5",
+   "expect": "5"
+  },
+  {
+   "id": "unary-minus-sum",
+   "expression": "-5 + 2",
+   "expect": "-3"
+  },
+  {
+   "id": "unary-minus-scale",
+   "expression": "- 0.50",
+   "expect": "-0.50"
+  },
+  {
+   "id": "unary-not",
+   "expression": "!(1 > 2) ? 1 : 0",
+   "expect": "1"
+  },
+  {
+   "id": "abs",
+   "expression": "abs(-2.50)",
+   "expect": "2.50"
+  },
+  {
+   "id": "floor",
+   "expression": "floor(2.7)",
+   "expect": "2"
+  },
+  {
+   "id": "ceil",
+   "expression": "ceil(2.1)",
+   "expect": "3"
+  },
+  {
+   "id": "floor-negative",
+   "expression": "floor(-2.1)",
+   "expect": "-3"
+  },
+  {
+   "id": "ceil-negative",
+   "expression": "ceil(-2.1)",
+   "expect": "-2"
+  },
+  {
+   "id": "min",
+   "expression": "min(3, 1.50, 2)",
+   "expect": "1.50"
+  },
+  {
+   "id": "max-first-of-equal",
+   "expression": "max(1, 2.0, 2.00)",
+   "expect": "2.0"
+  },
+  {
+   "id": "min-first-of-equal",
+   "expression": "min(2.0, 2.00)",
+   "expect": "2.0"
+  },
+  {
+   "id": "math-prefix",
+   "expression": "Math.abs(-1)",
+   "expect": "1"
+  },
+  {
+   "id": "max-single",
+   "expression": "max(5)",
+   "expect": "5"
+  },
+  {
+   "id": "remainder",
+   "expression": "7 % 3",
+   "expect": "1"
+  },
+  {
+   "id": "remainder-negative",
+   "expression": "-7 % 3",
+   "expect": "-1"
+  },
+  {
+   "id": "remainder-decimal",
+   "expression": "7.5 % 2",
+   "expect": "1.5"
+  },
+  {
+   "id": "remainder-zero",
+   "expression": "5 % 2.5",
+   "expect": "0"
+  },
+  {
+   "id": "ternary",
+   "expression": "1.5 > 1 ? 10 : 20",
+   "expect": "10"
+  },
+  {
+   "id": "equality-ignores-scale",
+   "expression": "2 == 2.0 ? 1 : 0",
+   "expect": "1"
+  },
+  {
+   "id": "logical-and",
+   "expression": "1 < 2 && 2 < 3 ? 1 : 0",
+   "expect": "1"
+  },
+  {
+   "id": "strings-compare-as-numbers",
+   "expression": "'9.5' > '10.25' ? 1 : 0",
+   "expect": "0"
+  },
+  {
+   "id": "number-equals-string",
+   "expression": "200 == '200' ? 1 : 0",
+   "expect": "1"
+  },
+  {
+   "id": "strings-equal-by-value",
+   "expression": "'200' == '200.0' ? 1 : 0",
+   "expect": "1"
+  },
+  {
+   "id": "non-canonical-string-is-text",
+   "expression": "'007' == '7' ? 1 : 0",
+   "expect": "0"
+  },
+  {
+   "id": "text-equals-text",
+   "expression": "'abc' == 'abc' ? 1 : 0",
+   "expect": "1"
+  },
+  {
+   "id": "long-ids-stay-distinct",
+   "expression": "'12345678901234567890' == '12345678901234567891' ? 1 : 0",
+   "expect": "0"
+  },
+  {
+   "id": "one-point-zero-equals-one",
+   "expression": "'1.0' == '1' ? 1 : 0",
+   "expect": "1"
+  },
+  {
+   "id": "string-product",
+   "expression": "'3.76' * 2",
+   "expect": "7.52"
+  },
+  {
+   "id": "string-sum",
+   "expression": "'0.1' + '0.2'",
+   "expect": "0.3"
+  },
+  {
+   "id": "string-sum-whole",
+   "expression": "'1' + '2'",
+   "expect": "3"
+  },
+  {
+   "id": "string-negative",
+   "expression": "'-5' + 2",
+   "expect": "-3"
+  },
+  {
+   "id": "string-difference",
+   "expression": "'10.50' - '0.5'",
+   "expect": "10.00"
+  },
+  {
+   "id": "round-half-up",
+   "expression": "round(2.345, 2, HALF_UP)",
+   "expect": "2.35"
+  },
+  {
+   "id": "round-keeps-scale",
+   "expression": "round(10.5, 2, HALF_UP)",
+   "expect": "10.50"
+  },
+  {
+   "id": "round-negative-scale",
+   "expression": "round(1234.5678, -2, HALF_UP)",
+   "expect": "1200"
+  },
+  {
+   "id": "round-mode-quoted",
+   "expression": "round(2.5, 0, 'half_even')",
+   "expect": "2"
+  },
+  {
+   "id": "round-down",
+   "expression": "round(1.999, 2, DOWN)",
+   "expect": "1.99"
+  },
+  {
+   "id": "round-up",
+   "expression": "round(1.001, 2, UP)",
+   "expect": "1.01"
+  },
+  {
+   "id": "round-pads-scale",
+   "expression": "round(1.0, 3, HALF_UP)",
+   "expect": "1.000"
+  },
+  {
+   "id": "round-away-from-zero",
+   "expression": "round(-1.005, 2, HALF_UP)",
+   "expect": "-1.01"
+  },
+  {
+   "id": "round-quotient",
+   "expression": "round(1 / 3, 4, HALF_UP)",
+   "expect": "0.3333"
+  },
+  {
+   "id": "round-quotient-up",
+   "expression": "round(2 / 3, 4, HALF_UP)",
+   "expect": "0.6667"
+  },
+  {
+   "id": "div-zero",
+   "expression": "1 / 0",
+   "error": "division-by-zero"
+  },
+  {
+   "id": "rem-zero",
+   "expression": "5 % 0",
+   "error": "division-by-zero"
+  },
+  {
+   "id": "pow-zero-negative",
+   "expression": "0 ** -1",
+   "error": "division-by-zero"
+  },
+  {
+   "id": "refused-sqrt",
+   "expression": "sqrt(4)",
+   "error": "refused-function"
+  },
+  {
+   "id": "refused-sin",
+   "expression": "sin(1)",
+   "error": "refused-function"
+  },
+  {
+   "id": "refused-cos",
+   "expression": "cos(0)",
+   "error": "refused-function"
+  },
+  {
+   "id": "refused-tan",
+   "expression": "tan(0)",
+   "error": "refused-function"
+  },
+  {
+   "id": "refused-asin",
+   "expression": "asin(0)",
+   "error": "refused-function"
+  },
+  {
+   "id": "refused-acos",
+   "expression": "acos(1)",
+   "error": "refused-function"
+  },
+  {
+   "id": "refused-atan",
+   "expression": "atan(1)",
+   "error": "refused-function"
+  },
+  {
+   "id": "refused-log",
+   "expression": "log(2)",
+   "error": "refused-function"
+  },
+  {
+   "id": "refused-log10",
+   "expression": "log10(2)",
+   "error": "refused-function"
+  },
+  {
+   "id": "refused-exp",
+   "expression": "exp(1)",
+   "error": "refused-function"
+  },
+  {
+   "id": "refused-random",
+   "expression": "random()",
+   "error": "refused-function"
+  },
+  {
+   "id": "refused-math-sqrt",
+   "expression": "Math.sqrt(4)",
+   "error": "refused-function"
+  },
+  {
+   "id": "refused-pi",
+   "expression": "PI * 2",
+   "error": "refused-constant"
+  },
+  {
+   "id": "refused-e",
+   "expression": "E + 1",
+   "error": "refused-constant"
+  },
+  {
+   "id": "refused-math-pi",
+   "expression": "Math.PI",
+   "error": "refused-constant"
+  },
+  {
+   "id": "fractional-exponent",
+   "expression": "2 ** 0.5",
+   "error": "whole-number"
+  },
+  {
+   "id": "fractional-pow",
+   "expression": "pow(2, 0.5)",
+   "error": "whole-number"
+  },
+  {
+   "id": "exponent-bound",
+   "expression": "2 ** 1000",
+   "error": "bound"
+  },
+  {
+   "id": "exponent-bound-negative",
+   "expression": "2 ** -1000",
+   "error": "bound"
+  },
+  {
+   "id": "round-one-argument",
+   "expression": "round(1.5)",
+   "error": "round-arity"
+  },
+  {
+   "id": "round-two-arguments",
+   "expression": "round(1.5, 2)",
+   "error": "round-arity"
+  },
+  {
+   "id": "round-bad-mode",
+   "expression": "round(1.5, 0, HALFUP)",
+   "error": "rounding-mode"
+  },
+  {
+   "id": "round-unnecessary",
+   "expression": "round(1.5, 0, UNNECESSARY)",
+   "error": "rounding-mode"
+  },
+  {
+   "id": "round-fractional-scale",
+   "expression": "round(1.5, 0.5, HALF_UP)",
+   "error": "whole-number"
+  },
+  {
+   "id": "unknown-function",
+   "expression": "nope(1)",
+   "error": "unknown-function"
+  },
+  {
+   "id": "unknown-identifier",
+   "expression": "abc + 1",
+   "error": "unknown-identifier"
+  },
+  {
+   "id": "function-as-value",
+   "expression": "abs + 1",
+   "error": "identifier-is-function"
+  },
+  {
+   "id": "boolean-operand",
+   "expression": "true + 1",
+   "error": "boolean-operand"
+  },
+  {
+   "id": "boolean-result",
+   "expression": "1 > 0",
+   "error": "boolean-result"
+  },
+  {
+   "id": "text-operand",
+   "expression": "'abc' + 1",
+   "error": "not-a-number"
+  },
+  {
+   "id": "non-canonical-string-operand",
+   "expression": "'007' + 1",
+   "error": "not-a-number"
+  },
+  {
+   "id": "text-operand-right",
+   "expression": "1 + 'x'",
+   "error": "not-a-number"
+  },
+  {
+   "id": "text-relational",
+   "expression": "'abc' > 1 ? 1 : 0",
+   "error": "not-a-number"
+  },
+  {
+   "id": "equality-type-mismatch",
+   "expression": "200 == 'abc' ? 1 : 0",
+   "error": "type-mismatch"
+  },
+  {
+   "id": "literal-out-of-range",
+   "expression": "1e2000",
+   "error": "invalid-number"
+  },
+  {
+   "id": "empty",
+   "expression": "",
+   "error": "parse-error"
+  },
+  {
+   "id": "incomplete",
+   "expression": "1 +",
+   "error": "parse-error"
+  }
+ ]
+}

@@ -17,6 +17,17 @@ Changes merged to `main` since the last release. Each item moves under its relea
 
 ### Added
 
+- **`DECIMAL` statement for `graph.math` — the high-precision `COMPUTE` (Increment 145; the Java engine's #471; RFC-0001,
+  ADR-0025).** `DECIMAL: var -> expression` computes in exact decimal arithmetic and stores a canonical decimal string at
+  `{node}.result.{var}` (plain notation, the computed scale kept, a zero of any scale written `"0"`), so the value survives
+  `graph.suspend`/`graph.resume` and every event hop unchanged. `+ - *` are exact, `/` is the exact quotient when it
+  terminates and otherwise 34 significant digits half-even, `%` and `**`/`pow` with a whole-number exponent (-999 to 999),
+  and `round(x, scale, mode)` always names its mode (`HALF_UP`, `HALF_EVEN`, `HALF_DOWN`, `UP`, `DOWN`, `CEILING`,
+  `FLOOR`). What cannot be exact (`sqrt`, `log`, trigonometry, `random()`, `PI`, `E`) and a boolean result fail by name. An
+  operand may be a string or a JSON number; a number is taken through the shortest decimal text it prints as, so send money
+  as strings. `COMPUTE` is untouched. It shares the `event_script::decimal` core with the plugins and runs the same 151
+  shared conformance vectors as the Java engine. **Upgrade action:** none for the statement itself; read the numeric-string
+  comparison item under *Changed*.
 - **`f:decimalAdd`, `f:decimalSubtract`, `f:decimalMultiply`, `f:decimalDiv`, `f:decimalMod`, `f:decimalRound` and
   `f:decimalCompare` simple plugins (Increment 144; the Java engine's #475; RFC-0001 item 8, ADR-0025).** Exact decimal
   arithmetic for flows and mapper nodes: a canonical decimal string result, scales propagated (`+ -` the larger, `*` the
@@ -25,6 +36,19 @@ Changes merged to `main` since the last release. Each item moves under its relea
   boolean, a `null` and a non-canonical string are errors. The `f:add` family is unchanged. The core is one public module,
   `event_script::decimal`, which the `DECIMAL:` statement of `graph.math` will share. **Upgrade action:** none — new
   plugin names only.
+
+### Changed
+
+- **A canonical numeric string compares as a number in `== != < <= > >=` (Increment 145; the Java engine's #471).** Every
+  value is rendered into the statement text before it is parsed, so a substituted string was indistinguishable from one the
+  author typed; a string in plain numeric notation now compares as a number (`'200' == 200`,
+  `{price.result.rounded} > 100`), exactly: two distinct 20-digit ids never collapse into equal numbers. **Upgrade
+  action:** read if a graph compares numeric-looking strings and relied on the string comparison (`'9.5' > '10.25'` was
+  true, `'1.0' == '1'` was false, and `'1' == 1` failed).
+- **`graph.math` `round` is half up, away from zero, the same as `f:round` (Increment 145; the Java engine's #472).** The
+  dialect used Java's `Math.round` rule (half toward positive infinity), so `round(-2.5)` was `-2` while `f:round` gave
+  `-3`. It now rounds through the shared decimal core: `round(-2.5)` is `-3`; positive halves and non-halves are unchanged.
+  **Upgrade action:** read if a graph rounds a negative value that is exactly x.5 — the result moves away from zero.
 
 ---
 ## Version 4.12.19, 9/25/2026
