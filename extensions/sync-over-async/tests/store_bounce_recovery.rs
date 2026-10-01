@@ -25,7 +25,9 @@
 //! bounce (connections die, the server is immediately back), and dropping its
 //! listener is an outage (reconnects refused).
 
-use std::time::Duration;
+use std::fmt::Debug;
+use std::future::Future;
+use std::time::{Duration, Instant};
 
 use redis_test_double::{start_resp_double, BounceProxy};
 use sync_over_async::{RedisSettings, ReturnRouteStore};
@@ -43,6 +45,32 @@ async fn store_through_proxy(timeout_ms: u64) -> (ReturnRouteStore, BounceProxy)
         .await
         .expect("store connects");
     (store, proxy)
+}
+
+/// The caller's own retry after a fail-fast error. The `redis` crate's connection manager arms its reconnect
+/// when a command fails, and the first command after a bounce can still meet the dead link while that
+/// reconnect is in flight, so the contract is that the caller's retry lands once the connection has healed -
+/// bounded, never instantaneous. The call is retried every 25 ms until it succeeds, within `HEAL_DEADLINE`;
+/// each failed attempt is a command that never reached the server, so retrying it cannot duplicate or lose a
+/// segment (the assertions after the call prove it).
+const HEAL_DEADLINE: Duration = Duration::from_secs(5);
+
+async fn retry_until_healed<T, E, F, Fut>(what: &str, mut call: F) -> T
+where
+    E: Debug,
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<T, E>>,
+{
+    let deadline = Instant::now() + HEAL_DEADLINE;
+    loop {
+        match call().await {
+            Ok(value) => return value,
+            Err(e) if Instant::now() >= deadline => {
+                panic!("{what}: still failing after {HEAL_DEADLINE:?}: {e:?}")
+            }
+            Err(_) => tokio::time::sleep(Duration::from_millis(25)).await,
+        }
+    }
 }
 
 /// Every idempotent operation heals in ONE call across a server bounce: the
@@ -100,10 +128,11 @@ async fn append_and_pop_stay_fail_fast_across_a_bounce() {
         .append_segment("cid-2", "{\"type\":\"data\",\"body\":\"two\"}", 60)
         .await
         .expect_err("append fails fast on the bounced connection");
-    store
-        .append_segment("cid-2", "{\"type\":\"data\",\"body\":\"two\"}", 60)
-        .await
-        .expect("the caller's own retry lands on the healed connection");
+    retry_until_healed(
+        "the caller's own retry lands on the healed connection",
+        || store.append_segment("cid-2", "{\"type\":\"data\",\"body\":\"two\"}", 60),
+    )
+    .await;
 
     proxy.bounce().await;
     store
@@ -112,10 +141,9 @@ async fn append_and_pop_stay_fail_fast_across_a_bounce() {
         .expect_err("pop fails fast on the bounced connection");
     assert_eq!(
         Some("{\"type\":\"data\",\"body\":\"one\"}".to_string()),
-        store
-            .pop_segment("cid-2")
-            .await
-            .expect("pop heals on the caller's retry"),
+        retry_until_healed("pop heals on the caller's retry", || store
+            .pop_segment("cid-2"))
+        .await,
         "nothing was popped into the void by the failed attempt"
     );
 }

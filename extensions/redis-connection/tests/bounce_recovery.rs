@@ -19,7 +19,9 @@
 //! connection with the server back at once (a Redis restart), a **refusal**
 //! severs them and refuses reconnects (an outage).
 
-use std::time::Duration;
+use std::fmt::Debug;
+use std::future::Future;
+use std::time::{Duration, Instant};
 
 use redis_connection::{is_connection_loss, RedisBackend, RedisConfig};
 use redis_test_double::{start_resp_double, BounceProxy};
@@ -72,6 +74,32 @@ async fn idempotent_command_heals_across_a_bounce_with_one_retry() {
     assert!(lifecycle.healthy());
 }
 
+/// The caller's own retry after a fail-fast error. The `redis` crate's connection manager arms its reconnect
+/// when a command fails, and the first command after a bounce can still meet the dead link while that
+/// reconnect is in flight, so the contract is that the caller's retry lands once the connection has healed -
+/// bounded, never instantaneous. The call is retried every 25 ms until it succeeds, within `HEAL_DEADLINE`;
+/// each failed attempt never reached the server, so retrying cannot push twice (the assertions after the
+/// call prove it).
+const HEAL_DEADLINE: Duration = Duration::from_secs(5);
+
+async fn retry_until_healed<T, E, F, Fut>(what: &str, mut call: F) -> T
+where
+    E: Debug,
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<T, E>>,
+{
+    let deadline = Instant::now() + HEAL_DEADLINE;
+    loop {
+        match call().await {
+            Ok(value) => return value,
+            Err(e) if Instant::now() >= deadline => {
+                panic!("{what}: still failing after {HEAL_DEADLINE:?}: {e:?}")
+            }
+            Err(_) => tokio::time::sleep(Duration::from_millis(25)).await,
+        }
+    }
+}
+
 /// A non-idempotent command is never replayed: it fails on the bounced
 /// connection (503 - Redis unavailable), and the caller's own next call lands
 /// on the healed connection. Nothing was pushed twice.
@@ -94,10 +122,13 @@ async fn non_idempotent_command_is_not_replayed() {
     assert_eq!(0, backend.lifecycle().retries(), "never replayed");
     assert!(!backend.lifecycle().healthy());
 
-    let length: i64 = backend
-        .query(redis::cmd("RPUSH").arg("list").arg("two"))
-        .await
-        .expect("the caller's own retry lands on the healed connection");
+    let mut push = redis::cmd("RPUSH");
+    push.arg("list").arg("two");
+    let length: i64 = retry_until_healed(
+        "the caller's own retry lands on the healed connection",
+        || backend.query(&push),
+    )
+    .await;
     assert_eq!(2, length, "the failed attempt pushed nothing");
     assert!(backend.lifecycle().healthy());
     assert_eq!(1, backend.lifecycle().recoveries());
