@@ -14,15 +14,21 @@
 
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22). The current release is the `latest_release` field below (both engines release in lock-step, one number for the same content). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
-- **latest_release:** v4.12.19 (2026-09-25 23:59:10Z — **the rapid-prototyping deploy lane completed on both engines, lock-step with
-  the Java engine (v4.12.19, 23:58:19Z)**: release PR #333 → merge `ff6e269c`, tag `v4.12.19` → `e659c683` (one memory-only commit
-  past the merge), workspace version verified at the tag; the GitHub release body is the CHANGELOG entry; the twelve crates at
-  4.12.19 on crates.io (verified 12/12). **Content:** Increment 142 (#332) — `graph.model.automation` accepts a comma-separated list
-  of manifests, each with its own `location`, and the later manifest wins ([[graph-manifest-list-later-wins-rust]]; READ: a graph id
-  listed in two manifests now resolves to the later one, and its rejection makes the id 404) plus the deploy-without-rebuild recipe
-  with the `-D` program-argument form. Sweep BUILD FILES ONLY 13 Cargo.toml / 24 + 24 lock entries (unchanged). Gates: `cargo test
-  --workspace` 606 passed / 0 failed, clippy, audit, claims, links. Java: #466 squash `a261ff18`, tag → `35000ef2`. The `rust` run on
-  the tag commit completed success at close; the python/node packs stay at 4.12.15. Origin 2026-09-25-232953.md.
+- **latest_release:** v4.12.20 (2026-10-01 03:12:43Z — **exact decimal arithmetic for money and a deterministic package format, lock-step
+  with the Java engine (v4.12.20, 03:11:27Z)**: release PR #340 → merge `b4783c5b`, tag `v4.12.20` → `d63e102a` (two memory-only commits past
+  the merge; the non-memory diff is empty), workspace version verified at the tag; the GitHub release is published (not a draft).
+  **Content:** Increments 143–147 — the dialect docs (143), the `f:decimal*` plugins on one shared `event_script::decimal` core (144), the
+  `DECIMAL` statement, the numeric-string comparison and `round` half-up (145), the bounce-test flake fix (146) and
+  `platform_core::canonical_packager` (147), with the money-loop and packager guides and a late `f32` widening. **READ:** a numeric-looking
+  string now compares as a number, and `round(-2.5)` is `-3`; both reach graphs that never say `DECIMAL`. Sweep BUILD FILES ONLY 13 Cargo.toml
+  plus the lock refresh (48 lock lines, the 4.12.19 shape). Gates: fmt, clippy `-D warnings`, `cargo test --workspace` 123 suites / 655 tests /
+  0 failed, claims, links. Java: #485 squash `9e515825`, tag → `fc940bea`. The Java–Rust byte-for-byte interop on 14 tutorials and 50
+  fixtures found 0 differences (report in both repos, mercury #341, docs only). `rust` main CI success on the tag commit. **crates.io is NOT yet
+  published:** the sparse index at 03:14Z and the API still showed 4.12.19 for the crates checked — `cargo publish --workspace` from the tag is
+  Eric's step, then verify 12/12. The python/node packs need no change. Origin 2026-09-30-235931.md.
+  Prior: v4.12.19 (2026-09-25 23:59:10Z — the rapid-prototyping deploy lane, Increment 142; #333 → `ff6e269c`, tag → `e659c683`;
+  `graph.model.automation` takes a comma-separated list of manifests and the later one wins ([[graph-manifest-list-later-wins-rust]]); 606 / 0;
+  crates 12/12; Java v4.12.19 `a261ff18`. Origin 2026-09-25-232953.md.)
   Prior: v4.12.18 (2026-09-25 20:55:02Z — the graph.math rulings on both engines, Increments 140–141; #331 → `568d71b2`, tag →
   `7d07e9bd`; [[graph-math-typed-arithmetic-rust]] — READ: `true` never computes as 1/0 and `Infinity` never propagates; crates
   12/12; Java v4.12.18 #464 `1e419a29` → `70e00474`, also carrying Java's #463 Snyk bumps with no analogue here. Origin
