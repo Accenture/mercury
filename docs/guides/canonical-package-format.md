@@ -53,7 +53,7 @@ Identical in every engine.
 | **Keys** | Text, in ascending order of their **UTF-8 bytes** at every depth, maps inside lists included; list order is kept. This is not the UTF-16 order of a Java `String`, which differs for characters above U+FFFF (U+1F600 sorts after U+FF5E in UTF-8). A non-text key is converted to text; a null key, or two keys that collide after conversion, is an error. |
 | **Null values** | Written as nil and never dropped. |
 | **Integers** | The smallest encoding (positive values unsigned, negative values signed); only signed 64-bit values are canonical. |
-| **Floats** | A finite float64. A 32-bit float, NaN and Infinity are rejected. The integer `1` and the float `1.0` are different content. |
+| **Floats** | A finite float64. A 32-bit float is accepted like any other number and **widened through its shortest decimal text** (`0.1f` is the float64 `0.1`, never `0.10000000149011612`), so the same value gives the same bytes in every engine. NaN and Infinity are rejected. A float32 **on the wire** is not canonical, and the strict read refuses it. The integer `1` and the float `1.0` are different content. |
 | **Text and bytes** | MsgPack str and bin, each with the shortest header. Strings are written as given: no Unicode normalization. |
 | **Exact numbers** | Written as strings: an arbitrary-size integer as its digits, a decimal in plain notation with its scale kept and a zero of any scale as `"0"` (the rule of [`DECIMAL`](knowledge-graph/skills-reference.md#math-decimal)). |
 | **Dates** | An ISO-8601 string. |
@@ -112,8 +112,8 @@ other engine that does. It holds:
   package, each with its expected hex and SHA-256;
 - **corpus** — 60 packages of random nested documents from a seeded generator, so a divergence in a rarely used corner shows up
   as a byte difference;
-- **rejections** — what a build refuses (a 32-bit float, NaN, Infinity, an unsupported type, a duplicate entry name, a reserved
-  manifest field) and what a read refuses (a non-canonical integer width, out-of-order keys, trailing bytes, a wrong format or
+- **rejections** — what a build refuses (NaN and Infinity, as a double or as a 32-bit float, an unsupported type, a duplicate entry name, a reserved
+  manifest field) and what a read refuses (a non-canonical integer width, out-of-order keys, a float32 on the wire, trailing bytes, a wrong format or
   version, a duplicate or non-text key, an extension type, a truncated package, nesting of 65 levels), with the cases only a
   strict read rejects marked.
 

@@ -135,7 +135,6 @@ fn floats_are_float64_and_finite_only() {
         "cb3ff8000000000000",
         hex(&packager::encode(&Value::F64(1.5)).unwrap())
     );
-    assert!(packager::encode(&Value::F32(1.5)).is_err());
     assert!(packager::encode(&Value::F64(f64::NAN)).is_err());
     assert!(packager::encode(&Value::F64(f64::NEG_INFINITY)).is_err());
     // the integer 1 and the float 1.0 are different content
@@ -143,6 +142,49 @@ fn floats_are_float64_and_finite_only() {
         hex(&packager::encode(&Value::from(1)).unwrap()),
         hex(&packager::encode(&Value::F64(1.0)).unwrap())
     );
+}
+
+fn unhex(text: &str) -> Vec<u8> {
+    (0..text.len() / 2)
+        .map(|i| u8::from_str_radix(&text[2 * i..2 * i + 2], 16).unwrap())
+        .collect()
+}
+
+#[test]
+fn an_f32_is_widened_through_its_shortest_decimal_text() {
+    // 0.1f32 is the float64 0.1, not the exact value of the f32 (0.10000000149011612)
+    assert_eq!(
+        hex(&packager::encode(&Value::F64(0.1)).unwrap()),
+        hex(&packager::encode(&Value::F32(0.1)).unwrap())
+    );
+    assert_eq!(
+        "cb3fb999999999999a",
+        hex(&packager::encode(&Value::F32(0.1)).unwrap())
+    );
+    assert_eq!(
+        "cb3ff8000000000000",
+        hex(&packager::encode(&Value::F32(1.5)).unwrap())
+    );
+    assert_eq!(
+        hex(&packager::encode(&Value::F64(1.1)).unwrap()),
+        hex(&packager::encode(&Value::F32(1.1)).unwrap())
+    );
+    // inside a map, and the non-finite forms are still refused
+    assert_eq!(
+        hex(&packager::encode(&map(vec![("x", Value::F64(2.5))])).unwrap()),
+        hex(&packager::encode(&map(vec![("x", Value::F32(2.5))])).unwrap())
+    );
+    let nan = packager::encode(&Value::F32(f32::NAN)).unwrap_err();
+    assert!(nan.message().contains("non-finite"), "{nan}");
+    assert!(packager::encode(&Value::F32(f32::INFINITY)).is_err());
+    // an f32 on the wire is valid MsgPack but not the canonical form of its content: the strict read refuses it
+    let on_the_wire = unhex(
+        "82a86d616e696665737482a6666f726d6174af6d6572637572792d7061636b616765\
+         ae666f726d61745f76657273696f6ea131a46d61707381a66e2e6a736f6e81a178ca3fc00000",
+    );
+    assert!(packager::unpack(&on_the_wire).is_err());
+    let lenient = packager::unpack_with(&on_the_wire, false).unwrap();
+    assert_eq!(Some(1.5), lenient.maps[0].1.as_map().unwrap()[0].1.as_f64());
 }
 
 #[test]

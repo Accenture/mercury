@@ -326,8 +326,8 @@ canonical_packager::unpack_with(&bytes, false)?;        // non-strict: decodes a
   UTF-16, which differs from this engine's bytes above U+FFFF.
 - **The caller writes exact numbers and dates as strings**, because `rmpv::Value` has no decimal, big-integer or date type: a
   decimal in plain notation with its scale kept and a zero of any scale as `"0"`, a big integer as its digits, a date as
-  ISO-8601. An integer above 2^63-1 is rejected (`PackagerError::Invalid`: write it as text), as is an `f32`, NaN, Infinity, an
-  extension type and a null key.
+  ISO-8601. An integer above 2^63-1 is rejected (`PackagerError::Invalid`: write it as text), as are NaN, Infinity, an extension type and a null key. An `f32` is
+  accepted like any other number and widened through its shortest decimal text (`0.1f32` is the float64 `0.1`).
 - **The packager is faithful to a value's type**: the integer `1` and the float `1.0` are different content, and strings are
   written as given with no Unicode normalization.
 - **Errors:** `PackagerError::Invalid` is a value or builder call the profile rejects; `PackagerError::Malformed` is bytes that are

@@ -83,7 +83,14 @@ fn value(json: &Json) -> Value {
                     }
                     // an arbitrary-size integer travels as its digits
                     "$integer" => return Value::from(arg.as_str().expect("digits")),
-                    "$float32" => return Value::F32(arg.as_f64().expect("a float") as f32),
+                    "$float32" => {
+                        return Value::F32(match arg.as_str() {
+                            Some("NaN") => f32::NAN,
+                            Some("Infinity") => f32::INFINITY,
+                            Some(other) => panic!("unknown float {other}"),
+                            None => arg.as_f64().expect("a float") as f32,
+                        })
+                    }
                     "$double" => {
                         return Value::F64(match arg.as_str().expect("a name") {
                             "NaN" => f64::NAN,
@@ -172,7 +179,7 @@ fn every_value_encodes_to_the_expected_bytes() {
     let doc = vectors();
     let all = doc["values"].as_array().expect("values");
     assert!(
-        all.len() > 60,
+        all.len() > 70,
         "the vector file looks truncated: {}",
         all.len()
     );
@@ -203,7 +210,6 @@ fn the_generated_corpus_matches_byte_for_byte() {
 
 fn pack_fragment(code: &str) -> &'static str {
     match code {
-        "float32" => "Float is not canonical",
         "non-finite" => "non-finite number",
         "unsupported-type" => "Unsupported type",
         "duplicate-entry" => "Duplicate entry name",
@@ -255,7 +261,7 @@ fn every_pack_rejection_fails_by_name() {
         assert!(matches!(error, PackagerError::Invalid(_)), "{id}");
         checked += 1;
     }
-    assert!(checked >= 7, "pack rejections checked: {checked}");
+    assert!(checked >= 8, "pack rejections checked: {checked}");
 }
 
 #[test]

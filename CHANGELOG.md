@@ -53,13 +53,13 @@ crates.io (`cargo publish --workspace` from the tag).
   a package is `{manifest, maps}` with `format` and `format_version` written by the packager, caller-defined string
   manifest fields (by convention `graph_id`) and the maps keyed by entry name in sorted order. The canonical profile:
   nulls kept, smallest integers (signed 64-bit only; larger values are written as text by the caller), finite float64
-  only (an `f32`, NaN and Infinity are rejected), shortest str and bin headers, exact numbers as strings (written by the
+  only (an `f32` is widened through its shortest decimal text; NaN and Infinity are rejected), shortest str and bin headers, exact numbers as strings (written by the
   caller: plain notation, a zero of any scale `"0"`), nothing else. `unpack` returns ordered maps and, by default,
   re-encodes the content and rejects bytes that are not canonical; the decoder rejects non-text and duplicate keys,
   extension types, trailing bytes and nesting beyond 64. Integrity is not part of it: a hash or a signature, and the
   algorithm, are the user application's decision. **Byte-for-byte compatibility with Java** is pinned by
   `canonical-package-vectors.json`, byte-identical in both repositories, whose expected bytes come from an independent
-  encoder written from the specification: 65 values, 6 packages with SHA-256, 24 rejection cases and a seeded
+  encoder written from the specification: 73 values, 6 packages with SHA-256, 25 rejection cases and a seeded
   60-document differential corpus all pass here as they do in Java. **Upgrade action:** none — a new module.
 
 ### Changed
