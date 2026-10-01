@@ -55,3 +55,7 @@ base64 = "0.22"
 trybuild = "1"
 # self-signed certificates for the HTTPS client integration test (increment 48)
 rcgen = "0.13"
+# RFC-0002 canonical packager vectors: floats must parse to the exact double the independent encoder wrote
+# (float_roundtrip), and an exact decimal is written as the canonical string the Java engine writes
+serde_json = { version = "1", features = ["float_roundtrip"] }
+bigdecimal = "0.4"

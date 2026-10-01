@@ -4025,3 +4025,30 @@ twelve copies at once), so the timing-dependent step is removed rather than tune
 Gates: `cargo fmt --all --check`, `cargo clippy -p mercury-sync-over-async -p mercury-redis-connection --all-targets
 -- -D warnings`, the two bounce binaries repeated 120 times under load.
 
+## Increment 147 — The canonical MsgPack packager (2026-10-01)
+
+The Rust twin of the Java engine's #481 (RFC-0002): a deterministic packager so that a set of related documents becomes one
+artifact with a stable identity, in either engine, byte for byte. Signature and every other integrity concern are left to the
+user application (Eric): the packager only orders the keys and packs.
+
+- **`platform_core::canonical_packager`** — the ordering is the packager's own step (a `Value::Map` keeps the order it was built
+  in, so keys are converted to text and sorted by UTF-8 bytes at every depth, never the UTF-16 order of a Java `String`); a
+  package is `{manifest, maps}` (`Builder`, `encode`, `decode`, `unpack`, `unpack_with`); the profile is the one in the module
+  docs. It writes through `rmpv` after its own canonicalization pass, which also rejects an `f32`, NaN and Infinity, an
+  extension type, an integer above 2^63-1 and a null key.
+- **Byte contract:** `tests/resources/canonical-package-vectors.json` is byte-identical to the Java engine's file. Its
+  expected bytes come from an independent encoder written from the specification, not from either engine, so each engine
+  agreeing with the file is the proof that they agree with each other; `tests/canonical_packager_vectors.rs` runs the 65 values,
+  6 packages (with SHA-256), 24 rejections and the seeded 60-document corpus. They all passed on the first run, and
+  `rmpv` and Java's `msgpack-core` write identical bytes at every integer encoding boundary and the str headers.
+- **One divergence found and pinned:** `rmpv` spends two units of its depth counter per level of nesting, so
+  `read_value_with_max_depth(64)` accepted only 31 nested lists where the Java decoder accepts 64. The decoder now keeps rmpv's
+  limit only as a stack guard and enforces the 64-level bound itself; two new vectors (sixty-four nested lists decode,
+  sixty-five are refused) pin it in both engines (Java #482).
+- **Tests:** 12 in `tests/canonical_packager.rs` (the packager's own rules, mirroring Java's `CanonicalPackagerTest`).
+- Not here: the folder `pack`/`unpack` tooling and the graph-set loader RFC (deferred in RFC-0002); a Rust `Decimal` or `Date` input
+  type (the caller writes exact numbers and dates as strings, as the profile says).
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
