@@ -13,7 +13,18 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
-Changes merged to `main` since the last release. Each item moves under its release heading when the version is cut.
+Nothing yet. Each change merged to `main` after v4.12.20 is listed here; it moves under its release heading when the version is cut.
+
+---
+## Version 4.12.20, 10/1/2026
+
+The lock-step twin of Java 4.12.20 (Increments 143 to 147): exact decimal arithmetic for money and rates, and a deterministic
+package format. `graph.math` gains a `DECIMAL` statement and Event Script gains seven `f:decimal*` plugins, one specification and
+one set of shared vectors with the Java engine; `platform_core::canonical_packager` turns a set of maps into one byte array whose
+bytes depend only on its content, proven byte for byte against Java by a shared, byte-identical vector file. **Upgrade action:
+read the two items under *Changed*.** A numeric-looking string now compares as a number, and `round` of a negative exact half
+moves away from zero; a graph that never says `DECIMAL` is affected by both. Publication: the twelve crates at 4.12.20 on
+crates.io (`cargo publish --workspace` from the tag).
 
 ### Added
 
@@ -36,7 +47,7 @@ Changes merged to `main` since the last release. Each item moves under its relea
   boolean, a `null` and a non-canonical string are errors. The `f:add` family is unchanged. The core is one public module,
   `event_script::decimal`, which the `DECIMAL:` statement of `graph.math` will share. **Upgrade action:** none — new
   plugin names only.
-- **`canonical_packager`, a deterministic MsgPack packager (Increment 147; the Java engine's #481, RFC-0002).**
+- **`canonical_packager`, a deterministic MsgPack packager (Increment 147; the Java engine's #481, RFC-0002, ADR-0026).**
   `platform_core::canonical_packager`, beside `serializer`: the same content always gives the same bytes, in both
   engines. Every map is written with its keys sorted at every depth in UTF-8 byte order (done by the packager itself);
   a package is `{manifest, maps}` with `format` and `format_version` written by the packager, caller-defined string
@@ -72,6 +83,21 @@ Changes merged to `main` since the last release. Each item moves under its relea
   sign, the decimal plugins in a mapping, the input rules), and the DECIMAL intro no longer says a graph that never says
   `DECIMAL` behaves exactly as before: the numeric-string comparison and `round` half-up reach it. The in-Playground help and
   `minigraph-commands.json` carry the same.
+- **The `graph.math` expression dialect is documented as a closed set and pinned (Increment 143; the Java engine's #467).** The
+  skills reference lists every operator, the eighteen functions and the two constants, the command grammar no longer says "no
+  function calls", and the in-Playground help and `minigraph-commands.json` carry the same catalog; a claim and a test
+  (`tests/expression_dialect.rs`) fail the build if the evaluator and the documentation drift apart in either direction.
+- **The packager is documented: a language-neutral spec and the Rust API.** The new guide page *Canonical Package Format* is
+  self-contained (the package structure, the canonical profile, key ordering by UTF-8 bytes, the strict read and its rejections,
+  a worked example whose bytes a test pins, and the shared vector file that proves Java and Rust write identical bytes), and the
+  API overview gains *Deterministic packaging: `canonical_packager`*. Both are in `llms.txt` and the AI contract's inventory.
+
+### Build
+
+- **Test-only (Increment 146).** The bounce-recovery tests wait for the connection to heal instead of assuming the caller's
+  immediate retry lands: after a failed non-idempotent command the `redis` crate's manager arms its reconnect, and the next
+  command can still meet the dead link. `retry_until_healed` (25 ms spacing, 5 s bound) replaces the single retry in
+  `sync-over-async` and `redis-connection`; no crate that ships is touched.
 
 ---
 ## Version 4.12.19, 9/25/2026
