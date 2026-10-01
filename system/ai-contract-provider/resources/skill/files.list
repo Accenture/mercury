@@ -44,6 +44,7 @@ references/guides/rest-automation.md
 references/index.md
 references/llms.txt
 references/test-reports/AI-companion-test.md
+references/test-reports/canonical-package-java-rust-interop.md
 references/test-reports/distributed-cache-interop.md
 references/test-reports/event-over-http-interop.md
 references/test-reports/minimalist-kafka-interop.md
