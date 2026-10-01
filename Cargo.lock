@@ -1213,6 +1213,7 @@ name = "mercury-knowledge-graph"
 version = "4.12.19"
 dependencies = [
  "async-trait",
+ "bigdecimal",
  "chrono",
  "futures-util",
  "getrandom 0.4.3",

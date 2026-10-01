@@ -23,6 +23,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::{eval_err, MathError};
+use bigdecimal::ToPrimitive;
 
 /// The Java `MathFunction` analog; a Java function may throw, so the Rust
 /// closure returns a `Result`.
@@ -69,7 +70,7 @@ impl EvalContext {
             .define_function("abs", |a| Ok(req1(a)?.abs()))
             .define_function("floor", |a| Ok(req1(a)?.floor()))
             .define_function("ceil", |a| Ok(req1(a)?.ceil()))
-            .define_function("round", |a| Ok(java_round(req1(a)?)))
+            .define_function("round", |a| Ok(round_half_up(req1(a)?)))
             .define_function("log", |a| Ok(req1(a)?.ln()))
             .define_function("log10", |a| Ok(req1(a)?.log10()))
             .define_function("exp", |a| Ok(req1(a)?.exp()))
@@ -174,14 +175,20 @@ impl EvalContext {
     }
 }
 
-// Java Math.round: floor(x + 0.5) clamped to the long range, NaN -> 0 —
-// differs from Rust's f64::round (half away from zero) for negative halves
-// like -2.5
-fn java_round(x: f64) -> f64 {
-    if x.is_nan() {
-        return 0.0;
+// round(x) is half up, away from zero (round(-2.5) is -3), the same as the f:round plugin and the Java engine
+// (a negative tie once differed: Math.round gave -2). It goes through the shortest decimal text the number
+// prints as, so binary representation error does not leak into the decision; non-finite values pass through to
+// the finite check.
+fn round_half_up(x: f64) -> f64 {
+    if !x.is_finite() {
+        return x;
     }
-    (x + 0.5).floor().clamp(i64::MIN as f64, i64::MAX as f64)
+    match event_script::decimal::from_f64(x) {
+        Ok(d) => event_script::decimal::round(&d, 0, bigdecimal::RoundingMode::HalfUp)
+            .to_f64()
+            .unwrap_or(x),
+        Err(_) => x,
+    }
 }
 
 /// OS entropy → uniform double in [0, 1) — the `SecureRandom.nextDouble`

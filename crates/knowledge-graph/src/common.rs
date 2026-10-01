@@ -70,6 +70,7 @@ const RESULT_NAMESPACE: &str = "result.";
 pub const MAPPING_TAG: &str = "mapping:";
 pub const COMPUTE_TAG: &str = "compute:";
 pub const CONDITION_TAG: &str = "condition:";
+pub const DECIMAL_TAG: &str = "decimal:";
 pub const EXECUTE_TAG: &str = "execute:";
 pub const RESET_TAG: &str = "reset:";
 pub const IF_TAG: &str = "if:";
@@ -831,6 +832,16 @@ pub fn get_error_map(error: Option<Value>, target: Option<Value>) -> Value {
 /// Validate statement keywords and count `EXECUTE:` lines
 /// (Java `countExecuteStatements`).
 pub fn count_execute_statements(node_name: &str, statements: &[String]) -> Result<usize, AppError> {
+    count_execute_statements_for(node_name, statements, false)
+}
+
+/// Count the `EXECUTE:` statements of a node and reject a statement tag the skill does not take.
+/// `decimal` is true for a `graph.math` node, the only skill that takes a `DECIMAL:` statement.
+pub fn count_execute_statements_for(
+    node_name: &str,
+    statements: &[String],
+    decimal: bool,
+) -> Result<usize, AppError> {
     let mut execute = 0;
     let mut js = 0;
     let mut error = 0;
@@ -841,6 +852,7 @@ pub fn count_execute_statements(node_name: &str, statements: &[String]) -> Resul
             || line.starts_with(CONDITION_TAG)
             || line.starts_with(RESET_TAG)
             || line.starts_with(DELAY_TAG)
+            || (decimal && line.starts_with(DECIMAL_TAG))
         {
             js += 1;
         } else if line.starts_with(EXECUTE_TAG) {
@@ -854,16 +866,17 @@ pub fn count_execute_statements(node_name: &str, statements: &[String]) -> Resul
             error += 1;
         }
     }
+    let decimal_tag = if decimal { "'DECIMAL:', " } else { "" };
     if js == 0 {
         return Err(invalid(format!(
-            "{NODE_NAME}{node_name} must include 'IF:', 'COMPUTE:', 'CONDITION:', 'EXECUTE:', \
-             'RESET:' or 'DELAY:' statements"
+            "{NODE_NAME}{node_name} must include 'IF:', 'COMPUTE:', {decimal_tag}'CONDITION:', \
+             'EXECUTE:', 'RESET:' or 'DELAY:' statements"
         )));
     }
     if error > 0 {
         return Err(invalid(format!(
-            "{NODE_NAME}{node_name} must use 'IF:', 'COMPUTE:', 'CONDITION:', 'EXECUTE:', 'RESET:', \
-             'MAPPING:', 'NEXT:', 'DELAY:', 'BEGIN' or 'END' keywords"
+            "{NODE_NAME}{node_name} must use 'IF:', 'COMPUTE:', {decimal_tag}'CONDITION:', \
+             'EXECUTE:', 'RESET:', 'MAPPING:', 'NEXT:', 'DELAY:', 'BEGIN' or 'END' keywords"
         )));
     }
     Ok(execute)
@@ -986,7 +999,7 @@ fn merge_statements(
         )));
     }
     let other_statements = get_entries(that.get_property("statement"));
-    if count_execute_statements(another_node, &other_statements)? > 0 {
+    if count_execute_statements_for(another_node, &other_statements, route == "graph.math")? > 0 {
         return Err(invalid(format!(
             "{NODE_NAME}{another_node} contains nested EXECUTE statements"
         )));

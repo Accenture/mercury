@@ -127,9 +127,11 @@ fn one_argument_functions_evaluate() {
     approx(2.5, engine.eval_number("abs(-2.5)").unwrap());
     approx(2.0, engine.eval_number("floor(2.9)").unwrap());
     approx(3.0, engine.eval_number("ceil(2.1)").unwrap());
-    // round is half up toward positive infinity (Java Math.round)
+    // round is half up, away from zero, as f:round (a negative tie once gave -2)
     approx(3.0, engine.eval_number("round(2.5)").unwrap());
-    approx(-2.0, engine.eval_number("round(-2.5)").unwrap());
+    approx(-3.0, engine.eval_number("round(-2.5)").unwrap());
+    approx(-2.0, engine.eval_number("round(-2.4)").unwrap());
+    approx(0.0, engine.eval_number("round(0.4)").unwrap());
     // log is the natural logarithm
     approx(1.0, engine.eval_number("log(E)").unwrap());
     approx(3.0, engine.eval_number("log10(1000)").unwrap());
@@ -197,10 +199,13 @@ fn comparison_logical_and_ternary_operators_are_accepted() {
     assert!(relational);
     let timestamps = engine.eval_boolean("'2026-03-02T01:00:01Z' > '2026-03-02T01:00:00Z'");
     assert!(timestamps.unwrap());
-    // equality is same-type only
+    // equality is same-type, except that a string that is a canonical number compares as a number
     let equality = engine.eval_boolean("5 == 5.0 && 1 != 2 && 'a' == 'a' && true == true");
     assert!(equality.unwrap());
-    let mismatch = eval_error(&engine, "'1' == 1");
+    assert!(engine
+        .eval_boolean("'1' == 1 && '200' == 200 && '9.5' < '10.25'")
+        .unwrap());
+    let mismatch = eval_error(&engine, "'a' == 1");
     assert!(
         mismatch.message().contains("Type mismatch for equality"),
         "{mismatch}"

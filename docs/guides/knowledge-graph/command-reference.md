@@ -620,13 +620,14 @@ unaffected: the island sinks, so the execution path never enters the knowledge l
 > `Math.`) and the constants `PI` and `E`; **no bitwise operators, no assignment or user variables, no
 > user-defined functions**. The complete catalog — every operator, function and constant the parser
 > accepts — is [the expression dialect](skills-reference.md#math-dialect); `COMPUTE` yields a double
-> (integers serialize as e.g. `8.0`).
+> (integers serialize as e.g. `8.0`); [`DECIMAL`](skills-reference.md#math-decimal) is the exact-decimal form.
 
-A `graph.math` node runs an ordered list of `statement[]` lines. Six statement types:
+A `graph.math` node runs an ordered list of `statement[]` lines. Seven statement types:
 
 | Statement | Form | Purpose |
 |---|---|---|
 | `COMPUTE` | `COMPUTE: {var} -> {expr}` | evaluate a JS-like math expression; the result is stored in **this node's `result` namespace** — read it back as `{this-node}.result.{var}` or move it with `MAPPING`. An expression carrying a comparison or boolean operator yields a boolean; a boolean operand in arithmetic, a `<`/`>` comparison or a function argument is rejected by name, and so are an unknown function, an overflow and a division by zero (see [numbers and booleans](skills-reference.md#math)) |
+| `DECIMAL` | `DECIMAL: {var} -> {expr}` | the **high-precision `COMPUTE`**: evaluate the expression with exact decimal arithmetic and store the result in **this node's `result` namespace** as a canonical decimal string (`{this-node}.result.{var}`); a `Double` operand is converted through its shortest decimal text (send money as strings; [the trade-off is declared in the guide](skills-reference.md#math-decimal)), rounding is always explicit (`round(x, scale, mode)`), and what cannot be exact (`sqrt`, `log`, `exp`, trigonometry, `random()`, `PI`, `E`) is refused — see [the DECIMAL statement](skills-reference.md#math-decimal) |
 | `CONDITION` | `CONDITION: {var} -> {boolean expr}` | evaluate a boolean expression and store the boolean in this node's `result` — the declared form of a decision value, whether or not the expression carries an operator (`CONDITION: same -> {model.flag}`); an `IF` may test it directly (`IF: {node.result.var}`) |
 | `IF` | multi-line (see below) | a boolean **decision** that redirects traversal to a named node |
 | `MAPPING` | `MAPPING: source -> target` | data mapping, identical to `graph.data.mapper` (**no** `{}` around source/target) |

@@ -23,11 +23,16 @@
 //! sanctioned alternative to the retired `graph.js`.
 
 mod context;
+mod decimal_evaluator;
 mod evaluator;
 mod lexer;
+mod numeric_strings;
 mod parser;
 
 pub use context::EvalContext;
+pub use decimal_evaluator::DecimalEvaluator;
+
+use bigdecimal::{BigDecimal, ToPrimitive, Zero};
 
 /// Errors split the same way Java does: `Parse` is the `ParseException`
 /// analog (lexer/parser), `Eval` the `IllegalArgumentException` analog
@@ -56,10 +61,12 @@ pub(crate) fn eval_err(message: impl Into<String>) -> MathError {
     MathError::Eval(message.into())
 }
 
-/// Runtime values: number, boolean, string (the Java sealed `Value` union).
+/// Runtime values: number, decimal (DECIMAL statements only), boolean, string (the Java sealed `Value` union).
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Number(f64),
+    /// An exact decimal - only a DECIMAL statement produces one.
+    Decimal(BigDecimal),
     Bool(bool),
     Str(String),
 }
@@ -69,6 +76,7 @@ impl Value {
     pub fn as_double(&self) -> Result<f64, MathError> {
         match self {
             Value::Number(n) => Ok(*n),
+            Value::Decimal(d) => Ok(d.to_f64().unwrap_or(f64::NAN)),
             Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
             Value::Str(s) => Err(eval_err(format!("Cannot coerce string to number: \"{s}\""))),
         }
@@ -78,6 +86,7 @@ impl Value {
     pub fn as_boolean(&self) -> bool {
         match self {
             Value::Number(n) => *n != 0.0 && !n.is_nan(),
+            Value::Decimal(d) => !d.is_zero(),
             Value::Bool(b) => *b,
             Value::Str(s) => !s.is_empty(),
         }
@@ -90,6 +99,7 @@ impl Value {
     pub fn as_string(&self) -> String {
         match self {
             Value::Number(n) => java_double_to_string(*n),
+            Value::Decimal(d) => event_script::decimal::canonical(d),
             Value::Bool(b) => b.to_string(),
             Value::Str(s) => s.clone(),
         }
@@ -113,6 +123,7 @@ pub(crate) fn java_double_to_string(d: f64) -> String {
 #[derive(Clone, Debug)]
 pub(crate) enum Expr {
     NumberLiteral(f64),
+    DecimalLiteral(BigDecimal),
     StringLiteral(String),
     BooleanLiteral(bool),
     Variable(String),

@@ -63,6 +63,7 @@ fn manifest_listed_graphs_are_compiled() {
     // fixture (a COMPUTE over an unresolved model variable names the variable)
     // + the math-2 fixture (CONDITION, a boolean rejected wherever a number is
     // needed, an unknown function, overflow and division by zero, each by name)
+    // + the decimal fixture (the DECIMAL statement: exact decimal arithmetic, RFC-0001)
     // + the 2 manifest-precedence fixtures compiled through the SECOND manifest
     // (graphs-extra.yaml: manifest-extra, and manifest-dup whose later copy wins;
     // manifest-reject's later copy is rejected and the id stays out);
@@ -73,7 +74,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        57,
+        58,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );

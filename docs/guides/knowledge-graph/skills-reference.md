@@ -76,11 +76,12 @@ mapping[]=fetch-two.result.profile -> output.body.profile[1]
 
 Fast inline math and boolean evaluation for computation and decision-making. This is **the** skill
 for inline compute/branch in this Rust port ([`graph.js`](#js) is retired). Statements run in order;
-six types:
+seven types:
 
 | Statement | Purpose |
 |---|---|
 | `COMPUTE` | evaluate a math expression → the node's `result` (a number; an expression with a comparison or boolean operator yields a boolean) |
+| `DECIMAL` | the **high-precision `COMPUTE`**: evaluate a math expression with exact decimal arithmetic → the node's `result` as a canonical decimal string ([details](#math-decimal)) |
 | `CONDITION` | evaluate a **boolean** expression → the node's `result`, declared as a boolean whatever operators it carries (`CONDITION: ok -> {model.a} < {model.b}`, `CONDITION: same -> {model.flag}`) |
 | `IF` | boolean decision → jump to a node (`THEN`/`ELSE`) |
 | `MAPPING` | data-map source → target (no curly braces) |
@@ -123,7 +124,7 @@ instance, so a walk that accumulates a list reseeds it in the pre-block
 
 ### The expression dialect {#math-dialect}
 
-Everything a `COMPUTE`, `CONDITION` or `IF` expression may contain. The engine parses it with its
+Everything a `COMPUTE`, `CONDITION` or `IF` expression may contain (a [`DECIMAL`](#math-decimal) statement takes a narrower set). The engine parses it with its
 own evaluator — a **narrow JS-like subset**, not a JavaScript runtime (`graph.js` is retired in this
 port) — so the dialect is a closed set. This list is the whole dialect: an operator, function or
 constant not listed here is rejected by name, never silently accepted.
@@ -145,8 +146,13 @@ constant not listed here is rejected by name, never silently accepted.
     - `+`, `-` — add, subtract; `+` **concatenates** when either side is a string (`'id-' + 7` is
       `id-7`).
     - `<`, `<=`, `>`, `>=` — two numbers, or two strings compared lexically (ISO-8601 timestamps
-      compare correctly).
-    - `==`, `!=` — same type on both sides; `'1' == 1` fails (`Type mismatch for equality`).
+      compare correctly). A string that is a canonical number compares as a number — plain notation: an
+      optional minus sign, digits without leading zeros, an optional fraction — so `'9.5' < '10.25'`
+      compares 9.5 with 10.25, exactly, at any length.
+    - `==`, `!=` — same type on both sides, with the same exception: `'200' == 200`, `200 == '200'` and
+      `'200' == '200'` are the same comparison, and `'1.0' == '1'` is true. Text that is not a canonical
+      number (`'007'`, `'1e3'`, `'abc'`) keeps the strict rules: two strings compare as text, and
+      `200 == 'abc'` fails (`Type mismatch for equality`).
     - `&&`, then `||` — short-circuit; a number or string operand is truthy the JavaScript way (`0`
       and `''` are false).
     - `test ? a : b` — the ternary, lowest precedence; `( … )` groups.
@@ -167,7 +173,7 @@ value:
 - **A boolean is not a number.** A boolean where arithmetic, a `<`/`>` comparison or a function
   argument needs a number fails naming the selector (`Boolean operand: model.flag (true) in
   '{model.flag} + 1' …`), and so does a `COMPUTE` whose whole result is a boolean variable. JSON
-  `true` in a numeric slot therefore never computes as `1`. Equality type-checks its two sides.
+  `true` in a numeric slot therefore never computes as `1`. Equality type-checks its two sides (a string that is a canonical number counts as a number).
   Assert a slot's type with `f:validate(input.body.x, text(x; Double; required; evaluate))` when the
   request is untrusted; store a decision with `CONDITION`.
 - **`COMPUTE` yields a boolean when the expression carries a comparison or boolean operator**
@@ -177,15 +183,61 @@ value:
 - **Arithmetic is IEEE double.** An overflow to infinity, a division by zero and a NaN each fail
   naming the operator (`Arithmetic overflow in '*' (result Infinity)`, `Division by zero or
   arithmetic overflow in '/'`) instead of traveling on; integers beyond 2^53 lose precision, and
-  `round` rounds half away from zero as Java's `Math.round` does for positive values. `COMPUTE`
-  returns a double, so an integer result serializes as e.g. `8.0`. **Money that needs exact
-  decimal arithmetic, a stated rounding mode or integer cents does not belong in the dialect**:
-  put it in a small composable function on `graph.task` (a decimal crate), which keeps the math
-  package minimal by design.
+  `round` is half up, away from zero (`round(-2.5)` is `-3`), the same as `f:round`. `COMPUTE` returns a
+  double, so an integer result serializes as e.g. `8.0`. **Money that needs exact decimal arithmetic or a
+  stated rounding mode belongs in a [`DECIMAL`](#math-decimal) statement**, the high-precision `COMPUTE`;
+  `COMPUTE` stays floating point.
 
 **Gotchas:** a node runs **once** (guard against loops) unless you `RESET` it — an advanced,
 use-with-care feature; a node may not contain only `MAPPING` statements (use the data mapper).
 For anything richer than the dialect, use `graph.task` (a composable function).
+
+### The DECIMAL statement {#math-decimal}
+
+`DECIMAL` is the high-precision `COMPUTE`: exact decimal arithmetic whose result is a canonical decimal string, and `COMPUTE` is untouched. A graph that never says `DECIMAL` behaves exactly as before; use it for money, rates and anything a double would round.
+
+```
+skill=graph.math
+statement[]=DECIMAL: fee -> {input.body.amount} * {input.body.rate}
+statement[]=DECIMAL: rounded -> round({price.result.fee}, 2, HALF_UP)
+statement[]=DECIMAL: total -> {input.body.qty} * {price.result.rounded}
+```
+
+- **The result is a canonical decimal string**, stored at `{node}.result.{var}`: plain notation, never
+  scientific, the computed scale kept (`round(10.5, 2, HALF_UP)` is `"10.50"`), and a zero of any scale
+  written `"0"`. It is a string on purpose. The state machine is saved by [`graph.suspend`](#suspend) and
+  restored by [`graph.resume`](#resume), and every event hop serializes it; a string is the same after as
+  before, where a decimal type would come back a string and a small integer would change width. It is a
+  JSON string in the response too, so no parser turns it into a double.
+- **Numbers or strings: a conscious decision.** A decimal may arrive as a string (`"0.0375"`) or as a JSON
+  number (`0.0375`), and both give the same answer. A JSON number is a double, and `DECIMAL` converts it through the shortest decimal text it prints as, at its minimal scale
+  (`5.0E-4` becomes `0.0005`, `100.0` becomes `100`). That is exact over the text it received, **but a
+  double that was already computed in floating point is only as exact as that computation**:
+  `COMPUTE: 1.005 * 100` is `100.49999999999999`, and rounding that in a `DECIMAL` statement gives `100`
+  where the exact `100.5` gives `101`; and a JSON number longer than a double holds (about 15 to 17 digits)
+  was rounded by the parser before any statement ran. So **send money as strings**, keep a `COMPUTE`
+  result out of a `DECIMAL` statement, and use a number only for a value you trust to be a typed decimal,
+  such as a rate in a request. To insist on strings, assert the type:
+  `f:validate(input.body.rate, text(rate; String; required))`. Whole numbers are exact either way.
+- **Arithmetic.** `+ - *` are exact (a sum keeps the larger scale, a product adds the scales); `/` never
+  truncates — the exact quotient when it terminates, otherwise 34 significant digits rounded half-even;
+  `%` is the remainder; `**` and `pow(x, n)` take a whole-number exponent from -999 to 999. `abs`, `floor`,
+  `ceil`, `min` and `max` are exact (`min` and `max` return the first of equal values). `+` always adds.
+- **Rounding is always explicit**: `round(x, scale, mode)` with mode `HALF_UP`, `HALF_EVEN`, `HALF_DOWN`,
+  `UP`, `DOWN`, `CEILING` or `FLOOR`, written bare or quoted. `round(x)` and `round(x, scale)` fail by name.
+- **What cannot be exact is refused by name**: `sqrt`, `log`, `log10`, `exp`, `sin`, `cos`, `tan`, `asin`,
+  `acos`, `atan`, `random()` and the constants `PI` and `E` fail in a `DECIMAL` statement. Keep that step in
+  a `COMPUTE`, or use a [`graph.task`](#task) function.
+- **A `DECIMAL` statement computes a number.** A comparison is allowed only inside a ternary test
+  (`{model.total} > 100 ? 100 : {model.total}`); a boolean result fails by name — use `CONDITION`.
+- **Comparing decimals in `IF` and `CONDITION`** needs nothing special: a string that is a canonical number
+  compares as a number, so `IF: {price.result.rounded} > 100` and `IF: {price.result.rounded} > '99.5'`
+  both compare numbers (see [the dialect](#math-dialect)).
+- **In an Event Script flow** the same arithmetic is the `f:decimalAdd`, `f:decimalSubtract`, `f:decimalMultiply`,
+  `f:decimalDiv`, `f:decimalMod`, `f:decimalRound` and `f:decimalCompare` plugins, which answer the same canonical strings
+  (see the [built-in plugins](../event-script/syntax.md#built-in-plugins)).
+- **`COMPUTE` on a decimal string computes in binary floating point**, exactly as it does today, and a
+  `COMPUTE` result is a double. Nothing stops you; use `DECIMAL` for money.
 
 ## graph.js {#js}
 

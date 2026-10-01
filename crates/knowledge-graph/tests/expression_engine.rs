@@ -245,10 +245,12 @@ fn error_cases_unknowns_and_misuse() {
     assert_eq!("Unknown function: mn", e2b.message());
     let e2c = engine.eval_number("Math.mn(1, 2)").unwrap_err();
     assert_eq!("Unknown function: Math.mn", e2c.message());
-    // type mismatch in equality
-    let e3 = engine.eval_boolean("'1' == 1").unwrap_err();
+    // type mismatch in equality: a number against text that is not a canonical number
+    // ('1' == 1 is true - a string that is a canonical number compares as a number)
+    let e3 = engine.eval_boolean("'a' == 1").unwrap_err();
     assert!(matches!(e3, MathError::Eval(_)));
     assert!(e3.message().contains("Type mismatch"));
+    assert!(engine.eval_boolean("'1' == 1").unwrap());
     // a boolean is never a number: arithmetic, a relational comparison, a function argument
     // and a bare boolean result are all rejected - uniformly, whichever operator met it
     let b1 = engine.eval_number("true + 1").unwrap_err();

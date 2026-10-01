@@ -3977,3 +3977,33 @@ and `powi` match Java; only the division needed its own algorithm.
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
 `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
 
+## Increment 145 — The DECIMAL statement for graph.math, the high-precision COMPUTE (2026-09-30)
+
+The Rust twin of the Java engine's #471 and #472 (RFC-0001, ADR-0025); the second of two PRs, on the decimal core Increment 144
+introduced. Field installations need money and rate arithmetic that is exact and readable on the graph, which the double-based
+`COMPUTE` cannot give.
+
+- **`DECIMAL: var -> expression`** — a parallel evaluator (`math/decimal_evaluator.rs`) over `event_script::decimal`, the
+  core the `f:decimal*` plugins already use, so the statement and the plugins cannot drift. A decimal value and literal type
+  join the math module (`Value::Decimal`, `Expr::DecimalLiteral`); the parser reads number literals from their text straight
+  into exact decimals in a DECIMAL statement; the result is a canonical decimal string at `{node}.result.{var}`, which
+  survives `graph.suspend`, `graph.resume` and every event hop. The `DECIMAL:` tag joins the statement recognizer for
+  `graph.math` only (`count_execute_statements_for`, the route flag also used by the EXECUTE merge). A float selector value is
+  converted through its shortest decimal text before it is rendered, so `5.0E-4` is `0.0005`, not `0.00050`.
+- **Numeric strings compare as numbers** in `== != < <= > >=` everywhere (`COMPUTE`, `IF`, `CONDITION`, `DECIMAL`), exactly
+  (`math/numeric_strings.rs`): `'200' == 200`, `'9.5' < '10.25'`, and two distinct 20-digit ids stay distinct. A READ item:
+  two existing tests that pinned `'1' == 1` as a type error are updated, as in Java.
+- **`round` is half up, away from zero** (`round(-2.5)` is `-3`), through the same core as `f:round`'s decimal companion; it
+  was Java's `Math.round` rule, which differed on a negative tie.
+- **Conformance:** `tests/decimal_vectors.rs` runs the 151 statement vectors, `tests/resources/decimal-vectors.json`
+  byte-identical to Java's, and cross-checks the statement against the 68 plugin vectors where both have the computation;
+  `tests/numeric_string_comparison.rs` ports the comparison matrix; `tests/graph_runtime.rs` gains
+  `decimal_statement_matches_java_semantics` over the `unit-test-decimal` graph, through the real `graph-executor` flow. All
+  151 vectors passed on the first run: the shared core had already settled the scales, the division and the rounding.
+- **Docs:** the DECIMAL section in `skills-reference.md`, `command-reference.md`, the in-Playground `help graph-math`,
+  `minigraph-commands.json`, and three claims (`math-decimal-statement`, `math-numeric-strings-compare-as-numbers`,
+  `math-decimal-number-inputs`) pinned by the tests above, plus the dialect claim extended.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+

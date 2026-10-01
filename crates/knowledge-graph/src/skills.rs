@@ -34,15 +34,16 @@ use rmpv::Value;
 
 use crate::common::{
     apply_null_source, assert_mutable_model_target, assert_variables_resolved, combine,
-    count_execute_statements, get_effective_ttl, get_else_statement, get_entries, get_first_word,
-    get_for_each_mapping, get_graph_instance, get_if_statement, get_model_array_size,
-    get_next_model_param_set, get_next_node, get_next_tag_resolved, get_node, get_then_statement,
-    handle_data_mapping_entry, invalid, name_offending_selectors, perform_fetcher_output_mapping,
-    reset_nodes, split_blocks, substitute_var_if_any, substitute_var_if_any_logical, COMPUTE_TAG,
-    CONDITION_TAG, DELAY_TAG, ERROR, EXCEPTION, EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO,
-    MODEL_NAMESPACE, NEXT, NODE, NODE_NAME, RESET_TAG, RESULT, SINK, SKILL, STATUS, TARGET, TYPE,
+    count_execute_statements_for, get_effective_ttl, get_else_statement, get_entries,
+    get_first_word, get_for_each_mapping, get_graph_instance, get_if_statement,
+    get_model_array_size, get_next_model_param_set, get_next_node, get_next_tag_resolved, get_node,
+    get_then_statement, handle_data_mapping_entry, invalid, name_offending_selectors,
+    perform_fetcher_output_mapping, reset_nodes, selectors_in, split_blocks, substitute_var_if_any,
+    substitute_var_if_any_logical, COMPUTE_TAG, CONDITION_TAG, DECIMAL_TAG, DELAY_TAG, ERROR,
+    EXCEPTION, EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO, MODEL_NAMESPACE, NEXT, NODE,
+    NODE_NAME, RESET_TAG, RESULT, SINK, SKILL, STATUS, TARGET, TYPE,
 };
-use crate::math::ExpressionEngine;
+use crate::math::{DecimalEvaluator, ExpressionEngine};
 use crate::model::GraphInstance;
 
 pub const DATA_MAPPER_ROUTE: &str = "graph.data.mapper";
@@ -151,7 +152,7 @@ fn execute_math_node(
     for_each: &[String],
     statements: &[String],
 ) -> Result<String, AppError> {
-    let execute = count_execute_statements(node_name, statements)?;
+    let execute = count_execute_statements_for(node_name, statements, true)?;
     let merged = if execute > 0 {
         combine(MATH_ROUTE, node_name, &instance.graph, statements)?
     } else {
@@ -244,6 +245,9 @@ fn process_commands(
     if tag == CONDITION_TAG {
         condition(&command, node_name, state)?;
     }
+    if tag == DECIMAL_TAG {
+        decimal(&command, node_name, state)?;
+    }
     if tag == MAPPING_TAG {
         handle_data_mapping_entry(node_name, &command, state, &instance.graph)?;
     }
@@ -297,6 +301,54 @@ fn compute(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Result<
     state
         .set_element(&format!("{node_name}.result.{lhs}"), result)
         .map_err(invalid)
+}
+
+/// DECIMAL: var -> expression - the high-precision COMPUTE (RFC-0001; Java `GraphMath.decimal`). The expression
+/// is evaluated with exact decimal arithmetic and the result is stored at `{node}.result.{var}` as a canonical
+/// decimal string, which is what survives `graph.suspend`, `graph.resume` and every event hop. COMPUTE keeps its
+/// meaning, so a graph that never says DECIMAL is unchanged.
+///
+/// The statement computes a number, so its variables always render in the arithmetic (unquoted) form. A float
+/// value is accepted through the shortest decimal text it prints as, at its minimal scale: once a value is text
+/// its type is gone, so the conversion happens here, before the values are rendered (`5.0E-4` renders
+/// `0.0005`, not the `0.00050` its own text would parse as). That is exact over the text received and only as
+/// exact as the computation that produced the float - the guide declares it, so sending a number instead of a
+/// string is a conscious decision.
+fn decimal(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Result<(), AppError> {
+    let Some(sep) = command.rfind(MAP_TO) else {
+        return Err(invalid(format!(
+            "{NODE_NAME}{node_name} does not have '->' in '{command}'"
+        )));
+    };
+    let lhs = command[..sep].trim();
+    let rhs = command[sep + MAP_TO.len()..].trim();
+    if lhs.is_empty() || rhs.is_empty() {
+        return Err(invalid(format!(
+            "{NODE_NAME}{node_name} has invalid statement '{command}'"
+        )));
+    }
+    assert_variables_resolved(rhs, state)?;
+    let rendered = render_inexact_numbers(rhs, state)?;
+    let text = substitute_var_if_any_logical(&rendered, state, false)?;
+    let result = DecimalEvaluator::evaluate(&text)
+        .map_err(|e| name_offending_selectors(math_error(e), rhs, state))?;
+    state
+        .set_element(&format!("{node_name}.result.{lhs}"), Value::from(result))
+        .map_err(invalid)
+}
+
+fn render_inexact_numbers(expression: &str, state: &MultiLevelMap) -> Result<String, AppError> {
+    let mut result = expression.to_string();
+    for key in selectors_in(expression) {
+        let plain = match get_lhs_or_constant(&key, state).map_err(invalid)? {
+            Some(Value::F64(d)) => DecimalEvaluator::plain_text(d),
+            Some(Value::F32(f)) => DecimalEvaluator::plain_text_f32(f),
+            _ => continue,
+        }
+        .map_err(|e| invalid(format!("{e}: {key} in '{expression}'")))?;
+        result = result.replace(&format!("{{{key}}}"), &plain);
+    }
+    Ok(result)
 }
 
 /// CONDITION: var -> expression - the explicit boolean statement (Java `GraphMath.condition`).
