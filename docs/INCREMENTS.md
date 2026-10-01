@@ -4052,3 +4052,35 @@ user application (Eric): the packager only orders the keys and packs.
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
 `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
 
+
+---
+
+## Increment 148 — The LLM helper certification: the Playground's AI nodes point at the helper app (2026-10-01)
+
+The Rust side of the LLM helper work. The helper itself is not engine code: it is `examples/llm-helper` in mercury-python and
+mercury-nodejs, on the Anthropic SDK (`llm.chat`, `llm.stream`, `llm.health`), and the Java engine's twin of this increment is
+the same wording change and the same report. The Rust engine did not change.
+
+- **Wording.** The Playground's README, `event-over-http.yaml`, `graphs.yaml` and `rest.yaml` (whose stale pointer to
+  `src/main.rs` now names `src/lib.rs`), the `LlmStreamRelay` documentation and its 503 text, and the two purpose strings of
+  `support-triage.json` now name the LLM helper app instead of the demo apps and a provider key. The graph stays byte-identical
+  with the Java engine's. The 503 still says "not configured", which `llm_stream_twin` asserts.
+- **`docs/test-reports/llm-helper-certification.md`**, byte-identical to the Java copy: Rust and Java in front of the Python and
+  Node.js helpers, through a Layer 1 streaming service, a Layer 2 flow and two Layer 3 graphs, with real Claude calls: 40 results
+  per pair, 124 model calls, no failed check. Every batch the helper forwarded reached the edge as its own frame (50 to 101 per
+  stream, 4 to 10 ms of drift at most); the cadence is the API's and depends on the model; the error contract holds on the real
+  SDKs; all 32 traces that touched a helper rebuild as one tree.
+- **The no-rebuild lane did the work.** The generic chat graph and the chat flow were deployed from a scratch folder with
+  `graph.model.automation` and `yaml.flow.automation` lists. The Rust REST automation reads one location, so the flow's REST
+  entry went into one combined `rest.yaml` rather than a second file (the Java comma-separated merge is not ported).
+- **The token budget.** `support-triage.json` asks for 2000 tokens (it asked for 512), byte-identical with the Java engine's, and the
+  stream example in the README and the relay's documentation asks for 2000 (it asked for 300). Opus 5.5, the helper's default model,
+  thinks before it answers and its thinking tokens count against `max_tokens`. A probe of 48 live calls found no empty result at
+  either the old or the new budget (the stream used 100 to 127 output tokens, the triage call 40 to 49), so the old caps held a
+  margin of two to ten times; the new ones remove the question. The default stays Opus 5.5, documented with the Haiku 4.5
+  alternative in the helper READMEs and in the report.
+- Not here: a Bedrock or other backend for the helper (the helper's backend seam is documented, and AWS Bedrock through IAM is
+  its planned extension); in-graph token streaming.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.

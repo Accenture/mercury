@@ -69,14 +69,14 @@ wrappers extend the same swap: their demo apps register the same public
    its documented setup):
 
     ```shell
-    mercury-serve examples/demo_app.py -Drest.server.port=8085
+    mercury-serve examples/demo-app/demo_app.py -Drest.server.port=8085
     ```
 
     or the Node.js demo (from a clone of mercury-nodejs, after `npm install` and
     `npm run build`):
 
     ```shell
-    node dist/src/cli.js examples/demo-app.mjs -Drest.server.port=8085
+    node dist/src/cli.js examples/demo-app/demo-app.mjs -Drest.server.port=8085
     ```
 
     (The `-Dkey=value` override syntax is the engines' own — the wrappers carry the same

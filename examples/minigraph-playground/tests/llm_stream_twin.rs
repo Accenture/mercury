@@ -1,6 +1,6 @@
-//! The E0 twin in this Playground: the support-triage graph (its AI node is a function on a
-//! python/node wrapper host) compiles at boot, and the `/api/llm/stream` relay teaches
-//! instead of hopping into nothing when no wrapper host is mapped.
+//! The E0 twin in this Playground: the support-triage graph (its AI node is a function on the
+//! LLM helper app) compiles at boot, and the `/api/llm/stream` relay teaches
+//! instead of hopping into nothing when no helper app is mapped.
 use std::time::Duration;
 
 use async_trait::async_trait;

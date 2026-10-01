@@ -141,7 +141,7 @@ streaming code in between. The routing map ships in
 demo-app is the default peer (port 8086) and `-Dpeer.demo.port=8087` points at the
 node demo instead.
 
-Start a wrapper demo app (mercury-python's `mercury-serve examples/demo_app.py`,
+Start a wrapper demo app (mercury-python's `mercury-serve examples/demo-app/demo_app.py`,
 or the mercury-nodejs demo), run this application, and watch the remote function's
 tokens render one by one:
 

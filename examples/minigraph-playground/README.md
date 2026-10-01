@@ -75,18 +75,25 @@ that is a plain function on a polyglot wrapper host — the engine stays LLM-fre
   `llm.chat` node classifies a request into an enumerated category and the *graph* decides the
   route. `POST /api/graph/support-triage` with `{"text": "..."}`.
 - **`POST /api/llm/stream`**: the `llm.stream.relay` function forwards its reply lane into the
-  event-over-http mapped `llm.stream` node, and the provider's real token batches re-render
+  event-over-http mapped `llm.stream` node, and the model's real token batches re-render
   progressively out this application's edge as SSE.
 
-Both routes live on a wrapper host — `resources/event-over-http.yaml` points them at the Node.js
-demo app (port 8087) by default; `-Dllm.peer.port=8086` selects the Python demo app. Start one with
-a provider credential (`GEMINI_API_KEY` with `-Dllm.provider=gemini`, or `ANTHROPIC_API_KEY`), then:
+Both routes live on the LLM helper app — `resources/event-over-http.yaml` points them at the Node.js
+helper (mercury-nodejs `examples/llm-helper`, port 8087) by default; `-Dllm.peer.port=8086` selects the
+Python helper (mercury-python `examples/llm-helper`). Start one with `ANTHROPIC_API_KEY` exported in its
+environment, then:
 
 ```bash
 curl -N -H 'accept: text/event-stream' -H 'content-type: application/json' \
-  -d '{"prompt":"Write two sentences about event-driven design","params":{"provider":"gemini"}}' \
+  -d '{"prompt":"Write two sentences about event-driven design","params":{"max_tokens":2000}}' \
   http://127.0.0.1:8085/api/llm/stream
 ```
+
+The helper's default model is Claude Opus 5.5. It thinks before it answers, and its thinking tokens count against
+`max_tokens`, so give a call a generous budget: this example and the `support-triage` graph ask for 2000, the helper's
+own default is 16000, and a budget of a few hundred can end with no text, which the helper reports as
+`422 LLM reply is empty`. For a smoother token trickle than Opus's bursts, start the helper with
+`-Dllm.model=claude-haiku-4-5` (see its README).
 
 Without a mapped peer the relay answers a 503 that names the missing configuration. With
 `otel.forwarding=true` on the engine and the wrapper host, one distributed trace spans the edge,

@@ -6,7 +6,7 @@
         "Root"
       ],
       "properties": {
-        "purpose": "Bounded-agency support triage (AI agent orchestration experiment E0): the LLM node classifies a user request into an enumerated category and the graph - not the model - decides the route. The AI capability is a plain wrapper-side function (llm.chat on the python demo app) reached through declarative Event-over-HTTP, so the engine stays LLM-free and the certified graph names exactly what the agent can do",
+        "purpose": "Bounded-agency support triage (AI agent orchestration experiment E0): the LLM node classifies a user request into an enumerated category and the graph - not the model - decides the route. The AI capability is a plain wrapper-side function (llm.chat on the LLM helper app) reached through declarative Event-over-HTTP, so the engine stays LLM-free and the certified graph names exactly what the agent can do",
         "name": "support-triage"
       }
     },
@@ -61,7 +61,7 @@
           "text(one short sentence explaining the classification) -> schema.properties.reason.description",
           "text(label) -> schema.required[0]",
           "text(reason) -> schema.required[1]",
-          "int(512) -> params.max_tokens",
+          "int(2000) -> params.max_tokens",
           "int(25000) -> params.timeout_ms"
         ],
         "output": [
@@ -69,7 +69,7 @@
           "result.usage -> model.usage",
           "result.model -> model.llm_model"
         ],
-        "purpose": "Ask the LLM node (llm.chat, a python wrapper function reached via Event-over-HTTP) for a schema-constrained verdict - the model advises within the graph's enumerated choices"
+        "purpose": "Ask the LLM node (llm.chat, a function on the LLM helper app, reached via Event-over-HTTP) for a schema-constrained verdict - the model advises within the graph's enumerated choices"
       }
     },
     {
