@@ -23,9 +23,9 @@
   string now compares as a number, and `round(-2.5)` is `-3`; both reach graphs that never say `DECIMAL`. Sweep BUILD FILES ONLY 13 Cargo.toml
   plus the lock refresh (48 lock lines, the 4.12.19 shape). Gates: fmt, clippy `-D warnings`, `cargo test --workspace` 123 suites / 655 tests /
   0 failed, claims, links. Java: #485 squash `9e515825`, tag → `fc940bea`. The Java–Rust byte-for-byte interop on 14 tutorials and 50
-  fixtures found 0 differences (report in both repos, mercury #341, docs only). `rust` main CI success on the tag commit. **crates.io is NOT yet
-  published:** the sparse index at 03:14Z and the API still showed 4.12.19 for the crates checked — `cargo publish --workspace` from the tag is
-  Eric's step, then verify 12/12. The python/node packs need no change. Origin 2026-09-30-235931.md.
+  fixtures found 0 differences (report in both repos, mercury #341, docs only). `rust` main CI success on the tag commit. **The twelve crates are on crates.io at 4.12.20 (verified 12/12):** published 03:21:45Z to 03:21:58Z (Eric ran `cargo publish --workspace` from the
+  tag), in the sparse index and not yanked, and the published `mercury-platform-core` tarball's `canonical_packager.rs` is byte-identical to the tag's
+  (SHA-256 match, `f32` widening present). The python/node packs need no change. Origin 2026-09-30-235931.md.
   Prior: v4.12.19 (2026-09-25 23:59:10Z — the rapid-prototyping deploy lane, Increment 142; #333 → `ff6e269c`, tag → `e659c683`;
   `graph.model.automation` takes a comma-separated list of manifests and the later one wins ([[graph-manifest-list-later-wins-rust]]); 606 / 0;
   crates 12/12; Java v4.12.19 `a261ff18`. Origin 2026-09-25-232953.md.)
