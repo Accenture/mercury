@@ -496,7 +496,20 @@ layers shipped; the two above have held through every re-verify.)*
   **The bundle ships inside the crate:** `mercury-knowledge-graph` excludes only `webapp/`, and `cargo package --list` carries `resources/public/assets/`, `resources/template/playground.html` and the help pages, so
   the next release of that crate delivers the regenerated bundle (the lockfile-only #344 did not reach consumers). The Java engine's committed bundle had the same gap and was regenerated in
   mercury-composable #491 (squash `f9ddf3c7`, 2026-10-02), where the page's property list also gained `DECIMAL` and `CONDITION` and the rule sits in both the root memory and the webapp's scoped instructions.
-  <!-- id: webapp-bundle-follows-help-edits | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-010629 -->
+  <!-- id: webapp-bundle-follows-help-edits | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: superseded | superseded-by: webapp-single-source-java-repo | origin: 2026-10-02-010629 -->
+
+- **The Playground webapp and its help pages come from the Java repo; this repo holds a deployed copy (Eric, 2026-10-02; PR #347, Increment 152; the Java twin is mercury-composable #496).**
+  `crates/knowledge-graph/webapp/` is retired (K7 of the port spec superseded). `npm run release:rust` (or `release:all`, both engines from one build) in
+  `mercury-composable/system/minigraph-playground-engine/webapp` builds once and deploys the hashed assets to `resources/public/assets/`, the entry page to `resources/template/playground.html` and a
+  MIRROR of the help pages to `resources/help/`: the help is compiled into the bundle and read by this engine for the console `help` command, so both copies have one source. **Rule:** never edit
+  `resources/help/*.md` or the bundle here; edit in the Java repo and release to both (the next deploy overwrites). The Java repo expects this repo beside it (`…/sandbox/mercury`); `MERCURY_RUST_REPO`
+  overrides (a worktree, for instance). The help sets were consolidated: this repo's 2026-07-19 rewrite is the base of the single set, Java-only content kept, engine-neutral wording, the differences
+  stated in place (`graph.js` is deprecated in Java and not registered here), and one claim of this repo's `help session` corrected (`session reset` starts an empty draft on both engines); 12 pages
+  changed here, 30 are byte-identical with the previous set. The bundle brought the three Java fixes the copy was behind (mercury-composable #493, #495; the test setup of #494 has no bundle effect) and
+  is byte-identical with the Java engine's (`index-lxX8FQ68`). `Cargo.toml` has no `exclude` any more; `cargo package --list` carries 214 files, the 42 help pages, the bundle and the entry page, no
+  webapp path and no source map. The source maps stay gitignored here. Supersedes [[webapp-bundle-follows-help-edits]] (the rule that a help edit needs the rebuilt bundle still holds, now from the
+  Java repo). Relates [[example-and-template-carry-their-flows]].
+  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-02 | uses: 1 | tier: working | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 
