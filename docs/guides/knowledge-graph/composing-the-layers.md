@@ -96,14 +96,15 @@ create node hello-task
 with type Task
 with properties
 skill=graph.task
-task=v1.hello.task
+task=no.op
 input[]=input.body -> *
 output[]=result -> output.body
 ```
 
-`v1.hello.task` is a shipped demo function; the `*` target merges the mapped value into the
-function's request body, and `result` is the function's whole result (property semantics:
-[skills reference](skills-reference.md#task)). The function itself is an ordinary Layer-1
+`no.op` is a built-in function that echoes its request, so this node runs as it stands; the `*`
+target merges the mapped value into the function's request body, and `result` is the
+function's whole result (property semantics: [skills reference](skills-reference.md#task)).
+Replace `no.op` with the route of your own function. That function is an ordinary Layer-1
 citizen — a `#[preload]`-registered `ComposableFunction` that knows nothing about graphs —
 so anything already registered on the event bus is one `graph.task` node away from the
 semantic layer. Writing one:

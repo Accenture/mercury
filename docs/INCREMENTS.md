@@ -4119,3 +4119,25 @@ change.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test` for the example and the
 template, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+
+---
+
+## Increment 150 — The retired demo function leaves the guides; the Rust 1.99 clippy fix is recorded (2026-10-02)
+
+Two housekeeping items after Increments 148 and 149. The engine did not change.
+
+- **`v1.hello.task` leaves the guides.** The `graph.task` example in `composing-the-layers.md` called it "a shipped demo function", and the
+  dev-mock row of `reserved-names-and-headers.md` listed it, although Increment 83 retired it; a first-time developer who pasted the example got a
+  missing route. The example now runs the built-in `no.op`, an always-registered function that echoes its request (`AppStarter` registers it
+  beside the actuators and the HTTP client), so the node runs as written. Checked live as a deployed graph through the
+  `graph.model.automation` list: `{"hello":"world","amount":21}` comes back unchanged, and a node pointed at a route that does not exist fails by
+  name (`task 'no.such.route' does not exist`). The first candidate, `mock.mdm.profile`, did not work and is not a plain composable function: it
+  expects an HTTP-request-shaped body (`method`, `body`, `headers`, `parameters`) and answered `Missing person id` to `input.body -> *`.
+- **The 1.99 clippy fix is recorded.** PR #344 (`Cargo.lock`: async-trait 0.1.89 to 0.1.92, because Rust 1.99's `double_must_use` flagged the
+  `#[must_use]` the older release puts on every async trait method) had no CHANGELOG line; it has one now, under *Fixed*.
+- Not here: the Playground's `help update.md` example, which still names `v1.hello.task`. The help is bundled into the webapp
+  (`import.meta.glob` over `resources/help/*.md`), so fixing it means `npm run release` in `crates/knowledge-graph/webapp` (its dependencies are
+  not installed here) and a regenerated, hashed bundle: its own change.
+
+Gates: `check-doc-claims`, `check-llms-links`, `mkdocs build --strict` (documentation only; no crate changed).

@@ -115,7 +115,7 @@ Routes marked * — and the whole Playground developer surface below — are gat
 | `show.graph.model`, `get.live.graph`, `inspect.state.machine` | Model and state inspection |
 | `upload.json.content`, `upload.mock.content` | Playground uploads |
 | `get.ws.html` | The raw websocket workbench pages |
-| `mock.mdm.profile`, `mock.account.details`, `v1.hello.task` | Dev mock functions for the tutorials |
+| `mock.mdm.profile`, `mock.account.details` | Dev mock functions for the tutorials |
 
 The **`companion.sync.` prefix** is reserved in dev: the `/sync` endpoint opens an
 ephemeral capture route (`companion.sync.{uuid}`) per request. The websocket service names

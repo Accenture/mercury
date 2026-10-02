@@ -48,6 +48,15 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    about every 600 ms), and that the error contract holds on the real SDKs.
 5. The AI agent guide's boilerplate manifest no longer says the Rust template has no `flows.yaml` to carry over; the template's and
    the example's file tables list the flows files.
+6. The `graph.task` example in *Composing the layers* runs the built-in `no.op` instead of `v1.hello.task`, the demo function
+   Increment 83 retired, and the dev-mock row of *Reserved names and headers* no longer lists it. (The Playground's
+   `help update` example still names it: the help is compiled into the webapp bundle, so fixing it means a webapp release.)
+
+### Fixed
+
+7. **CI on Rust 1.99 (PR #344).** `Cargo.lock` moves `async-trait` from 0.1.89 to 0.1.92. Clippy 1.99's `double_must_use` flagged the
+   `#[must_use]` that 0.1.89 puts on every async trait method, which failed the Clippy step on every branch of a workflow that floats on
+   `stable`. Lockfile only: no crate changed, and nothing reaches the published crates.
 
 ---
 ## Version 4.12.20, 10/1/2026
