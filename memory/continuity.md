@@ -74,7 +74,8 @@
 **Rust edition 2021**, toolchain = **current stable, kept in sync with CI** (1.98.1 as of
 2026-09-08; CI installs `dtolnay/rust-toolchain@stable` with no repo pin, so run
 `rustup update stable` when formatting disagrees — a 1.95-vs-1.98 rustfmt skew over
-match-arm block wrapping failed PR #242's format gate). Cargo **workspace**
+match-arm block wrapping failed PR #242's format gate; the 1.99.0 clippy skew of 2026-10-01 is recorded in
+[[ci-floats-on-stable-toolchain]], and `async-trait` is locked at 0.1.92). Cargo **workspace**
 (`Cargo.toml` root, members `crates/*`); `crates/platform-core` is the first crate.
 **Deps in use:** serde 1, serde_json 1, **yaml_serde 0.10** (the YAML Organization's maintained continuation
 of the archived `serde_yaml`, wired as `serde_yaml = { package = "yaml_serde", version = "0.10" }` so every
@@ -378,6 +379,31 @@ layers shipped; the two above have held through every re-verify.)*
   in one method — #468). Extends [[graph-math-typed-arithmetic-rust]] and [[conventions-rust-baseline]].
   <!-- id: graph-math-dialect-closed-set-rust | created: 2026-09-28 | last_used: 2026-09-28 | uses: 1 | tier: working | origin: 2026-09-28-234016 -->
 
+- **The starter template and the playground example carry their own flows config, mimicking the Java twins, and tutorial 13 is deployed in the example (Eric,
+  2026-10-01; Increment 149, PR #343 merge `86b59cb0`).** `templates/starter-graph` gained `resources/flows.yaml` and `flows/graph-executor.yml`; `examples/minigraph-playground`
+  gained `flows.yaml`, `flows/graph-executor.yml` and `flows/flow-11.yml`. The flow files are byte-identical with the Java template's and the Java example's (the example's equal the
+  engine crate's defaults); the two manifests carry a short comment. **The resolution rule, proved by deletion controls rather than assumed:** the application's own `resources`
+  come first (`auto_start_main!` prepends them), the engine crate's root is appended, and a file the application lacks falls through to the engine's PER FILE. So the copies are
+  redundant at run time (delete them and the tests still pass), but they are what a developer reads, and the application's `flows.yaml` SHADOWS the engine's: a manifest that omits
+  `flow-11.yml` breaks tutorial 11 (`flow://flow-11 does not exist`), and one that lists a missing flow breaks the graph endpoint (`Flow graph-executor not found`). A stale copy would also
+  hide an engine fix, so `examples/minigraph-playground/tests/tutorials.rs` keeps the sample flow files equal to the engine's defaults (the template's apart from its opening comment).
+  **Tutorial 13** was left out of the example's manifest behind a comment that it needs `v1.hello.task`, which Increment 83 retired when tutorial 13 became an `async.http.request` client of the
+  app's own dev mock endpoint; the comment outlived it (the Java example omitted tutorial 13 for the same reason, fixed in mercury-composable #489). The app now compiles 15 graphs, and the test
+  boots on a KNOWN port because CompileGraph resolves `${rest.server.port:8080}` at load time. `v1.hello.task` is NOT re-added (Eric: tutorial 13 no longer needs it). Not aligned: the
+  distributed-cache example lists `graph-executor.yml` and resolves it from the engine without a local copy. Follow-up: [[hello-task-doc-references]].
+  <!-- id: example-and-template-carry-their-flows | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001532 -->
+
+- **The Rust engine certified the LLM helper without changing: the playground's AI nodes point at the helper app, and the helper's contract lives in the language packs (Increment 148, PR #342
+  merge `755af30e`; Eric, 2026-10-01).** The helper (`llm.chat`, `llm.stream`, `llm.health` on the Anthropic SDK) is `examples/llm-helper` in mercury-python and mercury-nodejs (PRs #38 and #106),
+  not engine code: the engine stays LLM-free and holds no credential. The playground's `support-triage` graph (byte-identical with Java's) and the `/api/llm/stream` relay reach it through
+  `event-over-http.yaml` by route name. `docs/test-reports/llm-helper-certification.md` (byte-identical with the Java copy) records Java and Rust in front of both helpers, through a Layer 1
+  streaming service, a Layer 2 flow and two Layer 3 graphs, with real Claude calls (40 results per pair, 124 model calls): every batch the helper forwarded reached the edge as its own frame
+  (the cadence is the API's and depends on the model), the error contract holds on the real SDKs, and every trace is one tree ([[connected-edge-spans]]). The no-rebuild lane did the
+  deploying ([[graph-manifest-list-later-wins-rust]]); Rust's `yaml.rest.automation` reads ONE location, so the chat flow's REST entry went into one combined `rest.yaml`. Opus 5.5, the helper's
+  default model and kept by Eric, thinks before it answers and its thinking tokens count against `max_tokens`: the triage graph now asks for 2000 tokens (512 before) and the README's stream
+  example for 2000 (300). AWS Bedrock through IAM is the helper's planned second backend, a thread in the packs.
+  <!-- id: llm-helper-certification-rust | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001532 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
@@ -450,6 +476,15 @@ layers shipped; the two above have held through every re-verify.)*
   embeds from) and `snapshot_test.rs`'s fixed extras — a Rust change, not docs-only. Twin of
   `conv-proposals-not-in-adr-ledger` in mercury-composable; relates [[eric-release-rhythm-rust]].
   <!-- id: conv-proposals-not-in-adr-ledger-rust | created: 2026-09-19 | last_used: 2026-09-19 | uses: 1 | tier: core | origin: 2026-09-19-022252 -->
+
+- **CI floats on `stable`, so a Rust release can turn `main` red with no change: diagnose by the failing step and the crate, and fix `main` first (2026-10-01; PR #344 merge `2ed5f29d`).**
+  `dtolnay/rust-toolchain@stable` has no repo pin. On 2026-10-01 stable became 1.99.0 and its clippy (`double_must_use`) flagged the `#[must_use]` that async-trait 0.1.89 adds to every async trait
+  method, at three trait methods of `mercury-platform-core`; `cargo clippy --workspace --all-targets -- -D warnings` stopped there, so the Clippy step failed on every branch (#342, #343) while
+  neither PR touched `crates/`. The fix was `Cargo.lock` only: async-trait 0.1.92 stopped emitting the attribute, a root-cause fix and not a lint allow. **Lessons:** (1) read the failing step and
+  check the diff for the failing crate before blaming the change; (2) re-running a failed job re-tests the SAME merge commit, so a fix landed on `main` reaches an open PR only through a new push
+  (a rebase or GitHub's "Update branch"); (3) merge the fix PR first, and rebase the PR branch onto `main` so its CI tests the combined state; (4) `main` has no branch protection, so only discipline stops
+  a red merge (#343 merged red while the fix PR was green and waiting); (5) a local toolchain behind CI cannot reproduce it, so CI is the check (or `rustup update stable`).
+  <!-- id: ci-floats-on-stable-toolchain | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001532 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 
