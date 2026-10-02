@@ -506,8 +506,8 @@ layers shipped; the two above have held through every re-verify.)*
   overrides (a worktree, for instance). The help sets were consolidated: this repo's 2026-07-19 rewrite is the base of the single set, Java-only content kept, engine-neutral wording, the differences
   stated in place (`graph.js` is deprecated in Java and not registered here), and one claim of this repo's `help session` corrected (`session reset` starts an empty draft on both engines); 12 pages
   changed here, 30 are byte-identical with the previous set. The bundle brought the three Java fixes the copy was behind (mercury-composable #493, #495; the test setup of #494 has no bundle effect) and
-  is byte-identical with the Java engine's (`index-lxX8FQ68`; `index-CN-KsNrA` since PR #348, the deploy of the clipboard paste fix mercury-composable #497, the first deploy-only twin of a
-  Java webapp fix). `Cargo.toml` has no `exclude` any more; `cargo package --list` carries 214 files, the 42 help pages, the bundle and the entry page, no
+  is byte-identical with the Java engine's (`index-lxX8FQ68`; `index-CN-KsNrA` since PR #348 (merge `67a31296`, 2026-10-02), the deploy of the clipboard paste fix mercury-composable #497 (squash `029e5a9f`), the first deploy-only twin
+  of a Java webapp fix). `Cargo.toml` has no `exclude` any more; `cargo package --list` carries 214 files, the 42 help pages, the bundle and the entry page, no
   webapp path and no source map. The source maps stay gitignored here. Supersedes [[webapp-bundle-follows-help-edits]] (the rule that a help edit needs the rebuilt bundle still holds, now from the
   Java repo). Relates [[example-and-template-carry-their-flows]].
   <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-02 | uses: 1 | tier: working | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
