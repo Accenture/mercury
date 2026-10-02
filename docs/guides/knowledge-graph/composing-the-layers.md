@@ -60,7 +60,7 @@ output[]=result -> output.body
 
 The flow on the other side of the bridge is ordinary Layer-2 configuration — this one ships
 with the engine (`crates/knowledge-graph/resources/flows/flow-11.yml`, the tutorial-11
-target):
+target; the playground example also carries a copy in its `resources/flows/`):
 
 ```yaml
 flow:
@@ -153,7 +153,9 @@ the graph inventory reads as living documentation
 
 Composition also runs *upward*. A deployed graph is not invoked directly — an Event Script
 flow wraps it, which is how it gets a REST endpoint while keeping execution decoupled from
-protocol. Both halves ship with the engine. The endpoint binding in `rest.yaml`:
+protocol. Both halves ship with the engine (the starter template and the playground example
+also carry the flow in their own `resources/flows/`, so it is visible in your project). The
+endpoint binding in `rest.yaml`:
 
 ```yaml
 - service: 'http.flow.adapter'

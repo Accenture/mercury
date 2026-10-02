@@ -1,0 +1,10 @@
+#
+# The flows this application deploys. graph-executor is the standard exposure flow: REST automation
+# routes POST /api/graph/{graph_id} to it (resources/rest.yaml) and it runs the graph engine on the
+# deployed model. The engine ships the same flow as a default; this copy is read first, because the
+# application's own resources win, so it is yours to read and adapt.
+#
+flows:
+  - 'graph-executor.yml'
+
+location: 'classpath:/flows/'

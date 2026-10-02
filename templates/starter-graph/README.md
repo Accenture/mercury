@@ -68,6 +68,8 @@ deployment never shows the Playground UI.
 |:---|:---|
 | `resources/graph/starter-quote.json` | The application — a graph whose nodes execute during traversal |
 | `resources/graphs.yaml` | The deployment manifest: only listed graphs that pass the CompileGraph gate are executable ("compiled or 404") |
+| `resources/flows.yaml` | The flows this app deploys — the standard exposure flow, `graph-executor` |
+| `resources/flows/graph-executor.yml` | The standard exposure flow behind `/api/graph/{graph_id}`; the engine ships the same flow as its default, and this copy is read first |
 | `resources/rest.yaml` | The one graph endpoint, the home page, plus the dev-mode Playground / companion routes |
 | `resources/application.yml` | App config — including the `app.env: dev` switch that opens the Playground |
 | `tests/quote_graph_test.rs` | End-to-end graph tests, including the 404 gate behavior |

@@ -3,10 +3,6 @@
 # deployed graph is executable at POST /api/graph/{graph-id} ONLY when it is
 # listed here AND passes the gate. A graph that fails, or is not listed,
 # answers HTTP-404 as if it does not exist (the CompileFlows precedent).
-#
-# tutorial-13 is deliberately not listed: it invokes v1.hello.task, an
-# engine-test fixture function this app does not register — the manifest is
-# deployment intent, so only graphs runnable in THIS app belong here.
 graphs:
   - 'tutorial-1'
   - 'tutorial-2'
@@ -20,6 +16,9 @@ graphs:
   - 'tutorial-10'
   - 'tutorial-11'
   - 'tutorial-12'
+  # tutorial-13: graph.task as an HTTP client by configuration - async.http.request fetches a
+  # profile from this app's own dev mock endpoint (/api/mdm/profile/{id} in rest.yaml, app.env=dev)
+  - 'tutorial-13'
   # tutorial-14: the suspend/resume purchase workflow (three checkpoints, four
   # runs, one business correlation id) - see 'help tutorial 14' and the
   # workflow-suspension guide
