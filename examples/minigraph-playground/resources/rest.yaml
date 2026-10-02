@@ -31,9 +31,9 @@ rest:
 
   #
   # The AI-token streaming composition: the relay forwards its reply lane into the
-  # event-over-http mapped "llm.stream" AI node (a python/node demo app) and the
-  # provider's real token batches re-render progressively out this application's
-  # HTTP edge. See LlmStreamRelay in src/main.rs.
+  # event-over-http mapped "llm.stream" AI node (the LLM helper app) and the
+  # model's real token batches re-render progressively out this application's
+  # HTTP edge. See LlmStreamRelay in src/lib.rs.
   #
   - service: 'llm.stream.relay'
     methods: ['POST']

@@ -13,7 +13,25 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
-Nothing yet. Each change merged to `main` after v4.12.20 is listed here; it moves under its release heading when the version is cut.
+Each change merged to `main` after v4.12.20 is listed here; it moves under its release heading when the version is cut.
+
+### Changed
+
+1. **The MiniGraph Playground's AI nodes point at the LLM helper app (Increment 148).** `llm.chat` (the `support-triage` graph) and
+   `llm.stream` (the `/api/llm/stream` relay) are functions in the new LLM helper of the Python and Node.js packs
+   (`examples/llm-helper`, on the Anthropic SDK), not in their demo apps; the ports and the route map are unchanged, so nothing
+   to reconfigure. The relay's "not configured" 503 now names the helper and its credential. The engine is unchanged and holds
+   no credential: only the helper does. The `support-triage` graph now asks for 2000 tokens where it asked for 512, and the
+   stream example for 2000 where it asked for 300: the helper's default model, Opus 5.5, thinks before it answers and its
+   thinking tokens count against `max_tokens`, so a tight budget can end with no text.
+
+### Documentation
+
+2. **The LLM helper certification report** (`docs/test-reports/llm-helper-certification.md`, byte-identical to the Java engine's):
+   Rust and Java, each in front of the Python and the Node.js helper, driven through a streaming service, an Event Script flow
+   and two graphs with real Claude calls. It shows that every token batch the helper forwards reaches the engine edge as its own
+   frame, that the cadence of progressive rendering is the API's and differs by model (Haiku streams continuously, Opus in bursts
+   about every 600 ms), and that the error contract holds on the real SDKs.
 
 ---
 ## Version 4.12.20, 10/1/2026

@@ -26,21 +26,21 @@ use platform_core::{
 
 /// The route of the AI-token streaming relay (`POST /api/llm/stream` in `rest.yaml`).
 pub const LLM_STREAM_RELAY_ROUTE: &str = "llm.stream.relay";
-/// The AI node the relay forwards to - a function on a python/node wrapper host, reached
+/// The AI node the relay forwards to - a function on the LLM helper app, reached
 /// through `event-over-http.yaml`.
 pub const LLM_STREAM_ROUTE: &str = "llm.stream";
 
 /// The AI-token streaming composition (the agent-orchestration follow-up to experiment
 /// E0, the Java `LlmStreamRelay` twin): this endpoint's function forwards its own reply
 /// lane and correlation id into a `send` to the event-over-http mapped `llm.stream`
-/// function - a python/node demo app's streaming AI node, which pulls the provider's
-/// REAL token stream (Gemini or Claude models) - and opts in with the
-/// `accept: text/event-stream` event header. The provider's token batches relay through
+/// function - the LLM helper app's streaming AI node, which pulls the model's
+/// REAL token stream (Claude) - and opts in with the
+/// `accept: text/event-stream` event header. The model's token batches relay through
 /// the peer's /api/event in envelope mode and re-render progressively out this
 /// application's HTTP edge as SSE, with no imperative streaming code in between.
 ///
 /// `curl -N -H 'accept: text/event-stream' -H 'content-type: application/json' \
-///   -d '{"prompt":"Write two sentences about event-driven design","params":{"provider":"gemini"}}' \
+///   -d '{"prompt":"Write two sentences about event-driven design","params":{"max_tokens":2000}}' \
 ///   http://127.0.0.1:8085/api/llm/stream`
 #[preload(route = "llm.stream.relay", instances = 50, interceptor)]
 struct LlmStreamRelay;
@@ -60,8 +60,9 @@ impl ComposableFunction for LlmStreamRelay {
             let mut out = EventStreamWriter::from_request(&platform, &input)?;
             out.fail(&AppError::new(
                 503,
-                "AI streaming demo is not configured - start a wrapper demo app with an LLM \
-                 provider credential and map llm.stream in event-over-http.yaml",
+                "AI streaming demo is not configured - start the LLM helper app (examples/llm-helper \
+                 of mercury-python or mercury-nodejs) with ANTHROPIC_API_KEY in its environment and \
+                 map llm.stream in event-over-http.yaml",
             ))
             .await?;
             return Ok(EventEnvelope::new());
