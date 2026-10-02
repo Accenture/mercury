@@ -410,7 +410,7 @@ layers shipped; the two above have held through every re-verify.)*
   the primary (which replays it back), and `load_mock_content` sets `input.body` and confirms in that member's console (`Mock data loaded into 'input.body' namespace`);
   a session without an instance is refused at the REST edge. **Why:** another member's replayed `run` executed without the data and aborted. The Playground's run
   controls became three steps in the same round - Instantiate, Upload (optional; the form opens for the clicking session only, no console command) and Run - and the
-  multi-select hint left the canvas; the UI lives in the Java repo and arrives here as the bundle `index-B56ISx7m` ([[webapp-single-source-java-repo]]). Pinned by
+  multi-select hint left the canvas; the UI lives in the Java repo and arrives here as the bundle `index-Bg13jQpc` ([[webapp-single-source-java-repo]]). Pinned by
   `mock_upload_loads_every_member_instance` in `tests/graph_runtime.rs`.
   <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-02 | uses: 1 | tier: working | origin: 2026-10-02-232252 -->
 
