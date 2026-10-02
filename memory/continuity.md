@@ -494,7 +494,8 @@ layers shipped; the two above have held through every re-verify.)*
   reproducible** (Node 22.12; one harmless `react-router` engines warning): a rebuild of the unchanged sources reproduced every other committed asset byte for byte, and the application chunk differs only by help
   text plus the `sourceMappingURL` comment that names the new hash (97 lines added, 5 removed), so a CI step that rebuilds and compares with the committed bundle is feasible. NOT built: Eric has not asked for it.
   **The bundle ships inside the crate:** `mercury-knowledge-graph` excludes only `webapp/`, and `cargo package --list` carries `resources/public/assets/`, `resources/template/playground.html` and the help pages, so
-  the next release of that crate delivers the regenerated bundle (the lockfile-only #344 did not reach consumers). The Java engine's committed bundle has the same gap (a thread in mercury-composable).
+  the next release of that crate delivers the regenerated bundle (the lockfile-only #344 did not reach consumers). The Java engine's committed bundle had the same gap and was regenerated in
+  mercury-composable #491 (squash `f9ddf3c7`, 2026-10-02), where the page's property list also gained `DECIMAL` and `CONDITION` and the rule sits in both the root memory and the webapp's scoped instructions.
   <!-- id: webapp-bundle-follows-help-edits | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-010629 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
