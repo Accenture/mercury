@@ -404,6 +404,16 @@ layers shipped; the two above have held through every re-verify.)*
   example for 2000 (300). AWS Bedrock through IAM is the helper's planned second backend, a thread in the packs.
   <!-- id: llm-helper-certification-rust | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001532 -->
 
+- **A mock-data upload travels like a command: it loads every member's instance (Eric's design, 2026-10-02; PR #349, Increment 154; lock-step with mercury-composable #498).**
+  `commands::upload_content` (REST `POST /api/mock/{id}`) no longer writes the uploader's instance alone: it sends an `upload` event to the command service,
+  `handle_upload` loads the payload when the session is the primary and replays it (`forwarded`) into every subscriber's instance, or forwards a subscriber's payload to
+  the primary (which replays it back), and `load_mock_content` sets `input.body` and confirms in that member's console (`Mock data loaded into 'input.body' namespace`);
+  a session without an instance is refused at the REST edge. **Why:** another member's replayed `run` executed without the data and aborted. The Playground's run
+  controls became three steps in the same round - Instantiate, Upload (optional; the form opens for the clicking session only, no console command) and Run - and the
+  multi-select hint left the canvas; the UI lives in the Java repo and arrives here as the bundle `index-B56ISx7m` ([[webapp-single-source-java-repo]]). Pinned by
+  `mock_upload_loads_every_member_instance` in `tests/graph_runtime.rs`.
+  <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-02 | uses: 1 | tier: working | origin: 2026-10-02-232252 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
