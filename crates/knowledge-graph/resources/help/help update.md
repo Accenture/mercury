@@ -21,7 +21,7 @@ update node greeting
 with type Task
 with properties
 skill=graph.task
-task=v1.hello.task
+task=no.op
 input[]=input.body -> *
 output[]=result -> output.body
 ```
