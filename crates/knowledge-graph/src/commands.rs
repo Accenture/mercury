@@ -351,7 +351,12 @@ async fn load_mock_content(po: &PostOffice, in_route: &str, out_route: &str, con
         let mut state = instance.state.lock().expect("graph state machine");
         let _ = state.set_element("input.body", content);
     }
-    say(po, out_route, "Mock data loaded into 'input.body' namespace").await;
+    say(
+        po,
+        out_route,
+        "Mock data loaded into 'input.body' namespace",
+    )
+    .await;
 }
 
 #[allow(clippy::too_many_arguments)]

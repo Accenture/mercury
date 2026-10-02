@@ -2236,10 +2236,22 @@ async fn mock_upload_loads_every_member_instance(platform: &Platform) {
     let tap_a = Arc::new(Mutex::new(Vec::<String>::new()));
     let tap_b = Arc::new(Mutex::new(Vec::<String>::new()));
     platform
-        .register(out_a, Arc::new(OutTap { seen: tap_a.clone() }), 1)
+        .register(
+            out_a,
+            Arc::new(OutTap {
+                seen: tap_a.clone(),
+            }),
+            1,
+        )
         .expect("register out tap A");
     platform
-        .register(out_b, Arc::new(OutTap { seen: tap_b.clone() }), 1)
+        .register(
+            out_b,
+            Arc::new(OutTap {
+                seen: tap_b.clone(),
+            }),
+            1,
+        )
         .expect("register out tap B");
     for in_route in [in_a, in_b] {
         po.send(
@@ -2260,7 +2272,10 @@ async fn mock_upload_loads_every_member_instance(platform: &Platform) {
             }
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
-        assert!(knowledge_graph::commands::has_session(sid), "session {sid} open");
+        assert!(
+            knowledge_graph::commands::has_session(sid),
+            "session {sid} open"
+        );
     }
 
     async fn ws(po: &PostOffice, in_route: &str, out_route: &str, command: &str) {
@@ -2307,19 +2322,38 @@ async fn mock_upload_loads_every_member_instance(platform: &Platform) {
         ws(&po, in_a, out_a, command).await;
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    assert!(wait_for(&tap_a, "Graph instance created").await, "A instantiated: {:?}", seen(&tap_a));
-    assert!(wait_for(&tap_b, "Graph instance created").await, "B instantiated by the replay: {:?}", seen(&tap_b));
+    assert!(
+        wait_for(&tap_a, "Graph instance created").await,
+        "A instantiated: {:?}",
+        seen(&tap_a)
+    );
+    assert!(
+        wait_for(&tap_b, "Graph instance created").await,
+        "B instantiated by the replay: {:?}",
+        seen(&tap_b)
+    );
 
     // the subscriber uploads: forwarded to the primary, loaded there, replayed into B
     tap_a.lock().expect("tap").clear();
     tap_b.lock().expect("tap").clear();
-    let payload = rmpv::Value::Map(vec![(rmpv::Value::from("person_id"), rmpv::Value::from(100))]);
+    let payload = rmpv::Value::Map(vec![(
+        rmpv::Value::from("person_id"),
+        rmpv::Value::from(100),
+    )]);
     assert!(
         knowledge_graph::commands::upload_content(platform, sid_b, payload).await,
         "the subscriber's upload is accepted"
     );
-    assert!(wait_for(&tap_a, LOADED).await, "A loaded the subscriber's upload: {:?}", seen(&tap_a));
-    assert!(wait_for(&tap_b, LOADED).await, "B loaded its own upload on the replay: {:?}", seen(&tap_b));
+    assert!(
+        wait_for(&tap_a, LOADED).await,
+        "A loaded the subscriber's upload: {:?}",
+        seen(&tap_a)
+    );
+    assert!(
+        wait_for(&tap_b, LOADED).await,
+        "B loaded its own upload on the replay: {:?}",
+        seen(&tap_b)
+    );
     for sid in [sid_a, sid_b] {
         let body = knowledge_graph::commands::download_content(sid, "input.body")
             .unwrap_or_else(|| panic!("{sid} holds input.body"));
@@ -2333,16 +2367,36 @@ async fn mock_upload_loads_every_member_instance(platform: &Platform) {
     // the primary uploads: every subscriber's instance follows
     tap_a.lock().expect("tap").clear();
     tap_b.lock().expect("tap").clear();
-    let payload = rmpv::Value::Map(vec![(rmpv::Value::from("person_id"), rmpv::Value::from(200))]);
+    let payload = rmpv::Value::Map(vec![(
+        rmpv::Value::from("person_id"),
+        rmpv::Value::from(200),
+    )]);
     assert!(knowledge_graph::commands::upload_content(platform, sid_a, payload).await);
-    assert!(wait_for(&tap_a, LOADED).await, "A loaded its own upload: {:?}", seen(&tap_a));
-    assert!(wait_for(&tap_b, LOADED).await, "B loaded the primary's upload: {:?}", seen(&tap_b));
-    let body = knowledge_graph::commands::download_content(sid_b, "input.body").expect("B holds input.body");
-    assert_eq!(event_script::conversions::to_json_string(&body), r#"{"person_id":200}"#);
+    assert!(
+        wait_for(&tap_a, LOADED).await,
+        "A loaded its own upload: {:?}",
+        seen(&tap_a)
+    );
+    assert!(
+        wait_for(&tap_b, LOADED).await,
+        "B loaded the primary's upload: {:?}",
+        seen(&tap_b)
+    );
+    let body = knowledge_graph::commands::download_content(sid_b, "input.body")
+        .expect("B holds input.body");
+    assert_eq!(
+        event_script::conversions::to_json_string(&body),
+        r#"{"person_id":200}"#
+    );
 
     // an unknown session, or one without an instance, is refused at the REST edge
     assert!(
-        !knowledge_graph::commands::upload_content(platform, "ws-000000-0", rmpv::Value::Map(vec![])).await,
+        !knowledge_graph::commands::upload_content(
+            platform,
+            "ws-000000-0",
+            rmpv::Value::Map(vec![])
+        )
+        .await,
         "no session, no upload"
     );
 }
