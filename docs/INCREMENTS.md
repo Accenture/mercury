@@ -4239,7 +4239,9 @@ loose ends for the Playground UI.
 - **The UI change (deployed bundle).** Instantiate only creates the instance; the new Upload button opens the mock-input form for
   the clicking member's own session (no console command, so no replayed invitation opens a form elsewhere); Run runs with whatever
   input the instance holds — uploading is optional (tutorial 1 reads no input). The multi-select hint on the canvas is gone.
-  `help upload` and `help session` describe the shared upload; the 42 mirrored help pages follow the Java source.
+  `help upload` and `help session` describe the shared upload; the 42 mirrored help pages follow the Java source. The console's connection
+  rows show the local time as `HH:MM:SS` (Eric's touch-up during review; the `session` command keeps the full start time); the live drive
+  below ran on the bundle's predecessor `index-B56ISx7m`, which differs only by that touch-up.
 - **Checked.** `cargo test -p mercury-knowledge-graph --test graph_runtime` with the new `mock_upload_loads_every_member_instance`
   step (a subscriber's upload and the primary's upload each reach both instances, both consoles confirm, an unknown session is
   refused): `graph_runtime_end_to_end` ok; `check-doc-claims` 34/34; `check-llms-links` 38/38. Live on this engine, two browser

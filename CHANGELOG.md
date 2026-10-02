@@ -85,9 +85,10 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    replayed `run` executed without it and aborted. The upload now travels like a command (`commands::handle_upload`): the primary
    loads it and replays it into every subscriber's instance, a subscriber's upload goes through the primary, and every member's
    console prints `Mock data loaded into 'input.body' namespace`; a session without a graph instance is still refused. The
-   regenerated bundle (`index-CN-KsNrA` became `index-B56ISx7m`) brings the Java webapp's three-step controls — Instantiate,
-   Upload (optional, opens the form for your own session only) and Run — and drops the multi-select hint; `help upload` and
-   `help session` describe the shared upload (mercury-composable #498).
+   regenerated bundle (`index-CN-KsNrA` became `index-Bg13jQpc`) brings the Java webapp's three-step controls — Instantiate,
+   Upload (optional, opens the form for your own session only) and Run — drops the multi-select hint, and shows the console's
+   connection rows with the local time as `HH:MM:SS`; `help upload` and `help session` describe the shared upload
+   (mercury-composable #498).
 
 ---
 ## Version 4.12.20, 10/1/2026
