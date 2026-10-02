@@ -390,7 +390,7 @@ layers shipped; the two above have held through every re-verify.)*
   **Tutorial 13** was left out of the example's manifest behind a comment that it needs `v1.hello.task`, which Increment 83 retired when tutorial 13 became an `async.http.request` client of the
   app's own dev mock endpoint; the comment outlived it (the Java example omitted tutorial 13 for the same reason, fixed in mercury-composable #489). The app now compiles 15 graphs, and the test
   boots on a KNOWN port because CompileGraph resolves `${rest.server.port:8080}` at load time. `v1.hello.task` is NOT re-added (Eric: tutorial 13 no longer needs it). Not aligned: the
-  distributed-cache example lists `graph-executor.yml` and resolves it from the engine without a local copy. Follow-up: [[hello-task-doc-references]].
+  distributed-cache example lists `graph-executor.yml` and resolves it from the engine without a local copy. Follow-up: [[hello-task-doc-references]] (closed 2026-10-02: PR #345 and #346).
   <!-- id: example-and-template-carry-their-flows | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001532 -->
 
 - **The Rust engine certified the LLM helper without changing: the playground's AI nodes point at the helper app, and the helper's contract lives in the language packs (Increment 148, PR #342
@@ -485,6 +485,17 @@ layers shipped; the two above have held through every re-verify.)*
   (a rebase or GitHub's "Update branch"); (3) merge the fix PR first, and rebase the PR branch onto `main` so its CI tests the combined state; (4) `main` has no branch protection, so only discipline stops
   a red merge (#343 merged red while the fix PR was green and waiting); (5) a local toolchain behind CI cannot reproduce it, so CI is the check (or `rustup update stable`).
   <!-- id: ci-floats-on-stable-toolchain | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001532 -->
+
+- **A help or webapp-source edit is not done until the hashed bundle is rebuilt and committed (2026-10-02; PR #346 merge `259bca9b`, Increment 151).** The Playground's help pages are compiled INTO the
+  webapp bundle (`import.meta.glob` over `resources/help/*.md`), so an edit to `crates/knowledge-graph/resources/help/*.md` changes nothing a user sees until `npm run release` in
+  `crates/knowledge-graph/webapp` (after one `npm ci`) writes the new `resources/public/assets/index-*.js` and re-points `resources/template/playground.html`; the webapp README documents the command, not this link.
+  **The gap was real:** the committed bundle was last regenerated at Increment 136 (`cc18dbe8`, 2026-09-23), and four later commits (Increments 141, 143, 145 and the money-loop docs) edited `help graph-math.md`
+  (95 lines added, 3 removed) without it, so from 2026-09-25 the Playground showed no `CONDITION`, dialect or `DECIMAL` help and no gate noticed; #346 brought them in with the `help update` example. **The build is
+  reproducible** (Node 22.12; one harmless `react-router` engines warning): a rebuild of the unchanged sources reproduced every other committed asset byte for byte, and the application chunk differs only by help
+  text plus the `sourceMappingURL` comment that names the new hash (97 lines added, 5 removed), so a CI step that rebuilds and compares with the committed bundle is feasible. NOT built: Eric has not asked for it.
+  **The bundle ships inside the crate:** `mercury-knowledge-graph` excludes only `webapp/`, and `cargo package --list` carries `resources/public/assets/`, `resources/template/playground.html` and the help pages, so
+  the next release of that crate delivers the regenerated bundle (the lockfile-only #344 did not reach consumers). The Java engine's committed bundle has the same gap (a thread in mercury-composable).
+  <!-- id: webapp-bundle-follows-help-edits | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-010629 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 
