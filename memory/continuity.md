@@ -498,7 +498,7 @@ layers shipped; the two above have held through every re-verify.)*
   mercury-composable #491 (squash `f9ddf3c7`, 2026-10-02), where the page's property list also gained `DECIMAL` and `CONDITION` and the rule sits in both the root memory and the webapp's scoped instructions.
   <!-- id: webapp-bundle-follows-help-edits | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: superseded | superseded-by: webapp-single-source-java-repo | origin: 2026-10-02-010629 -->
 
-- **The Playground webapp and its help pages come from the Java repo; this repo holds a deployed copy (Eric, 2026-10-02; PR #347, Increment 152; the Java twin is mercury-composable #496).**
+- **The Playground webapp and its help pages come from the Java repo; this repo holds a deployed copy (Eric, 2026-10-02; PR #347 merge `781fae43`, Increment 152; the Java twin is mercury-composable #496, squash `a6dc9ce5`; both MERGED 2026-10-02).**
   `crates/knowledge-graph/webapp/` is retired (K7 of the port spec superseded). `npm run release:rust` (or `release:all`, both engines from one build) in
   `mercury-composable/system/minigraph-playground-engine/webapp` builds once and deploys the hashed assets to `resources/public/assets/`, the entry page to `resources/template/playground.html` and a
   MIRROR of the help pages to `resources/help/`: the help is compiled into the bundle and read by this engine for the console `help` command, so both copies have one source. **Rule:** never edit
