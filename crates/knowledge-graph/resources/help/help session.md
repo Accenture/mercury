@@ -34,11 +34,10 @@ Notes
 - 'session unsubscribe' decouples your session from the one you subscribed
   to; your graph is retained so you can continue editing. A primary session
   gets "Nothing to unsubscribe".
-- 'session reset' restarts your session. As a primary session it disconnects
-  all subscribers (they keep their own graphs); as a subscriber it
-  unsubscribes first. It resets subscriptions but does NOT clear your draft
-  graph - the UI restores the draft when it reconnects. To start clean,
-  delete the nodes explicitly (see 'help delete').
+- 'session reset' restarts your session with an empty draft graph. As a
+  primary session it disconnects all subscribers (they keep their own
+  graphs); as a subscriber it unsubscribes first. Export first if you want
+  to keep your draft (see 'help export').
 - The companion REST endpoints reject 'session subscribe', 'session
   unsubscribe' and 'session reset': a companion is an assistant to a
   session, not a session of its own. Only the read-only 'session' status

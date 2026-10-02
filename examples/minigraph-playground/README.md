@@ -12,10 +12,11 @@ graph/flow compilers (`#[before_application]`), and — because this app runs wi
 service, the websocket UI (`/ws/graph`, `/ws/json`) and the companion REST
 endpoints. `main()` is still one line.
 
-The React webapp (`@xyflow/react`) is built once with `npm run release` in
-`crates/knowledge-graph/webapp/`; its compiled bundle travels with the engine
-crate at `crates/knowledge-graph/resources/public/` and REST automation serves
-it as static content at `/`.
+The React webapp is single-sourced in the Java repo (`mercury-composable`,
+`system/minigraph-playground-engine/webapp/`): `npm run release:rust` there deploys
+its compiled bundle and the help pages into `crates/knowledge-graph/resources/`,
+where they travel with the engine crate, and REST automation serves the bundle as
+static content at `/`.
 
 ## Run it
 
@@ -118,6 +119,5 @@ the relay and the AI node (see the OpenTelemetry certification report).
 | `resources/flows/graph-executor.yml` | the standard exposure flow behind `POST /api/graph/{graph-id}` |
 | `resources/flows/flow-11.yml` | the echo flow that tutorial 11's `graph.extension` node calls (`flow://flow-11`) |
 | `resources/graph/support-triage.json` | the E0 triage graph; the tutorials' own models travel with the engine crate |
-| `../../crates/knowledge-graph/webapp/` | the React webapp source (`npm run release`) |
-| `../../crates/knowledge-graph/resources/public/` | the served bundle (built) |
-| `../../crates/knowledge-graph/resources/help/` | the `describe`/help markdown |
+| `../../crates/knowledge-graph/resources/public/` | the served bundle, deployed from the Java repo's webapp (`npm run release:rust`) |
+| `../../crates/knowledge-graph/resources/help/` | the `describe`/help markdown, mirrored from the Java repo by the same command |

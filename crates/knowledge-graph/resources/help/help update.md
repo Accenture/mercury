@@ -28,8 +28,8 @@ output[]=result -> output.body
 
 Notes
 -----
-- Node names use lowercase letters, digits and hyphen ('root' and 'end' are
-  reserved for the root and end nodes).
+- Node names are matched case-insensitively; use lowercase letters, digits
+  and hyphen ('root' and 'end' are reserved for the root and end nodes).
 - Types are descriptive labels, conventionally Capitalized; the type and
   properties are validated by the node's skill, if any.
 - A node has zero or one skill, set with skill={route}.

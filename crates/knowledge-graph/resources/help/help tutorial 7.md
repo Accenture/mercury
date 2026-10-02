@@ -52,8 +52,8 @@ Each data mapping statement has a left-hand side (the source) and a right-hand s
 mapped to the target key.
 
 MiniGraph uses the same data mapping syntax as Event Script. For a quick reference,
-enter "help graph-data-mapper"; the full syntax lives in
-docs/guides/event-script/syntax.md in this repository.
+enter "help graph-data-mapper"; the full syntax is in the Event Script syntax guide:
+https://accenture.github.io/mercury-composable/guides/event-script/syntax/
 
 *Constant* — `text(world)` means a constant of "world". `output.body.` is the
 namespace for the output payload when a graph finishes execution. In this example,
@@ -116,8 +116,8 @@ idiom at work.
 *Plugin functions* — the left-hand side of `f:now(text(local)) -> output.body.time`
 uses the `f:` syntax to execute a "plugin" function called "now". It takes the
 constant value "local" and returns a local timestamp. A number of built-in data
-mapping plugins are available — see the simple-plugin catalog in
-docs/guides/event-script/syntax.md in this repository.
+mapping plugins are available — see the simple-plugin catalog in the Event Script
+syntax guide: https://accenture.github.io/mercury-composable/guides/event-script/syntax/
 
 Test the data mapper
 --------------------

@@ -1,8 +1,8 @@
 Skill: Graph Math
 -----------------
 Fast inline math and boolean evaluation for computation and decision-making.
-A node with this skill runs an ordered list of statement[] lines. This is THE
-skill for inline compute/branch in this Rust port (graph.js is retired - see
+A node with this skill runs an ordered list of statement[] lines. This is the
+skill for inline compute and branching (graph.js is deprecated - see
 'help graph-js'). For anything richer than the narrow expression dialect
 described below, invoke a composable function instead (see 'help graph-task').
 

@@ -113,14 +113,18 @@ output[]=result.address -> output.body.address
 skill=graph.api.fetcher
 ```
 
-The dev-mode mock endpoint contains this:
+The dev-mode mock endpoint (mock.mdm.profile) answers with a 401 "simulated
+exception" when the request header x-exception is true. In the Java example it
+reads like this (the Rust example's mock endpoint does the same):
 
-```rust
-// extract of the dev mock endpoint (mock.mdm.profile)
-if request["headers"]["x-exception"] == "true" {
-    return Err(AppError::new(401, "simulated exception"));
+```java
+@Override
+public Object handleEvent(Map<String, String> headers, AsyncHttpRequest input, int instance) {
+    if ("true".equals(input.getHeader("x-exception"))) {
+        throw new AppException(401, "simulated exception");
+    }
+    // for simplicity, business logic not shown here
 }
-// business logic not shown
 ```
 
 Create the error-handler node

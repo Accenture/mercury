@@ -8,9 +8,9 @@ repository.workspace = true
 readme = "../../README.md"
 keywords = ["knowledge-graph", "workflow", "orchestration", "low-code", "mercury"]
 categories = ["asynchronous"]
-# the webapp/ React SOURCE is build-time only (its built bundle ships in
-# resources/public); keep the registry artifact lean
-exclude = ["webapp/"]
+# the Playground's React source lives in the Java repo (mercury-composable,
+# system/minigraph-playground-engine/webapp); `npm run release:rust` there deploys
+# its built bundle and the help pages into resources/, and they ship in this crate
 
 [lib]
 name = "knowledge_graph"

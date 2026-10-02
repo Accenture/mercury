@@ -39,25 +39,37 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    stream example for 2000 where it asked for 300: the helper's default model, Opus 5.5, thinks before it answers and its
    thinking tokens count against `max_tokens`, so a tight budget can end with no text.
 
+4. **The Playground webapp has one source, the Java repo, which deploys the bundle and the help pages here (Increment 152).**
+   `crates/knowledge-graph/webapp/` is retired. `npm run release:rust` in the Java repo's
+   `system/minigraph-playground-engine/webapp` builds once and deploys the hashed assets to `resources/public/assets/`, the entry
+   page to `resources/template/playground.html` and a mirror of the help pages to `resources/help/`: the help is compiled into the
+   bundle and read by this engine for the console `help` command, so both copies come from the Java repo. The help pages are one
+   consolidated set now, with this repo's rewrite as the base, the Java-only content kept, engine-neutral wording and the engine
+   differences stated in place (`graph.js` is deprecated in Java and not registered here). One claim of this repo's `help session`
+   was wrong and is corrected: `session reset` starts an empty draft graph. The bundle also brings the three Java fixes this copy
+   was behind: the console opens at one third of the width, `describe skill {built-in}` opens the skill's page in the help panel,
+   and a subscribed session can instantiate and run the graph (mercury-composable #493 and #495). `Cargo.toml` no longer excludes
+   `webapp/`; the crate ships the bundle, the entry page and the 42 help pages, and no source map.
+
 ### Documentation
 
-4. **The LLM helper certification report** (`docs/test-reports/llm-helper-certification.md`, byte-identical to the Java engine's):
+5. **The LLM helper certification report** (`docs/test-reports/llm-helper-certification.md`, byte-identical to the Java engine's):
    Rust and Java, each in front of the Python and the Node.js helper, driven through a streaming service, an Event Script flow
    and two graphs with real Claude calls. It shows that every token batch the helper forwards reaches the engine edge as its own
    frame, that the cadence of progressive rendering is the API's and differs by model (Haiku streams continuously, Opus in bursts
    about every 600 ms), and that the error contract holds on the real SDKs.
-5. The AI agent guide's boilerplate manifest no longer says the Rust template has no `flows.yaml` to carry over; the template's and
+6. The AI agent guide's boilerplate manifest no longer says the Rust template has no `flows.yaml` to carry over; the template's and
    the example's file tables list the flows files.
-6. The `graph.task` example in *Composing the layers* runs the built-in `no.op` instead of `v1.hello.task`, the demo function
+7. The `graph.task` example in *Composing the layers* runs the built-in `no.op` instead of `v1.hello.task`, the demo function
    Increment 83 retired, and the dev-mock row of *Reserved names and headers* no longer lists it. (The Playground's
    `help update` example follows in item 7.)
-7. The Playground's `help update` example runs `no.op` too, and the webapp bundle is regenerated from the help sources. The committed
+8. The Playground's `help update` example runs `no.op` too, and the webapp bundle is regenerated from the help sources. The committed
    bundle was stale: it lacked the `graph.math` help of Increments 141, 143 and 145 (`CONDITION`, the expression dialect, `DECIMAL`),
    which now shows in the Playground.
 
 ### Fixed
 
-8. **CI on Rust 1.99 (PR #344).** `Cargo.lock` moves `async-trait` from 0.1.89 to 0.1.92. Clippy 1.99's `double_must_use` flagged the
+9. **CI on Rust 1.99 (PR #344).** `Cargo.lock` moves `async-trait` from 0.1.89 to 0.1.92. Clippy 1.99's `double_must_use` flagged the
    `#[must_use]` that 0.1.89 puts on every async trait method, which failed the Clippy step on every branch of a workflow that floats on
    `stable`. Lockfile only: no crate changed, and nothing reaches the published crates.
 
