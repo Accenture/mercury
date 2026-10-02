@@ -80,6 +80,14 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    node the grammar cannot carry is reported as "Paste failed" instead of being sent. The fix is in the Java repo's webapp
    (mercury-composable #497); this repo receives the regenerated bundle (`index-lxX8FQ68` became `index-CN-KsNrA`; the other chunks
    and the 42 help pages are unchanged).
+11. **A mock-data upload reaches every member of a collaborative MiniGraph Playground session, and the Playground's run controls
+   are three steps (Increment 154).** `POST /api/mock/{id}` loaded the payload into the uploader's instance only, so another member's
+   replayed `run` executed without it and aborted. The upload now travels like a command (`commands::handle_upload`): the primary
+   loads it and replays it into every subscriber's instance, a subscriber's upload goes through the primary, and every member's
+   console prints `Mock data loaded into 'input.body' namespace`; a session without a graph instance is still refused. The
+   regenerated bundle (`index-CN-KsNrA` became `index-B56ISx7m`) brings the Java webapp's three-step controls — Instantiate,
+   Upload (optional, opens the form for your own session only) and Run — and drops the multi-select hint; `help upload` and
+   `help session` describe the shared upload (mercury-composable #498).
 
 ---
 ## Version 4.12.20, 10/1/2026

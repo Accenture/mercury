@@ -608,6 +608,7 @@ async fn graph_runtime_end_to_end() {
     companion_sync_contract_gaps_closed(&platform).await;
     companion_sync_pre_run_check_rejects_broken_suspend_contract(&platform).await;
     companion_sync_instantiate_creates_model_cid(&platform).await;
+    mock_upload_loads_every_member_instance(&platform).await;
     companion_sync_inspect_error_shows_context(&platform).await;
     companion_sync_inspect_error_reports_recovery(&platform).await;
     companion_dry_run_resumes_across_instantiations(&platform).await;
@@ -2222,6 +2223,130 @@ async fn companion_sync_returns_outcome_in_band(platform: &Platform) {
 /// the sync path they would durably register the per-request
 /// `companion.sync.<uuid>` capture route as a subscriber (observed live during
 /// the tutorial-5 companion test).
+/// Lock-step with Java `SessionManagementTest.mockUploadLoadsEveryMemberInstanceTest`
+/// (Increment 154): a mock-data upload (REST `POST /api/mock/{id}`) reaches every
+/// member of a collaborative session. The primary loads it and replays it into
+/// each subscriber's instance; a subscriber's upload travels through the primary;
+/// every member's console confirms the load; a session without an instance is
+/// refused at the REST edge.
+async fn mock_upload_loads_every_member_instance(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let (sid_a, in_a, out_a) = ("ws-770090-1", "ws.770090.1.in", "ws.770090.1.out");
+    let (sid_b, in_b, out_b) = ("ws-770091-1", "ws.770091.1.in", "ws.770091.1.out");
+    let tap_a = Arc::new(Mutex::new(Vec::<String>::new()));
+    let tap_b = Arc::new(Mutex::new(Vec::<String>::new()));
+    platform
+        .register(out_a, Arc::new(OutTap { seen: tap_a.clone() }), 1)
+        .expect("register out tap A");
+    platform
+        .register(out_b, Arc::new(OutTap { seen: tap_b.clone() }), 1)
+        .expect("register out tap B");
+    for in_route in [in_a, in_b] {
+        po.send(
+            EventEnvelope::new()
+                .set_to("graph.command.singleton")
+                .set_raw_body(rmpv::Value::Map(vec![
+                    (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                    (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+                ])),
+        )
+        .await
+        .expect("open dispatched");
+    }
+    for sid in [sid_a, sid_b] {
+        for _ in 0..50 {
+            if knowledge_graph::commands::has_session(sid) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        assert!(knowledge_graph::commands::has_session(sid), "session {sid} open");
+    }
+
+    async fn ws(po: &PostOffice, in_route: &str, out_route: &str, command: &str) {
+        po.send(
+            EventEnvelope::new()
+                .set_to("graph.command.singleton")
+                .set_raw_body(rmpv::Value::Map(vec![
+                    (rmpv::Value::from("type"), rmpv::Value::from("command")),
+                    (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+                    (rmpv::Value::from("out"), rmpv::Value::from(out_route)),
+                    (rmpv::Value::from("message"), rmpv::Value::from(command)),
+                ])),
+        )
+        .await
+        .expect("command dispatched");
+    }
+    async fn wait_for(tap: &Arc<Mutex<Vec<String>>>, needle: &str) -> bool {
+        for _ in 0..150 {
+            if tap.lock().expect("tap").iter().any(|l| l.contains(needle)) {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        false
+    }
+    fn seen(tap: &Arc<Mutex<Vec<String>>>) -> Vec<String> {
+        tap.lock().expect("tap").clone()
+    }
+    const LOADED: &str = "Mock data loaded into 'input.body' namespace";
+
+    // B subscribes to A; A builds root -> end and instantiates, replayed into B's session
+    ws(&po, in_b, out_b, &format!("session subscribe {sid_a}")).await;
+    assert!(
+        wait_for(&tap_b, &format!("Subscribed to {sid_a}")).await,
+        "B subscribed to A: {:?}",
+        seen(&tap_b)
+    );
+    for command in [
+        "create node root",
+        "create node end",
+        "connect root to end with relates",
+        "instantiate graph",
+    ] {
+        ws(&po, in_a, out_a, command).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert!(wait_for(&tap_a, "Graph instance created").await, "A instantiated: {:?}", seen(&tap_a));
+    assert!(wait_for(&tap_b, "Graph instance created").await, "B instantiated by the replay: {:?}", seen(&tap_b));
+
+    // the subscriber uploads: forwarded to the primary, loaded there, replayed into B
+    tap_a.lock().expect("tap").clear();
+    tap_b.lock().expect("tap").clear();
+    let payload = rmpv::Value::Map(vec![(rmpv::Value::from("person_id"), rmpv::Value::from(100))]);
+    assert!(
+        knowledge_graph::commands::upload_content(platform, sid_b, payload).await,
+        "the subscriber's upload is accepted"
+    );
+    assert!(wait_for(&tap_a, LOADED).await, "A loaded the subscriber's upload: {:?}", seen(&tap_a));
+    assert!(wait_for(&tap_b, LOADED).await, "B loaded its own upload on the replay: {:?}", seen(&tap_b));
+    for sid in [sid_a, sid_b] {
+        let body = knowledge_graph::commands::download_content(sid, "input.body")
+            .unwrap_or_else(|| panic!("{sid} holds input.body"));
+        assert_eq!(
+            event_script::conversions::to_json_string(&body),
+            r#"{"person_id":100}"#,
+            "{sid} input.body after the subscriber's upload"
+        );
+    }
+
+    // the primary uploads: every subscriber's instance follows
+    tap_a.lock().expect("tap").clear();
+    tap_b.lock().expect("tap").clear();
+    let payload = rmpv::Value::Map(vec![(rmpv::Value::from("person_id"), rmpv::Value::from(200))]);
+    assert!(knowledge_graph::commands::upload_content(platform, sid_a, payload).await);
+    assert!(wait_for(&tap_a, LOADED).await, "A loaded its own upload: {:?}", seen(&tap_a));
+    assert!(wait_for(&tap_b, LOADED).await, "B loaded the primary's upload: {:?}", seen(&tap_b));
+    let body = knowledge_graph::commands::download_content(sid_b, "input.body").expect("B holds input.body");
+    assert_eq!(event_script::conversions::to_json_string(&body), r#"{"person_id":200}"#);
+
+    // an unknown session, or one without an instance, is refused at the REST edge
+    assert!(
+        !knowledge_graph::commands::upload_content(platform, "ws-000000-0", rmpv::Value::Map(vec![])).await,
+        "no session, no upload"
+    );
+}
+
 async fn companion_sync_rejects_session_topology_commands(platform: &Platform) {
     let po = PostOffice::new(platform);
     let sid = "ws-770002-1";

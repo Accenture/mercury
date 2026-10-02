@@ -212,11 +212,16 @@ pub async fn handle(
     let out_route = get("out").unwrap_or_default();
     let message = get("message").unwrap_or_default();
     let forwarded = get("forwarded").map(|v| v == "true").unwrap_or(false);
+    // the mock-data upload carries its payload as a raw value, not as text
+    let content = entries
+        .iter()
+        .find(|(k, _)| k.as_str() == Some("content"))
+        .map(|(_, v)| v.clone());
     // "direct" marks a synchronous companion RPC (finding #62): not a flaky
     // WS client, so the identical-command dedup guard does not apply
     let direct = get("direct").map(|v| v == "true").unwrap_or(false);
     let outcome = handle_request(
-        platform, &po, &kind, &in_route, &out_route, &message, forwarded, direct,
+        platform, &po, &kind, &in_route, &out_route, &message, content, forwarded, direct,
     )
     .await;
     if let Err(e) = outcome {
@@ -235,6 +240,7 @@ async fn handle_request(
     in_route: &str,
     out_route: &str,
     message: &str,
+    content: Option<Value>,
     forwarded: bool,
     direct: bool,
 ) -> Result<(), AppError> {
@@ -269,8 +275,83 @@ async fn handle_request(
             )
             .await
         }
+        "upload" if !in_route.is_empty() && !out_route.is_empty() => {
+            if let Some(content) = content {
+                handle_upload(po, in_route, out_route, content, forwarded).await;
+            }
+            Ok(())
+        }
         _ => Ok(()),
     }
+}
+
+/// Java `handleUpload`: mock data for a dry-run travels like a command. When the
+/// uploader is the primary session, its instance loads the payload and the upload
+/// is replayed into every subscriber's instance; a subscriber forwards the payload
+/// to the primary, which does the same (the subscriber receives it back on the
+/// replay). Every member of a collaborative session then runs the graph with the
+/// same `input.body`, and every member's console confirms the load.
+async fn handle_upload(
+    po: &PostOffice,
+    in_route: &str,
+    out_route: &str,
+    content: Value,
+    forwarded: bool,
+) {
+    if forwarded {
+        load_mock_content(po, in_route, out_route, content).await;
+        return;
+    }
+    let Some(me) = session::get_session(in_route) else {
+        return;
+    };
+    if me.is_primary() {
+        load_mock_content(po, in_route, out_route, content.clone()).await;
+        for sub_out in me.subscribers() {
+            let sub_in = GraphSession::in_route_of(&sub_out);
+            let forward = upload_body(&sub_in, &sub_out, content.clone(), true);
+            let _ = po
+                .send(EventEnvelope::new().set_to(ROUTE).set_raw_body(forward))
+                .await;
+        }
+    } else {
+        let target_in = GraphSession::in_route_of(&me.target_id());
+        let target_out = GraphSession::out_route_of(&me.target_id());
+        let forward = upload_body(&target_in, &target_out, content, false);
+        let _ = po
+            .send(EventEnvelope::new().set_to(ROUTE).set_raw_body(forward))
+            .await;
+    }
+}
+
+fn upload_body(in_route: &str, out_route: &str, content: Value, forwarded: bool) -> Value {
+    let mut map = vec![
+        (Value::from("type"), Value::from("upload")),
+        (Value::from("in"), Value::from(in_route)),
+        (Value::from("out"), Value::from(out_route)),
+        (Value::from("content"), content),
+    ];
+    if forwarded {
+        map.push((Value::from("forwarded"), Value::from(true)));
+    }
+    Value::Map(map)
+}
+
+async fn load_mock_content(po: &PostOffice, in_route: &str, out_route: &str, content: Value) {
+    let Some(instance) = model::get_instance(in_route) else {
+        say(
+            po,
+            out_route,
+            "Mock data not loaded - this session has no graph instance (instantiate first)",
+        )
+        .await;
+        return;
+    };
+    {
+        let mut state = instance.state.lock().expect("graph state machine");
+        let _ = state.set_element("input.body", content);
+    }
+    say(po, out_route, "Mock data loaded into 'input.body' namespace").await;
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2361,24 +2442,24 @@ pub fn has_session(id: &str) -> bool {
     session::has_graph_model(&GraphSession::in_route_of(id))
 }
 
-/// Java `uploadContent`: load mock data into a live instance's `input.body`.
+/// Java `uploadContent`: load mock data (REST `POST /api/mock/{id}`) into the
+/// session's graph instance. The payload is routed through the command service so
+/// that it propagates to every member of a collaborative session like a command
+/// (see `handle_upload`). Returns false when the session has no graph instance.
 pub async fn upload_content(platform: &Platform, id: &str, content: Value) -> bool {
     let in_route = GraphSession::in_route_of(id);
     let out_route = GraphSession::out_route_of(id);
-    let Some(instance) = model::get_instance(&in_route) else {
+    if session::get_session(&in_route).is_none() || model::get_instance(&in_route).is_none() {
         return false;
-    };
-    {
-        let mut state = instance.state.lock().expect("graph state machine");
-        let _ = state.set_element("input.body", content);
     }
     let po = PostOffice::new(platform);
-    say(
-        &po,
-        &out_route,
-        "Mock data loaded into 'input.body' namespace",
-    )
-    .await;
+    let _ = po
+        .send(
+            EventEnvelope::new()
+                .set_to(ROUTE)
+                .set_raw_body(upload_body(&in_route, &out_route, content, false)),
+        )
+        .await;
     true
 }
 

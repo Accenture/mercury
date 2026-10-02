@@ -25,7 +25,9 @@ Notes
 - 'session' shows the session id and start time, the session you subscribed
   to (if any), and the sessions subscribed to yours.
 - Subscribing mirrors commands both ways: input commands from either user
-  run in both sessions, keeping the graphs in sync. On subscribe the graphs
+  run in both sessions, keeping the graphs in sync. A mock-data upload
+  (POST /api/mock/{id}, see 'help upload') travels the same way: it loads
+  into every member's graph instance. On subscribe the graphs
   are aligned - if the primary session is empty, your draft is pushed to it;
   otherwise its graph replaces your draft.
 - You can subscribe only to a primary session (one that has not itself
