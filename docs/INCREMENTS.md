@@ -4141,3 +4141,27 @@ Two housekeeping items after Increments 148 and 149. The engine did not change.
   not installed here) and a regenerated, hashed bundle: its own change.
 
 Gates: `check-doc-claims`, `check-llms-links`, `mkdocs build --strict` (documentation only; no crate changed).
+
+
+---
+
+## Increment 151 — The Playground's help example runs no.op; the webapp bundle is regenerated (2026-10-02)
+
+The last reference to the retired `v1.hello.task` (Increments 83 and 150). The engine did not change.
+
+- **The example.** `crates/knowledge-graph/resources/help/help update.md` showed `task=v1.hello.task`; it now shows `task=no.op`, the built-in echo function the
+  guide's example uses. The help markdown is compiled into the webapp bundle (`import.meta.glob` over `resources/help/*.md`), so the change is only real once the
+  bundle is regenerated: `npm ci` (269 packages installed from the lock; one engine warning, `react-router` 8.3.0 asks for Node 22.22 and the build ran on 22.12) and
+  `npm run release` in `crates/knowledge-graph/webapp`.
+- **A determinism check came first, and found the committed bundle stale.** A rebuild of the UNCHANGED sources reproduced every other committed file in
+  `public/assets/` (the vendor chunks, the stylesheets, the runtime chunk) byte for byte, and the application's `index-*.js` differed by help text only: the committed
+  bundle predated the `graph.math` help of Increments 141, 143 and 145 (`CONDITION`, the closed expression dialect, `DECIMAL`; `help graph-math.md` gained 95 lines and
+  lost 3), so the UI had never shown them. The last regeneration was `cc18dbe8` (2026-09-23, Increment 136), and nothing else under `webapp/` has changed since. The
+  regenerated `index-CbNBScN5.js` differs from the old file by 97 added and 5 removed lines, which are exactly those help edits (95 and 3), this one example line (1 and 1)
+  and the `sourceMappingURL` comment that names the new hash (1 and 1).
+- **Checked.** The webapp's own tests (41 files, 321 tests), the `knowledge-graph`, `ai-contract-provider` and `minigraph-playground` crate tests (26 suites, 91 passed),
+  and the real UI: the playground app serves the new hash, and `help update` in the browser shows `task=no.op` with nothing on the page naming the retired function.
+- A help edit is not done until the bundle is rebuilt; a CI step that rebuilds and compares with the committed bundle is feasible now that the build is shown to be
+  reproducible (not done here).
+
+Gates: the webapp tests, `cargo test` for the three crates, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
