@@ -4165,3 +4165,33 @@ The last reference to the retired `v1.hello.task` (Increments 83 and 150). The e
   reproducible (not done here).
 
 Gates: the webapp tests, `cargo test` for the three crates, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+
+---
+
+## Increment 152 — The Playground webapp has one source: the Java repo deploys the bundle and the help pages here (2026-10-02)
+
+The `crates/knowledge-graph/webapp/` copy is retired (maintainer decision: the Java repo is the reference implementation, and two copies of one
+UI drift). The engine did not change.
+
+- **One source, two engines.** The React webapp lives only in `mercury-composable/system/minigraph-playground-engine/webapp`. `npm run release:rust`
+  there (or `release:all`, both engines from one build) builds once and deploys the hashed assets to `crates/knowledge-graph/resources/public/assets/`,
+  the entry page to `resources/template/playground.html`, and mirrors the help pages into `resources/help/`, because the help is compiled into the bundle
+  at build time and read by this engine at run time for the console `help` command. The Java repo expects this repo beside it (`…/sandbox/mercury`);
+  `MERCURY_RUST_REPO` overrides the target folder.
+- **The help pages are consolidated.** Before the merge the two sets differed on 38 of 42 pages (about 3,700 lines) while only one fact was a real
+  engine difference. This repo's 2026-07-19 rewrite (Syntax, Example, Notes) is the base of the single set; the Java-only content was kept, Rust-specific
+  wording became engine-neutral, and the engine differences are stated in place (`graph.js` is deprecated in Java and not registered here; the resources
+  folder per engine). One claim in this repo's `help session` was wrong on both engines and is corrected: `session reset` starts an empty draft graph
+  (`put_graph_model(MiniGraph::new())`), the UI does not restore it. 12 pages change here; the other 30 are byte-identical with the previous Rust set.
+- **The bundle brings the three Java fixes this copy was behind:** the console opens at one third of the width and `describe skill` opens the skill's
+  page in the help panel (mercury-composable #493), and a subscribed session can instantiate and run the graph (#495); the webapp's Node 25+ test setup
+  (#494) has no bundle effect. `index-CbNBScN5` became `index-lxX8FQ68` and `vendor-panels-CXf4xYpQ` became `vendor-panels-Cn6VYsgu` (the retired
+  persistence hook tree-shaken out); the other chunks are byte-identical.
+- **References.** `Cargo.toml` no longer excludes `webapp/`; `cargo package --list` carries 214 files: the 42 help pages, the bundle and the entry page,
+  no webapp path and no source map. The README, the example's README and `main.rs`, `.gitignore` and the port spec (K7 marked superseded) point at the
+  Java repo.
+- **Checked.** `cargo test -p mercury-knowledge-graph -p minigraph-playground`: 80 tests, 0 failed (`tests/playground.rs` answers `help connect` and
+  `describe skill graph.math` from the mirrored pages); `check-doc-claims` 34/34 and `check-llms-links` 38/38.
+
+Gates: `cargo test` for the two crates, `cargo package --list`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.

@@ -197,6 +197,11 @@ changes).
    > round-trip (help served from the ported `help/*.md`), and the `POST /api/companion/{id}`
    > hop streaming to the WS console. **Three layers ported bottom-up: platform-core →
    > event-script → active knowledge graph.**
+   > **K7 SUPERSEDED 2026-10-02 (maintainer decision):** the verbatim copy is retired.
+   > The webapp has one source, the Java repo's `system/minigraph-playground-engine/webapp`,
+   > and `npm run release:rust` there deploys the bundle AND the help pages into
+   > `crates/knowledge-graph/resources/` (the help is compiled into the bundle and read by
+   > the engine at run time, so both copies come from the Java repo's help folder).
 
 ## 5. Out of scope (confirmed defaults)
 

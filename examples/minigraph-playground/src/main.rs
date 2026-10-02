@@ -25,9 +25,9 @@
 //! endpoints (`resources/rest.yaml`).
 //!
 //! The compiled React webapp travels with the engine crate
-//! (`crates/knowledge-graph/resources/public`, built by `npm run release` in
-//! `crates/knowledge-graph/webapp`) and REST automation serves it as static
-//! content at `/`.
+//! (`crates/knowledge-graph/resources/public`, deployed by `npm run release:rust`
+//! in the Java repo's `system/minigraph-playground-engine/webapp`) and REST
+//! automation serves it as static content at `/`.
 //!
 //! Run it:
 //! ```text

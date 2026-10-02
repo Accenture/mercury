@@ -201,8 +201,8 @@ Graph traversal completed in 6 ms
 If you check the application log, you will see the two fetchers executed in parallel.
 
 ```
-2026-04-02T23:47:32.633Z INFO  [knowledge_graph::fetcher] GET http://127.0.0.1:8085/api/mdm/profile/100, with ["person_id"], ttl=30000
-2026-04-02T23:47:32.633Z INFO  [knowledge_graph::fetcher] GET http://127.0.0.1:8085/api/mdm/profile/200, with ["person_id"], ttl=30000
+GET http://127.0.0.1:8085/api/mdm/profile/100, with [person_id], ttl=30000
+GET http://127.0.0.1:8085/api/mdm/profile/200, with [person_id], ttl=30000
 ```
 
 Create an island to hold the data dictionary

@@ -55,7 +55,7 @@ Built-in skills
 ---------------
 1. graph.data.mapper - map data from one node or namespace to another
 2. graph.math - compute and branch with a fast built-in math/boolean expression engine
-3. graph.js - retired in this port; use graph.math or graph.task instead
+3. graph.js - deprecated (not registered in the Rust engine); use graph.math or graph.task instead
 4. graph.api.fetcher - make API calls to other systems via Dictionary and Provider nodes
 5. graph.extension - delegate to another graph model or an Event Script flow
 6. graph.island - marks the knowledge layer; the node leads to isolated nodes and traversal pauses there

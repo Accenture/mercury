@@ -4,8 +4,8 @@ In this tutorial, you will create a graph model that uses an "event flow" as an 
 
 Pre-requisite
 -------------
-You would need some working knowledge of Event Script. For more details, see
-docs/guides/event-script/ in this repository.
+You would need some working knowledge of Event Script. For more details, see the
+Event Script guide: https://accenture.github.io/mercury-composable/guides/event-script/
 
 Assuming you already know how to create an event flow (configuration plus composable functions as
 tasks), it is easy to use an event flow as an extension.

@@ -267,7 +267,7 @@ Dry-run the workflow interactively
 ----------------------------------
 You can exercise all three checkpoints without leaving the playground. Two things to
 remember: instantiate before every run so each round starts with a fresh state machine
-(on this engine 'run' may repeat on one instance and model values persist across runs -
+('run' may repeat on one instance and model values persist across runs -
 see 'help run' - which would pollute a short-run simulation); and the SAME model.cid
 must be supplied each time - it is the resume key. Redis must be running.
 

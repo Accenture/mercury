@@ -25,9 +25,9 @@ purpose=Demo graph
 
 Notes
 -----
-- Node names use lowercase letters, digits and hyphen. The names 'root' and
-  'end' are reserved: the root node must be named 'root' and the end node
-  must be named 'end'.
+- Node names are matched case-insensitively; use lowercase letters, digits
+  and hyphen. The names 'root' and 'end' are reserved: the root node must be
+  named 'root' and the end node must be named 'end'.
 - Types are descriptive labels, conventionally Capitalized (e.g. Root, End,
   Provider, Dictionary, Fetcher, Island). The type and properties are used
   and validated by the node's skill, if any.

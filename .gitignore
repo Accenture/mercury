@@ -42,11 +42,11 @@ target/
 **/*.rs.bk
 *.pdb
 
-# === MiniGraph Playground webapp (K-8) ===
-# node_modules/dist are ignored by webapp/.gitignore. The DEPLOYED bundle in
-# resources/public IS committed (so a fresh clone serves the Playground without
-# npm — Java parity), EXCEPT the source maps: 3+ MB of regenerable debug
-# artifacts (`npm run release` rebuilds them). Map, don't mirror.
+# === MiniGraph Playground webapp ===
+# The webapp source lives in the Java repo (mercury-composable). Its DEPLOYED bundle
+# in resources/public IS committed here (so a fresh clone serves the Playground
+# without npm), EXCEPT the source maps: 3+ MB of regenerable debug artifacts
+# (`npm run release:rust` in the Java repo's webapp rewrites them). Map, don't mirror.
 crates/knowledge-graph/resources/public/**/*.map
 
 # === OS / editor ===

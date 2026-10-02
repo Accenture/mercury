@@ -73,7 +73,7 @@ cargo audit            # RustSec advisories against Cargo.lock (cargo install ca
 |---|---|
 | `crates/platform-core` | layer 1 — event bus, runtime, REST/WebSocket automation |
 | `crates/event-script` | layer 2 — the composable-flow engine |
-| `crates/knowledge-graph` | layer 3 — MiniGraph engine + the Playground (`webapp/`) |
+| `crates/knowledge-graph` | layer 3 — MiniGraph engine; serves the Playground bundle and help pages deployed from the Java repo's webapp (`npm run release:rust` there) |
 | `crates/*-macros` | annotation macros (`#[preload]`, `#[websocket_service]`, …) |
 | `examples/` | runnable example apps, one per layer |
 | `docs/INCREMENTS.md` | the increment-by-increment port ledger |
