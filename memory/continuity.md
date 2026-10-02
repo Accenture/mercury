@@ -506,10 +506,19 @@ layers shipped; the two above have held through every re-verify.)*
   overrides (a worktree, for instance). The help sets were consolidated: this repo's 2026-07-19 rewrite is the base of the single set, Java-only content kept, engine-neutral wording, the differences
   stated in place (`graph.js` is deprecated in Java and not registered here), and one claim of this repo's `help session` corrected (`session reset` starts an empty draft on both engines); 12 pages
   changed here, 30 are byte-identical with the previous set. The bundle brought the three Java fixes the copy was behind (mercury-composable #493, #495; the test setup of #494 has no bundle effect) and
-  is byte-identical with the Java engine's (`index-lxX8FQ68`). `Cargo.toml` has no `exclude` any more; `cargo package --list` carries 214 files, the 42 help pages, the bundle and the entry page, no
+  is byte-identical with the Java engine's (`index-lxX8FQ68`; `index-CN-KsNrA` since PR #348, the deploy of the clipboard paste fix mercury-composable #497, the first deploy-only twin of a
+  Java webapp fix). `Cargo.toml` has no `exclude` any more; `cargo package --list` carries 214 files, the 42 help pages, the bundle and the entry page, no
   webapp path and no source map. The source maps stay gitignored here. Supersedes [[webapp-bundle-follows-help-edits]] (the rule that a help edit needs the rebuilt bundle still holds, now from the
   Java repo). Relates [[example-and-template-carry-their-flows]].
   <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-02 | uses: 1 | tier: working | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
+
+- **A build from this checkout can reuse an engine artifact compiled in a worktree, and the engine's resource root is baked at compile time (found 2026-10-02).**
+  `mercury-knowledge-graph` registers its `resources/` with `concat!(env!("CARGO_MANIFEST_DIR"), "/resources")` (`GraphResources`, `lib.rs`), so an rlib compiled in a worktree keeps the worktree's
+  path, and cargo judged such an artifact fresh from this checkout: the Playground example then answers 404 for `/template/playground.html` and rejects every tutorial (`classpath:/graph/tutorial-N.json
+  not found`) although the files are in place. **Rule:** after a worktree build, `touch crates/knowledge-graph/src/lib.rs` (or `cargo clean -p mercury-knowledge-graph`) before `cargo run`, and read
+  the baked root with `strings target/debug/minigraph-playground | grep knowledge-graph/resources`; a 404 on the Playground page right after a deploy is this, not the deploy. Relates
+  [[webapp-single-source-java-repo]].
+  <!-- id: worktree-build-bakes-resource-root | created: 2026-10-02 | last_used: 2026-10-02 | uses: 1 | tier: working | origin: 2026-10-02-183818 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 
