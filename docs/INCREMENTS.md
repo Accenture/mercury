@@ -4195,3 +4195,28 @@ UI drift). The engine did not change.
   `describe skill graph.math` from the mirrored pages); `check-doc-claims` 34/34 and `check-llms-links` 38/38.
 
 Gates: `cargo test` for the two crates, `cargo package --list`, `check-doc-claims`, `check-llms-links`, `mkdocs build --strict`.
+
+---
+
+## Increment 153 — The Playground's clipboard paste keeps scalar properties scalar; the bundle is regenerated (2026-10-02)
+
+A webapp fix made in the Java repo (mercury-composable #497) and deployed here with `npm run release:all` (Increment 152's lane). The engine did
+not change.
+
+- **The defect.** Pasting a workspace-clipboard node (a drop on the canvas or "Paste to Input") rebuilt the node with `key[]=value` for every
+  property. Both engines append on the `[]` signature, so a pasted node's `skill` and every other scalar arrived as a one-element list
+  (`"skill": ["graph.math"]`) and the traveler read the route as `[graph.math]`. Found while the webapp's documentation was regenerated
+  (Increment 152) and verified on the Java engine.
+- **The fix.** The paste writes the node the way the engine's own `edit node` prints it: `key=value` for a scalar, one `key[]=element` line per
+  list element in list order, `path.key=value` per leaf of a nested map and `'''` around a multiline value, through the node editor's conversion
+  and the one authoring command builder (the clipboard had a builder of its own). A node the grammar cannot carry (an empty list or map, a value
+  containing `'''`, more than one type) is reported as "Paste failed" instead of being sent.
+- **The bundle.** `index-lxX8FQ68` became `index-CN-KsNrA`; the vendor chunks, the stylesheets and the 42 mirrored help pages are byte-identical.
+- **Checked.** The webapp's own tests in the Java repo (44 files, 353 tests, nine new for the builder and the paste plan);
+  `cargo test -p mercury-knowledge-graph -p minigraph-playground`: 13 suites, 75 tests, 0 failed. Live on this engine (the example built from
+  this branch, serving `index-CN-KsNrA`): `import graph from tutorial-3`, clip `fetcher`, "Paste to Input" produced `update node fetcher` with
+  `skill=graph.api.fetcher` and the three lists as `[]` rows; the engine answered `node fetcher updated`, and `GET /api/graph/session/{id}` shows
+  `"skill": "graph.api.fetcher"` with `dictionary`, `input` and `output` as lists. The same drive on the Java engine also covered the `create`
+  path after `session reset`.
+
+Gates: `cargo test` for the two crates, `check-doc-claims`, `check-llms-links`.

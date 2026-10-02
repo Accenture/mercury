@@ -72,6 +72,14 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
 9. **CI on Rust 1.99 (PR #344).** `Cargo.lock` moves `async-trait` from 0.1.89 to 0.1.92. Clippy 1.99's `double_must_use` flagged the
    `#[must_use]` that 0.1.89 puts on every async trait method, which failed the Clippy step on every branch of a workflow that floats on
    `stable`. Lockfile only: no crate changed, and nothing reaches the published crates.
+10. **Pasting a workspace-clipboard node into the MiniGraph Playground keeps scalar properties scalar (Increment 153).** The paste
+   rebuilt the node with `key[]=value` for every property, and the engine appends on the `[]` signature, so a pasted node's `skill`
+   and every other scalar arrived as a one-element list (`"skill": ["graph.math"]`). The paste now writes the node the way the
+   engine's own `edit node` prints it: `key=value` for a scalar, one `key[]=element` line per list element, `path.key=value` for a
+   nested map and `'''` around a multiline value, through the same conversion and command builder as the node editor and undo; a
+   node the grammar cannot carry is reported as "Paste failed" instead of being sent. The fix is in the Java repo's webapp
+   (mercury-composable #497); this repo receives the regenerated bundle (`index-lxX8FQ68` became `index-CN-KsNrA`; the other chunks
+   and the 42 help pages are unchanged).
 
 ---
 ## Version 4.12.20, 10/1/2026
