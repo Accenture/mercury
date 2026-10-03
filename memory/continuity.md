@@ -404,7 +404,7 @@ layers shipped; the two above have held through every re-verify.)*
   example for 2000 (300). AWS Bedrock through IAM is the helper's planned second backend, a thread in the packs.
   <!-- id: llm-helper-certification-rust | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001532 -->
 
-- **A mock-data upload travels like a command: it loads every member's instance (Eric's design, 2026-10-02; PR #349, Increment 154; lock-step with mercury-composable #498).**
+- **A mock-data upload travels like a command: it loads every member's instance (Eric's design, 2026-10-02; PR #349 merge `278bb023`, Increment 154; lock-step with mercury-composable #498 squash `ce0e7155`; both MERGED 2026-10-03 06:00Z).**
   `commands::upload_content` (REST `POST /api/mock/{id}`) no longer writes the uploader's instance alone: it sends an `upload` event to the command service,
   `handle_upload` loads the payload when the session is the primary and replays it (`forwarded`) into every subscriber's instance, or forwards a subscriber's payload to
   the primary (which replays it back), and `load_mock_content` sets `input.body` and confirms in that member's console (`Mock data loaded into 'input.body' namespace`);
