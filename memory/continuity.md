@@ -414,6 +414,17 @@ layers shipped; the two above have held through every re-verify.)*
   `mock_upload_loads_every_member_instance` in `tests/graph_runtime.rs`.
   <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-02 | uses: 1 | tier: working | origin: 2026-10-02-232252 -->
 
+- **A graph model imported from a file travels like a command: `POST /api/graph/import/{id}` makes it every member's draft (Eric's Playground usability sprint, 2026-10-03; PR #350, Increment 155; lock-step with mercury-composable #500).**
+  `commands::import_content` validates first (`validate_graph_model`: a JSON object whose only top-level sections are `nodes`, a mandatory list, and `connections`, an optional list; then
+  `MiniGraph::import_graph` on a scratch graph, so a node without alias or types is refused at the edge) and sends an `import` event to the command service; `handle_import` replaces the
+  draft when the session is the primary and replays it (`forwarded`) into every subscriber's draft, or forwards a subscriber's model to the primary; `import_graph_model` (shared with
+  `import graph from`) clears a graph instance and says `Graph model imported as draft` - the line the webapp refreshes on - and says `Graph model not imported - <reason>` for a model
+  the importer rejects instead of leaving an empty draft silently. An unknown session is 404. Simple validation only; CompileGraph stays the quality gate (Eric). The UI arrives as the
+  bundle `index-Cv2pdvxg` ([[webapp-single-source-java-repo]]): the Import Graph button, the `.json` file drop (a confirmation before replacing a loaded graph), the Download button
+  (`<graph-id>.json`, the root node named after the id as `export graph as` does) and the Raw tab. A dev-route addition touches the example, the starter template and the cache example
+  `rest.yaml`. Extends [[mock-upload-loads-every-member]]. Pinned by `graph_import_loads_every_member_draft` in `tests/graph_runtime.rs`.
+  <!-- id: graph-import-travels-like-command | created: 2026-10-03 | last_used: 2026-10-03 | uses: 1 | tier: working | origin: 2026-10-03-153752 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
