@@ -609,6 +609,7 @@ async fn graph_runtime_end_to_end() {
     companion_sync_pre_run_check_rejects_broken_suspend_contract(&platform).await;
     companion_sync_instantiate_creates_model_cid(&platform).await;
     mock_upload_loads_every_member_instance(&platform).await;
+    graph_import_loads_every_member_draft(&platform).await;
     companion_sync_inspect_error_shows_context(&platform).await;
     companion_sync_inspect_error_reports_recovery(&platform).await;
     companion_dry_run_resumes_across_instantiations(&platform).await;
@@ -4119,6 +4120,185 @@ async fn suspend_resume_store_calls_chain_to_their_skill_spans(platform: &Platfo
 /// graph` command is the dry-run's edge — like the REST edge, it guarantees
 /// a business correlation ID, auto-created with a reminder when the initial
 /// data mapping did not supply one, and honored silently when it did.
+/// A graph model imported from a file (REST `POST /api/graph/import/{id}`) travels like
+/// a command: a subscriber's import reaches the primary and comes back as every member's
+/// draft, each console confirming; the validator refuses a foreign section, a non-list
+/// `nodes` and a node without alias; connections are optional; an unknown session is
+/// refused at the REST edge.
+async fn graph_import_loads_every_member_draft(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let (sid_a, in_a, out_a) = ("ws-770092-1", "ws.770092.1.in", "ws.770092.1.out");
+    let (sid_b, in_b, out_b) = ("ws-770093-1", "ws.770093.1.in", "ws.770093.1.out");
+    let tap_a = Arc::new(Mutex::new(Vec::<String>::new()));
+    let tap_b = Arc::new(Mutex::new(Vec::<String>::new()));
+    platform
+        .register(
+            out_a,
+            Arc::new(OutTap {
+                seen: tap_a.clone(),
+            }),
+            1,
+        )
+        .expect("register out tap A");
+    platform
+        .register(
+            out_b,
+            Arc::new(OutTap {
+                seen: tap_b.clone(),
+            }),
+            1,
+        )
+        .expect("register out tap B");
+    for in_route in [in_a, in_b] {
+        po.send(
+            EventEnvelope::new()
+                .set_to("graph.command.singleton")
+                .set_raw_body(rmpv::Value::Map(vec![
+                    (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                    (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+                ])),
+        )
+        .await
+        .expect("open dispatched");
+    }
+    for sid in [sid_a, sid_b] {
+        for _ in 0..50 {
+            if knowledge_graph::commands::has_session(sid) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        assert!(
+            knowledge_graph::commands::has_session(sid),
+            "session {sid} open"
+        );
+    }
+    async fn wait_for(tap: &Arc<Mutex<Vec<String>>>, needle: &str) -> bool {
+        for _ in 0..150 {
+            if tap.lock().expect("tap").iter().any(|l| l.contains(needle)) {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        false
+    }
+    fn seen(tap: &Arc<Mutex<Vec<String>>>) -> Vec<String> {
+        tap.lock().expect("tap").clone()
+    }
+    fn aliases(graph: &rmpv::Value) -> Vec<String> {
+        let rmpv::Value::Map(entries) = graph else {
+            return vec![];
+        };
+        let nodes = entries
+            .iter()
+            .find(|(k, _)| k.as_str() == Some("nodes"))
+            .map(|(_, v)| v);
+        let Some(rmpv::Value::Array(nodes)) = nodes else {
+            return vec![];
+        };
+        nodes
+            .iter()
+            .filter_map(|n| match n {
+                rmpv::Value::Map(fields) => fields
+                    .iter()
+                    .find(|(k, _)| k.as_str() == Some("alias"))
+                    .and_then(|(_, v)| v.as_str())
+                    .map(str::to_string),
+                _ => None,
+            })
+            .collect()
+    }
+    const IMPORTED: &str = "Graph model imported as draft";
+
+    // B subscribes to A, so the two sessions share one draft
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("command")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in_b)),
+                (rmpv::Value::from("out"), rmpv::Value::from(out_b)),
+                (
+                    rmpv::Value::from("message"),
+                    rmpv::Value::from(format!("session subscribe {sid_a}")),
+                ),
+            ])),
+    )
+    .await
+    .expect("subscribe dispatched");
+    assert!(
+        wait_for(&tap_b, &format!("Subscribed to {sid_a}")).await,
+        "B subscribed to A: {:?}",
+        seen(&tap_b)
+    );
+
+    // the subscriber imports: forwarded to the primary, imported there and replayed into
+    // every subscriber's draft, each member's console confirming it
+    let model = event_script::conversions::from_json(&serde_json::json!({
+        "nodes": [
+            {"alias": "root", "types": ["Root"], "properties": {"name": "imported-graph"}},
+            {"alias": "end", "types": ["End"], "properties": {}}
+        ],
+        "connections": [
+            {"source": "root", "target": "end",
+             "relations": [{"type": "finish", "properties": {}}]}
+        ]
+    }));
+    assert!(knowledge_graph::commands::validate_graph_model(&model).is_ok());
+    assert!(knowledge_graph::commands::import_content(platform, sid_b, model.clone()).await);
+    assert!(
+        wait_for(&tap_a, IMPORTED).await,
+        "A imported: {:?}",
+        seen(&tap_a)
+    );
+    assert!(
+        wait_for(&tap_b, IMPORTED).await,
+        "B imported: {:?}",
+        seen(&tap_b)
+    );
+    for sid in [sid_a, sid_b] {
+        let graph = knowledge_graph::commands::download_graph(sid).expect("live graph");
+        assert_eq!(
+            aliases(&graph),
+            vec!["end", "root"],
+            "{sid} holds the imported draft"
+        );
+    }
+
+    // the validator: a foreign section, a non-list nodes and a node without alias
+    let extra = event_script::conversions::from_json(
+        &serde_json::json!({"nodes": [], "metadata": {"author": "x"}}),
+    );
+    let err = knowledge_graph::commands::validate_graph_model(&extra)
+        .expect_err("a foreign section is refused");
+    assert!(err.contains("metadata"), "{err}");
+    let not_list = event_script::conversions::from_json(&serde_json::json!({"nodes": "root"}));
+    assert!(knowledge_graph::commands::validate_graph_model(&not_list).is_err());
+    let no_alias =
+        event_script::conversions::from_json(&serde_json::json!({"nodes": [{"types": ["Root"]}]}));
+    let err = knowledge_graph::commands::validate_graph_model(&no_alias)
+        .expect_err("a node needs its alias");
+    assert!(err.contains("missing alias"), "{err}");
+
+    // connections are optional: a work in progress imports, and reaches the subscriber too
+    let wip = event_script::conversions::from_json(&serde_json::json!({
+        "nodes": [{"alias": "root", "types": ["Root"], "properties": {}}]
+    }));
+    assert!(knowledge_graph::commands::validate_graph_model(&wip).is_ok());
+    tap_b.lock().expect("tap").clear();
+    assert!(knowledge_graph::commands::import_content(platform, sid_a, wip).await);
+    assert!(
+        wait_for(&tap_b, IMPORTED).await,
+        "B follows the primary's import: {:?}",
+        seen(&tap_b)
+    );
+    let graph_b = knowledge_graph::commands::download_graph(sid_b).expect("live graph");
+    assert_eq!(aliases(&graph_b), vec!["root"]);
+
+    // an unknown session is refused at the REST edge
+    assert!(!knowledge_graph::commands::import_content(platform, "ws-000000-0", model).await);
+}
+
 async fn companion_sync_instantiate_creates_model_cid(platform: &Platform) {
     let po = PostOffice::new(platform);
     let sid = "ws-770012-4";

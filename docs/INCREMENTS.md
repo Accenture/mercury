@@ -4251,3 +4251,35 @@ loose ends for the Playground UI.
   Run completed in both sessions with the same output (`inspect output`: Peter, 100 World Blvd); no browser console errors.
 
 Gates: `cargo test` for the crate, `check-doc-claims`, `check-llms-links`.
+
+## Increment 155 — The Playground imports a graph model from a file, downloads one, and names its raw tab Raw (2026-10-03)
+
+Lock-step with mercury-composable #500 (the Java engine endpoint, the webapp change and the regenerated bundle), the first
+sprint item for Playground UI usability (Eric).
+
+- **The engine change.** A new dev-mode endpoint `POST /api/graph/import/{id}` (`import.graph.content`, `rest::import_graph_content`
+  → `commands::import_content`) takes a graph model from a file and makes it the session's draft. `commands::validate_graph_model`
+  refuses, by name, anything that is not a JSON object whose only top-level sections are `nodes` (mandatory, a list) and `connections`
+  (optional, a list - a work in progress may have none), then runs the model through `MiniGraph::import_graph` on a scratch graph so a
+  node without alias or types is refused at the edge (`Invalid graph model - missing alias in node entry-1`); CompileGraph remains the
+  quality gate at deployment. The model then travels like a command, the shape of Increment 154's mock upload: `handle_import` replaces
+  the draft when the session is the primary and replays it (`forwarded`) into every subscriber's draft, or forwards it to the primary
+  when the session is a subscriber; `import_graph_model` clears a graph instance and says `Graph model imported as draft` in every
+  member's console - the line the webapp already refreshes on. `import graph from` shares `import_graph_model`, so a corrupt file now
+  reports `Graph model not imported - <reason>` instead of leaving an empty draft silently. An unknown session answers 404. The
+  playground example, the starter template and the cache example list the route in `rest.yaml` beside `upload.mock.content`.
+- **The bundle** (`index-Cv2pdvxg`, byte-identical with the Java engine's, deployed by the Java repo's `npm run release:all`): the Graph
+  view's **Import Graph** button (toolbar and empty canvas) and a `.json` file dropped on the canvas import through the endpoint after
+  the same validation in the browser (`utils/graphFile.ts`); the UI asks before replacing a loaded graph. A **Download** button beside
+  Copy (Graph and Raw views) asks for the graph id and saves `<graph-id>.json`, the root node named after the id as `export graph as`
+  does (Chromium's save dialog picks the folder, other browsers download). The "Graph Data (Raw)" tab is "Raw". `help import` and
+  `help export` describe the UI paths; the 42 mirrored help pages follow the Java source.
+- **Checked.** `cargo test -p mercury-knowledge-graph --test graph_runtime` with the new `graph_import_loads_every_member_draft` step (a
+  subscriber's import reaches both drafts, the validator's three refusals, a work in progress without connections reaches the
+  subscriber, an unknown session is refused): `graph_runtime_end_to_end` ok; `cargo fmt --check` and clippy (`--all-targets -D
+  warnings`) clean. Live on this engine (port 8096, two browser sessions): a file dropped on a standalone session imported it; after B
+  subscribed to A, A's file import (confirmed in A's replace dialog) replaced both drafts and B's file import replaced both again, every
+  console printing `Graph model imported as draft`; over HTTP the endpoint answered 400 with the section named, 400 for a non-list
+  `nodes`, 400 for a node without alias, 400 for a list body and 404 for an unknown session - the same five bodies as the Java engine.
+
+Gates: `cargo test` for the crate, `check-doc-claims`, `check-llms-links`.

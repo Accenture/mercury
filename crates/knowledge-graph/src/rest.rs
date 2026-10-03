@@ -487,6 +487,34 @@ pub async fn upload_mock_content(
     }
 }
 
+/// Java `ImportGraphContent` (`import.graph.content`): a graph model from a file
+/// (the Playground's "Import Graph" button or a file dropped on the graph view)
+/// becomes the session's draft. Nodes mandatory, connections optional, no other
+/// section; the model travels like a command to every member of the session.
+pub async fn import_graph_content(
+    platform: &Platform,
+    event: EventEnvelope,
+) -> Result<EventEnvelope, AppError> {
+    let (path_parameters, body, _) = request_view(&event);
+    let Some(id) = path_parameters.get("id") else {
+        return Err(invalid("Missing path parameter: id"));
+    };
+    commands::validate_graph_model(&body).map_err(invalid)?;
+    if commands::import_content(platform, id, body).await {
+        Ok(EventEnvelope::new()
+            .set_header("Content-Type", "application/json")
+            .set_raw_body(Value::Map(vec![
+                (
+                    Value::from("message"),
+                    Value::from("Graph model imported as draft"),
+                ),
+                (Value::from("type"), Value::from("import")),
+            ])))
+    } else {
+        Err(AppError::new(404, format!("No active session for id {id}")))
+    }
+}
+
 /// Java `UploadJsonContent` (`upload.json.content`): JSON text into a
 /// JSON-Path playground session.
 pub async fn upload_json_content(
