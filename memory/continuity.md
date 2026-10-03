@@ -414,7 +414,7 @@ layers shipped; the two above have held through every re-verify.)*
   `mock_upload_loads_every_member_instance` in `tests/graph_runtime.rs`.
   <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-02 | uses: 1 | tier: working | origin: 2026-10-02-232252 -->
 
-- **A graph model imported from a file travels like a command: `POST /api/graph/import/{id}` makes it every member's draft (Eric's Playground usability sprint, 2026-10-03; PR #350, Increment 155; lock-step with mercury-composable #500).**
+- **A graph model imported from a file travels like a command: `POST /api/graph/import/{id}` makes it every member's draft (Eric's Playground usability sprint, 2026-10-03; PR #350 merge `dae6377d`, Increment 155; lock-step with mercury-composable #500 squash `856e084b`; both MERGED 2026-10-03 16:03Z).**
   `commands::import_content` validates first (`validate_graph_model`: a JSON object whose only top-level sections are `nodes`, a mandatory list, and `connections`, an optional list; then
   `MiniGraph::import_graph` on a scratch graph, so a node without alias or types is refused at the edge) and sends an `import` event to the command service; `handle_import` replaces the
   draft when the session is the primary and replays it (`forwarded`) into every subscriber's draft, or forwards a subscriber's model to the primary; `import_graph_model` (shared with
