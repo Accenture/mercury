@@ -83,6 +83,14 @@ rest:
     headers: header_1
     tracing: true
 
+  - service: 'import.graph.content'
+    methods: ['POST']
+    url: '/api/graph/import/{id}'
+    timeout: 30s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
   - service: 'inspect.state.machine'
     methods: ['GET']
     url: '/api/inspect/{id}/{key}'

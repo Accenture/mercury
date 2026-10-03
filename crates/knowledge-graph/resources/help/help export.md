@@ -28,3 +28,9 @@ Notes
   at least one other node (see 'help connect').
 - The reply includes "Described in /api/graph/model/{name}/{token}", a
   read-only HTTP view of the exported model.
+- In the Playground UI, the Download button beside Copy (Graph and Raw views)
+  saves the model to your computer as {name}.json after asking for the graph
+  id; the root node's name in the file becomes that id, as this command does.
+  Browsers with a "save as" dialog let you pick the folder; others save to
+  the download folder. Drop the file on the canvas, or use "Import Graph", to
+  load it into a session again.

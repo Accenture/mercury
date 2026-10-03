@@ -32,3 +32,13 @@ Notes
 - Best practice: publish a common graph model holding reusable nodes
   (modules and skills) so team members can import them into their own
   graph models.
+- In the Playground UI, the Graph view's "Import Graph" button (also on the
+  empty canvas) and a graph JSON file dropped on the canvas import a model
+  from your computer as your draft (POST /api/graph/import/{session-id}).
+  The file must be a JSON object with a "nodes" section; "connections" is
+  optional (a work in progress may have none); any other top-level section
+  is refused by name, and a node without alias or types is refused too.
+  CompileGraph remains the quality gate when the model is deployed.
+- An import replaces the draft of every member of a shared session, like a
+  command, and clears a graph instance; a corrupt model reports "Graph model
+  not imported" with the reason. The UI asks before replacing a loaded graph.

@@ -17,12 +17,24 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
 
 ### Added
 
-1. **The starter template and the playground example carry their flows (Increment 149).** `templates/starter-graph` gains
+1. **The MiniGraph Playground imports a graph model from a file, downloads one as `<graph-id>.json`, and names its raw tab "Raw"
+   (Increment 155).** The engine gains the dev-mode endpoint `POST /api/graph/import/{id}` (`import.graph.content`,
+   `commands::import_content`): the body is validated - a JSON object whose only top-level sections are `nodes` (mandatory) and
+   `connections` (optional), then the importer's own checks (a node needs its alias and types) - and the model travels like a command,
+   replacing the draft of every member of a shared session (`commands::handle_import`, the shape of the mock upload); the playground
+   example, the starter template and the cache example list the route in `rest.yaml` beside `upload.mock.content`. The Playground
+   bundle deployed from the Java repo brings the **Import Graph** button (toolbar and empty canvas), the `.json` file drop on the
+   canvas (the UI asks before replacing a loaded graph), the **Download** button beside Copy (the root node's name in the file becomes
+   the graph id, as `export graph as` does) and the Raw tab. A model the importer rejects now reports `Graph model not imported -
+   <reason>` on the console instead of leaving an empty draft silently (also for `import graph from`). Upgrade note: an application
+   that wants the Import Graph button adds the `import.graph.content` route to its `rest.yaml`.
+
+2. **The starter template and the playground example carry their flows (Increment 149).** `templates/starter-graph` gains
    `resources/flows.yaml` and `flows/graph-executor.yml`; `examples/minigraph-playground` gains `resources/flows.yaml`,
    `flows/graph-executor.yml` and `flows/flow-11.yml`. The flow files are byte-identical with the Java twins'. The engine already
    shipped the same flows as its defaults, so nothing changes at run time: the application's own `resources` win over the engine's,
    and with the copies deleted the same tests pass. They are there so the configuration is visible in your project, as in Java.
-2. **Tutorial 13 is deployed in the playground example.** The manifest left it out behind a comment that it needs `v1.hello.task`, a
+3. **Tutorial 13 is deployed in the playground example.** The manifest left it out behind a comment that it needs `v1.hello.task`, a
    function retired in Increment 83 when tutorial 13 became an `async.http.request` client of the app's own dev mock endpoint. The
    comment is gone and all fourteen tutorials plus `support-triage` compile (15 graphs):
    `curl -X POST http://127.0.0.1:8085/api/graph/tutorial-13 -H 'content-type: application/json' -d '{"person_id": 100}'`.
@@ -31,7 +43,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
 
 ### Changed
 
-3. **The MiniGraph Playground's AI nodes point at the LLM helper app (Increment 148).** `llm.chat` (the `support-triage` graph) and
+4. **The MiniGraph Playground's AI nodes point at the LLM helper app (Increment 148).** `llm.chat` (the `support-triage` graph) and
    `llm.stream` (the `/api/llm/stream` relay) are functions in the new LLM helper of the Python and Node.js packs
    (`examples/llm-helper`, on the Anthropic SDK), not in their demo apps; the ports and the route map are unchanged, so nothing
    to reconfigure. The relay's "not configured" 503 now names the helper and its credential. The engine is unchanged and holds
@@ -39,7 +51,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    stream example for 2000 where it asked for 300: the helper's default model, Opus 5.5, thinks before it answers and its
    thinking tokens count against `max_tokens`, so a tight budget can end with no text.
 
-4. **The Playground webapp has one source, the Java repo, which deploys the bundle and the help pages here (Increment 152).**
+5. **The Playground webapp has one source, the Java repo, which deploys the bundle and the help pages here (Increment 152).**
    `crates/knowledge-graph/webapp/` is retired. `npm run release:rust` in the Java repo's
    `system/minigraph-playground-engine/webapp` builds once and deploys the hashed assets to `resources/public/assets/`, the entry
    page to `resources/template/playground.html` and a mirror of the help pages to `resources/help/`: the help is compiled into the
@@ -53,26 +65,26 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
 
 ### Documentation
 
-5. **The LLM helper certification report** (`docs/test-reports/llm-helper-certification.md`, byte-identical to the Java engine's):
+6. **The LLM helper certification report** (`docs/test-reports/llm-helper-certification.md`, byte-identical to the Java engine's):
    Rust and Java, each in front of the Python and the Node.js helper, driven through a streaming service, an Event Script flow
    and two graphs with real Claude calls. It shows that every token batch the helper forwards reaches the engine edge as its own
    frame, that the cadence of progressive rendering is the API's and differs by model (Haiku streams continuously, Opus in bursts
    about every 600 ms), and that the error contract holds on the real SDKs.
-6. The AI agent guide's boilerplate manifest no longer says the Rust template has no `flows.yaml` to carry over; the template's and
+7. The AI agent guide's boilerplate manifest no longer says the Rust template has no `flows.yaml` to carry over; the template's and
    the example's file tables list the flows files.
-7. The `graph.task` example in *Composing the layers* runs the built-in `no.op` instead of `v1.hello.task`, the demo function
+8. The `graph.task` example in *Composing the layers* runs the built-in `no.op` instead of `v1.hello.task`, the demo function
    Increment 83 retired, and the dev-mock row of *Reserved names and headers* no longer lists it. (The Playground's
    `help update` example follows in item 7.)
-8. The Playground's `help update` example runs `no.op` too, and the webapp bundle is regenerated from the help sources. The committed
+9. The Playground's `help update` example runs `no.op` too, and the webapp bundle is regenerated from the help sources. The committed
    bundle was stale: it lacked the `graph.math` help of Increments 141, 143 and 145 (`CONDITION`, the expression dialect, `DECIMAL`),
    which now shows in the Playground.
 
 ### Fixed
 
-9. **CI on Rust 1.99 (PR #344).** `Cargo.lock` moves `async-trait` from 0.1.89 to 0.1.92. Clippy 1.99's `double_must_use` flagged the
+10. **CI on Rust 1.99 (PR #344).** `Cargo.lock` moves `async-trait` from 0.1.89 to 0.1.92. Clippy 1.99's `double_must_use` flagged the
    `#[must_use]` that 0.1.89 puts on every async trait method, which failed the Clippy step on every branch of a workflow that floats on
    `stable`. Lockfile only: no crate changed, and nothing reaches the published crates.
-10. **Pasting a workspace-clipboard node into the MiniGraph Playground keeps scalar properties scalar (Increment 153).** The paste
+11. **Pasting a workspace-clipboard node into the MiniGraph Playground keeps scalar properties scalar (Increment 153).** The paste
    rebuilt the node with `key[]=value` for every property, and the engine appends on the `[]` signature, so a pasted node's `skill`
    and every other scalar arrived as a one-element list (`"skill": ["graph.math"]`). The paste now writes the node the way the
    engine's own `edit node` prints it: `key=value` for a scalar, one `key[]=element` line per list element, `path.key=value` for a
@@ -80,7 +92,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    node the grammar cannot carry is reported as "Paste failed" instead of being sent. The fix is in the Java repo's webapp
    (mercury-composable #497); this repo receives the regenerated bundle (`index-lxX8FQ68` became `index-CN-KsNrA`; the other chunks
    and the 42 help pages are unchanged).
-11. **A mock-data upload reaches every member of a collaborative MiniGraph Playground session, and the Playground's run controls
+12. **A mock-data upload reaches every member of a collaborative MiniGraph Playground session, and the Playground's run controls
    are three steps (Increment 154).** `POST /api/mock/{id}` loaded the payload into the uploader's instance only, so another member's
    replayed `run` executed without it and aborted. The upload now travels like a command (`commands::handle_upload`): the primary
    loads it and replays it into every subscriber's instance, a subscriber's upload goes through the primary, and every member's

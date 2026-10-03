@@ -485,6 +485,23 @@ impl ComposableFunction for UploadMockContent {
     }
 }
 
+/// Java `ImportGraphContent` (`import.graph.content`).
+#[preload(route = "import.graph.content", instances = 10)]
+#[optional_service("app.env=dev")]
+pub struct ImportGraphContent;
+
+#[async_trait]
+impl ComposableFunction for ImportGraphContent {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::import_graph_content(&Platform::get_instance(), input).await
+    }
+}
+
 /// Java `DescribeGraph` (`show.graph.model`).
 #[preload(route = "show.graph.model", instances = 20)]
 #[optional_service("app.env=dev")]

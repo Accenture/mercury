@@ -281,6 +281,12 @@ async fn handle_request(
             }
             Ok(())
         }
+        "import" if !in_route.is_empty() && !out_route.is_empty() => {
+            if let Some(content) = content {
+                handle_import(po, in_route, out_route, content, forwarded).await;
+            }
+            Ok(())
+        }
         _ => Ok(()),
     }
 }
@@ -327,6 +333,58 @@ async fn handle_upload(
 fn upload_body(in_route: &str, out_route: &str, content: Value, forwarded: bool) -> Value {
     let mut map = vec![
         (Value::from("type"), Value::from("upload")),
+        (Value::from("in"), Value::from(in_route)),
+        (Value::from("out"), Value::from(out_route)),
+        (Value::from("content"), content),
+    ];
+    if forwarded {
+        map.push((Value::from("forwarded"), Value::from(true)));
+    }
+    Value::Map(map)
+}
+
+/// Java `handleImport`: a graph model imported from a file travels like a command.
+/// When the importer is the primary session, its draft is replaced and the model is
+/// replayed into every subscriber's draft; a subscriber forwards the model to the
+/// primary, which does the same (the subscriber receives it back on the replay).
+/// Every member of a collaborative session then holds the same draft, and every
+/// member's console confirms it.
+async fn handle_import(
+    po: &PostOffice,
+    in_route: &str,
+    out_route: &str,
+    content: Value,
+    forwarded: bool,
+) {
+    if forwarded {
+        import_graph_model(po, in_route, out_route, &content).await;
+        return;
+    }
+    let Some(me) = session::get_session(in_route) else {
+        return;
+    };
+    if me.is_primary() {
+        import_graph_model(po, in_route, out_route, &content).await;
+        for sub_out in me.subscribers() {
+            let sub_in = GraphSession::in_route_of(&sub_out);
+            let forward = import_body(&sub_in, &sub_out, content.clone(), true);
+            let _ = po
+                .send(EventEnvelope::new().set_to(ROUTE).set_raw_body(forward))
+                .await;
+        }
+    } else {
+        let target_in = GraphSession::in_route_of(&me.target_id());
+        let target_out = GraphSession::out_route_of(&me.target_id());
+        let forward = import_body(&target_in, &target_out, content, false);
+        let _ = po
+            .send(EventEnvelope::new().set_to(ROUTE).set_raw_body(forward))
+            .await;
+    }
+}
+
+fn import_body(in_route: &str, out_route: &str, content: Value, forwarded: bool) -> Value {
+    let mut map = vec![
+        (Value::from("type"), Value::from("import")),
         (Value::from("in"), Value::from(in_route)),
         (Value::from("out"), Value::from(out_route)),
         (Value::from("content"), content),
@@ -2019,21 +2077,33 @@ async fn import_graph_as_draft(
     out_route: &str,
     json: &str,
 ) -> Result<(), AppError> {
-    let Some(graph) = session::get_graph_model(in_route) else {
-        return Ok(());
-    };
     let parsed: serde_json::Value =
         serde_json::from_str(json).map_err(|e| invalid(e.to_string()))?;
-    let model = event_script::conversions::from_json(&parsed);
-    graph
-        .import_graph(&model)
-        .map_err(|e| invalid(e.message()))?;
+    let graph_model = event_script::conversions::from_json(&parsed);
+    import_graph_model(po, in_route, out_route, &graph_model).await;
+    Ok(())
+}
+
+/// Replace the session's draft with a graph model. The importer resets the draft
+/// before it rejects an invalid entry, so the console is told why (Java parity).
+async fn import_graph_model(po: &PostOffice, in_route: &str, out_route: &str, graph_model: &Value) {
+    let Some(graph) = session::get_graph_model(in_route) else {
+        return;
+    };
+    if let Err(e) = graph.import_graph(graph_model) {
+        say(
+            po,
+            out_route,
+            format!("Graph model not imported - {}", e.message()),
+        )
+        .await;
+        return;
+    }
     if model::get_instance(in_route).is_some() {
         say(po, out_route, "Graph instance cleared").await;
         model::remove_instance(in_route);
     }
     say(po, out_route, "Graph model imported as draft").await;
-    Ok(())
 }
 
 async fn handle_import_node(
@@ -2463,6 +2533,68 @@ pub async fn upload_content(platform: &Platform, id: &str, content: Value) -> bo
             EventEnvelope::new()
                 .set_to(ROUTE)
                 .set_raw_body(upload_body(&in_route, &out_route, content, false)),
+        )
+        .await;
+    true
+}
+
+/// Validate a graph model uploaded from a file (REST `POST /api/graph/import/{id}`)
+/// before it is imported: a JSON object whose only top-level sections are `nodes`
+/// (a list, mandatory) and `connections` (a list, optional - a work in progress may
+/// have none). The model is then parsed by the same importer the session uses, so a
+/// node without alias or types is refused here instead of failing later in the
+/// session. CompileGraph remains the quality gate for everything else.
+pub fn validate_graph_model(content: &Value) -> Result<(), String> {
+    let Value::Map(entries) = content else {
+        return Err("A graph model is a JSON object with a 'nodes' section".to_string());
+    };
+    let mut unexpected: Vec<String> = entries
+        .iter()
+        .filter_map(|(k, _)| k.as_str().map(str::to_string))
+        .filter(|k| k != "nodes" && k != "connections")
+        .collect();
+    if !unexpected.is_empty() {
+        unexpected.sort();
+        return Err(format!(
+            "Unexpected top-level section(s): {} - a graph model has only 'nodes' and 'connections'",
+            unexpected.join(", ")
+        ));
+    }
+    let get = |key: &str| -> Option<&Value> {
+        entries
+            .iter()
+            .find(|(k, _)| k.as_str() == Some(key))
+            .map(|(_, v)| v)
+    };
+    if !matches!(get("nodes"), Some(Value::Array(_))) {
+        return Err("The 'nodes' section is mandatory and must be a list".to_string());
+    }
+    match get("connections") {
+        None | Some(Value::Array(_)) => {}
+        Some(_) => return Err("The 'connections' section must be a list".to_string()),
+    }
+    MiniGraph::new()
+        .import_graph(content)
+        .map_err(|e| format!("Invalid graph model - {}", e.message()))
+}
+
+/// Java `importContent`: import a graph model (REST `POST /api/graph/import/{id}`) as
+/// the session's draft. The model is routed through the command service so that it
+/// propagates to every member of a collaborative session like a command (see
+/// `handle_import`). Validate with `validate_graph_model` first. Returns false when
+/// the session does not exist.
+pub async fn import_content(platform: &Platform, id: &str, content: Value) -> bool {
+    let in_route = GraphSession::in_route_of(id);
+    let out_route = GraphSession::out_route_of(id);
+    if session::get_session(&in_route).is_none() || session::get_graph_model(&in_route).is_none() {
+        return false;
+    }
+    let po = PostOffice::new(platform);
+    let _ = po
+        .send(
+            EventEnvelope::new()
+                .set_to(ROUTE)
+                .set_raw_body(import_body(&in_route, &out_route, content, false)),
         )
         .await;
     true

@@ -65,6 +65,12 @@ rest:
     timeout: 30s
     tracing: true
 
+  - service: 'import.graph.content'
+    methods: ['POST']
+    url: '/api/graph/import/{id}'
+    timeout: 30s
+    tracing: true
+
   - service: 'inspect.state.machine'
     methods: ['GET']
     url: '/api/inspect/{id}/{key}'
