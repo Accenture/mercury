@@ -4220,3 +4220,34 @@ not change.
   path after `session reset`.
 
 Gates: `cargo test` for the two crates, `check-doc-claims`, `check-llms-links`.
+
+---
+
+## Increment 154 — A mock-data upload loads every member's instance; the Playground's run controls are three steps (2026-10-02)
+
+Lock-step with mercury-composable #498 (the Java engine change, the webapp change and the regenerated bundle), on Eric's three
+loose ends for the Playground UI.
+
+- **The engine change.** `commands::upload_content` (REST `POST /api/mock/{id}`) used to write the payload into the uploader's
+  instance and say so in the uploader's console only; in a collaborative session another member's replayed `run` executed on an
+  instance that never received the data and aborted (the Java side found this on 2026-10-02 and parked it). The upload now travels
+  like a command: `upload_content` checks that the session has an instance and sends an `upload` event to the command service;
+  `handle_upload` loads it when the session is the primary and replays it (`forwarded`) into every subscriber's instance, or
+  forwards it to the primary when the session is a subscriber (which then receives it back on the replay); `load_mock_content`
+  sets `input.body` and says `Mock data loaded into 'input.body' namespace` in that member's console. A session without an instance
+  is still refused at the REST edge (`upload_mock_content` keeps its 400).
+- **The UI change (deployed bundle).** Instantiate only creates the instance; the new Upload button opens the mock-input form for
+  the clicking member's own session (no console command, so no replayed invitation opens a form elsewhere); Run runs with whatever
+  input the instance holds — uploading is optional (tutorial 1 reads no input). The multi-select hint on the canvas is gone.
+  `help upload` and `help session` describe the shared upload; the 42 mirrored help pages follow the Java source. The console's connection
+  rows show the local time as `HH:MM:SS` (Eric's touch-up during review; the `session` command keeps the full start time); the live drive
+  below ran on the bundle's predecessor `index-B56ISx7m`, which differs only by that touch-up.
+- **Checked.** `cargo test -p mercury-knowledge-graph --test graph_runtime` with the new `mock_upload_loads_every_member_instance`
+  step (a subscriber's upload and the primary's upload each reach both instances, both consoles confirm, an unknown session is
+  refused): `graph_runtime_end_to_end` ok; `check-doc-claims` 34/34; `check-llms-links` 38/38. Live on this engine, two browser
+  sessions on the example built from the branch (port 8096): the subscriber subscribed to the primary, the primary's Instantiate created
+  both instances and opened no form anywhere, the subscriber's Upload opened the form in its own tab only (path `/api/mock/{its id}`),
+  `{"person_id": 100}` landed in both instances (`/api/inspect/{id}/input.body` on each) with both consoles confirming, and the primary's
+  Run completed in both sessions with the same output (`inspect output`: Peter, 100 World Blvd); no browser console errors.
+
+Gates: `cargo test` for the crate, `check-doc-claims`, `check-llms-links`.
