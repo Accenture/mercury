@@ -67,11 +67,11 @@
   release priors condensed — lines 600 → ~520, facts 29 → 28; three facts re-tiered active → archive-candidate; one stale "Open" line in
   `connected-edge-spans` corrected to SHIPPED) · 2026-09-24 | through 2026-09-24-003204.md (advisory sweep at the v4.12.16 seam) ·
   2026-09-23 | 2026-09-23-014725.md.
-- **last_invariant_check:** 2026-10-04 | 2026-10-04-160854.md (IN PROGRESS — [[reverify-invariants-20261004]]: Eric CONFIRMED
-  `inv-never-couple-functions`, `inv-telemetry-presentation-parity`, `port-bottom-up-faithful`, `conventions-rust-baseline`,
-  `conv-proposals-not-in-adr-ledger-rust`, `eric-release-rhythm-rust` and the Vision; the team record REMOVED at his request (a
-  public repository does not list its team in memory); `conv-declare-consulted-references-rust` pending his decision after an
-  elaboration. Record COMPLETE here when it is decided.) Prior: 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, team-eric-maintainer, vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
+- **last_invariant_check:** 2026-10-04 | 2026-10-04-160854.md (COMPLETE — [[reverify-invariants-20261004]] closed: Eric CONFIRMED all
+  7 never-decay facts and the Vision (8 ids) — `inv-never-couple-functions`, `inv-telemetry-presentation-parity`, `port-bottom-up-faithful`,
+  `conventions-rust-baseline`, `conv-declare-consulted-references-rust` (after an elaboration), `conv-proposals-not-in-adr-ledger-rust` (its first
+  check), `eric-release-rhythm-rust`, `vision-mercury`; the team record REMOVED at his request (a public repository does not list its team in
+  memory). The next re-verify is due 40 sessions after 2026-10-04-160854.) Prior: 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, the team record (since removed), vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable; both derived Blueprint gaps closed 2026-09-17 — none open, new gaps surface as `(blueprint)` threads)
 
