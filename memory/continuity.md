@@ -426,11 +426,11 @@ layers shipped; the two above have held through every re-verify.)*
   <!-- id: graph-import-travels-like-command | created: 2026-10-03 | last_used: 2026-10-03 | uses: 1 | tier: working | origin: 2026-10-03-153752 -->
 
 - **A mapping source inserts its `{namespace.key}` values verbatim, never quoted; a JSONPath filter is the one place a text value is quoted (Eric's ruling, 2026-10-03;
-  PR #351, Increment 156, lock-step with mercury-composable #503; both open at this writing).** A graph mapping source may embed a reference that resolves before the source
+  PR #351 merge `5c408037`, Increment 156, lock-step with mercury-composable #503 squash `8db2a46f`; both MERGED 2026-10-04 06:01Z).** A graph mapping source may embed a reference that resolves before the source
   is read: a key segment (`census-2020.{model.state}`, the keyed-table read beside `f:lookup`), a list index (`items[{model.i}]`), or text in a constant or a plugin
   argument, in `mapping[]`, `MAPPING:`, `for_each[]`, the task/extension/fetcher `input[]`/`output[]` and a Dictionary's `output[]` (`common::substitute_mapping_source`
-  at the six call sites; `substitute_var_if_any` stays for expressions and statement commands). An unresolved reference renders `null`, any namespace may be read (Event
-  Script: `model.*` only), a target is literal, a composed key is case-sensitive. Pinned by the byte-identical fixture `unit-test-mapping-1`,
+  at the six call sites; `substitute_var_if_any` stays for expressions and statement commands). By design (Eric, 2026-10-03): an unresolved reference renders `null` and a
+  mapping target is never resolved (literal); also documented: any namespace may be read (Event Script: `model.*` only), a composed key is case-sensitive. Pinned by the byte-identical fixture `unit-test-mapping-1`,
   `mapping_source_resolves_dynamic_variables_verbatim` and the claim `mapping-source-dynamic-variables`. Extends [[static-decision-table-is-graph-data-rust]]; applies
   [[webapp-single-source-java-repo]] (bundle `index-Bz9k-ffR`). The JSONPath result shape differs from Java on one match: [[rust-jsonpath-indefinite-list]].
   <!-- id: mapping-source-verbatim-substitution | created: 2026-10-03 | last_used: 2026-10-03 | uses: 1 | tier: working | origin: 2026-10-04-054444 -->
