@@ -348,6 +348,16 @@
       "quote": "A JSON number is a double, and `DECIMAL` converts it through the shortest decimal text it prints as, at its minimal scale",
       "test": "crates/knowledge-graph::graph_runtime::decimal_statement_matches_java_semantics",
       "since": "4.12.20+"
+    },
+    {
+      "id": "mapping-source-dynamic-variables",
+      "claim": "In a MiniGraph data mapping a {namespace.key} reference inside a source resolves before the source is read - as a key segment (table.{model.key}), a list index (items[{model.i}]) or text in a constant or a plugin argument - and its value is inserted verbatim: a '!', '>', '&&' or '==' in a text constant does not quote it, and only a JSONPath filter quotes a text value; an unresolved reference renders the text null, so a composed key misses and the null-source rule applies; a composed key is case-sensitive.",
+      "pages": [
+        "docs/guides/knowledge-graph/command-reference.md"
+      ],
+      "quote": "A `{namespace.key}` reference inside a mapping source resolves before the source is read, and its value is inserted verbatim, never quoted",
+      "test": "crates/knowledge-graph::graph_runtime::mapping_source_resolves_dynamic_variables_verbatim",
+      "since": "4.12.21+"
     }
   ]
 }

@@ -101,6 +101,15 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    Upload (optional, opens the form for your own session only) and Run — drops the multi-select hint, and shows the console's
    connection rows with the local time as `HH:MM:SS`; `help upload` and `help session` describe the shared upload
    (mercury-composable #498).
+13. **A knowledge-graph mapping source inserts its `{namespace.key}` values verbatim (Increment 156).** A mapping source may embed a
+   reference that resolves before the source is read: a key segment (`census-2020.{model.state}`, the read of a keyed table), a list
+   index (`input.body.items[{model.i}]`), or text in a constant or a plugin argument. When the source text contained `!`, `<`, `>`,
+   `==`, `&&` or `||`, every text value was quoted as if the source were a boolean expression: `text(Hello {input.body.name}!)` gave
+   `Hello 'Peter'!`. Now nothing is quoted (`common::substitute_mapping_source`, at the six mapping call sites); a JSONPath filter
+   still quotes a text value, because it must read as a string literal in the query. The guides document the dynamic key (the
+   grammar's "Dynamic keys and values in a source", the skills reference's keyed table, the data-mapper help in the regenerated
+   bundle) and the plugin table states that `int`, `long`, `float` and `double` give `-1` for a null or non-numeric value
+   (mercury-composable #503). READ: a mapping that relied on the quotes now gets the bare value.
 
 ---
 ## Version 4.12.20, 10/1/2026

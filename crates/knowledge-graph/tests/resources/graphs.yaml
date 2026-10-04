@@ -39,6 +39,9 @@ graphs:
   # the common case of the same table: the 'lookup' simple plugin in a graph.data.mapper decision
   # node (f:lookup + f:defaultValue), no composable function at all
   - 'unit-test-lookup-1'
+  # a {namespace.key} reference inside a mapping source: a key segment of a keyed table, a list
+  # index, text in a constant and a plugin argument - the value is inserted verbatim, never quoted
+  - 'unit-test-mapping-1'
   - 'unit-test-math-1'
   - 'unit-test-math-2'
   - 'rust-foreach'

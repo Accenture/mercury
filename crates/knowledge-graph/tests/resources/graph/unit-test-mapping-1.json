@@ -1,0 +1,129 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "name": "unit-test-mapping-1",
+        "purpose": "a {namespace.key} reference inside a data-mapping source resolves before the source is read and its value is inserted verbatim, never quoted - a key segment, a list index, text in a constant or a plugin argument; only a JSONPath filter quotes a text value"
+      }
+    },
+    {
+      "types": [
+        "Island"
+      ],
+      "alias": "knowledge",
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "reference data certified with the graph"
+      }
+    },
+    {
+      "types": [
+        "DataTable"
+      ],
+      "alias": "census",
+      "properties": {
+        "purpose": "illustrative keyed table - 2020 census resident population by state, read with a dynamic key",
+        "CA": "39538223",
+        "NY": "20201249"
+      }
+    },
+    {
+      "types": [
+        "Mapper"
+      ],
+      "alias": "probe",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "census.{input.body.state} -> output.body.population",
+          "input.body.items[{input.body.index}] -> output.body.item",
+          "f:concat(text(population=), census.{input.body.state}) -> output.body.label",
+          "text(Hello {input.body.name}!) -> output.body.greeting",
+          "text({input.body.name} > {input.body.rival}) -> output.body.versus",
+          "text({input.body.name} && {input.body.rival} == friends) -> output.body.pair",
+          "text(miss={input.body.missing}) -> output.body.miss",
+          "text(kept) -> output.body.kept",
+          "census.{input.body.missing} -> output.body.kept",
+          "$.input.body.people[?(@.team == {input.body.team})].name -> output.body.team"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Math"
+      ],
+      "alias": "tally",
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "CONDITION: in_range -> {input.body.index} < 3",
+          "MAPPING: tally.result.in_range -> output.body.in_range",
+          "MAPPING: text(Hi {input.body.name}!) -> output.body.statement"
+        ]
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "knowledge"
+    },
+    {
+      "source": "knowledge",
+      "relations": [
+        {
+          "type": "table",
+          "properties": {}
+        }
+      ],
+      "target": "census"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "map",
+          "properties": {}
+        }
+      ],
+      "target": "probe"
+    },
+    {
+      "source": "probe",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ],
+      "target": "tally"
+    },
+    {
+      "source": "tally",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

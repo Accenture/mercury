@@ -40,8 +40,8 @@ use rmpv::Value;
 use crate::common::{
     fill_fetcher_api_parameters, get_effective_ttl, get_entries, get_for_each_mapping,
     get_model_array_size, get_next_model_param_set, invalid, map_http_input,
-    perform_fetcher_output_mapping, substitute_var_if_any, ERROR, EXCEPTION, HEADER, MAP_TO, NEXT,
-    NODE_NAME, RESULT, SKILL, STATUS, TARGET,
+    perform_fetcher_output_mapping, substitute_mapping_source, ERROR, EXCEPTION, HEADER, MAP_TO,
+    NEXT, NODE_NAME, RESULT, SKILL, STATUS, TARGET,
 };
 use crate::features::{self, HttpResponseView};
 use crate::model::GraphInstance;
@@ -616,7 +616,7 @@ fn perform_dictionary_output_mapping(
                 "{NODE_NAME}{node_name} - invalid output mapping: {text}"
             )));
         };
-        let mut lhs = substitute_var_if_any(text[..sep].trim(), state)?;
+        let mut lhs = substitute_mapping_source(text[..sep].trim(), state)?;
         let rhs = text[sep + MAP_TO.len()..].trim();
         let constant = get_constant_value(&lhs);
         if constant.is_none() && !lhs.starts_with("f:") {

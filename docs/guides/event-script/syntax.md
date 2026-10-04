@@ -1474,10 +1474,10 @@ For example:
 | **Type Conversion** | substring       | Two to three variables.<br/>The first must be a String;<br/>the second must be an integer;<br/>the third is optional. |
 | **Type Conversion** | concat          | At least two Strings to be concatenated                                                                               |
 | **Type Conversion** | boolean         | A list of variables that can evaluate to a boolean                                                                    |
-| **Type Conversion** | double          | A list of variables that can evaluate to a double                                                                     |
-| **Type Conversion** | float           | A list of variables that can evaluate to a float                                                                      |
-| **Type Conversion** | int             | A list of variables that can evaluate to an integer                                                                   |
-| **Type Conversion** | long            | A list of variables that can evaluate to a long integer                                                               |
+| **Type Conversion** | double          | A list of variables that can evaluate to a double; a null or non-numeric value gives -1                               |
+| **Type Conversion** | float           | A list of variables that can evaluate to a float; a null or non-numeric value gives -1                                |
+| **Type Conversion** | int             | A list of variables that can evaluate to an integer; a null or non-numeric value gives -1                             |
+| **Type Conversion** | long            | A list of variables that can evaluate to a long integer; a null or non-numeric value gives -1                         |
 | **Type Conversion** | text            | A list of variables that can evaluate to a String                                                                     |
 | **Type Conversion** | json            | A single JSON text (String or byte array) — an object `{...}` becomes a map, an array `[...]` becomes a list. See details below. |
 | **Type Conversion** | listOfMap       | Convert "a map of lists" to "a list of maps" — **order-preserving**: list order follows array index order (guaranteed) |

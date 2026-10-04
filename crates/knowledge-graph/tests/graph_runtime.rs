@@ -595,6 +595,7 @@ async fn graph_runtime_end_to_end() {
     for_each_iterations_suspend_under_their_own_records(&platform).await;
     generic_exception_context_serves_every_node(&platform).await;
     statement_commands_resolve_dynamic_variables(&platform).await;
+    mapping_source_resolves_dynamic_variables_verbatim(&platform).await;
     successful_retry_resolves_the_error_context(&platform).await;
     suspend_resume_x_run_over_the_real_http_stack(&platform).await;
     suspend_resume_store_calls_chain_to_their_skill_spans(&platform).await;
@@ -3391,6 +3392,66 @@ async fn statement_commands_resolve_dynamic_variables(platform: &Platform) {
         Some(Value::from("static")),
         body_map(&reply).get_element("route_taken")
     );
+}
+
+/// Java `GraphTaskTest.mappingSourceResolvesDynamicVariablesVerbatim`
+/// (unit-test-mapping-1): a {namespace.key} reference inside a mapping source
+/// resolves before the source is read - a key segment of a keyed table, a list
+/// index, text in a constant and a plugin argument - and the value goes in
+/// verbatim. A '!', '>', '&&' or '==' in a text constant does not make the
+/// source a boolean expression, so nothing is quoted; a JSONPath filter is the
+/// one place a text value is quoted, so that it reads as a string literal in
+/// the query.
+async fn mapping_source_resolves_dynamic_variables_verbatim(platform: &Platform) {
+    let people = serde_json::json!([
+        {"name": "Peter", "team": "blue"},
+        {"name": "Paul", "team": "red"},
+        {"name": "Mary", "team": "blue"}
+    ]);
+    let reply = run_graph(
+        platform,
+        "unit-test-mapping-1",
+        serde_json::json!({"state": "CA", "name": "Peter", "rival": "Paul",
+            "index": 2, "items": ["a", "b", "c"], "people": people, "team": "blue"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "mapping: {:?}", reply.body());
+    let mm = body_map(&reply);
+    for (key, expected) in [
+        ("population", "39538223"),
+        ("item", "c"),
+        ("label", "population=39538223"),
+        ("greeting", "Hello Peter!"),
+        ("versus", "Peter > Paul"),
+        ("pair", "Peter && Paul == friends"),
+        // the same rendering in a graph.math MAPPING statement
+        ("statement", "Hi Peter!"),
+        // an unresolved reference renders the text null: in a constant it reads
+        // as null, and a composed key misses, so the null-source rule leaves
+        // the output target untouched
+        ("miss", "miss=null"),
+        ("kept", "kept"),
+    ] {
+        assert_eq!(Some(Value::from(expected)), mm.get_element(key), "{key}");
+    }
+    // a CONDITION beside the MAPPING statement keeps its own quoting rules
+    assert_eq!(Some(Value::from(true)), mm.get_element("in_range"));
+    assert_eq!(str_list(&mm, "team"), ["Peter", "Mary"]);
+    // a composed key is a plain key path, so it is case-sensitive (f:lookup
+    // compares case-insensitively)
+    let reply = run_graph(
+        platform,
+        "unit-test-mapping-1",
+        serde_json::json!({"state": "ca", "name": "Peter", "rival": "Paul",
+            "index": 0, "items": ["a"], "people": people, "team": "blue"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "mapping: {:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(None, mm.get_element("population"));
+    assert_eq!(Some(Value::from("a")), mm.get_element("item"));
 }
 
 /// Java `GraphErrorContextTest.successfulRetryResolvesTheErrorContext`: the

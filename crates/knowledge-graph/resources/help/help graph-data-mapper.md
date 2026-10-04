@@ -56,6 +56,31 @@ The table's "keys" field lists the rule names in priority order and each rule fi
 each may be a list or a JSON array written as text (keys=[ "a", "b" ]), and the table itself may be
 JSON text. One table replaces a ladder of IF-THEN-ELSE and the product owner certifies it on the graph.
 
+Dynamic keys
+------------
+A {namespace.key} reference inside a source resolves before the source is read, and its value is
+inserted verbatim, never quoted. It composes a key segment, a list index, or text in a constant or a
+plugin argument:
+
+```
+mapping[]=census-2020.{model.state} -> model.population
+mapping[]=input.body.items[{model.i}] -> output.body.item
+mapping[]=text(Hello {input.body.name}!) -> output.body.greeting
+```
+
+census-2020.{model.state} reads the property that model.state names: a keyed table (one KEY=value
+line per key) answers a value per key, where f:lookup answers which rule lists a value.
+
+- The reference may read any namespace (Event Script accepts model.* only), but only on the source
+  side: a target is a literal path.
+- An unresolved reference renders the text null, so a composed key misses and a constant reads
+  "null". A composed key is case-sensitive, unlike f:lookup.
+- Nothing is quoted, whatever a text constant contains ("!", "<", ">", "=="). A JSONPath filter is
+  the one exception: a text value is quoted there so it reads as a string literal in the query.
+- Keep a fixed prefix before a request value (census-2020.{input.body.state}) so the request
+  chooses only within that table. A table value is text, and f:long(null) is -1, so refuse an
+  unknown key before converting.
+
 Constants
 ---------
 A constant is valid wherever a source is. This is the full set:
