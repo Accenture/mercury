@@ -105,3 +105,13 @@
 - rest-error-body-standard-shape — A function's failure reaches a REST client as the standard error body `{status, message, t… — faded — 2026-Q3.md
 - rest-skip-unregistered-and-root-fallback-rust — A `rest.yaml` entry whose service is not registered is SKIPPED at load, and `/` falls back… — faded past archive_window at the release seam — 2026-Q3.md
 - conv-cargo-declare-what-you-name — An application crate declares the Mercury crates it NAMES — Cargo has no Maven-style trans… — faded past archive_window 20 at the release/4.12.19 seam; the rule stands in the workspace manifests and the archive keeps it retrievable — 2026-Q3.md
+- redis-connection-foundation-rust — The Redis client layer is the shared `mercury-redis-connection` foundation — `RedisConfig`… — faded — 2026-Q4.md
+- distributed-cache-rust — The distributed cache is `mercury-distributed-cache` — ONE action function `v1.cache.redis… — faded — 2026-Q4.md
+- redis-failure-classification-rust — The foundation's command path classifies Redis failures — a timeout is 408, an unreachable… — faded — 2026-Q4.md
+- headless-app-keep-running — A headless Rust application must declare that it keeps running — `Platform::keep_running(r… — faded — 2026-Q4.md
+- otel-forwarder-no-sdk — The OpenTelemetry forwarder is this engine's own OTLP encoder over the platform HTTP clien… — faded — 2026-Q4.md
+- ot-minimalist-kafka-port — (port — minimalist-kafka) CLOSED 2026-09-23 at the v4.12.15 seam — the port SHIPPED in v4.… — faded — 2026-Q4.md
+- ot-sync-over-async-port — (port — sync-over-async streaming return route, 2026-09-13) Cross-pod progressive — faded — 2026-Q4.md
+- otel-forwarder-certification — (certification — OpenTelemetry forwarder, 2026-09-22) CLOSED 2026-09-22 — the released — faded — 2026-Q4.md
+- webapp-bundle-follows-help-edits — A help or webapp-source edit is not done until the hashed bundle is rebuilt and committed… — superseded by webapp-single-source-java-repo — 2026-Q4.md
+- schema-registry-native-codec — The Schema Registry codec is this engine's own, and what it cannot delegate it refuses (Er… — faded — 2026-Q4.md

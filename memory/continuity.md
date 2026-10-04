@@ -48,21 +48,27 @@
   facade, `Platform::keep_running`, `group.protocol=auto`; 12 crates. Origin 2026-09-22-010413.md.) Prior: v4.12.12
   (2026-09-21 — the catch-up release 4.12.7 → 4.12.12 in one step, PR #296 → `983e7550`, tag → `1ef183cb`; Increments 118–124.)
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-09-28 | through 2026-09-28-234016.md (ON COMMAND, Eric — 7 sessions since the 2026-09-25 review, run right after
-  the same-day smoke test (13/13) whose staleness fixes had just landed; `refresh-metadata` found nothing left to refresh (its earlier pass
-  the same session re-tiered `schema-registry-native-codec` active → archive-candidate at sslu 9 and bumped two `uses`); archived 0 (no
-  fact past `archive_window` 20), swept 0 (three closed threads at completion ages 10/19/18 — `ot-sync-over-async-port` crosses the window
-  next session — 37 narrative lines ≤ 150), reactivated 0, superseded 0, archive-verify pass (memory-lint 0/0); invariants not due (34 of
-  40 since 2026-09-17-004239); no unchecked thread, so no stalled-thread gate; contradiction scan: the smoke test's findings (the
-  `instructions.md` crate list and port-backlog wording, `vision.md`'s current-state runway, the "UNRELEASED" manifest-list fact, the
-  `vision:` line, the invariants trailer) were corrected in `d482723a` and the four newest decision facts moved under Key Decisions;
-  nothing further found. Lines 483, facts 24 (memory-lint live count).)
-  Prior: 2026-09-25 | through 2026-09-25-010828.md (ON COMMAND, Eric — SIZE review at the 600-line cap after the v4.12.17 cycle: archived 1
+- **last_review:** 2026-10-04 | through 2026-10-04-160854.md (CADENCE + SIZE, on Eric's command — 11 sessions since the 2026-09-28 review
+  (`review_every` 10) and continuity 604 lines > 600; `refresh-metadata` refreshed 19 footers (16 before the review log, 3 after it), 17 tier changes
+  (8 working → active, 3 archive-candidate → active, 4 active → archive-candidate, 2 working → archive-candidate); archived 7 — 6 faded Key
+  Decisions (`redis-connection-foundation-rust`, `distributed-cache-rust`, `redis-failure-classification-rust`, `headless-app-keep-running`,
+  `otel-forwarder-no-sdk`, sslu 26–28, and `schema-registry-native-codec`, which crossed the window with the review's own log) and 1 superseded (`webapp-bundle-follows-help-edits` → `webapp-single-source-java-repo`);
+  `redis-restart-aware-retry` was archived in the first pass and REVERSED before commit — Increment 146 (2026-09-30-235931, which declared
+  none) pinned its contract, so the fade was a declaration gap ([[conv-declare-consulted-references-rust]]); declared in this review's log;
+  swept 3 completed threads (`ot-minimalist-kafka-port`, `ot-sync-over-async-port`,
+  `otel-forwarder-certification`) to `2026-Q4.md`; reactivated 0, superseded 0 new, archive-verify pass (memory-lint 0 errors);
+  invariants DUE (45 of 40 since 2026-09-17-004239) → [[reverify-invariants-20261004]] raised; no stalled thread; contradiction scan: one
+  stale statement annotated (`graph-math-typed-arithmetic-rust`'s "decimal is not added to the dialect" boundary, overtaken by `DECIMAL:`
+  in v4.12.20), no altitude drift. Facts 36 → 27 (memory-lint live count, the new thread included); lines 604 → 487; memory-lint 0/0. Smoke test not run.)
+  Prior: 2026-09-28 | through 2026-09-28-234016.md (ON COMMAND after the 13/13 smoke test — archived 0, swept 0; the smoke test's
+  staleness fixes landed in `d482723a`; lines 483, facts 24) ·
+  2026-09-25 | through 2026-09-25-010828.md (ON COMMAND, Eric — SIZE review at the 600-line cap after the v4.12.17 cycle: archived 1
   (`fork-join-awaits-on-calling-task`, faded), swept 0, reactivated 0; six shipped-decision facts, the stale `status` release clause and two
   release priors condensed — lines 600 → ~520, facts 29 → 28; three facts re-tiered active → archive-candidate; one stale "Open" line in
   `connected-edge-spans` corrected to SHIPPED) · 2026-09-24 | through 2026-09-24-003204.md (advisory sweep at the v4.12.16 seam) ·
   2026-09-23 | 2026-09-23-014725.md.
-- **last_invariant_check:** 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, team-eric-maintainer, vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
+- **last_invariant_check:** 2026-10-04 | 2026-10-04-160854.md (PROMPTED by the review — [[reverify-invariants-20261004]] lists the 8
+  never-decay facts and the Vision for Eric's walk; record COMPLETE here when he confirms or supersedes.) Prior: 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, team-eric-maintainer, vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable; both derived Blueprint gaps closed 2026-09-17 — none open, new gaps surface as `(blueprint)` threads)
 
@@ -141,120 +147,6 @@ layers shipped; the two above have held through every re-verify.)*
   spec (map, don't mirror).
   <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-30 | uses: 104 | tier: core | origin: 2026-07-15-215538.md -->
 
-- **The Redis client layer is the shared `mercury-redis-connection` foundation — `RedisConfig` with a
-  configurable key prefix and the plain `redis.*` fallback, the `RedisBackend` standalone-or-cluster seam,
-  the reusable `RedisHealthProbe` (Increment 119, 2026-09-19; the Java Q2 extraction in lock-step).**
-  sync-over-async and the distributed cache both depend on it, in the Java dependency direction; the
-  extraction was behaviour-preserving for sync-over-async (`RedisSettings` = alias of `RedisConfig`,
-  `from_config()` = `soa.redis.*` with the `redis.*` fallback — so an existing `redis.*` deployment is
-  unchanged, and `soa.redis.*` decouples the rendezvous from the cache when both run). The seam is an
-  enum over the `redis` crate's `ConnectionManager` (long-lived), `MultiplexedConnection` (the probe's
-  non-healing shape) and `cluster_async::ClusterConnection` (feature `cluster-async`), all
-  `aio::ConnectionLike` — every command through one `query`; `MGET` routes per slot in the cluster client.
-  Two-key selection (`cluster.detect=auto` → `INFO cluster`, else `cluster.mode`, which is also the
-  inconclusive fallback) as Java. **Cluster shipped as the seam plus the branch, tested at the selection
-  level** (the double is one node; the branch is proven by its `CLUSTER` exchange) — live-cluster
-  behaviour is a certification run, as it was for Java; Eric's confirmation pending (port spec §9 Q1).
-  `Platform::on_shutdown` (Java `onShutdown`, v4.12.9) landed with it: hooks run once, newest first,
-  isolated, from `AutoStart::run`. Relates [[distributed-cache-rust]]; twin of the Java
-  `redis-connection-foundation`.
-  <!-- id: redis-connection-foundation-rust | created: 2026-09-19 | last_used: 2026-09-22 | uses: 3 | tier: archive-candidate | origin: 2026-09-19-182617 -->
-
-- **The distributed cache is `mercury-distributed-cache` — ONE action function `v1.cache.redis` over opaque bytes, gated by
-  `redis.cache.enabled`, byte-compatible with the Java module (Increment 119, 2026-09-19, PR #285; released in v4.12.12).**
-  Same action names (`PUT`/`GET`/`MGET`/`MPUT`/`DELETE`/`PUT_IF_NOT_PRESENT`/`LIST_PUSH`/`LIST_POP`/`LIST_LEN`), headers
-  (`action`/`key`/`ttl`), error messages, key layout `{redis.cache.key.prefix}{key}` and config keys — a Java pod and a
-  Rust pod share one cache. Every key TTL'd from birth: `SETEX`, atomic `SET NX EX`, and `RPUSH`+`EXPIRE` as ONE
-  `MULTI`/`EXEC` step (the port's ruled equivalent of Java's `EVAL`; the RESP double cannot run Lua); `MPUT` is a
-  pipelined per-entry `SETEX`, never `MSET`. **Bodies are `Value::Binary`** — a `set_body(Vec<u8>)` would serde a list of
-  integers, the one thing a Rust caller can get wrong that a Java caller cannot. Runtime: lazy, double-checked build over
-  ONE multiplexed connection, config re-read per failed attempt (a late vault credential is picked up; the app boots with
-  Redis down), released via `on_shutdown`, `runtime::set` as the test seam; `redis.health` = the foundation probe. The
-  worked example (`examples/distributed-cache-example`) runs the Java example's flow and graph files byte-identical — the
-  cross-engine interop harness, **CERTIFIED 2026-09-20 (Increment 120):** 112/112 hard checks side by side on one
-  `redis-standalone` (`docs/test-reports/distributed-cache-interop.md`, twin in the Java repo), which found the example's
-  Layer 1 false-miss on a cache failure ([[l1-caller-checks-reply-status-rust]]) and a stray direct dependency
-  ([[conv-cargo-declare-what-you-name]]). Builds on [[redis-connection-foundation-rust]]; applies
-  [[playground-session-broker]].
-  <!-- id: distributed-cache-rust | created: 2026-09-19 | last_used: 2026-09-22 | uses: 4 | tier: archive-candidate | origin: 2026-09-19-182617 -->
-
-- **The foundation's command path classifies Redis failures — a timeout is 408, an unreachable Redis 503,
-  only a server answer stays 500 — so `v1.cache.redis` fails for what it is, in lock-step with Java (Eric,
-  2026-09-20, Increment 121; PR #289 merged `017bf8ed`).** `classify_command_error` (redis-crate `is_timeout` → 408 `Redis request
-  timed out - …`; `is_connection_refusal` / `is_connection_dropped` / `is_io_error` / `is_cluster_error` →
-  503 `Redis unavailable - …`; else 500 `Redis error - …`), `command_timeout` (the per-command deadline →
-  408) and `From<ConnectError> for AppError` (a refused or timed-out connect on a caller's path → 503; an
-  unbuildable configuration stays 500 — a defect, not an outage) — applied by `RedisBackend::query` and
-  `query_pipeline`, so every consumer of that path inherits it (sync-over-async does not use it). Why: the
-  flow and graph engines pass a task's status through *faithfully*; the Layer 2/3 500s during the interop's
-  outage leg were the default for a client error that carried none, and Layer 1's 408 was only its RPC timer
-  winning a race. **Rule:** set the status where the failure is known, in the function that owns the client.
-  Proven by the fifth full drive: 122/122, no outage probe on any layer of either engine answers 500 (this
-  engine 408 for its deadline, 503 for refused/broken-pipe; Java all 408 because Lettuce buffers to its command
-  timeout). Java twin: `RedisFailure.classify` applied by `RedisCache`. Behaviour change to READ: a caller
-  that keyed on 500 for a Redis outage now sees 408/503. Relates [[redis-connection-foundation-rust]],
-  [[l1-caller-checks-reply-status-rust]].
-  <!-- id: redis-failure-classification-rust | created: 2026-09-20 | last_used: 2026-09-22 | uses: 2 | tier: archive-candidate | origin: 2026-09-20-004627 -->
-
-- **A headless Rust application must declare that it keeps running — `Platform::keep_running(reason)`
-  (found at the minimalist-kafka K4 live drive, 2026-09-21).** `AutoStart::run` parks the process until
-  Ctrl-C only when it serves HTTP or websockets; the JVM stays up on a component's non-daemon threads,
-  the Rust process has no implicit hold. The first live run of the Rust `kafka-demo` booted, started its
-  consumers and exited 200 ms later while the broker held the published records — invisible to the mock
-  e2e (a test function keeps the runtime alive). The component that runs background work for the life of
-  the process declares it once (the flow adapter does, when its consumers start, and registers their
-  stop as a shutdown hook); `AutoStart::run` honours the flag like serving; embedders awaiting
-  `AutoStart::main` are unaffected. **The platform-wide follow-up is CLOSED (2026-09-21, branch
-  `fix/sigterm-graceful-stop` `5688e643`, PR #301 MERGED, merge `922e13c7`):** the entry point now stops on `SIGTERM` as on Ctrl-C
-  (the listener registered before the wait) and the flow adapter's hook drains its consumers within a
-  10 s grace, so a Kubernetes pod stop commits the record in hand and leaves the group explicitly —
-  proven live: explicit `LeaveGroup` 22 ms after the signal, where a hard kill waits the 45 s session
-  timeout. Report: `docs/test-reports/minimalist-kafka-interop.md` Findings 1–2; Increment 126. **Pinned 2026-09-22 (PR #312, merge `3a90afc6`, Increment 130):** `tests/kafka_shutdown.rs` observes the leave at the mock broker — the survivor of a two-member group holds the leaver's partitions ~3 s after the close (its next heartbeat), never the session timeout — under the consumer protocol (the mock's classic coordinator is slow after a leave; a real broker leaves in 1–2 ms under both); guide §`#shutdown` + claim `kafka-consumer-leaves-group-on-shutdown` (the same id as Java's, whose `KafkaShutdownTest` landed with the Java fix). **And the producer half (PR #313, merge `c952f1e8`, Increment 131, Eric's 10 s ruling):** `runtime::close_publisher` — registered on `on_shutdown` where the producer is built, so it runs AFTER the adapter's consumer stop (hooks newest-first) — flushes within the same 10 s `SHUTDOWN_GRACE` and forgets the handle, reporting what the grace could not deliver; the bound is the deliberate delta from Java's unbounded close (Java then adopted the same bound, mercury-composable #441). Two measured limits recorded in Increment 131: rdkafka's safe flush waits through the client's linger (its zero-timeout `rd_kafka_flush` loop never shows librdkafka the flushing flag; accepted over the crate's first `unsafe`), and on the mock coordinator a KIP-848 member closed within its first heartbeat after an assignment does not always leave (the test now waits for a settled member). Relates [[port-bottom-up-faithful]]
-  (an implicit JVM property mapped to an explicit Rust declaration).
-  <!-- id: headless-app-keep-running | created: 2026-09-21 | last_used: 2026-09-22 | uses: 6 | tier: archive-candidate | origin: 2026-09-21-175430 -->
-
-- **The Schema Registry codec is this engine's own, and what it cannot delegate it refuses (Eric's viability
-  ruling, 2026-09-21; K5a).** Java speaks the Confluent wire format through Confluent's own serializers; there is
-  no Confluent client for Rust, so `crates/minimalist-kafka/src/schema` implements the frame
-  (`[0x00][4-byte id][payload]`), subject/version resolution, the positive-only id cache + the pinned-version
-  cache (`ManagedCache`), and the two codecs — JSON Schema (the document; validation only under
-  `json.fail.invalid.schema`) and Avro (`apache-avro`; JSON→datum walks the writer schema: defaults for absent
-  fields, fail-fast on a missing no-default field, unions in order) — over the platform's own
-  `async.http.request`. The `schema-registry.yml` template is INTERPRETED by name (OAuth 2.0 client credentials,
-  STATIC_TOKEN, SASL_OAUTHBEARER_INHERIT, basic USER_INFO/URL/SASL_INHERIT, the Confluent Cloud headers; every
-  other key logged as ignored; TLS trust from the OS store). **CSFLE, data-contract `ruleSet`s and schema
-  `references` are refused with a 501** — the alternative, plaintext where the schema declares encryption, is a
-  silent security regression; Protobuf stays recognized-and-refused as on Java. One shared, thread-safe codec
-  per registry (a second registry = a second key prefix, because global ids are only unique within one
-  registry). Proven byte-compatible live: Confluent's serializers ⇄ this codec in both directions
-  (`docs/test-reports/minimalist-kafka-interop.md`, K5 addendum). Spec §7 items 12–16. **Increment 139 (2026-09-24,
-  lock-step with Java #458/#460):** the consume side may carry its own registry identity — `SchemaCodec::for_consumer`
-  builds a second codec under `<prefix>.consumer` when `<prefix>.consumer.properties` names a template (presence = opt-in,
-  blank = unset, same URL); the identity lives in the template here, there being no serde layer to override.
-  <!-- id: schema-registry-native-codec | created: 2026-09-21 | last_used: 2026-09-24 | uses: 5 | tier: archive-candidate | origin: 2026-09-21-233114 -->
-
-- **The OpenTelemetry forwarder is this engine's own OTLP encoder over the platform HTTP client — no OpenTelemetry SDK —
-  opt-in by `otel.forwarding`, and a late credential arrives as a runtime override (Eric, 2026-09-21; Increment 129, PR
-  #307).** `extensions/opentelemetry-forwarder` registers `distributed.trace.forwarder` under
-  `#[optional_service("otel.forwarding")]` — linking the crate registers nothing (pinned by `hello-flow`, which carries
-  the crate with the switch off) — and a `#[before_application]` hook under the same switch validates the endpoint and
-  announces header NAMES (values never logged). `src/otlp.rs` writes the OTLP v1 trace protobuf (eight frozen message
-  types) — the Rust OTLP stack would have been the workspace's heaviest dependency; the request goes as
-  `application/x-protobuf` through `async.http.request`, the seam [[schema-registry-native-codec]] proved. Java's retry
-  policy carried over (5 attempts, 1 s × 1.5, on transport failures and 408/429/502/503/504 — the platform client renders
-  its own transport failures as a 500 with NO response headers, and that absence is the retry discriminator) with the
-  same diagnostics. **Two platform facts:** (1) `${ENV}` references resolve ONCE when the base configuration loads, so
-  the environment is not a live path — a `-D`/`overrides::set` value is consulted first on every lookup, the twin of
-  Java's vault-published system property; (2) the lifecycle constructs every annotated function BEFORE the
-  `before_application` hooks run, so state a hook installs is resolved lazily. Declared deltas:
-  `otel.exporter.otlp.compression` honours only `none`; `otel.exporter.otlp.connect.timeout` has no effect
-  (`http.client.connection.timeout` governs); scope `mercury-opentelemetry-forwarder`. Certified live
-  (`docs/test-reports/otel-dynatrace-certification.md`; A-B-A token experiment, UI-confirmed by Eric 2026-09-22;
-  [[otel-forwarder-certification]] CLOSED). The no-SDK design now holds on all four runtimes (the encoder ported to
-  mercury-python and mercury-nodejs) and Scenario 8/9 certified them together; the kind rule is SERVER iff
-  `service == http.request` — the edge record from [[connected-edge-spans]] — and every function execution is INTERNAL.
-  <!-- id: otel-forwarder-no-sdk | created: 2026-09-22 | last_used: 2026-09-23 | uses: 3 | tier: archive-candidate | origin: 2026-09-22-010413 -->
-
 - **A traced HTTP request is ONE connected span tree whose root is the edge's round-trip span; a streamed response is
   traced at its head and its tail, never per token (Eric's rulings on the Dynatrace review of the v4.12.15 certification
   traces, 2026-09-22; Increment 133, PR #315, lock-step with mercury-composable #444; SHIPPED in v4.12.15).**
@@ -275,7 +167,7 @@ layers shipped; the two above have held through every re-verify.)*
   in Dynatrace by Eric (Scenario 9 and the token-bearing drive 9, `annotation.frames: 8`; reports in
   `docs/test-reports/`). Extends [[otel-forwarder-no-sdk]]; pinned by
   `event_over_http_stream::edge_relay_spans_are_connected`.
-  <!-- id: connected-edge-spans | created: 2026-09-22 | last_used: 2026-09-23 | uses: 2 | tier: archive-candidate | origin: 2026-09-22-200854 -->
+  <!-- id: connected-edge-spans | created: 2026-09-22 | last_used: 2026-10-02 | uses: 3 | tier: archive-candidate | origin: 2026-09-22-200854 -->
 
 - **The Redis foundation retries intelligently — a heartbeat monitor plus one retry per lost connection for idempotent
   commands only, never a replay of a non-idempotent one (Eric's ruling on polyglot note 3, 2026-09-22; Increment 135, PR
@@ -295,7 +187,7 @@ layers shipped; the two above have held through every re-verify.)*
   still drives its own manager (follow-up). Java needs no twin (Lettuce). Lesson: "fail fast" under a known outage means
   one deadline-bounded attempt, never two — a test expectation was wrong on the way, not the code. Extends
   [[redis-connection-foundation-rust]], [[redis-failure-classification-rust]]; closes the polyglot report's note 3.
-  <!-- id: redis-restart-aware-retry | created: 2026-09-22 | last_used: 2026-09-23 | uses: 2 | tier: archive-candidate | origin: 2026-09-22-235800 -->
+  <!-- id: redis-restart-aware-retry | created: 2026-09-22 | last_used: 2026-10-04 | uses: 3 | tier: active | origin: 2026-09-22-235800 -->
 
 - **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic function by ONE
   `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric, 2026-09-20; Increment 123, a doc
@@ -320,7 +212,7 @@ layers shipped; the two above have held through every re-verify.)*
   a new table is a new graph version and never a code change, and the function stays generic by reading rule names from
   `table.keys`. In `skills-reference.md`, the in-Playground help and the AI agent guide's checklist; pinned by
   `unit-test-task-9` (`graph_runtime.rs`) in lockstep with Java. Extends [[conventions-rust-baseline]].
-  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-09-23 | uses: 2 | tier: archive-candidate | origin: 2026-09-20-152809 -->
+  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-10-04 | uses: 4 | tier: active | origin: 2026-09-20-152809 -->
 
 - **graph.math is typed and finite — a boolean is never a number, an unknown function and an overflow fail by name, and
   `CONDITION` is the declared boolean statement (Eric's rulings on a field page of nine "wrong answer" behaviours,
@@ -346,8 +238,11 @@ layers shipped; the two above have held through every re-verify.)*
   `true`/`false` computing as 1/0, a boolean COMPUTE result storing 1.0, or `Infinity` propagating now fails at that
   statement by name. Pinned by `unit-test-math-2` (`graph_runtime.rs`) and `expression_engine.rs`, lockstep with Java.
   Extends [[static-decision-table-is-graph-data-rust]] (the same evaluator's null-source rule, Increment 136) and
-  [[conventions-rust-baseline]].
-  <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-09-28 | uses: 4 | tier: active | origin: 2026-09-25-190229 -->
+  [[conventions-rust-baseline]]. **Partly superseded 2026-09-30 (Eric's rulings on RFC-0001, promoted to ADR-0025 in mercury-composable;
+  Increment 145, shipped in v4.12.20):** the minimalist boundary no longer holds - exact decimal arithmetic IS a `graph.math` statement,
+  `DECIMAL:` (canonical decimal strings at rest, rounding always explicit); the typed and finite `COMPUTE` rules above stand, as in the
+  Java twin's note. (Found stale by the 2026-10-04 review's contradiction scan.)
+  <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-10-04 | uses: 5 | tier: active | origin: 2026-09-25-190229 -->
 
 - **`graph.model.automation` accepts a comma-separated list of manifests, and the later manifest wins — the Rust twin
   (Increment 142, 2026-09-25; PR #332 merge `d3d82a3f` MERGED 2026-09-25, lock-step with mercury-composable #465 squash
@@ -362,7 +257,7 @@ layers shipped; the two above have held through every re-verify.)*
   file:/tmp/graph/deploy/graphs.yaml'`), not a JVM flag. Entries are manifests, never bare folders (the manifest is the
   gate's allowlist). Claim `graph-manifest-list-later-wins` pinned to `compiler::later_manifest_wins_for_a_duplicate_graph_id`;
   the recipe lives in `ai-agent-guide.md#deploy-without-rebuild`.
-  <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-09-28 | uses: 4 | tier: active | origin: 2026-09-25-224149 -->
+  <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-10-02 | uses: 5 | tier: archive-candidate | origin: 2026-09-25-224149 -->
 
 - **The graph.math expression dialect is documented as the closed set it is, and pinned — the Rust twin of mercury-composable
   #467/#468 (Increment 143, 2026-09-28; PR #334 merge `41a7f418` MERGED 2026-09-28; SHIPPED in v4.12.20).** A live MiniGraph demo showed the gap: an agent building
@@ -377,7 +272,7 @@ layers shipped; the two above have held through every re-verify.)*
   removed fails the build on both engines. **Rule:** a dialect is a closed set; document it as one and pin the set, or every agent
   re-derives it from source. Grouped one concern per test from the start (Sonar S5961 flagged the Java original at 29 assertions
   in one method — #468). Extends [[graph-math-typed-arithmetic-rust]] and [[conventions-rust-baseline]].
-  <!-- id: graph-math-dialect-closed-set-rust | created: 2026-09-28 | last_used: 2026-09-28 | uses: 1 | tier: working | origin: 2026-09-28-234016 -->
+  <!-- id: graph-math-dialect-closed-set-rust | created: 2026-09-28 | last_used: 2026-09-28 | uses: 1 | tier: archive-candidate | origin: 2026-09-28-234016 -->
 
 - **The starter template and the playground example carry their own flows config, mimicking the Java twins, and tutorial 13 is deployed in the example (Eric,
   2026-10-01; Increment 149, PR #343 merge `86b59cb0`).** `templates/starter-graph` gained `resources/flows.yaml` and `flows/graph-executor.yml`; `examples/minigraph-playground`
@@ -391,7 +286,7 @@ layers shipped; the two above have held through every re-verify.)*
   app's own dev mock endpoint; the comment outlived it (the Java example omitted tutorial 13 for the same reason, fixed in mercury-composable #489). The app now compiles 15 graphs, and the test
   boots on a KNOWN port because CompileGraph resolves `${rest.server.port:8080}` at load time. `v1.hello.task` is NOT re-added (Eric: tutorial 13 no longer needs it). Not aligned: the
   distributed-cache example lists `graph-executor.yml` and resolves it from the engine without a local copy. Follow-up: [[hello-task-doc-references]] (closed 2026-10-02: PR #345 and #346).
-  <!-- id: example-and-template-carry-their-flows | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001532 -->
+  <!-- id: example-and-template-carry-their-flows | created: 2026-10-01 | last_used: 2026-10-02 | uses: 4 | tier: active | origin: 2026-10-02-001532 -->
 
 - **The Rust engine certified the LLM helper without changing: the playground's AI nodes point at the helper app, and the helper's contract lives in the language packs (Increment 148, PR #342
   merge `755af30e`; Eric, 2026-10-01).** The helper (`llm.chat`, `llm.stream`, `llm.health` on the Anthropic SDK) is `examples/llm-helper` in mercury-python and mercury-nodejs (PRs #38 and #106),
@@ -402,7 +297,7 @@ layers shipped; the two above have held through every re-verify.)*
   deploying ([[graph-manifest-list-later-wins-rust]]); Rust's `yaml.rest.automation` reads ONE location, so the chat flow's REST entry went into one combined `rest.yaml`. Opus 5.5, the helper's
   default model and kept by Eric, thinks before it answers and its thinking tokens count against `max_tokens`: the triage graph now asks for 2000 tokens (512 before) and the README's stream
   example for 2000 (300). AWS Bedrock through IAM is the helper's planned second backend, a thread in the packs.
-  <!-- id: llm-helper-certification-rust | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001532 -->
+  <!-- id: llm-helper-certification-rust | created: 2026-10-01 | last_used: 2026-10-02 | uses: 1 | tier: archive-candidate | origin: 2026-10-02-001532 -->
 
 - **A mock-data upload travels like a command: it loads every member's instance (Eric's design, 2026-10-02; PR #349 merge `278bb023`, Increment 154; lock-step with mercury-composable #498 squash `ce0e7155`; both MERGED 2026-10-03 06:00Z).**
   `commands::upload_content` (REST `POST /api/mock/{id}`) no longer writes the uploader's instance alone: it sends an `upload` event to the command service,
@@ -412,7 +307,7 @@ layers shipped; the two above have held through every re-verify.)*
   controls became three steps in the same round - Instantiate, Upload (optional; the form opens for the clicking session only, no console command) and Run - and the
   multi-select hint left the canvas; the UI lives in the Java repo and arrives here as the bundle `index-Bg13jQpc` ([[webapp-single-source-java-repo]]). Pinned by
   `mock_upload_loads_every_member_instance` in `tests/graph_runtime.rs`.
-  <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-02 | uses: 1 | tier: working | origin: 2026-10-02-232252 -->
+  <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-03 | uses: 2 | tier: active | origin: 2026-10-02-232252 -->
 
 - **A graph model imported from a file travels like a command: `POST /api/graph/import/{id}` makes it every member's draft (Eric's Playground usability sprint, 2026-10-03; PR #350 merge `dae6377d`, Increment 155; lock-step with mercury-composable #500 squash `856e084b`; both MERGED 2026-10-03 16:03Z).**
   `commands::import_content` validates first (`validate_graph_model`: a JSON object whose only top-level sections are `nodes`, a mandatory list, and `connections`, an optional list; then
@@ -433,7 +328,7 @@ layers shipped; the two above have held through every re-verify.)*
   mapping target is never resolved (literal); also documented: any namespace may be read (Event Script: `model.*` only), a composed key is case-sensitive. Pinned by the byte-identical fixture `unit-test-mapping-1`,
   `mapping_source_resolves_dynamic_variables_verbatim` and the claim `mapping-source-dynamic-variables`. Extends [[static-decision-table-is-graph-data-rust]]; applies
   [[webapp-single-source-java-repo]] (bundle `index-Bz9k-ffR`). The JSONPath result shape follows Jayway since Increment 157: [[jsonpath-jayway-result-shape]].
-  <!-- id: mapping-source-verbatim-substitution | created: 2026-10-03 | last_used: 2026-10-03 | uses: 1 | tier: working | origin: 2026-10-04-054444 -->
+  <!-- id: mapping-source-verbatim-substitution | created: 2026-10-03 | last_used: 2026-10-04 | uses: 2 | tier: active | origin: 2026-10-04-054444 -->
 
 - **A `$.` JSONPath result takes Jayway's shape - by the kind of path, not the number of matches (Increment 157, PR #352 merge `bdc7b5be`, MERGED 2026-10-04 06:08Z;
   the Java engine is the reference, its pin mercury-composable #504).** A definite path (child member names and single indexes only) yields the value or nothing; an
@@ -442,7 +337,7 @@ layers shipped; the two above have held through every re-verify.)*
   3.0.0. `serde_json_path` keeps its parsed query private, so `mlm.rs` classifies the parsed path string (`path_shape`, `misses_a_member_name`); an unrecognized
   construct keeps the count rule. Holds in Event Script flows and graphs alike; pinned by `json_path_result_shape_follows_jayway`, the shared fixture
   `unit-test-jsonpath-1` and the claim `json-path-result-shape`. Closed [[rust-jsonpath-indefinite-list]].
-  <!-- id: jsonpath-jayway-result-shape | created: 2026-10-03 | last_used: 2026-10-03 | uses: 1 | tier: working | origin: 2026-10-04-060541 -->
+  <!-- id: jsonpath-jayway-result-shape | created: 2026-10-03 | last_used: 2026-10-04 | uses: 1 | tier: working | origin: 2026-10-04-060541 -->
 
 ## Conventions
 
@@ -460,7 +355,7 @@ layers shipped; the two above have held through every re-verify.)*
   pins (deliberately NOT workspace-inherited, so a copied-out template builds as-is after
   deleting the in-repo `path` keys) — the release edit list grows from 5 manifests to 8.
   **Extended 2026-09-22 (the v4.12.14 publish):** before a crate's FIRST publish, audit its manifest metadata as part of the release sweep — `keywords` ≤ 5 and each ≤ 20 characters, valid `categories`, a `readme` path inside the package — because cargo validates none of it locally and crates.io rejects at upload, after the dependency-ordered run has already published everything before it (`progressive-rendering`, 21 chars, cost `mercury-sync-over-async` its place in the 4.12.14 run).
-  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-25 | uses: 10 | tier: active | origin: 2026-09-11-005808 -->
+  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-25 | uses: 10 | tier: archive-candidate | origin: 2026-09-11-005808 -->
 - Each ported module's `//!` doc names the **Java class it ports** (e.g.
   `org.platformlambda.core.util.ConfigReader`) so reviewers can diff behavior side-by-side.
 - **Tests:** unit tests in-module (`#[cfg(test)]`), integration tests in `tests/` with
@@ -524,19 +419,7 @@ layers shipped; the two above have held through every re-verify.)*
   check the diff for the failing crate before blaming the change; (2) re-running a failed job re-tests the SAME merge commit, so a fix landed on `main` reaches an open PR only through a new push
   (a rebase or GitHub's "Update branch"); (3) merge the fix PR first, and rebase the PR branch onto `main` so its CI tests the combined state; (4) `main` has no branch protection, so only discipline stops
   a red merge (#343 merged red while the fix PR was green and waiting); (5) a local toolchain behind CI cannot reproduce it, so CI is the check (or `rustup update stable`).
-  <!-- id: ci-floats-on-stable-toolchain | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001532 -->
-
-- **A help or webapp-source edit is not done until the hashed bundle is rebuilt and committed (2026-10-02; PR #346 merge `259bca9b`, Increment 151).** The Playground's help pages are compiled INTO the
-  webapp bundle (`import.meta.glob` over `resources/help/*.md`), so an edit to `crates/knowledge-graph/resources/help/*.md` changes nothing a user sees until `npm run release` in
-  `crates/knowledge-graph/webapp` (after one `npm ci`) writes the new `resources/public/assets/index-*.js` and re-points `resources/template/playground.html`; the webapp README documents the command, not this link.
-  **The gap was real:** the committed bundle was last regenerated at Increment 136 (`cc18dbe8`, 2026-09-23), and four later commits (Increments 141, 143, 145 and the money-loop docs) edited `help graph-math.md`
-  (95 lines added, 3 removed) without it, so from 2026-09-25 the Playground showed no `CONDITION`, dialect or `DECIMAL` help and no gate noticed; #346 brought them in with the `help update` example. **The build is
-  reproducible** (Node 22.12; one harmless `react-router` engines warning): a rebuild of the unchanged sources reproduced every other committed asset byte for byte, and the application chunk differs only by help
-  text plus the `sourceMappingURL` comment that names the new hash (97 lines added, 5 removed), so a CI step that rebuilds and compares with the committed bundle is feasible. NOT built: Eric has not asked for it.
-  **The bundle ships inside the crate:** `mercury-knowledge-graph` excludes only `webapp/`, and `cargo package --list` carries `resources/public/assets/`, `resources/template/playground.html` and the help pages, so
-  the next release of that crate delivers the regenerated bundle (the lockfile-only #344 did not reach consumers). The Java engine's committed bundle had the same gap and was regenerated in
-  mercury-composable #491 (squash `f9ddf3c7`, 2026-10-02), where the page's property list also gained `DECIMAL` and `CONDITION` and the rule sits in both the root memory and the webapp's scoped instructions.
-  <!-- id: webapp-bundle-follows-help-edits | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: superseded | superseded-by: webapp-single-source-java-repo | origin: 2026-10-02-010629 -->
+  <!-- id: ci-floats-on-stable-toolchain | created: 2026-10-01 | last_used: 2026-10-02 | uses: 2 | tier: archive-candidate | origin: 2026-10-02-001532 -->
 
 - **The Playground webapp and its help pages come from the Java repo; this repo holds a deployed copy (Eric, 2026-10-02; PR #347 merge `781fae43`, Increment 152; the Java twin is mercury-composable #496, squash `a6dc9ce5`; both MERGED 2026-10-02).**
   `crates/knowledge-graph/webapp/` is retired (K7 of the port spec superseded). `npm run release:rust` (or `release:all`, both engines from one build) in
@@ -550,7 +433,7 @@ layers shipped; the two above have held through every re-verify.)*
   of a Java webapp fix). `Cargo.toml` has no `exclude` any more; `cargo package --list` carries 214 files, the 42 help pages, the bundle and the entry page, no
   webapp path and no source map. The source maps stay gitignored here. Supersedes [[webapp-bundle-follows-help-edits]] (the rule that a help edit needs the rebuilt bundle still holds, now from the
   Java repo). Relates [[example-and-template-carry-their-flows]].
-  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-02 | uses: 1 | tier: working | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
+  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-04 | uses: 5 | tier: active | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
 
 - **A build from this checkout can reuse an engine artifact compiled in a worktree, and the engine's resource root is baked at compile time (found 2026-10-02).**
   `mercury-knowledge-graph` registers its `resources/` with `concat!(env!("CARGO_MANIFEST_DIR"), "/resources")` (`GraphResources`, `lib.rs`), so an rlib compiled in a worktree keeps the worktree's
@@ -558,7 +441,7 @@ layers shipped; the two above have held through every re-verify.)*
   not found`) although the files are in place. **Rule:** after a worktree build, `touch crates/knowledge-graph/src/lib.rs` (or `cargo clean -p mercury-knowledge-graph`) before `cargo run`, and read
   the baked root with `strings target/debug/minigraph-playground | grep knowledge-graph/resources`; a 404 on the Playground page right after a deploy is this, not the deploy. Relates
   [[webapp-single-source-java-repo]].
-  <!-- id: worktree-build-bakes-resource-root | created: 2026-10-02 | last_used: 2026-10-02 | uses: 1 | tier: working | origin: 2026-10-02-183818 -->
+  <!-- id: worktree-build-bakes-resource-root | created: 2026-10-02 | last_used: 2026-10-03 | uses: 3 | tier: active | origin: 2026-10-02-183818 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 

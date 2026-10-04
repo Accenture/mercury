@@ -3,4 +3,4 @@
   edited the `graph.math` help, so the same PR also brought `CONDITION`, the dialect and `DECIMAL` into the Playground ([[webapp-bundle-follows-help-edits]]).
   Lesson: a help edit is not done until the bundle is rebuilt and committed; `no.op`, not `mock.mdm.profile`, is the always-registered echo. origin: 2026-10-02-001532; close 2026-10-02-010629.
   → served: vision-mercury
-  <!-- id: hello-task-doc-references | created: 2026-10-01 | last_used: 2026-10-01 | uses: 1 | tier: working | origin: 2026-10-02-001532 -->
+  <!-- id: hello-task-doc-references | created: 2026-10-01 | last_used: 2026-10-02 | uses: 3 | tier: active | origin: 2026-10-02-001532 -->
