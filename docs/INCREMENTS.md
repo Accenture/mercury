@@ -4308,3 +4308,30 @@ dynamic keys after a live Playground demo (a keyed census table read with `censu
   carries the data-mapper help's new "Dynamic keys" section; the 42 mirrored help pages follow the Java source.
 
 Gates: `cargo test` for the crate, `check-doc-claims`, `check-llms-links`.
+
+## Increment 157 — A `$.` JSONPath query takes Jayway's result shape (2026-10-03)
+
+The Java engine's JSONPath goes through Jayway, which shapes a result by the kind of path; this engine shaped it by the number of
+matches, so a filter that matched one node gave a bare value here and a one-element list in Java. Found while pinning Increment
+156, whose shared fixture sidesteps it with a two-row filter (thread `rust-jsonpath-indefinite-list`).
+
+- **The rule, probed against Jayway 3.0.0** (the version the Java engine ships): a definite path yields the value, or
+  `PathNotFoundException` (Mercury's not found) when it is absent; an indefinite path always yields a list, `[x]` for one match and
+  `[]` for none - after its first indefinite step a missing member only empties the list, and a missing index before it is not an
+  error either - except that a missing member name before the first indefinite step, or a name applied to a value that is not an
+  object, throws (`$.missing..price`, `$.shop.items[1].missing[*]`, `$.shop.single.x[*]`).
+- **The engine change.** `MultiLevelMap::json_path_query` (`crates/event-script/src/mlm.rs`) classifies the path that parsed (the
+  original, or its hyphen-tolerant bracketed rewrite): `path_shape` reads it segment by segment - dot names, the wildcard
+  shorthand, descendant segments, and bracketed selections split at their top-level commas, outside quotes and a filter's own
+  brackets, with RFC 9535 string literals decoded (escapes and surrogate pairs) - into `Definite` or `Indefinite(prefix)`, the
+  steps before the first indefinite segment. A definite path keeps the at-most-one-node answer; an indefinite one returns the list,
+  or `None` when `misses_a_member_name` finds a prefix name absent. `serde_json_path` keeps its parsed query private, so the
+  classification reads the string; a construct the scanner does not recognize keeps the count rule.
+- **The pins.** The unit tests `json_path_result_shape_follows_jayway` (every probed case) and
+  `path_shape_reads_brackets_quotes_and_filters`; the end-to-end step `json_path_source_takes_the_jayway_shape` on
+  `unit-test-jsonpath-1` (byte-identical with the Java fixture: a definite path, one match, no match, a wildcard, a slice, a deep
+  scan, a missing leaf, a missing index, a missing prefix name, an absent definite path); with the count rule restored the step fails
+  at `expected a list at one_match` (negative control). The compiler test counts 61 graphs. Claim `json-path-result-shape` on the
+  Event Script syntax page, which states the rule; the knowledge-graph grammar's `$.…` entry points at it.
+
+Gates: `cargo test` for the workspace, `check-doc-claims`, `check-llms-links`.

@@ -358,6 +358,16 @@
       "quote": "A `{namespace.key}` reference inside a mapping source resolves before the source is read, and its value is inserted verbatim, never quoted",
       "test": "crates/knowledge-graph::graph_runtime::mapping_source_resolves_dynamic_variables_verbatim",
       "since": "4.12.21+"
+    },
+    {
+      "id": "json-path-result-shape",
+      "claim": "A $. JSONPath mapping source takes Jayway's result shape - by the kind of path, not the number of matches: a definite path (child member names and single indexes only) yields the value, or null when it is absent; an indefinite path (a filter, a wildcard, a deep scan, a slice or a union) always yields a list, one match being a one-element list and no match an empty list, unless a member name before its first indefinite step is missing, which yields null.",
+      "pages": [
+        "docs/guides/event-script/syntax.md"
+      ],
+      "quote": "The result shape depends on the kind of path, not on the number of matches",
+      "test": "crates/knowledge-graph::graph_runtime::json_path_source_takes_the_jayway_shape",
+      "since": "4.12.21+"
     }
   ]
 }

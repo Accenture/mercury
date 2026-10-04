@@ -596,6 +596,7 @@ async fn graph_runtime_end_to_end() {
     generic_exception_context_serves_every_node(&platform).await;
     statement_commands_resolve_dynamic_variables(&platform).await;
     mapping_source_resolves_dynamic_variables_verbatim(&platform).await;
+    json_path_source_takes_the_jayway_shape(&platform).await;
     successful_retry_resolves_the_error_context(&platform).await;
     suspend_resume_x_run_over_the_real_http_stack(&platform).await;
     suspend_resume_store_calls_chain_to_their_skill_spans(&platform).await;
@@ -3452,6 +3453,42 @@ async fn mapping_source_resolves_dynamic_variables_verbatim(platform: &Platform)
     let mm = body_map(&reply);
     assert_eq!(None, mm.get_element("population"));
     assert_eq!(Some(Value::from("a")), mm.get_element("item"));
+}
+
+/// Java `GraphTaskTest.jsonPathSourceTakesTheJaywayShape` (unit-test-jsonpath-1):
+/// a `$.` mapping source is shaped by the kind of path, as Jayway shapes it for
+/// the Java engine. A definite path yields the value, or null when it is absent;
+/// an indefinite path always yields a list - one match is a one-element list and
+/// none an empty list - unless a member name before its first indefinite step is
+/// missing, which yields null (so the null-source rule leaves an output target
+/// untouched).
+async fn json_path_source_takes_the_jayway_shape(platform: &Platform) {
+    let reply = run_graph(
+        platform,
+        "unit-test-jsonpath-1",
+        serde_json::json!({"people": [
+            {"name": "Peter", "team": "blue"},
+            {"name": "Paul", "team": "red"},
+            {"name": "Mary", "team": "blue"}
+        ]}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "jsonpath: {:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("Paul")), mm.get_element("definite"));
+    assert_eq!(str_list(&mm, "one_match"), ["Paul"]);
+    assert!(str_list(&mm, "no_match").is_empty());
+    assert_eq!(str_list(&mm, "wildcard"), ["Peter", "Paul", "Mary"]);
+    assert_eq!(str_list(&mm, "slice"), ["Peter"]);
+    assert_eq!(str_list(&mm, "deep_scan"), ["blue", "red", "blue"]);
+    assert!(str_list(&mm, "missing_leaf").is_empty());
+    assert!(str_list(&mm, "missing_index").is_empty());
+    assert_eq!(Some(Value::from("kept")), mm.get_element("missing_name"));
+    assert_eq!(
+        Some(Value::from("kept")),
+        mm.get_element("definite_missing")
+    );
 }
 
 /// Java `GraphErrorContextTest.successfulRetryResolvesTheErrorContext`: the

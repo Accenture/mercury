@@ -66,6 +66,7 @@ fn manifest_listed_graphs_are_compiled() {
     // + the decimal fixture (the DECIMAL statement: exact decimal arithmetic, RFC-0001)
     // + the decimal-loop fixture (the documented money loop: an exact running sum over for_each)
     // + the mapping-1 fixture (a {namespace.key} reference in a mapping source, inserted verbatim)
+    // + the jsonpath-1 fixture (a $. mapping source in Jayway's result shape)
     // + the 2 manifest-precedence fixtures compiled through the SECOND manifest
     // (graphs-extra.yaml: manifest-extra, and manifest-dup whose later copy wins;
     // manifest-reject's later copy is rejected and the id stays out);
@@ -76,7 +77,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        60,
+        61,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );

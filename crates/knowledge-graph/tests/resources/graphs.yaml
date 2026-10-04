@@ -42,6 +42,9 @@ graphs:
   # a {namespace.key} reference inside a mapping source: a key segment of a keyed table, a list
   # index, text in a constant and a plugin argument - the value is inserted verbatim, never quoted
   - 'unit-test-mapping-1'
+  # a $. JSONPath mapping source in Jayway's result shape: a definite path yields the value, an
+  # indefinite one always a list (one match, none), null when a member name before it is missing
+  - 'unit-test-jsonpath-1'
   - 'unit-test-math-1'
   - 'unit-test-math-2'
   - 'rust-foreach'
