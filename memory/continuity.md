@@ -383,19 +383,15 @@ layers shipped; the two above have held through every re-verify.)*
   `inventory_equals_the_documentation_closure` walks both trees (PR #286's first push failed on a new report).
   <!-- id: conventions-rust-baseline | created: 2026-07-15 | last_used: 2026-09-02 | uses: 113 | tier: core | origin: 2026-07-15-224707.md -->
 
-- **Declare a Memory Reference when a fact is CONSULTED to make a decision — not only when it is
-  edited (Eric agreed, 2026-09-04).** `## Memory References` is the sole input to
-  `refresh-metadata`, so an undeclared consultation reads as non-use and decays the fact. In the
-  Java sibling this demoted a 42-use core convention after one log declared `(none)` while
-  reasoning explicitly from it. Rule of thumb: if you would have decided differently without the
-  fact, it is a reference. Twin of `conv-declare-consulted-references` in mercury-composable.
-  **Second instance, 2026-09-21 — caught at the review's archival check, not by the refresh:** the v4.12.12
-  catch-up release applied `conv-template-version-sweep-rust` (the templates' manifests were swept) and its log
-  did not declare it; nine sessions later the fact read sslu 25 and was archived in the review's first pass.
-  Step 6's verification — count the sessions since the last DECLARED use, then read the window's logs for the
-  convention's fingerprints — reversed it before commit. The guard is two-sided: declare at write time, and at
-  review time treat an `[overdue]` convention whose subject was exercised in the window as a declaration gap
-  first and a fade second.
+- **Declare a Memory Reference when a fact is CONSULTED to make a decision, not only when it is edited (Eric agreed,
+  2026-09-04) — since agent-memory v4.42.1 the protocol states the rule, and this fact keeps the local history.** The rule:
+  `memory/PROTOCOL.md` (*Maintain memory while working*: a fact is relied on when it shaped a decision) and `DECAY.md` §2; its
+  review-time half is `REVIEW.md` step 6, *declaration gaps* (the window's commits first, v4.42.2). Raised upstream from this
+  repo and mercury-composable on 2026-10-04 and adopted the same day (upgraded here by #353 and #354), the path the RFC rule
+  took ([[conv-proposals-not-in-adr-ledger-rust]]). Twin of `conv-declare-consulted-references` in mercury-composable. Local
+  history - two archivals reversed before commit by reading the window for the fact's subject: `conv-template-version-sweep-rust`
+  (2026-09-21; the v4.12.12 sweep had applied it undeclared) and `redis-restart-aware-retry` (2026-10-04; Increment 146 had
+  pinned its contract undeclared).
   <!-- id: conv-declare-consulted-references-rust | created: 2026-09-04 | last_used: 2026-09-04 | uses: 1 | tier: core -->
 
 - **A proposal is not a decision: raise it in `docs/arch-decisions/RFC.md` as `RFC-NNNN`, never as a
