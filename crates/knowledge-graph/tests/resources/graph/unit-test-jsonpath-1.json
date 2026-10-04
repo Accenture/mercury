@@ -1,0 +1,66 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "name": "unit-test-jsonpath-1",
+        "purpose": "a $. JSONPath mapping source takes Jayway's result shape on both engines: a definite path yields the value, or null when it is absent; an indefinite path always yields a list - one match is a one-element list and none an empty list - unless a member name before its first indefinite step is missing, which yields null"
+      }
+    },
+    {
+      "types": [
+        "Mapper"
+      ],
+      "alias": "probe",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "$.input.body.people[1].name -> output.body.definite",
+          "$.input.body.people[?(@.team == 'red')].name -> output.body.one_match",
+          "$.input.body.people[?(@.team == 'green')].name -> output.body.no_match",
+          "$.input.body.people[*].name -> output.body.wildcard",
+          "$.input.body.people[0:1].name -> output.body.slice",
+          "$.input.body..team -> output.body.deep_scan",
+          "$.input.body.people[*].missing -> output.body.missing_leaf",
+          "$.input.body.people[9].team[*] -> output.body.missing_index",
+          "text(kept) -> output.body.missing_name",
+          "$.input.body.missing[?(@.team == 'red')].name -> output.body.missing_name",
+          "text(kept) -> output.body.definite_missing",
+          "$.input.body.people[1].missing -> output.body.definite_missing"
+        ]
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "map",
+          "properties": {}
+        }
+      ],
+      "target": "probe"
+    },
+    {
+      "source": "probe",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

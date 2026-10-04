@@ -731,6 +731,14 @@ JSON-Path retrieval method in the left-hand-side for input/output data mapping.
 Note that the basic retrieval method is more efficient than the JSON-Path method. Therefore, you
 should apply JSON-Path only when the use case requires it. 
 
+**The result shape depends on the kind of path, not on the number of matches** (Jayway's rule, on both
+engines). A definite path, made of child member names and single indexes only (`$.input.body.people[1].name`),
+yields the value, or null when it is absent. An indefinite path, with a filter, a wildcard, a deep scan `..`, a
+slice or a union, always yields a list: one match is a one-element list and no match an empty list, so a
+target that expects a list gets one. The one exception is a missing member name before the path's first
+indefinite step (`$.input.body.missing[?(@.team == 'red')].name`): the result is null, as for an absent
+definite path, and the null-source rule applies.
+
 ### Simple type matching and conversion
 
 > *Deprecated*: "Simple type matching" is deprecated in favor of [Simple Plugins](#simple-plugins). It is

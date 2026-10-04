@@ -110,6 +110,17 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    grammar's "Dynamic keys and values in a source", the skills reference's keyed table, the data-mapper help in the regenerated
    bundle) and the plugin table states that `int`, `long`, `float` and `double` give `-1` for a null or non-numeric value
    (mercury-composable #503). READ: a mapping that relied on the quotes now gets the bare value.
+14. **A `$.` JSONPath query takes Jayway's result shape, the Java engine's (Increment 157).** `MultiLevelMap::get_element`
+   shaped a JSONPath result by the number of matches: one match gave the bare value, none gave nothing. Jayway shapes it by the
+   kind of path, and so does this engine now. A definite path (child member names and single indexes only) yields the value, or
+   nothing when it is absent. An indefinite path (a filter, a wildcard, a deep scan `..`, a slice or a union) always yields a
+   list: `$.input.body.people[?(@.team == 'red')].name` with one match is `["Paul"]`, with none `[]`. The exception, as in Jayway:
+   a missing member name before the path's first indefinite step (`$.input.body.missing[*]`) yields nothing, so the null-source
+   rule applies. This holds in Event Script flows and knowledge graphs alike. The Event Script syntax page states the rule, the claim
+   `json-path-result-shape` pins it with the shared fixture `unit-test-jsonpath-1`, and the Java engine pins the same fixture
+   (mercury-composable #504). READ: a filter or wildcard that matches one node now gives a one-element list instead of the bare
+   value, and one that matches nothing gives an empty list instead of no value; a mapping that expected the bare value reads the
+   first element (`f:getFirst`, which takes a non-empty list).
 
 ---
 ## Version 4.12.20, 10/1/2026
