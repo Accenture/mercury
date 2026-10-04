@@ -233,7 +233,7 @@ Bullet list (if any).
 What the next agent needs to know.
 
 ## Memory References
-- Referenced:  <continuity fact ids this session relied on / reinforced>
+- Referenced:  <fact ids this session relied on (shaped a decision) or reinforced — a read that shaped nothing is not a use>
 - Created:     <new fact ids added this session (born tier: working)>
 - Reactivated: <fact ids pulled back from the archive>
 - Closed:      <thread ids completed this session — the close record is the completion event (or list them under Referenced with a (closed) note)>

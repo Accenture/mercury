@@ -80,10 +80,12 @@ on upgrade; fork it under a new name or upstream a genuine fix instead of editin
 - Treat `memory/continuity.md` as working memory and check existing decisions before
   proposing a conflicting change.
 - Note facts, decisions, preferences, and thread changes for session close.
-- Track every fact id referenced, created, reactivated, or closed for the session log's
-  `## Memory References` — an edit or a closure is a use, inspecting alone is not (the pre-commit
-  hook's `[undeclared-reference]` advisory catches a fact edited without a declaration); do not
-  edit `uses`, `last_used`, or `tier` mid-session.
+- Track every fact id relied on, created, reactivated, or closed for the session log's
+  `## Memory References`. A fact is relied on when it shaped a decision — you would have decided
+  differently without it. An edit or a closure is always a use; a read that shaped nothing is not.
+  The pre-commit `[undeclared-reference]` advisory catches an undeclared edit, but nothing can
+  catch an undeclared consultation — declare it when you write the log. Do not edit `uses`,
+  `last_used`, or `tier` mid-session.
 - At a natural seam—milestone, phase shift, or unrelated pivot—persist the session log and
   continuity update before compaction. Context-window utilization is the real pressure
   signal; wall time and perceived vagueness are only proxies. At high utilization, suggest
