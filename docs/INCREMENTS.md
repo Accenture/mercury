@@ -4283,3 +4283,28 @@ sprint item for Playground UI usability (Eric).
   `nodes`, 400 for a node without alias, 400 for a list body and 404 for an unknown session - the same five bodies as the Java engine.
 
 Gates: `cargo test` for the crate, `check-doc-claims`, `check-llms-links`.
+
+## Increment 156 — A mapping source inserts its dynamic variables verbatim; the bundle is regenerated (2026-10-03)
+
+Lock-step with mercury-composable #503 (`GraphLambdaFunction.substituteMappingSource`), found while documenting
+dynamic keys after a live Playground demo (a keyed census table read with `census-2020.{model.state}`).
+
+- **The engine change.** A mapping source renders its `{namespace.key}` references with `common::substitute_mapping_source`, which
+  quotes a text value only inside a JSONPath filter (`$.` with `@`). The six mapping call sites use it: `handle_data_mapping_entry`
+  (`mapping[]` entries and `MAPPING:` statements), `get_for_each_mapping`, `perform_fetcher_output_mapping` (the `output[]` entries),
+  `fill_fetcher_api_parameters` (fetcher and extension `input[]`), `build_task_request` (`graph.task` `input[]`) and
+  `perform_dictionary_output_mapping`. They used `substitute_var_if_any`, the expression renderer, whose boolean-operator heuristic
+  quoted every text value when the source text held `!`, `<`, `>`, `==`, `&&` or `||` (`text(Hello {input.body.name}!)` gave
+  `Hello 'Peter'!`). Statement commands and expressions keep `substitute_var_if_any`.
+- **The pin.** `unit-test-mapping-1` (byte-identical with the Java fixture) and `mapping_source_resolves_dynamic_variables_verbatim`:
+  a key segment of a keyed table, a list index, a plugin argument, text with `!`, `>`, `&&` and `==`, a `MAPPING:` statement beside a
+  `CONDITION`, an unresolved reference rendering `null`, a composed-key miss leaving an output target untouched, a JSONPath filter
+  that still quotes, and a case-sensitive composed key. With the old renderer restored the step fails at `Hello 'Peter'!` (negative
+  control). The fixture's filter matches two rows: a one-match filter returns a scalar here and a one-element list in Java (Jayway's
+  indefinite-path rule), a separate parity gap.
+- **Docs and bundle.** The grammar gains "Dynamic keys and values in a source" (`#dynamic-keys`), the skills reference a keyed table
+  (`#keyed-table`), the agent guide's checklist the keyed read, and the plugin table the `-1` of the numeric conversions; the claim
+  `mapping-source-dynamic-variables` pins it. The bundle deployed from the Java repo (`index-Cv2pdvxg` became `index-Bz9k-ffR`)
+  carries the data-mapper help's new "Dynamic keys" section; the 42 mirrored help pages follow the Java source.
+
+Gates: `cargo test` for the crate, `check-doc-claims`, `check-llms-links`.

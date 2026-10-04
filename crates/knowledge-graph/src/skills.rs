@@ -38,10 +38,11 @@ use crate::common::{
     get_first_word, get_for_each_mapping, get_graph_instance, get_if_statement,
     get_model_array_size, get_next_model_param_set, get_next_node, get_next_tag_resolved, get_node,
     get_then_statement, handle_data_mapping_entry, invalid, name_offending_selectors,
-    perform_fetcher_output_mapping, reset_nodes, selectors_in, split_blocks, substitute_var_if_any,
-    substitute_var_if_any_logical, COMPUTE_TAG, CONDITION_TAG, DECIMAL_TAG, DELAY_TAG, ERROR,
-    EXCEPTION, EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO, MODEL_NAMESPACE, NEXT, NODE,
-    NODE_NAME, RESET_TAG, RESULT, SINK, SKILL, STATUS, TARGET, TYPE,
+    perform_fetcher_output_mapping, reset_nodes, selectors_in, split_blocks,
+    substitute_mapping_source, substitute_var_if_any, substitute_var_if_any_logical, COMPUTE_TAG,
+    CONDITION_TAG, DECIMAL_TAG, DELAY_TAG, ERROR, EXCEPTION, EXECUTE, HEADER, IF_TAG, IN,
+    MAPPING_TAG, MAP_TO, MODEL_NAMESPACE, NEXT, NODE, NODE_NAME, RESET_TAG, RESULT, SINK, SKILL,
+    STATUS, TARGET, TYPE,
 };
 use crate::math::{DecimalEvaluator, ExpressionEngine};
 use crate::model::GraphInstance;
@@ -611,7 +612,7 @@ fn build_task_request(
                 "{NODE_NAME}{node_name} does not have '->' in '{entry}'"
             )));
         };
-        let lhs = substitute_var_if_any(entry[..sep].trim(), state)?;
+        let lhs = substitute_mapping_source(entry[..sep].trim(), state)?;
         let rhs = entry[sep + MAP_TO.len()..].trim();
         let value = get_lhs_or_constant(&lhs, state).map_err(invalid)?;
         if rhs.starts_with(MODEL_NAMESPACE) {

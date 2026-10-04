@@ -72,6 +72,51 @@ mapping[]=fetch-one.result.profile -> output.body.profile[0]
 mapping[]=fetch-two.result.profile -> output.body.profile[1]
 ```
 
+A source may compose its key or its text from the state machine — `census-2020.{model.state}`,
+`input.body.items[{model.i}]`, `text(Hello {model.name}!)` — and the value goes in verbatim, never
+quoted ([dynamic keys](command-reference.md#dynamic-keys)).
+
+### Keyed tables — a value per key {#keyed-table}
+
+`f:lookup` answers **which rule** lists a value. When the answer is **a value per key** instead — a
+population by state, a rate by code — the table node holds one `KEY=value` line per key, and a mapper
+reads it with a [dynamic key](command-reference.md#dynamic-keys):
+
+```
+create node census-2020
+with type DataTable
+with properties
+purpose=Resident population of each state on April 1, 2020
+source=U.S. Census Bureau, 2020 Census apportionment results
+CA=39538223
+NY=20201249
+TX=29145505
+```
+
+```
+create node lookup-census
+with type Lookup
+with properties
+skill=graph.data.mapper
+mapping[]=f:long(census-2020.{model.state}) -> model.population
+```
+
+Like a decision table, the node is graph data that the product owner certifies, wired under the
+island. Three properties of the read to design around: the composed key is **case-sensitive**
+(`f:lookup` is not), a key the table does not hold resolves to **null**, and a property value is
+**text** (`"39538223"`). A numeric conversion turns null into `-1`, not an error (`f:long(null)` is
+`-1`), so refuse an unknown key **before** converting. A `graph.math` gate does it in two statements,
+and its `else` branch returns a 404 from a refusal mapper (`int(404) -> output.status`):
+
+```
+statement[]=MAPPING: f:notNull(census-2020.{input.body.state}) -> model.known
+statement[]='''
+IF: {model.known}
+THEN: lookup-census
+ELSE: not-found
+'''
+```
+
 ## graph.math {#math}
 
 Fast inline math and boolean evaluation for computation and decision-making. This is **the** skill
@@ -542,7 +587,8 @@ table as JSON text directly. Wire the table node under the graph's island
 (`connect knowledge to state-rules with table`) so that [no node is left unconnected](#island).
 Pinned on both engines by `unit-test-lookup-1` (the plugin path: TX, ny and a miss defaulting to
 `unknown`) and `unit-test-task-9` (the function path, incl. the `f:json` variation; an unknown key
-returns the function's own 404 as the graph output).
+returns the function's own 404 as the graph output). When the answer is a value per key rather
+than a rule name, the table is a [keyed table](#keyed-table) read with a dynamic key.
 
 **Gotchas:** the `task` route must exist at runtime or the node fails fast; a call is bounded by
 `model.ttl` (default 30 s) — or by the node's optional `ttl` property (duration syntax, e.g.

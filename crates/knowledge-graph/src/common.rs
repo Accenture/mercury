@@ -359,6 +359,16 @@ pub fn substitute_var_if_any(text: &str, state: &MultiLevelMap) -> Result<String
     substitute_var_if_any_logical(text, state, logical)
 }
 
+/// Render `{selectors}` into the source of a data mapping - a key path, a constant or a
+/// plugin call. The value is inserted verbatim: a mapping source is never a boolean
+/// expression, so a `!`, `<`, `>` or `==` inside a text constant does not make it one. A
+/// JSONPath filter is the exception: a text value is quoted there so that it reads as a
+/// string literal in the query (Java `substituteMappingSource`).
+pub fn substitute_mapping_source(text: &str, state: &MultiLevelMap) -> Result<String, AppError> {
+    let logical = text.starts_with("$.") && text.contains('@');
+    substitute_var_if_any_logical(text, state, logical)
+}
+
 /// Render `{selectors}` into an expression with an explicit boolean context: in a
 /// logical context a text value is quoted so it reads as a string literal. CONDITION
 /// forces that context because its result is a boolean by declaration, whether or not
@@ -464,7 +474,7 @@ pub fn handle_data_mapping_entry(
             "{NODE_NAME}{node_name} does not have '->' in '{command}'"
         )));
     };
-    let lhs = substitute_var_if_any(command[..sep].trim(), state)?;
+    let lhs = substitute_mapping_source(command[..sep].trim(), state)?;
     let rhs = command[sep + MAP_TO.len()..].trim();
     let value = get_lhs_or_constant(&lhs, state).map_err(invalid)?;
     validate_rhs(node_name, rhs, graph)?;
@@ -648,7 +658,7 @@ pub fn get_for_each_mapping(
                 "{NODE_NAME}{node_name} does not have '->' in '{entry}'"
             )));
         };
-        let lhs = substitute_var_if_any(entry[..sep].trim(), state)?;
+        let lhs = substitute_mapping_source(entry[..sep].trim(), state)?;
         let rhs = entry[sep + MAP_TO.len()..].trim();
         let parts = split(rhs, ".");
         if parts.len() < 2 || parts[0] != "model" {
@@ -708,7 +718,7 @@ pub fn perform_fetcher_output_mapping(
                 "{NODE_NAME}{node_name} - invalid output mapping: {text}"
             )));
         };
-        let lhs = substitute_var_if_any(text[..sep].trim(), state)?;
+        let lhs = substitute_mapping_source(text[..sep].trim(), state)?;
         let rhs = text[sep + MAP_TO.len()..].trim();
         set_fetcher_output_entry(node_name, &lhs, rhs, state)?;
     }
@@ -1061,7 +1071,7 @@ pub fn fill_fetcher_api_parameters(
             "{NODE_NAME}{node_name} does not have '->' in '{command}'"
         )));
     };
-    let lhs = substitute_var_if_any(command[..sep].trim(), state)?;
+    let lhs = substitute_mapping_source(command[..sep].trim(), state)?;
     let rhs = command[sep + MAP_TO.len()..].trim();
     let target = if rhs.starts_with(MODEL_NAMESPACE) {
         assert_mutable_model_target(node_name, rhs)?;

@@ -36,7 +36,7 @@ related:
 | **Multi-line value** | wrap the value in triple single quotes | `statement[]='''` … `'''` |
 | **Constant** | `type(value)` — the closed set in [Constants](#constants) | `text(hello)`, `int(100)`, `boolean(true)` |
 | **Mapping operator** | `source -> target` (left = source, right = target) | `input.body.id -> person_id` |
-| **Variable substitution** | `{namespace.key}` inside `COMPUTE`/`IF` expressions | `{book.price}`, `{input.body.discount}` |
+| **Variable substitution** | `{namespace.key}` inside `COMPUTE`/`IF` expressions, statement commands and mapping sources ([dynamic keys](#dynamic-keys)) | `{book.price}`, `census-2020.{model.state}` |
 
 ## Namespaces {#namespaces}
 
@@ -93,6 +93,43 @@ supplied. A default for a model variable therefore comes from the **source** sid
 `f:defaultValue(input.body.flag, boolean(false)) -> model.flag`, or a plugin's own default such as
 `f:lookup(table, value, text(unknown))`. Do not write a default into `model.*` first and overlay it with
 a possibly-null source — the overlay removes the default.
+
+### Dynamic keys and values in a source {#dynamic-keys}
+
+A `{namespace.key}` reference inside a mapping source resolves before the source is read, and its
+value is inserted verbatim, never quoted. It composes three things without a plugin or a function:
+
+- **A key segment** — `census-2020.{model.state}` reads the property that `model.state` names, so a
+  skill-less table node answers a value per key (the [keyed table](skills-reference.md#keyed-table)
+  beside the `f:lookup` decision table).
+- **A list index** — `model.items[{model.i}]` reads the element that `model.i` points at. Write the
+  index with braces: Event Script's bare `model.items[model.i]` form is not a graph mapping.
+- **Text in a constant or a plugin argument** — `text(Hello {model.name}!)`,
+  `f:concat(text(population=), census-2020.{model.state})`.
+
+```
+mapping[]=census-2020.{model.state} -> model.population
+mapping[]=input.body.items[{model.i}] -> output.body.item
+mapping[]=text(Hello {input.body.name}!) -> output.body.greeting
+```
+
+It holds in `mapping[]` entries, `MAPPING:` statements, `for_each[]` entries, the `input[]` and
+`output[]` entries of `graph.task`, `graph.extension` and `graph.api.fetcher`, and a Dictionary's
+`output[]`. The rules:
+
+- **Any namespace, source side only.** The reference reads `input.*`, `model.*`, `output.*` or a node
+  (Event Script accepts `model.*` only). A **target** is a literal path; braces there are not resolved.
+- **Rendering.** Text and numbers go in as written, a boolean as `true` or `false`, a map or a list as
+  compact JSON. A `!`, `<`, `>` or `==` inside a text constant does not make the source an expression,
+  so nothing is quoted. The one place a text value is quoted is a JSONPath filter, where it must read
+  as a string literal in the query: `$.input.body.people[?(@.team == {model.team})].name`.
+- **An unresolved reference renders the text `null`.** A composed key then misses
+  (`census-2020.null`), so the null-source rule above applies, and a constant reads `null`
+  (`text(state={model.x})` is `state=null`). A brace pair whose content holds a colon, a tab or a
+  newline is not a reference and is kept as written, which is how JSON text in a constant survives.
+- **A composed key is a plain key path**: case-sensitive, unlike `f:lookup`, and a value that contains
+  a dot descends a level. Keep a fixed prefix before a request value (`census-2020.{input.body.state}`):
+  the request then chooses only within that table, never the namespace.
 
 ## Constants {#constants}
 
