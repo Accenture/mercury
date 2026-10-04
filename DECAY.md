@@ -81,7 +81,9 @@ Every session log carries a `## Memory References` section:
 - Reactivated: drizzle-over-prisma
 ```
 
-- **Referenced** — ids the session relied on or reinforced.
+- **Referenced** — ids the session relied on or reinforced. *Relied on* means consulted to make
+  a decision: the session would have decided differently without the fact (v4.42.1). Reading a
+  fact that shaped no decision is not a use.
 - **Created** — new facts added this session (born `tier: working`).
 - **Reactivated** — ids pulled back from the archive.
 - **Closed** — threads completed this session (v4.41.0): list them under `Referenced` with a
@@ -91,7 +93,9 @@ Every session log carries a `## Memory References` section:
 The pre-commit `memory-lint` advisory `[undeclared-reference]` (v4.41.0) warns when a change
 edits a fact's body without declaring the id in a session log staged with it — the diff is the
 only place that omission is visible, because the footers and this log then agree with each other
-while both are wrong.
+while both are wrong. A *consultation* leaves no diff at all, so no check can see an undeclared one
+(v4.42.1): the agent declares it when it writes the log, and the review's subject read before
+archiving a fact as faded (`REVIEW.md` step 6, *declaration gaps*) is the backstop.
 
 So, for any id:
 - `uses` = number of session logs whose `## Memory References` name it.
