@@ -432,8 +432,17 @@ layers shipped; the two above have held through every re-verify.)*
   at the six call sites; `substitute_var_if_any` stays for expressions and statement commands). By design (Eric, 2026-10-03): an unresolved reference renders `null` and a
   mapping target is never resolved (literal); also documented: any namespace may be read (Event Script: `model.*` only), a composed key is case-sensitive. Pinned by the byte-identical fixture `unit-test-mapping-1`,
   `mapping_source_resolves_dynamic_variables_verbatim` and the claim `mapping-source-dynamic-variables`. Extends [[static-decision-table-is-graph-data-rust]]; applies
-  [[webapp-single-source-java-repo]] (bundle `index-Bz9k-ffR`). The JSONPath result shape differs from Java on one match: [[rust-jsonpath-indefinite-list]].
+  [[webapp-single-source-java-repo]] (bundle `index-Bz9k-ffR`). The JSONPath result shape follows Jayway since Increment 157: [[jsonpath-jayway-result-shape]].
   <!-- id: mapping-source-verbatim-substitution | created: 2026-10-03 | last_used: 2026-10-03 | uses: 1 | tier: working | origin: 2026-10-04-054444 -->
+
+- **A `$.` JSONPath result takes Jayway's shape - by the kind of path, not the number of matches (Increment 157, PR #352 merge `bdc7b5be`, MERGED 2026-10-04 06:08Z;
+  the Java engine is the reference, its pin mercury-composable #504).** A definite path (child member names and single indexes only) yields the value or nothing; an
+  indefinite path (a filter, a wildcard, a descendant segment, a slice or a union) always yields a list, `[x]` for one match and `[]` for none, except that a missing
+  member name before its first indefinite step, or a name applied to a non-object, is not found (a missing index there only empties the list) - probed against Jayway
+  3.0.0. `serde_json_path` keeps its parsed query private, so `mlm.rs` classifies the parsed path string (`path_shape`, `misses_a_member_name`); an unrecognized
+  construct keeps the count rule. Holds in Event Script flows and graphs alike; pinned by `json_path_result_shape_follows_jayway`, the shared fixture
+  `unit-test-jsonpath-1` and the claim `json-path-result-shape`. Closed [[rust-jsonpath-indefinite-list]].
+  <!-- id: jsonpath-jayway-result-shape | created: 2026-10-03 | last_used: 2026-10-03 | uses: 1 | tier: working | origin: 2026-10-04-060541 -->
 
 ## Conventions
 
