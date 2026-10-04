@@ -118,7 +118,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    a missing member name before the path's first indefinite step (`$.input.body.missing[*]`) yields nothing, so the null-source
    rule applies. This holds in Event Script flows and knowledge graphs alike. The Event Script syntax page states the rule, the claim
    `json-path-result-shape` pins it with the shared fixture `unit-test-jsonpath-1`, and the Java engine pins the same fixture
-   (mercury-composable #503). READ: a filter or wildcard that matches one node now gives a one-element list instead of the bare
+   (mercury-composable #504). READ: a filter or wildcard that matches one node now gives a one-element list instead of the bare
    value, and one that matches nothing gives an empty list instead of no value; a mapping that expected the bare value reads the
    first element (`f:getFirst`, which takes a non-empty list).
 
