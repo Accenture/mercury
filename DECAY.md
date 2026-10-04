@@ -93,9 +93,11 @@ Every session log carries a `## Memory References` section:
 The pre-commit `memory-lint` advisory `[undeclared-reference]` (v4.41.0) warns when a change
 edits a fact's body without declaring the id in a session log staged with it — the diff is the
 only place that omission is visible, because the footers and this log then agree with each other
-while both are wrong. A *consultation* leaves no diff at all, so no check can see an undeclared one
-(v4.42.1): the agent declares it when it writes the log, and the review's subject read before
-archiving a fact as faded (`REVIEW.md` step 6, *declaration gaps*) is the backstop.
+while both are wrong. A *consultation* leaves no edit to the fact, so this check cannot see an
+undeclared one (v4.42.1): the agent declares it when it writes the log, and the review's subject read
+before archiving a fact as faded is the backstop — the window's commits to the paths the fact names
+first, then its logs, every hit held to the decision test (`REVIEW.md` step 6, *declaration gaps*;
+commit check v4.42.2).
 
 So, for any id:
 - `uses` = number of session logs whose `## Memory References` name it.

@@ -137,21 +137,35 @@ stalled thread as `[thread-stale]`, so the condition cannot hide.
    exactly one place). Record the result in the summary. (Superseded facts are exempt — they archive
    on truth-state, not recency.)
 
-   **Declaration gaps (facts, v4.42.1)** — the fact-level twin of step 5's thread rule. Both checks
-   above count only *declared* uses, and a fact consulted to make a decision leaves no diff, so for
-   **each** fact archived as *faded*, read for its **subject** — the code, rule or contract it
-   records, not its id. Search the `archive_window` session logs for the subject's distinctive terms
-   (backticked identifiers, words from its bold title), skipping `## Memory Review` and
-   `## Memory References` blocks, and read the sessions that hit. If one **exercised** the subject —
-   changed, tested, applied or decided by it — without declaring the id, the fade is a declaration
+   **Declaration gaps (facts, v4.42.1; commit check v4.42.2)** — the fact-level twin of step 5's
+   thread rule. Both checks above count only *declared* uses, and a fact consulted to make a decision
+   leaves no edit to the fact, so for **each** fact archived as *faded*, look for undeclared use of
+   its **subject** — the code, rule or contract it records, not its id — in two places:
+   - **The window's commits — start here.** List the commits since the oldest `archive_window` log
+     that touch a path the fact names: `git log --since=<that log's date> --format='%h %s' -- <paths>`
+     (its backticked paths; a `<placeholder>` becomes `*`). Leave out a path that most commits touch
+     — a hub such as `AGENTS.md`, `UPGRADE.md` or `memory/continuity.md` flags every fact; the measured
+     cut keeps a path touched by at most 5% of all commits (`git rev-list --count HEAD -- <path>`
+     against `git rev-list --count HEAD`). Each commit maps to the session log it carries, else the
+     next one.
+   - **The window's logs.** Search them for the subject's distinctive terms (backticked identifiers,
+     words from its bold title), skipping `## Memory Review` and `## Memory References` blocks.
+
+   Sessions describe their work in prose, not by the paths a fact names, so the commits are the
+   reliable signal: on this repo's own history they found both sessions behind the wrongful
+   `git-hook-fragment-dispatch` archival, the log search neither (RFC-0006). Then apply the
+   **decision test** to every hit — did the session rely on what the fact states; would it have
+   decided differently without it? If one did without declaring the id, the fade is a declaration
    gap, not disuse: move the fact back as above, name it under *this* review's `## Memory
-   References` (re-affirmed, citing the session that relied on it) so its count resets, and note
-   the reversal in the `## Memory Review` block. A mention is not an exercise: prose that names the
-   subject or the id — a prior review summary, a decay note, a plan never acted on — is not evidence
-   of use (the `ot-review-step6-prose` livelock). The read is judgment and never counts on its own;
-   only the declaration it prompts does. (Field report: mercury-composable and mercury, 2026-10-04
-   — three in-use facts archived in five weeks; this repo's `git-hook-fragment-dispatch` was a
-   fourth.)
+   References` (re-affirmed, citing the session that relied on it) so its count resets, and note the
+   reversal in the `## Memory Review` block. Two things are not use. A mention is not an exercise:
+   prose that names the subject or the id — a prior review summary, a decay note, a plan never acted
+   on — is not evidence (the `ot-review-step6-prose` livelock). And a fact that records an **event**
+   — a release shipped, work completed — is not kept alive by later work on the same code: its
+   substance lives in the changelog, and only a fact stating a live rule, decision or contract can
+   be relied on this way. The read is judgment and never counts on its own; only the declaration it
+   prompts does. (Field report: mercury-composable and mercury, 2026-10-04 — three in-use facts
+   archived in five weeks; this repo's `git-hook-fragment-dispatch` was a fourth.)
 7. **Verify invariants (cadence).** If `sessions_since_last_invariant_check ≥
    verify_invariants_every` (or `last_invariant_check` is unset and that many session
    files exist), raise **one** Open Thread listing every never-decay fact —
