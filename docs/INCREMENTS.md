@@ -4335,3 +4335,38 @@ matches, so a filter that matched one node gave a bare value here and a one-elem
   Event Script syntax page, which states the rule; the knowledge-graph grammar's `$.…` entry points at it.
 
 Gates: `cargo test` for the workspace, `check-doc-claims`, `check-llms-links`.
+
+## Increment 158 — The graph packager: pack, unpack and inspect graph sets from the command line (2026-10-05)
+
+RFC-0005 (graph sets, decided by Eric on 2026-10-03) starts with its first two work packages, in lock-step with the Java engine:
+the deployment gate becomes one shared function (WP1), and a command line packs graph sets with it (WP2). The package is the
+canonical package of ADR-0026; this is its first consumer.
+
+- **WP1, the gate as a function.** The compiler's static checks - the deprecated mapping syntax converted in place, the structural
+  import, the root node's `purpose`, an `end` node and `model_validator::validate` - move from `compiler.rs` to
+  `knowledge_graph::model_gate::validate(graph_id, &mut model)`, which `compiler::load_and_validate` now calls (no change in
+  behavior; the property-aware mapping-entry test moved with the code). The module also holds the file-name rule
+  (`is_valid_graph_id`, which `commands.rs` now delegates to) and `declared_root_name`. Java twin: `GraphModelGate`.
+- **The set rules.** `knowledge_graph::graph_set` (Java twin: `GraphSet`, messages word for word): `pack` refuses with every reason -
+  the set name and graph ids by the file-name rule, a root `name` that differs from its graph id, the reserved manifest fields
+  (`set` is written from the set name, `format` and `format_version` by the packager), a `graph_id` that names no graph, and every
+  gate failure, checked on a copy read the way the gate reads a deployed graph (`ConfigReader::from_map`, references resolved)
+  while the model is packed as written; `read` strict-reads and checks entry names, root names, binary values and `graph_id` before
+  a name becomes a path; `to_json` writes readable JSON in canonical key order.
+- **WP2, the command line.** The new workspace member `tools/graph-packager` (`mercury-graph-packager`, binary `graph-packager`,
+  `publish = false`, so the release's `cargo publish --workspace` leaves it out): `pack` (files, a folder, or `--from-manifest
+  graphs.yaml`, whose `classpath:` location is refused with a hint), `unpack`, `inspect [--json]`; exit codes 0, 1 (a refused input)
+  and 2 (an I/O or format error); log lines on standard error at `warn` (`RUST_LOG` overrides), so `inspect --json` is pure JSON.
+  Thirteen tests in `tests/cli.rs`, twins of the Java `GraphPackagerTest`.
+- **Cross-engine proof** (the interop report gains an addendum). Both command lines pack the 14 tutorials to identical bytes
+  (20,274 bytes, SHA-256 `4715598820261ca6…`), print identical `inspect` reports, unpack each other's files to identical JSON and
+  re-pack them to the original bytes; on the 52 fixtures byte-identical in both repositories both gates refuse the same 18 graphs
+  (17 reasons word for word; the eighteenth names `graph.js` only in Java), and the 34 accepted fixtures pack to identical bytes
+  (44,776 bytes, `7acbad4d862f2092…`). Negative control: one character changed in one tutorial changes the bytes.
+- **Found, not changed here.** The Rust configuration reader keeps a null-valued key that the Java reader drops when it normalizes,
+  and `MiniGraph::import_graph` refuses a null property ("value cannot be null"), so a graph holding `"key": null` deploys on Java and
+  is refused here, by the compiler and the packager alike. The `graph_set` test that writes a null builds its package without the
+  gate. Recorded for a separate decision.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test` for the workspace,
+`check-doc-claims`, `check-llms-links`.

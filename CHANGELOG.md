@@ -41,9 +41,22 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    `examples/minigraph-playground/tests/tutorials.rs` runs tutorials 13 and 11 through the example's own configuration and keeps the
    sample flow files equal to the engine's defaults.
 
+4. **The graph packager packs, unpacks and inspects graph sets from the command line (Increment 158, RFC-0005).** The new
+   `tools/graph-packager` crate (`mercury-graph-packager`, binary `graph-packager`, `publish = false`) is the twin of the Java
+   engine's `helpers/graph-packager`, a thin front over `platform_core::canonical_packager` (ADR-0026). `pack --set <name>` packs
+   graph JSON files, a folder, or exactly the graphs a deployment manifest lists (`--from-manifest graphs.yaml`) into `<name>.pack`,
+   with caller manifest fields such as `--manifest version=1.0.0`, and prints the SHA-256 for a signer; `unpack` writes the graphs
+   back as readable JSON in canonical key order; `inspect [--json]` reports the manifest, the graphs and the digest. Before anything is
+   written, every graph passes the deployment gate's own checks - the compiler's checks are now one shared function,
+   `knowledge_graph::model_gate::validate`, with no change in behavior - and its id follows the file-name rule and agrees with the root
+   node's name (`knowledge_graph::graph_set` holds the set rules); a set that breaks a rule is refused with every reason (exit code 1,
+   and 2 for an I/O or format error). The same graphs and fields always give the same bytes in both engines - the interop report
+   gains the comparison - and a `${...}` reference stays unresolved for the environment the set is deployed to. Deploying a `.pack`
+   file through `graphs.yaml` is the next step of RFC-0005. Upgrade note: none.
+
 ### Changed
 
-4. **The MiniGraph Playground's AI nodes point at the LLM helper app (Increment 148).** `llm.chat` (the `support-triage` graph) and
+5. **The MiniGraph Playground's AI nodes point at the LLM helper app (Increment 148).** `llm.chat` (the `support-triage` graph) and
    `llm.stream` (the `/api/llm/stream` relay) are functions in the new LLM helper of the Python and Node.js packs
    (`examples/llm-helper`, on the Anthropic SDK), not in their demo apps; the ports and the route map are unchanged, so nothing
    to reconfigure. The relay's "not configured" 503 now names the helper and its credential. The engine is unchanged and holds
@@ -51,7 +64,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    stream example for 2000 where it asked for 300: the helper's default model, Opus 5.5, thinks before it answers and its
    thinking tokens count against `max_tokens`, so a tight budget can end with no text.
 
-5. **The Playground webapp has one source, the Java repo, which deploys the bundle and the help pages here (Increment 152).**
+6. **The Playground webapp has one source, the Java repo, which deploys the bundle and the help pages here (Increment 152).**
    `crates/knowledge-graph/webapp/` is retired. `npm run release:rust` in the Java repo's
    `system/minigraph-playground-engine/webapp` builds once and deploys the hashed assets to `resources/public/assets/`, the entry
    page to `resources/template/playground.html` and a mirror of the help pages to `resources/help/`: the help is compiled into the
@@ -65,26 +78,26 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
 
 ### Documentation
 
-6. **The LLM helper certification report** (`docs/test-reports/llm-helper-certification.md`, byte-identical to the Java engine's):
+7. **The LLM helper certification report** (`docs/test-reports/llm-helper-certification.md`, byte-identical to the Java engine's):
    Rust and Java, each in front of the Python and the Node.js helper, driven through a streaming service, an Event Script flow
    and two graphs with real Claude calls. It shows that every token batch the helper forwards reaches the engine edge as its own
    frame, that the cadence of progressive rendering is the API's and differs by model (Haiku streams continuously, Opus in bursts
    about every 600 ms), and that the error contract holds on the real SDKs.
-7. The AI agent guide's boilerplate manifest no longer says the Rust template has no `flows.yaml` to carry over; the template's and
+8. The AI agent guide's boilerplate manifest no longer says the Rust template has no `flows.yaml` to carry over; the template's and
    the example's file tables list the flows files.
-8. The `graph.task` example in *Composing the layers* runs the built-in `no.op` instead of `v1.hello.task`, the demo function
+9. The `graph.task` example in *Composing the layers* runs the built-in `no.op` instead of `v1.hello.task`, the demo function
    Increment 83 retired, and the dev-mock row of *Reserved names and headers* no longer lists it. (The Playground's
    `help update` example follows in item 7.)
-9. The Playground's `help update` example runs `no.op` too, and the webapp bundle is regenerated from the help sources. The committed
+10. The Playground's `help update` example runs `no.op` too, and the webapp bundle is regenerated from the help sources. The committed
    bundle was stale: it lacked the `graph.math` help of Increments 141, 143 and 145 (`CONDITION`, the expression dialect, `DECIMAL`),
    which now shows in the Playground.
 
 ### Fixed
 
-10. **CI on Rust 1.99 (PR #344).** `Cargo.lock` moves `async-trait` from 0.1.89 to 0.1.92. Clippy 1.99's `double_must_use` flagged the
+11. **CI on Rust 1.99 (PR #344).** `Cargo.lock` moves `async-trait` from 0.1.89 to 0.1.92. Clippy 1.99's `double_must_use` flagged the
    `#[must_use]` that 0.1.89 puts on every async trait method, which failed the Clippy step on every branch of a workflow that floats on
    `stable`. Lockfile only: no crate changed, and nothing reaches the published crates.
-11. **Pasting a workspace-clipboard node into the MiniGraph Playground keeps scalar properties scalar (Increment 153).** The paste
+12. **Pasting a workspace-clipboard node into the MiniGraph Playground keeps scalar properties scalar (Increment 153).** The paste
    rebuilt the node with `key[]=value` for every property, and the engine appends on the `[]` signature, so a pasted node's `skill`
    and every other scalar arrived as a one-element list (`"skill": ["graph.math"]`). The paste now writes the node the way the
    engine's own `edit node` prints it: `key=value` for a scalar, one `key[]=element` line per list element, `path.key=value` for a
@@ -92,7 +105,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    node the grammar cannot carry is reported as "Paste failed" instead of being sent. The fix is in the Java repo's webapp
    (mercury-composable #497); this repo receives the regenerated bundle (`index-lxX8FQ68` became `index-CN-KsNrA`; the other chunks
    and the 42 help pages are unchanged).
-12. **A mock-data upload reaches every member of a collaborative MiniGraph Playground session, and the Playground's run controls
+13. **A mock-data upload reaches every member of a collaborative MiniGraph Playground session, and the Playground's run controls
    are three steps (Increment 154).** `POST /api/mock/{id}` loaded the payload into the uploader's instance only, so another member's
    replayed `run` executed without it and aborted. The upload now travels like a command (`commands::handle_upload`): the primary
    loads it and replays it into every subscriber's instance, a subscriber's upload goes through the primary, and every member's
@@ -101,7 +114,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    Upload (optional, opens the form for your own session only) and Run — drops the multi-select hint, and shows the console's
    connection rows with the local time as `HH:MM:SS`; `help upload` and `help session` describe the shared upload
    (mercury-composable #498).
-13. **A knowledge-graph mapping source inserts its `{namespace.key}` values verbatim (Increment 156).** A mapping source may embed a
+14. **A knowledge-graph mapping source inserts its `{namespace.key}` values verbatim (Increment 156).** A mapping source may embed a
    reference that resolves before the source is read: a key segment (`census-2020.{model.state}`, the read of a keyed table), a list
    index (`input.body.items[{model.i}]`), or text in a constant or a plugin argument. When the source text contained `!`, `<`, `>`,
    `==`, `&&` or `||`, every text value was quoted as if the source were a boolean expression: `text(Hello {input.body.name}!)` gave
@@ -110,7 +123,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    grammar's "Dynamic keys and values in a source", the skills reference's keyed table, the data-mapper help in the regenerated
    bundle) and the plugin table states that `int`, `long`, `float` and `double` give `-1` for a null or non-numeric value
    (mercury-composable #503). READ: a mapping that relied on the quotes now gets the bare value.
-14. **A `$.` JSONPath query takes Jayway's result shape, the Java engine's (Increment 157).** `MultiLevelMap::get_element`
+15. **A `$.` JSONPath query takes Jayway's result shape, the Java engine's (Increment 157).** `MultiLevelMap::get_element`
    shaped a JSONPath result by the number of matches: one match gave the bare value, none gave nothing. Jayway shapes it by the
    kind of path, and so does this engine now. A definite path (child member names and single indexes only) yields the value, or
    nothing when it is absent. An indefinite path (a filter, a wildcard, a deep scan `..`, a slice or a union) always yields a

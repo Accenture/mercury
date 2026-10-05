@@ -1923,10 +1923,7 @@ async fn handle_connect(
 // ---- export / import / instantiate ----
 
 fn valid_graph_file_name(name: &str) -> bool {
-    !name.is_empty()
-        && name
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+    crate::model_gate::is_valid_graph_id(name)
 }
 
 async fn handle_export(
