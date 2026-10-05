@@ -135,6 +135,11 @@ ordinary fact, `core` for an Architectural Invariant — and seeds `last_used: <
 | uses: 1`. It does **not** hand-edit `uses`/`last_used`/`tier` afterward; those are
 recomputed by the review from session-log `## Memory References` (see `DECAY.md` §1).
 
+**A fact that governs specific files names them in backticks** (v4.42.3) — repo-relative paths such as
+`templates/*/pom.xml` or `system/rest-spring-3/`, a `<placeholder>` for a segment that varies. Before
+archiving a fact as faded, the review lists the window's commits that touch those paths (`REVIEW.md`
+step 6, *declaration gaps*); a path written without backticks is invisible to that check.
+
 `## Architectural Invariants` facts and unchecked Open Threads (`- [ ]`) never decay.
 Never decaying is not never checked: an unchecked thread not referenced for more than
 `thread_stale_window` sessions is **stalled** and the review lists it in a human closure gate
