@@ -137,17 +137,28 @@ stalled thread as `[thread-stale]`, so the condition cannot hide.
    exactly one place). Record the result in the summary. (Superseded facts are exempt — they archive
    on truth-state, not recency.)
 
-   **Declaration gaps (facts, v4.42.1; commit check v4.42.2)** — the fact-level twin of step 5's
-   thread rule. Both checks above count only *declared* uses, and a fact consulted to make a decision
-   leaves no edit to the fact, so for **each** fact archived as *faded*, look for undeclared use of
-   its **subject** — the code, rule or contract it records, not its id — in two places:
-   - **The window's commits — start here.** List the commits since the oldest `archive_window` log
-     that touch a path the fact names: `git log --since=<that log's date> --format='%h %s' -- <paths>`
-     (its backticked paths; a `<placeholder>` becomes `*`). Leave out a path that most commits touch
-     — a hub such as `AGENTS.md`, `UPGRADE.md` or `memory/continuity.md` flags every fact; the measured
-     cut keeps a path touched by at most 5% of all commits (`git rev-list --count HEAD -- <path>`
-     against `git rev-list --count HEAD`). Each commit maps to the session log it carries, else the
-     next one.
+   **Declaration gaps (facts, v4.42.1; commit check v4.42.2, refined v4.42.3)** — the fact-level
+   twin of step 5's thread rule. Both checks above count only *declared* uses, and a fact consulted to
+   make a decision leaves no edit to the fact, so for **each** fact archived as *faded*, look for
+   undeclared use of its **subject** — the code, rule or contract it records, not its id — in two
+   places:
+   - **The window's commits — start here.** The window's work begins where the log *before* it ends
+     (the newest log older than the `archive_window` logs), so list the commits after that log's full
+     timestamp that touch a path the fact names:
+     `git log --since=<YYYY-MM-DDTHH:MM:SSZ> --format='%h %s' -- <paths>` (its backticked paths —
+     `.agent/schema.md` asks a fact that governs files to name them so; a `<placeholder>` becomes `*`).
+     Take the timestamp from the log's file name (`2026-09-30-164034` → `2026-09-30T16:40:34Z`) and
+     never pass a bare date: git completes one with the current time of day. Leave out a **hub** — a
+     path touched by more than 5% of all commits **and** by more than 5% of the window's commits, at
+     least two of them (`git rev-list --count [--since=<timestamp>] HEAD -- <path>` against
+     `git rev-list --count [--since=<timestamp>] HEAD`): `AGENTS.md`, `UPGRADE.md` or
+     `memory/continuity.md` would flag every fact. Busy over all history is not enough: a path that was
+     busy once and is quiet now — a retired module kept as a placeholder that only a release sweep
+     touches — carries exactly the rare commit this check exists for, and a path the window touched once
+     is never a hub, since one candidate is cheap to check. Each commit maps to the session log it
+     carries, else to the log carried by the next commit in history that carries one — never the next
+     log by file name: a log is named when first written and may be enriched by later commits. Only the
+     window's logs count.
    - **The window's logs.** Search them for the subject's distinctive terms (backticked identifiers,
      words from its bold title), skipping `## Memory Review` and `## Memory References` blocks.
 
