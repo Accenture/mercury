@@ -174,6 +174,14 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
     deeper nesting with `Nesting deeper than 64 levels`, which the Event API answers with HTTP 400. The distributed-cache example's
     `unpack` decodes through it too. Upgrade note: an event body may nest at most 63 levels inside its envelope.
 
+20. **The elastic queue's holding folder is removed at a graceful exit (Increment 162).** `elastic_queue::shutdown_cleanup`, the
+    twin of the Java engine's JVM shutdown hook that the lifecycle's graceful exit runs, purged the overflow segment files and the
+    `RUNNING` marker but left the per-instance folder `<app>-<origin>` under `transient.data.store`. It now removes the folder once
+    it is empty. With `running.in.cloud=true` the folder is the configured store itself, so it stays, as does a folder that holds
+    files of another kind; a process that never opened the store has nothing to clean. A test binary never reaches the lifecycle's
+    exit, so the starter templates' tests run the cleanup themselves when they end. The Java engine's shutdown hook does the same.
+    Upgrade note: none.
+
 ---
 ## Version 4.12.20, 10/1/2026
 
