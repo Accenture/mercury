@@ -146,3 +146,30 @@ fn empty_input_is_an_empty_envelope_as_in_java() {
         "a package is never empty"
     );
 }
+
+/// The input holds exactly one value, as the Java engine - the reference implementation - reads it: bytes after the
+/// top-level container, well-formed or not, are refused by every decoder, so two different byte strings never decode
+/// to the same value. The shared file pins both inputs; this test pins the message and the envelope path.
+#[test]
+fn bytes_after_the_value_are_refused() {
+    let trailing: [&[u8]; 2] = [&[0x80, 0xc1], &[0x80, 0xc0]];
+    for bytes in trailing {
+        assert_eq!(
+            Err("Unexpected bytes after the value at offset 1".to_string()),
+            from_msgpack::<Value>(bytes)
+        );
+        let e = EventEnvelope::from_bytes(bytes).expect_err("bytes after the value");
+        assert!(
+            e.message()
+                .contains("Unexpected bytes after the value at offset 1"),
+            "{}",
+            e.message()
+        );
+        assert!(
+            canonical_packager::decode(bytes).is_err(),
+            "canonical_packager::decode accepted bytes after the value"
+        );
+    }
+    // the value alone decodes: the rule refuses what follows the value, not the value
+    assert_eq!(Ok(Value::Map(vec![])), from_msgpack::<Value>(&[0x80]));
+}

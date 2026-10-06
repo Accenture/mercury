@@ -1,7 +1,7 @@
 {
   "format": "mercury-msgpack-hostile-header-vectors",
   "version": "1",
-  "note": "Shared by the Java and Rust engines, byte-identical in both repositories. Every input is a top-level container, so it reaches a decoder through the same entry points as an event payload. A vector with expect=reject must fail as a decoding error - never as an unchecked exception, a panic, a stack overflow or an allocation sized by the hostile header - before anything is allocated for the declared count or length. A vector with expect=accept must decode to exactly the JSON in value (a JSON number without a fraction is an integer, any other a float64); the controls keep a decoder that refuses everything from passing. A control may carry canonical=reject: the event payload codec must decode it to value while the canonical package decoder must refuse it (empty input is the one case: the Java engine, the reference, reads it as an empty map and an empty envelope, and a package is never empty).",
+  "note": "Shared by the Java and Rust engines, byte-identical in both repositories. Every input begins with a top-level container, so it reaches a decoder through the same entry points as an event payload, and a decoder reads exactly one value, so bytes after that container are refused as a decoding error. A vector with expect=reject must fail as a decoding error - never as an unchecked exception, a panic, a stack overflow or an allocation sized by the hostile header - before anything is allocated for the declared count or length. A vector with expect=accept must decode to exactly the JSON in value (a JSON number without a fraction is an integer, any other a float64); the controls keep a decoder that refuses everything from passing. A control may carry canonical=reject: the event payload codec must decode it to value while the canonical package decoder must refuse it (empty input is the one case: the Java engine, the reference, reads it as an empty map and an empty envelope, and a package is never empty).",
   "vectors": [
     {
       "id": "array32-max-count-nothing-follows",
@@ -142,6 +142,20 @@
       "expect": "reject",
       "why": "invalid-format-byte",
       "description": "0xc1 as a map key"
+    },
+    {
+      "id": "bytes-after-the-value-never-used-byte",
+      "hex": "80c1",
+      "expect": "reject",
+      "why": "bytes-after-the-value",
+      "description": "an empty map, then 0xc1: a decoder that reads one value and stops never sees the byte, so only the exactly-one-value rule refuses it"
+    },
+    {
+      "id": "bytes-after-the-value-well-formed-nil",
+      "hex": "80c0",
+      "expect": "reject",
+      "why": "bytes-after-the-value",
+      "description": "an empty map, then a well-formed nil: any byte after the value is refused, not only an invalid one"
     },
     {
       "id": "nesting-65-arrays",

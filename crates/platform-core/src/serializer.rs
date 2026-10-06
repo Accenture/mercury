@@ -113,23 +113,53 @@ pub const MAX_DEPTH: usize = 64;
 /// The bytes of an empty map, which empty input decodes as.
 const EMPTY_MAP: &[u8] = &[0x80];
 
-/// Decode MsgPack bytes with their nesting bounded at [`MAX_DEPTH`]: `rmp_serde::from_slice` with a depth limit.
+/// Decode MsgPack bytes with their nesting bounded at [`MAX_DEPTH`] and exactly one value read: `rmp_serde::from_slice`
+/// with a depth limit, then the proof that nothing follows the value.
 /// Bytes that arrive from outside the process are decoded here (the envelope, the Event API's format check).
 ///
 /// Empty input decodes as an empty map - so an empty byte array is an empty envelope, never a decoding error - as the
 /// Java engine's `MsgPack.unpack` reads it; the Java engine is the reference implementation (Eric, 2026-10-06). The
 /// canonical package decoder keeps refusing empty input, as the Java one does: a package is never empty.
+///
+/// The input holds exactly one value: bytes after the top-level container, well-formed or not, are refused as
+/// `Unexpected bytes after the value at offset N` - the Java engine's rule (`MsgPack.unpackMapOrList`) and the one the
+/// canonical package decoder always applied - so two different byte strings never decode to the same value.
 pub fn from_msgpack<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8]) -> Result<T, String> {
     let bytes = if bytes.is_empty() { EMPTY_MAP } else { bytes };
     let mut de = rmp_serde::Deserializer::from_read_ref(bytes);
     // rmp-serde refuses the container that brings its counter to zero, so MAX_DEPTH + 1 accepts MAX_DEPTH levels
     de.set_max_depth(MAX_DEPTH + 1);
-    T::deserialize(&mut de).map_err(|e| match e {
+    let value = T::deserialize(&mut de).map_err(|e| match e {
         rmp_serde::decode::Error::DepthLimitExceeded => {
             format!("Nesting deeper than {MAX_DEPTH} levels")
         }
         other => other.to_string(),
-    })
+    })?;
+    // The zero-copy reader keeps its cursor to itself, so the end of the input is proven by reading on: the marker of
+    // a second value must be missing. A probe for a number reads that marker and at most eight data bytes, and only a
+    // missing marker fails as InvalidMarkerRead with UnexpectedEof - a marker that is present fails later, or not at
+    // all - so any other outcome means bytes follow the value. The offset is computed for the error only.
+    match <u8 as serde::Deserialize>::deserialize(&mut de) {
+        Err(rmp_serde::decode::Error::InvalidMarkerRead(ref e))
+            if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+        {
+            Ok(value)
+        }
+        _ => Err(format!(
+            "Unexpected bytes after the value at offset {}",
+            value_end(bytes)
+        )),
+    }
+}
+
+/// The offset at which the first value in `bytes` ends, read over a cursor so the position is known. Used only to
+/// name the offset in the error for bytes after the value, once the first value has decoded, so every length it
+/// declares lies within the input.
+fn value_end(bytes: &[u8]) -> usize {
+    let mut de = rmp_serde::Deserializer::new(std::io::Cursor::new(bytes));
+    de.set_max_depth(MAX_DEPTH + 1);
+    let _ = <serde::de::IgnoredAny as serde::Deserialize>::deserialize(&mut de);
+    de.position() as usize
 }
 
 #[cfg(test)]
@@ -339,5 +369,34 @@ mod tests {
     fn empty_input_is_an_empty_map_as_in_java() {
         // the Java engine's MsgPack.unpack returns an empty map for empty input; this engine follows the reference
         assert_eq!(Ok(Value::Map(vec![])), from_msgpack::<Value>(&[]));
+    }
+
+    #[test]
+    fn bytes_after_the_value_are_refused() {
+        // the input holds exactly one value, as on Java (MsgPack.unpackMapOrList): whatever follows the top-level
+        // container is refused by name, well-formed or not; the truncated shapes prove the probe tells a present
+        // marker from a missing one, since their own end of input comes after the marker
+        let trailing: [&[u8]; 6] = [
+            &[0x80, 0xc1],                   // the format byte the specification never uses
+            &[0x80, 0xc0],                   // a well-formed nil
+            &[0x80, 0x05],                   // a positive fixint, which the probe reads whole
+            &[0x80, 0x91],                   // an array header whose element is missing
+            &[0x80, 0xcc],                   // a uint 8 header whose byte is missing
+            &[0x80, 0xa3, 0x61, 0x62, 0x63], // a complete string
+        ];
+        for bytes in trailing {
+            assert_eq!(
+                Err("Unexpected bytes after the value at offset 1".to_string()),
+                from_msgpack::<Value>(bytes),
+                "{bytes:02x?}"
+            );
+        }
+        // the offset names where the value ended
+        assert_eq!(
+            Err("Unexpected bytes after the value at offset 4".to_string()),
+            from_msgpack::<Value>(&[0x81, 0xa1, 0x61, 0x01, 0xc0])
+        );
+        // the value alone decodes: the rule refuses what follows the value, not the value
+        assert_eq!(Ok(Value::Map(vec![])), from_msgpack::<Value>(&[0x80]));
     }
 }
