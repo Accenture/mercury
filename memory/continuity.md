@@ -350,7 +350,7 @@ layers shipped; the two above have held through every re-verify.)*
   while `rmp-serde` and the Java reader refuse it; `check_markers` (iterative, allocation-free) now walks the markers before
   decoding and refuses `0xc1` and any header that promises more than the input holds - the Java reader's rule - with `rmp`
   declared as a direct dependency for `Marker`. **The empty-input disparity, RULED (Eric, 2026-10-06): Java is the reference implementation
-  and the Rust port follows** - Increment 164 (`fix/msgpack-empty-input` `79a93b88`, PR pending): `from_msgpack` reads empty
+  and the Rust port follows** - Increment 164 (`fix/msgpack-empty-input` `79a93b88`, PR #362 open; the Java twin mercury-composable #520): `from_msgpack` reads empty
   input as an empty map and `EventEnvelope` carries a struct-level serde default (its `id` had none), so `from_bytes(&[])` is an
   empty envelope with a fresh id as on Java and the Event API answers an empty body `400 Missing routing path`; the canonical
   decoder keeps refusing empty input, and the shared file carries the case as the first `canonical: reject` control. Lesson: parity believed is not parity tested - the shared-file method caught a divergence
