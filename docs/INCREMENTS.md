@@ -4391,3 +4391,23 @@ canonical package of ADR-0026; this is its first consumer.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test` for the workspace,
 `check-doc-claims`, `check-llms-links`.
+
+## Increment 159 — A set of one graph is pinned: packing a graph alone is how one graph is signed (2026-10-06)
+
+Eric's rule, given when the Java engine promoted RFC-0005 to ADR-0027: a graph set holds one graph or more, and the single-graph
+set is there on purpose, so that one graph can be signed on its own. The packager already allowed it (`graph_set::pack` refuses
+only an empty set), but no test named it; this increment pins it, in lock-step with the Java engine. Checked live first: a
+detached Ed25519 signature made over the Java engine's pack of `tutorial-1` verified this engine's pack and a repack of the
+unpacked file, and failed once a manifest field changed.
+
+- **The test.** `tests/cli.rs` `a_single_graph_is_packed_alone_so_it_can_be_signed` (twin of the Java
+  `GraphPackagerTest.aSingleGraphIsPackedAloneSoItCanBeSigned`): one graph file named on the command line packs as `Packed 1 graph`
+  into 327 bytes whose SHA-256, `c500281ada1b5582…`, both engines' tests pin; a second pack and a pack of the file `unpack` writes
+  give the same bytes, so a detached signature still verifies; another `version` gives other bytes, because the manifest is signed
+  with the graph; and an empty folder is refused with exit code 1 and `a set needs at least one graph`, writing nothing.
+- **The design is ADR-0027 now** (the Java repository's ledger). The packager's README points to it and states the rule under
+  Signing, and the canonical package guide's "Not part of the packager" paragraph no longer lists the folder tooling and the
+  graph-set loader as deferred.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p mercury-graph-packager`,
+`check-doc-claims`, `check-llms-links`.

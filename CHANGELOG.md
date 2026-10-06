@@ -41,7 +41,8 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    `examples/minigraph-playground/tests/tutorials.rs` runs tutorials 13 and 11 through the example's own configuration and keeps the
    sample flow files equal to the engine's defaults.
 
-4. **The graph packager packs, unpacks and inspects graph sets from the command line (Increment 158, RFC-0005).** The new
+4. **The graph packager packs, unpacks and inspects graph sets from the command line (Increments 158 and 159, RFC-0005,
+   ADR-0027).** The new
    `tools/graph-packager` crate (`mercury-graph-packager`, binary `graph-packager`, `publish = false`) is the twin of the Java
    engine's `helpers/graph-packager`, a thin front over `platform_core::canonical_packager` (ADR-0026). `pack --set <name>` packs
    graph JSON files, a folder, or exactly the graphs a deployment manifest lists (`--from-manifest graphs.yaml`) into `<name>.pack`,
@@ -51,10 +52,11 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    `knowledge_graph::model_gate::validate`, with no change in behavior - and its id follows the file-name rule and agrees with the root
    node's name (`knowledge_graph::graph_set` holds the set rules); a set that breaks a rule is refused with every reason (exit code 1,
    and 2 for an I/O or format error). The same graphs and fields always give the same bytes in both engines - the interop report
-   gains the comparison - and a `${...}` reference stays unresolved for the environment the set is deployed to. A graph holds no
-   null property: `"key": null` is filtered out when a set is packed, whatever `serializer.null.transport` says, while `"key": ""`
-   is a value and is kept. Deploying a `.pack`
-   file through `graphs.yaml` is the next step of RFC-0005. Upgrade note: none.
+   gains the comparison - and a `${...}` reference stays unresolved for the environment the set is deployed to. A set holds one
+   graph or more: packing a graph alone is how one graph is signed, and both engines' tests pin such a set to the same bytes. A
+   graph holds no null property: `"key": null` is filtered out when a set is packed, whatever `serializer.null.transport` says,
+   while `"key": ""` is a value and is kept. Deploying a `.pack` file through `graphs.yaml` is the next step of ADR-0027 (the Java
+   engine's decision ledger, where RFC-0005 was promoted). Upgrade note: none.
 
 ### Changed
 
