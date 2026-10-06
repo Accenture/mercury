@@ -434,7 +434,7 @@ layers shipped; the two above have held through every re-verify.)*
   <!-- id: worktree-build-bakes-resource-root | created: 2026-10-02 | last_used: 2026-10-03 | uses: 3 | tier: archive-candidate | origin: 2026-10-02-183818 -->
 
 - **Tests remove the temporary files they write when they complete, verified by measuring (Eric, 2026-10-06; Increment 162, PR
-  #360).** A test binary runs its tests in parallel and has no after-all hook. Per-process files go under `test_support::temp_path`
+  #360 merge `acf767d7`, MERGED 2026-10-06 05:35Z).** A test binary runs its tests in parallel and has no after-all hook. Per-process files go under `test_support::temp_path`
   (`mercury-test-support`, dev-only: one folder per process, removed by one `atexit` hook), and a cleanup the code under test owns
   registers with `test_support::run_at_exit`: every test in a binary that keeps the default store registers
   `elastic_queue::shutdown_cleanup`, which a test binary never runs otherwise (only the lifecycle's graceful exit does). A starter
