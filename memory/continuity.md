@@ -322,6 +322,19 @@ layers shipped; the two above have held through every re-verify.)*
   Java repository's `graph-set-packaging`. Relates [[graph-null-property-filtered-rust]].
   <!-- id: graph-set-pack-and-deploy-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 2 | tier: active | origin: 2026-10-06-012631 -->
 
+- **A MsgPack payload may nest at most 64 maps and lists, the outermost container being level 1, the same rule as the Java engine (Eric,
+  2026-10-06; Increment 160, PR #358, open at writing; Java twin mercury-composable #514, fact `msgpack-nesting-limit-64`).** This engine
+  decoded untrusted bytes with `rmp_serde::from_slice`: the envelope (`EventEnvelope::from_bytes`) and the Event API's compact-format
+  check. Measured with a throwaway test: rmp-serde's default of 1,024 counts the outermost container, so a release build decodes 1,023
+  levels, but a debug build's 2 MiB thread stack overflowed between 500 and 600 nested arrays and aborted the process. Now
+  `serializer::from_msgpack` is `from_slice` with `set_max_depth(MAX_DEPTH + 1)` (rmp-serde refuses the container that brings its counter
+  to zero) and reports `Nesting deeper than 64 levels`, which the Event API answers with HTTP 400. The envelope map is level 1, so a body
+  nests at most 63. The distributed-cache example's `unpack` decodes through it too; the canonical packager keeps its own bound. Pinned by
+  the `serializer` tests, `envelope_wire_format::an_envelope_nested_too_deep_is_a_decoding_error` and the claim `msgpack-nesting-limit`.
+  Lesson: measure a library's depth limit against the stack, not against its documentation. Relates [[graph-set-pack-and-deploy-rust]] (the
+  canonical packager's 64).
+  <!-- id: msgpack-nesting-limit-64-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 1 | tier: working | origin: 2026-10-06-025704 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
