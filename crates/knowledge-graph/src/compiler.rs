@@ -154,9 +154,11 @@ fn compile_one_graph(deploy_location: &str, graph_id: &str) {
     }
 }
 
-/// Load a graph JSON as an rmpv value with `${...}` references resolved —
-/// the raw form the startup compiler shares with the playground's temp
-/// workspace import (Java uses `ConfigReader` in both places).
+/// Load a graph JSON as an rmpv value with `${...}` references resolved and
+/// its null properties filtered out — the raw form the startup compiler
+/// shares with the playground's temp workspace import (Java uses
+/// `ConfigReader` in both places, whose normalization drops a null-valued
+/// key; this reader keeps one, so the filter is explicit here).
 pub(crate) fn load_raw_graph(deploy_location: &str, graph_id: &str) -> Result<Value, String> {
     // pass the loader error through untouched (Java parity): a missing model
     // file logs the FULL normalized path — "Rejected graph g1 -
@@ -165,7 +167,10 @@ pub(crate) fn load_raw_graph(deploy_location: &str, graph_id: &str) -> Result<Va
     let reader = ConfigReader::load(&normalized_path(deploy_location, graph_id))
         .map_err(|e| e.to_string())?;
     let json = ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
-    Ok(event_script::conversions::from_json(&json))
+    // a graph holds no null property ("key": null), while "key": "" is a value
+    Ok(model_gate::without_null_properties(
+        &event_script::conversions::from_json(&json),
+    ))
 }
 
 fn load_and_validate(deploy_location: &str, graph_id: &str) -> Result<Value, String> {
@@ -183,4 +188,43 @@ fn load_and_validate(deploy_location: &str, graph_id: &str) -> Result<Value, Str
 fn normalized_path(folder: &str, graph_id: &str) -> String {
     let parts: Vec<&str> = folder.split('/').filter(|p| !p.is_empty()).collect();
     format!("{}/{graph_id}.json", parts.join("/"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use event_script::mlm::MultiLevelMap;
+
+    /// A deployed graph holding `"key": null` compiles, as on the Java engine,
+    /// whose configuration reader drops a null-valued key when it normalizes the
+    /// graph; `"key": ""` stays a value.
+    #[test]
+    fn a_deployed_null_property_is_filtered_out() {
+        let dir =
+            std::env::temp_dir().join(format!("compiler-null-property-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("a folder");
+        std::fs::write(
+            dir.join("nulls.json"),
+            r#"{"nodes": [
+              {"alias": "root", "types": ["Root"],
+               "properties": {"purpose": "null properties", "name": "nulls", "note": null, "empty": ""}},
+              {"alias": "end", "types": ["End"], "properties": {}}],
+             "connections": [{"source": "root", "target": "end",
+                              "relations": [{"type": "done", "properties": {"x": null}}]}]}"#,
+        )
+        .expect("a graph file");
+        let model = load_and_validate(&format!("file:{}", dir.display()), "nulls");
+        let _ = std::fs::remove_dir_all(&dir);
+        let mm =
+            MultiLevelMap::from_value(model.expect("a null property is filtered out, not refused"));
+        assert_eq!(None, mm.get_element("nodes[0].properties.note"));
+        assert_eq!(
+            Some(Value::from("")),
+            mm.get_element("nodes[0].properties.empty")
+        );
+        assert_eq!(
+            None,
+            mm.get_element("connections[0].relations[0].properties.x")
+        );
+    }
 }

@@ -27,6 +27,11 @@
 //! from the environment or the clock, so the same graphs and fields always
 //! give the same bytes, in either engine.
 //!
+//! A graph holds no null property: `"key": null` is filtered out when a set is
+//! packed or read, as the Java engine's serializer does by default
+//! ([`model_gate::without_null_properties`]). An empty string is a value and
+//! is kept.
+//!
 //! The rules live here so the graph packager, the deployment of packaged sets
 //! and the Playground apply the same ones; the messages match the Java engine
 //! word for word.
@@ -98,13 +103,14 @@ impl std::error::Error for GraphSetError {}
 /// packed - the set name and each graph id against the file-name rule, each
 /// root 'name' against its graph id, the 'graph_id' field against the graphs,
 /// and each model against the deployment gate's checks - and the set is
-/// refused with every reason when any fails.
+/// refused with every reason when any fails. A null property is filtered out
+/// first: a graph holds none.
 ///
 /// The gate checks a copy read the way the gate reads a deployed model,
 /// normalized and with its `${...}` references resolved, while the model is
-/// packed as given: a reference belongs to the environment the set is deployed
-/// to, and resolving it here would make the bytes depend on the machine that
-/// packs them.
+/// packed as written: a reference belongs to the environment the set is
+/// deployed to, and resolving it here would make the bytes depend on the
+/// machine that packs them.
 pub fn pack(
     set_name: &str,
     fields: &[(String, String)],
@@ -139,7 +145,12 @@ pub fn pack(
             ));
         }
     }
-    for (graph_id, model) in graphs {
+    // a graph holds no null property: "key": null is filtered out before the checks and the pack
+    let models: BTreeMap<&String, Value> = graphs
+        .iter()
+        .map(|(graph_id, model)| (graph_id, model_gate::without_null_properties(model)))
+        .collect();
+    for (graph_id, model) in &models {
         if let Some(reason) = check(graph_id, model) {
             reasons.push(format!("{graph_id}: {reason}"));
         }
@@ -155,9 +166,9 @@ pub fn pack(
         builder = builder.manifest(key, value).map_err(refused)?;
     }
     builder = builder.manifest(SET, set_name).map_err(refused)?;
-    for (graph_id, model) in graphs {
+    for (graph_id, model) in models {
         builder = builder
-            .add(&format!("{graph_id}{JSON_EXT}"), model.clone())
+            .add(&format!("{graph_id}{JSON_EXT}"), model)
             .map_err(refused)?;
     }
     builder
@@ -190,7 +201,7 @@ pub fn read(bytes: &[u8]) -> Result<Contents, GraphSetError> {
                 "{id}: binary data at '{path}' - a graph model is JSON"
             ));
         }
-        graphs.push((id.to_string(), model.clone()));
+        graphs.push((id.to_string(), model_gate::without_null_properties(model)));
     }
     if package.maps.is_empty() {
         reasons.push("the package holds no graph".to_string());
@@ -212,9 +223,8 @@ pub fn read(bytes: &[u8]) -> Result<Contents, GraphSetError> {
 }
 
 /// Readable JSON for a graph model taken out of a set: the canonical key
-/// order, a two-space indent and null values kept, so two versions of a set
-/// diff cleanly and the file packs to the same bytes again. Ends with a new
-/// line.
+/// order and a two-space indent, so two versions of a set diff cleanly and the
+/// file packs to the same bytes again. Ends with a new line.
 pub fn to_json(model: &Value) -> String {
     let json = event_script::conversions::to_json(model).unwrap_or(serde_json::Value::Null);
     let mut text = serde_json::to_string_pretty(&json).unwrap_or_default();
@@ -437,28 +447,70 @@ mod tests {
         assert!(matches!(read(&trailing), Err(GraphSetError::Format(_))));
     }
 
+    const WITH_NULLS: &str = r#"{"nodes": [
+      {"alias": "root", "types": ["Root"],
+       "properties": {"purpose": "p", "name": "n", "note": null, "empty": "", "flags": [true, null]}},
+      {"alias": "end", "types": ["End"], "properties": {}}],
+     "connections": [{"source": "root", "target": "end", "relations": [{"type": "done", "properties": {"x": null}}]}]}"#;
+
+    const WITHOUT_NULLS: &str = r#"{"nodes": [
+      {"alias": "root", "types": ["Root"],
+       "properties": {"purpose": "p", "name": "n", "empty": "", "flags": [true, null]}},
+      {"alias": "end", "types": ["End"], "properties": {}}],
+     "connections": [{"source": "root", "target": "end", "relations": [{"type": "done", "properties": {}}]}]}"#;
+
+    fn one_graph(json: &str) -> BTreeMap<String, Value> {
+        let mut graphs = BTreeMap::new();
+        graphs.insert("n".to_string(), graph(json));
+        graphs
+    }
+
     #[test]
-    fn an_unpacked_graph_is_readable_json_in_canonical_order() {
-        // built without the gate: the Rust config reader keeps a null property, which the
-        // graph importer refuses, while the Java reader drops it - the JSON writer keeps it
-        let model = graph(
-            r#"{"nodes": [
-              {"alias": "root", "types": ["Root"], "properties": {"purpose": "p", "name": "j", "note": null}},
-              {"alias": "end", "types": ["End"], "properties": {}}],
-             "connections": [{"source": "root", "target": "end", "relations": [{"type": "done", "properties": {}}]}]}"#,
+    fn a_null_property_is_filtered_out_and_an_empty_string_kept() {
+        let bytes = pack("n", &[], &one_graph(WITH_NULLS))
+            .expect("a null property is filtered out, not refused");
+        // the same bytes as the graph written without its null properties
+        assert_eq!(
+            pack("n", &[], &one_graph(WITHOUT_NULLS)).expect("packs"),
+            bytes
         );
-        let bytes = Builder::new()
-            .add("j.json", model)
-            .and_then(|b| b.build())
-            .expect("a package");
         let contents = read(&bytes).expect("reads");
-        let json = to_json(contents.graph("j").expect("j"));
+        let mm =
+            event_script::mlm::MultiLevelMap::from_value(contents.graph("n").expect("n").clone());
+        assert_eq!(None, mm.get_element("nodes[0].properties.note"));
+        assert_eq!(
+            Some(Value::from("")),
+            mm.get_element("nodes[0].properties.empty")
+        );
+        // a list keeps its elements in place
+        assert_eq!(
+            Some(Value::Array(vec![Value::Boolean(true), Value::Nil])),
+            mm.get_element("nodes[0].properties.flags")
+        );
+        let json = to_json(contents.graph("n").expect("n"));
         assert!(json.starts_with("{\n  \"connections\": [\n"), "{json}");
-        assert!(json.contains("\"note\": null"), "{json}");
+        assert!(
+            !json.contains("\"note\"") && !json.contains("\"x\""),
+            "{json}"
+        );
+        assert!(json.contains("\"empty\": \"\""), "{json}");
         assert!(json.ends_with("}\n"));
         assert_eq!(
-            canonical_packager::encode(contents.graph("j").expect("j")).expect("encodes"),
+            canonical_packager::encode(contents.graph("n").expect("n")).expect("encodes"),
             canonical_packager::encode(&graph(&json)).expect("encodes")
+        );
+    }
+
+    #[test]
+    fn reading_filters_a_null_property_out() {
+        let bytes = Builder::new()
+            .add("n.json", graph(WITH_NULLS))
+            .and_then(|b| b.build())
+            .expect("a package");
+        assert_eq!(
+            canonical_packager::encode(&graph(WITHOUT_NULLS)).expect("encodes"),
+            canonical_packager::encode(read(&bytes).expect("reads").graph("n").expect("n"))
+                .expect("encodes")
         );
     }
 }

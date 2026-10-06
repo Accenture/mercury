@@ -91,6 +91,20 @@ pub fn declared_root_name(model: &Value) -> String {
     String::new()
 }
 
+/// A graph holds no null property: a map entry whose value is null is filtered
+/// out, at every depth, as the serializers do by default and as the Java
+/// configuration reader does when an application loads a deployed graph.
+/// Every other value is kept as it is - an empty string (`"key": ""`) is a
+/// value - and a list keeps its elements in place (Java
+/// `GraphModelGate.withoutNullProperties`).
+///
+/// This is the serializers' strip without their switch: a graph drops its
+/// null properties whatever `serializer.null.transport` says, because that
+/// switch governs what the event transport keeps, not what a graph holds.
+pub fn without_null_properties(model: &Value) -> Value {
+    platform_core::serializer::strip_nulls_always(model)
+}
+
 fn has_root_purpose(model: &Value) -> bool {
     let mm = MultiLevelMap::from_value(model.clone());
     let Some(Value::Array(nodes)) = mm.get_element("nodes") else {
@@ -183,6 +197,35 @@ mod tests {
                 err
             );
         }
+    }
+
+    #[test]
+    fn a_null_property_is_filtered_out_and_an_empty_string_kept() {
+        let model = Value::Map(vec![
+            (Value::from("note"), Value::Nil),
+            (Value::from("empty"), Value::from("")),
+            (
+                Value::from("nested"),
+                Value::Array(vec![
+                    Value::Map(vec![
+                        (Value::from("x"), Value::Nil),
+                        (Value::from("y"), Value::from(1)),
+                    ]),
+                    Value::Nil,
+                ]),
+            ),
+        ]);
+        let expected = Value::Map(vec![
+            (Value::from("empty"), Value::from("")),
+            (
+                Value::from("nested"),
+                Value::Array(vec![
+                    Value::Map(vec![(Value::from("y"), Value::from(1))]),
+                    Value::Nil,
+                ]),
+            ),
+        ]);
+        assert_eq!(expected, without_null_properties(&model));
     }
 
     #[test]

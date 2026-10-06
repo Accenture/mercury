@@ -51,7 +51,9 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    `knowledge_graph::model_gate::validate`, with no change in behavior - and its id follows the file-name rule and agrees with the root
    node's name (`knowledge_graph::graph_set` holds the set rules); a set that breaks a rule is refused with every reason (exit code 1,
    and 2 for an I/O or format error). The same graphs and fields always give the same bytes in both engines - the interop report
-   gains the comparison - and a `${...}` reference stays unresolved for the environment the set is deployed to. Deploying a `.pack`
+   gains the comparison - and a `${...}` reference stays unresolved for the environment the set is deployed to. A graph holds no
+   null property: `"key": null` is filtered out when a set is packed, whatever `serializer.null.transport` says, while `"key": ""`
+   is a value and is kept. Deploying a `.pack`
    file through `graphs.yaml` is the next step of RFC-0005. Upgrade note: none.
 
 ### Changed
@@ -134,6 +136,13 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    (mercury-composable #504). READ: a filter or wildcard that matches one node now gives a one-element list instead of the bare
    value, and one that matches nothing gives an empty list instead of no value; a mapping that expected the bare value reads the
    first element (`f:getFirst`, which takes a non-empty list).
+
+16. **A deployed graph holding `"key": null` compiles, as on the Java engine (Increment 158).** The Java engine's configuration
+    reader drops a null-valued key when it loads a graph; this engine's reader kept it, and the graph import refused it with
+    `value cannot be null`, so the same graph deployed on Java and was rejected here. The compiler now filters a graph's null
+    properties when it reads one (`model_gate::without_null_properties`, which `import graph from` shares through
+    `compiler::load_raw_graph`), and the graph packager does the same; `"key": ""` is a value and is kept. Upgrade note: a graph
+    that was rejected for a null property now deploys.
 
 ---
 ## Version 4.12.20, 10/1/2026

@@ -172,16 +172,21 @@ graph-packager pack --set tutorials --manifest version=4.12.20 --manifest descri
 | Each command line packs the folder the other unpacked | **identical** to the original bytes |
 | The gate on the 52 fixtures that are byte-identical in both repositories | both refuse the **same 18 graphs**; 17 reasons are word for word the same, and the eighteenth differs only because the Java message for a misplaced `ttl` also names `graph.js`, which the Rust engine does not register |
 | The 34 fixtures both gates accept, packed by each command line | **identical**: 44,776 bytes, SHA-256 `7acbad4d862f209205468a1ef6cbd10af6eb59bdcade285a5f5120cbabe712f2` |
+| A graph holding `"key": null` (a root property and a relation property) and `"key": ""`, packed by each command line | **identical**: 336 bytes, SHA-256 `f2517ea7c0402067ab26afc2a02bcf24c8401012b76f782b40b625ab8b7330a2`; the null properties are filtered out, the empty string is kept, and the unpacked files are identical |
 | **Negative control**: one character changed in one tutorial (`hello world` to `hello World`) before the Rust pack | the files **differ** (`cmp` exit 1) |
 
 The tutorial package is 38 bytes longer than Leg 1's because its manifest holds `set`, `version` and `description`
 instead of `set` alone: the manifest is content, so it is part of the bytes.
 
-**One difference between the engines, found by this drive and outside the packager.** When it normalizes a graph, the Java
-configuration reader drops a key whose value is null, while the Rust reader keeps it and the Rust graph import refuses a
-null property. A graph holding `"key": null` therefore deploys on Java and is refused on Rust, by the startup gate and by
-the packager alike. None of the tutorials and fixtures holds a null, so the results above are unaffected; the difference is
-recorded for a separate decision.
+**One difference between the engines, found by this drive and closed in the same change.** When it normalizes a graph, the
+Java configuration reader drops a key whose value is null, as the engine's serializer does by default, while the Rust reader
+kept it and the Rust graph import refused a null property: a graph holding `"key": null` deployed on Java and was refused on
+Rust, by the startup gate and by the packager alike. The rule is now one rule in both engines: **a graph holds no null
+property**. A map entry whose value is null is filtered out, at every depth, when a graph is deployed, packed or read; an
+empty string (`"key": ""`) is a value and is kept, and a list keeps its elements in place. The null graph's row above is the
+proof. The rule does not follow `serializer.null.transport`, the switch with which platform-core's serializers keep nulls on
+the event transport: both packagers write through the canonical packager, never through those serializers, and both engines'
+tests pack the same bytes with the switch on (Java in a second JVM, where `SimpleMapper` is shown keeping a null first).
 
 To reproduce, build each command line from its branch and run the command above on
 `system/minigraph-playground-engine/src/main/resources/graph` (Java,

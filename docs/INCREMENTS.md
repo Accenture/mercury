@@ -4357,16 +4357,24 @@ canonical package of ADR-0026; this is its first consumer.
   `publish = false`, so the release's `cargo publish --workspace` leaves it out): `pack` (files, a folder, or `--from-manifest
   graphs.yaml`, whose `classpath:` location is refused with a hint), `unpack`, `inspect [--json]`; exit codes 0, 1 (a refused input)
   and 2 (an I/O or format error); log lines on standard error at `warn` (`RUST_LOG` overrides), so `inspect --json` is pure JSON.
-  Thirteen tests in `tests/cli.rs`, twins of the Java `GraphPackagerTest`.
+  Fourteen tests in `tests/cli.rs`, twins of the Java `GraphPackagerTest`.
 - **Cross-engine proof** (the interop report gains an addendum). Both command lines pack the 14 tutorials to identical bytes
   (20,274 bytes, SHA-256 `4715598820261ca6…`), print identical `inspect` reports, unpack each other's files to identical JSON and
   re-pack them to the original bytes; on the 52 fixtures byte-identical in both repositories both gates refuse the same 18 graphs
   (17 reasons word for word; the eighteenth names `graph.js` only in Java), and the 34 accepted fixtures pack to identical bytes
   (44,776 bytes, `7acbad4d862f2092…`). Negative control: one character changed in one tutorial changes the bytes.
-- **Found, not changed here.** The Rust configuration reader keeps a null-valued key that the Java reader drops when it normalizes,
-  and `MiniGraph::import_graph` refuses a null property ("value cannot be null"), so a graph holding `"key": null` deploys on Java and
-  is refused here, by the compiler and the packager alike. The `graph_set` test that writes a null builds its package without the
-  gate. Recorded for a separate decision.
+- **A graph holds no null property (Eric's ruling, 2026-10-05: "`"key": null` is not allowed and should be filtered out"; an empty
+  string is allowed).** Found while building the packager: the Java configuration reader drops a null-valued key when it normalizes
+  a graph (the engine's serializer drops one by default too), while this reader kept it and `MiniGraph::import_graph` refused it
+  ("value cannot be null"), so a graph holding `"key": null` deployed on Java and was refused here, by the compiler and the packager
+  alike. Now `model_gate::without_null_properties` filters a map entry whose value is null, at every depth - `"key": ""` stays,
+  and a list keeps its elements in place - in `compiler::load_raw_graph` (the startup compiler and `import graph from`) and in
+  `graph_set::pack` and `read`. It is `serializer::strip_nulls_always`, the transport serializer's strip without its switch, so
+  `serializer.null.transport=true` (which keeps nulls on the event transport) changes nothing in a graph or a package; the CLI
+  test `the_null_transport_switch_does_not_reach_the_package` turns the switch on, shows the switched strip keeping a null, and
+  packs the same bytes. Pinned by `compiler::tests::a_deployed_null_property_is_filtered_out`, the `graph_set` and
+  `model_gate` unit tests and the CLI test `a_null_property_is_filtered_out_when_packed`; both command lines pack a graph holding
+  nulls to identical bytes (336, `f2517ea7c0402067…`). Java twin: `GraphModelGate.withoutNullProperties`.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test` for the workspace,
 `check-doc-claims`, `check-llms-links`.

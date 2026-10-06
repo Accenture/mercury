@@ -721,3 +721,100 @@ fn a_reference_is_checked_resolved_but_packed_as_written() {
         "{json}"
     );
 }
+
+#[test]
+fn a_null_property_is_filtered_out_when_packed() {
+    // a graph holds no null property: "key": null is filtered out, and an empty string is a value
+    let s = Scratch::new();
+    write(
+        &s.path("a/nulls.json"),
+        r#"{"nodes": [
+          {"alias": "root", "types": ["Root"],
+           "properties": {"purpose": "null properties", "name": "nulls", "note": null, "empty": ""}},
+          {"alias": "end", "types": ["End"], "properties": {}}],
+         "connections": [{"source": "root", "target": "end",
+                          "relations": [{"type": "done", "properties": {"x": null}}]}]}"#,
+    );
+    write(
+        &s.path("b/nulls.json"),
+        r#"{"nodes": [
+          {"alias": "root", "types": ["Root"],
+           "properties": {"purpose": "null properties", "name": "nulls", "empty": ""}},
+          {"alias": "end", "types": ["End"], "properties": {}}],
+         "connections": [{"source": "root", "target": "end",
+                          "relations": [{"type": "done", "properties": {}}]}]}"#,
+    );
+    let r = run(&["pack", "--set", "s", "--out", &s.arg("out-a"), &s.arg("a")]);
+    assert_eq!(0, r.code, "{}", r.err);
+    assert_eq!(
+        0,
+        run(&["pack", "--set", "s", "--out", &s.arg("out-b"), &s.arg("b")]).code
+    );
+    assert_eq!(
+        fs::read(s.path("out-b").join("s.pack")).expect("b"),
+        fs::read(s.path("out-a").join("s.pack")).expect("a")
+    );
+    let package = s.path("out-a").join("s.pack");
+    assert_eq!(
+        0,
+        run(&[
+            "unpack",
+            &package.display().to_string(),
+            "--out",
+            &s.arg("unpacked")
+        ])
+        .code
+    );
+    let text = fs::read_to_string(s.path("unpacked").join("nulls.json")).expect("unpacked");
+    assert!(
+        !text.contains(": null") && !text.contains("\"note\"") && !text.contains("\"x\""),
+        "{text}"
+    );
+    assert!(text.contains("\"empty\": \"\""), "{text}");
+}
+
+#[test]
+fn the_null_transport_switch_does_not_reach_the_package() {
+    // serializer.null.transport=true makes platform-core's serializers keep a null map value; the graph-set
+    // packager drops a graph's null properties itself (the serializers' strip without their switch), so the
+    // switch changes nothing in the package. Nothing else in this test binary reads the switch.
+    platform_core::overrides::set("serializer.null.transport", "true");
+    // positive control: the switch is on in this process, and the serializers' switched strip keeps a null
+    assert!(platform_core::serializer::null_transport());
+    let with_null = Value::Map(vec![(Value::from("a"), Value::Nil)]);
+    assert_eq!(
+        with_null,
+        platform_core::serializer::strip_nulls(&with_null)
+    );
+    let s = Scratch::new();
+    write(
+        &s.path("a/nulls.json"),
+        r#"{"nodes": [
+          {"alias": "root", "types": ["Root"],
+           "properties": {"purpose": "null properties", "name": "nulls", "note": null, "empty": ""}},
+          {"alias": "end", "types": ["End"], "properties": {}}],
+         "connections": [{"source": "root", "target": "end",
+                          "relations": [{"type": "done", "properties": {"x": null}}]}]}"#,
+    );
+    write(
+        &s.path("b/nulls.json"),
+        r#"{"nodes": [
+          {"alias": "root", "types": ["Root"],
+           "properties": {"purpose": "null properties", "name": "nulls", "empty": ""}},
+          {"alias": "end", "types": ["End"], "properties": {}}],
+         "connections": [{"source": "root", "target": "end",
+                          "relations": [{"type": "done", "properties": {}}]}]}"#,
+    );
+    assert_eq!(
+        0,
+        run(&["pack", "--set", "s", "--out", &s.arg("out-a"), &s.arg("a")]).code
+    );
+    assert_eq!(
+        0,
+        run(&["pack", "--set", "s", "--out", &s.arg("out-b"), &s.arg("b")]).code
+    );
+    assert_eq!(
+        fs::read(s.path("out-b").join("s.pack")).expect("b"),
+        fs::read(s.path("out-a").join("s.pack")).expect("a")
+    );
+}
