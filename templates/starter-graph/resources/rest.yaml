@@ -52,6 +52,18 @@ rest:
     timeout: 30s
     tracing: true
 
+  - service: 'pack.graph.set'
+    methods: ['POST']
+    url: '/api/graph/pack'
+    timeout: 30s
+    tracing: true
+
+  - service: 'unpack.graph.set'
+    methods: ['POST']
+    url: '/api/graph/unpack'
+    timeout: 30s
+    tracing: true
+
   - service: 'inspect.state.machine'
     methods: ['GET']
     url: '/api/inspect/{id}/{key}'

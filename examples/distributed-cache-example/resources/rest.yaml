@@ -91,6 +91,22 @@ rest:
     headers: header_1
     tracing: true
 
+  - service: 'pack.graph.set'
+    methods: ['POST']
+    url: '/api/graph/pack'
+    timeout: 30s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
+  - service: 'unpack.graph.set'
+    methods: ['POST']
+    url: '/api/graph/unpack'
+    timeout: 30s
+    cors: cors_1
+    headers: header_1
+    tracing: true
+
   - service: 'inspect.state.machine'
     methods: ['GET']
     url: '/api/inspect/{id}/{key}'

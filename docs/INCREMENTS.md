@@ -4568,3 +4568,32 @@ ignores what follows. The Java engine closed the gap as the reference implementa
 
 Gates: `cargo fmt --all --check`, `cargo clippy -p mercury-platform-core --tests -- -D warnings`, `cargo test -p mercury-platform-core`,
 `check-doc-claims`, `check-llms-links`.
+
+## Increment 166 — The graph-set endpoints: pack and read a set over REST (2026-10-06)
+
+ADR-0027's fourth work package (WP4, the endpoints), in lock-step with the Java engine's `PackGraphSet` and `UnpackGraphSet`
+(messages word for word). The Playground panel of WP5 will call them, so the browser never carries a packager of its own (D7) and
+can inspect a dropped package (D9).
+
+- **`POST /api/graph/pack`** (`pack.graph.set`, `rest::pack_graph_set`, dev-gated in `lib.rs` like its siblings): the body is
+  `{"manifest": {"set": "<name>", ...}, "graphs": {"<graph-id>": <model>, ...}}`. `manifest.set` names the set and its file - the
+  one place the request carries the name, taken out of the manifest before `graph_set::pack` writes it back; every other manifest
+  field is caller text, and `format` and `format_version` are refused as the packager's. Every model passes
+  `commands::validate_graph_model` (the import validation) and then `graph_set::pack` runs the gate (D2), so the set is refused
+  with every reason when any rule fails: HTTP 400 `Set not packed - <graph-id>: <reason>; ...`. The answer is the package as
+  `application/octet-stream` with `Content-Disposition: attachment; filename="<set>.pack"` - the same bytes the command line writes.
+- **`POST /api/graph/unpack`** (`unpack.graph.set`, `rest::unpack_graph_set`): the body is the package bytes
+  (`application/octet-stream`; the edge hands the function a `Value::Binary`), the answer `{"manifest": {...}, "graphs":
+  {"<graph-id>": <model>, ...}}` through `graph_set::read`, the manifest as the package holds it. Bytes that are not a canonical
+  package, and a set that breaks a rule (an entry not named `<graph-id>.json`, a root name that differs from its id, a `graph_id`
+  naming no graph), answer 400 `Not a graph set - <reason>`; a body that is not the package answers `The request body is the graph
+  set (.pack) to read, sent as application/octet-stream`.
+- **The routes** join the three `rest.yaml` copies (the playground example, the cache example, the starter template) and the
+  crate's test `rest.yaml`.
+- **Tests:** `tests/graph_set_endpoints.rs`, one runtime for six steps through the real HTTP edge, twin of the Java
+  `GraphSetEndpointTest`: the download's bytes equal `graph_set::pack`'s and read back; a graph without an `end` node is refused by
+  name; a foreign top-level section is refused by the import validation; a missing `manifest.set` and a missing `graphs` section;
+  the unpacked manifest and graphs; bytes that are not a package, a crafted entry name (`../escape.json`) and a JSON body.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`.

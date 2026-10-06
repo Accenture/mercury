@@ -59,3 +59,16 @@ rest:
     url: '/api/inspect/{id}/{key}'
     timeout: 10s
     tracing: true
+
+  # the graph-set endpoints (ADR-0027 WP4): pack on the engine, read a package back
+  - service: 'pack.graph.set'
+    methods: ['POST']
+    url: '/api/graph/pack'
+    timeout: 30s
+    tracing: true
+
+  - service: 'unpack.graph.set'
+    methods: ['POST']
+    url: '/api/graph/unpack'
+    timeout: 30s
+    tracing: true
