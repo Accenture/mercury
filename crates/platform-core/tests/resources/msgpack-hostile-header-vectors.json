@@ -1,0 +1,367 @@
+{
+  "format": "mercury-msgpack-hostile-header-vectors",
+  "version": "1",
+  "note": "Shared by the Java and Rust engines, byte-identical in both repositories. Every input is a top-level container, so it reaches a decoder through the same entry points as an event payload. A vector with expect=reject must fail as a decoding error - never as an unchecked exception, a panic, a stack overflow or an allocation sized by the hostile header - before anything is allocated for the declared count or length. A vector with expect=accept must decode to exactly the JSON in value (a JSON number without a fraction is an integer, any other a float64); the controls keep a decoder that refuses everything from passing.",
+  "vectors": [
+    {
+      "id": "array32-max-count-nothing-follows",
+      "hex": "ddffffffff",
+      "expect": "reject",
+      "why": "count-exceeds-input",
+      "description": "array 32 declaring 4,294,967,295 elements with no byte after the header"
+    },
+    {
+      "id": "map32-count-whose-doubling-overflows-32-bits",
+      "hex": "df80000000a16101a16201",
+      "expect": "reject",
+      "why": "count-exceeds-input",
+      "description": "map 32 declaring 2,147,483,648 entries (the CVE-2026-90473 shape: 2N overflows a 32-bit int) with six bytes after the header"
+    },
+    {
+      "id": "array16-declares-five-two-follow",
+      "hex": "dc0005c0c0",
+      "expect": "reject",
+      "why": "count-exceeds-input",
+      "description": "array 16 declaring 5 elements with 2 bytes after the header"
+    },
+    {
+      "id": "map16-declares-one-entry-one-byte-follows",
+      "hex": "de0001a1",
+      "expect": "reject",
+      "why": "count-exceeds-input",
+      "description": "map 16 declaring 1 entry with 1 byte after the header (an entry needs at least 2)"
+    },
+    {
+      "id": "fixarray-declares-three-two-follow",
+      "hex": "93c0c0",
+      "expect": "reject",
+      "why": "count-exceeds-input",
+      "description": "fixarray declaring 3 elements with 2 bytes after the header"
+    },
+    {
+      "id": "fixmap-key-header-without-its-byte",
+      "hex": "81a1",
+      "expect": "reject",
+      "why": "truncated",
+      "description": "fixmap of 1 entry whose key is a fixstr header with no byte"
+    },
+    {
+      "id": "str32-max-length-one-byte-follows",
+      "hex": "91dbffffffff00",
+      "expect": "reject",
+      "why": "length-exceeds-input",
+      "description": "str 32 declaring 4,294,967,295 bytes with 1 byte after the header"
+    },
+    {
+      "id": "bin32-max-length-nothing-follows",
+      "hex": "91c6ffffffff",
+      "expect": "reject",
+      "why": "length-exceeds-input",
+      "description": "bin 32 declaring 4,294,967,295 bytes with nothing after the header"
+    },
+    {
+      "id": "str16-declares-65535-one-byte-follows",
+      "hex": "91daffff61",
+      "expect": "reject",
+      "why": "length-exceeds-input",
+      "description": "str 16 declaring 65,535 bytes with 1 byte after the header"
+    },
+    {
+      "id": "str8-declares-five-two-follow",
+      "hex": "91d9056162",
+      "expect": "reject",
+      "why": "length-exceeds-input",
+      "description": "str 8 declaring 5 bytes with 2 after the header"
+    },
+    {
+      "id": "bin8-declares-three-one-follows",
+      "hex": "91c40300",
+      "expect": "reject",
+      "why": "length-exceeds-input",
+      "description": "bin 8 declaring 3 bytes with 1 after the header"
+    },
+    {
+      "id": "ext8-declares-255-one-byte-follows",
+      "hex": "91c7ff01aa",
+      "expect": "reject",
+      "why": "length-exceeds-input",
+      "description": "ext 8 declaring 255 bytes of type 1 with 1 byte after the header"
+    },
+    {
+      "id": "ext32-max-length-one-byte-follows",
+      "hex": "91c9ffffffff01aa",
+      "expect": "reject",
+      "why": "length-exceeds-input",
+      "description": "ext 32 declaring 4,294,967,295 bytes of type 1 with 1 byte after the header"
+    },
+    {
+      "id": "fixext16-two-of-sixteen-bytes",
+      "hex": "91d8010000",
+      "expect": "reject",
+      "why": "truncated",
+      "description": "fixext 16 of type 1 with 2 of its 16 data bytes"
+    },
+    {
+      "id": "uint16-one-of-two-bytes",
+      "hex": "91cd01",
+      "expect": "reject",
+      "why": "truncated",
+      "description": "uint 16 with 1 of its 2 bytes"
+    },
+    {
+      "id": "float64-four-of-eight-bytes",
+      "hex": "91cb3ff80000",
+      "expect": "reject",
+      "why": "truncated",
+      "description": "float 64 with 4 of its 8 bytes"
+    },
+    {
+      "id": "uint64-seven-of-eight-bytes",
+      "hex": "91cf00000000000000",
+      "expect": "reject",
+      "why": "truncated",
+      "description": "uint 64 with 7 of its 8 bytes"
+    },
+    {
+      "id": "array-of-one-with-no-element",
+      "hex": "91",
+      "expect": "reject",
+      "why": "truncated",
+      "description": "fixarray declaring 1 element with nothing after the header"
+    },
+    {
+      "id": "never-used-format-byte-as-element",
+      "hex": "91c1",
+      "expect": "reject",
+      "why": "invalid-format-byte",
+      "description": "0xc1 as the only element of an array"
+    },
+    {
+      "id": "never-used-format-byte-as-map-key",
+      "hex": "81c101",
+      "expect": "reject",
+      "why": "invalid-format-byte",
+      "description": "0xc1 as a map key"
+    },
+    {
+      "id": "nesting-65-arrays",
+      "hex": "9191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191c0",
+      "expect": "reject",
+      "why": "nesting-beyond-limit",
+      "description": "65 nested arrays of one element; the engines allow 64"
+    },
+    {
+      "id": "nesting-65-maps",
+      "hex": "81a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a16181a161c0",
+      "expect": "reject",
+      "why": "nesting-beyond-limit",
+      "description": "65 nested maps of one entry; the engines allow 64"
+    },
+    {
+      "id": "control-empty-array",
+      "hex": "90",
+      "expect": "accept",
+      "value": [],
+      "description": "an empty fixarray"
+    },
+    {
+      "id": "control-empty-map",
+      "hex": "80",
+      "expect": "accept",
+      "value": {},
+      "description": "an empty fixmap"
+    },
+    {
+      "id": "control-map-one-entry",
+      "hex": "81a16101",
+      "expect": "accept",
+      "value": {
+        "a": 1
+      },
+      "description": "{\"a\": 1}"
+    },
+    {
+      "id": "control-array16-two-nils-non-minimal",
+      "hex": "dc0002c0c0",
+      "expect": "accept",
+      "value": [
+        null,
+        null
+      ],
+      "description": "array 16 of two nils: a non-minimal header the writer never produces but a reader accepts"
+    },
+    {
+      "id": "control-map16-non-minimal",
+      "hex": "de0001a16101",
+      "expect": "accept",
+      "value": {
+        "a": 1
+      },
+      "description": "map 16 of one entry, a non-minimal header"
+    },
+    {
+      "id": "control-str32-non-minimal",
+      "hex": "91db0000000161",
+      "expect": "accept",
+      "value": [
+        "a"
+      ],
+      "description": "str 32 of one byte, a non-minimal header"
+    },
+    {
+      "id": "control-uint64-small",
+      "hex": "91cf0000000000000005",
+      "expect": "accept",
+      "value": [
+        5
+      ],
+      "description": "uint 64 holding 5"
+    },
+    {
+      "id": "control-negative-float-boolean",
+      "hex": "93ffcb3ff8000000000000c3",
+      "expect": "accept",
+      "value": [
+        -1,
+        1.5,
+        true
+      ],
+      "description": "negative fixint, float 64 and true"
+    },
+    {
+      "id": "control-nesting-64-arrays",
+      "hex": "91919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191919191c0",
+      "expect": "accept",
+      "value": [
+        [
+          [
+            [
+              [
+                [
+                  [
+                    [
+                      [
+                        [
+                          [
+                            [
+                              [
+                                [
+                                  [
+                                    [
+                                      [
+                                        [
+                                          [
+                                            [
+                                              [
+                                                [
+                                                  [
+                                                    [
+                                                      [
+                                                        [
+                                                          [
+                                                            [
+                                                              [
+                                                                [
+                                                                  [
+                                                                    [
+                                                                      [
+                                                                        [
+                                                                          [
+                                                                            [
+                                                                              [
+                                                                                [
+                                                                                  [
+                                                                                    [
+                                                                                      [
+                                                                                        [
+                                                                                          [
+                                                                                            [
+                                                                                              [
+                                                                                                [
+                                                                                                  [
+                                                                                                    [
+                                                                                                      [
+                                                                                                        [
+                                                                                                          [
+                                                                                                            [
+                                                                                                              [
+                                                                                                                [
+                                                                                                                  [
+                                                                                                                    [
+                                                                                                                      [
+                                                                                                                        [
+                                                                                                                          [
+                                                                                                                            [
+                                                                                                                              [
+                                                                                                                                [
+                                                                                                                                  [
+                                                                                                                                    [
+                                                                                                                                      null
+                                                                                                                                    ]
+                                                                                                                                  ]
+                                                                                                                                ]
+                                                                                                                              ]
+                                                                                                                            ]
+                                                                                                                          ]
+                                                                                                                        ]
+                                                                                                                      ]
+                                                                                                                    ]
+                                                                                                                  ]
+                                                                                                                ]
+                                                                                                              ]
+                                                                                                            ]
+                                                                                                          ]
+                                                                                                        ]
+                                                                                                      ]
+                                                                                                    ]
+                                                                                                  ]
+                                                                                                ]
+                                                                                              ]
+                                                                                            ]
+                                                                                          ]
+                                                                                        ]
+                                                                                      ]
+                                                                                    ]
+                                                                                  ]
+                                                                                ]
+                                                                              ]
+                                                                            ]
+                                                                          ]
+                                                                        ]
+                                                                      ]
+                                                                    ]
+                                                                  ]
+                                                                ]
+                                                              ]
+                                                            ]
+                                                          ]
+                                                        ]
+                                                      ]
+                                                    ]
+                                                  ]
+                                                ]
+                                              ]
+                                            ]
+                                          ]
+                                        ]
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "description": "64 nested arrays of one element, the deepest holding nil: the bound itself decodes"
+    }
+  ]
+}

@@ -378,6 +378,16 @@
       "quote": "A payload nested deeper than 64 maps and lists is refused as a decoding error, the envelope map being level 1",
       "test": "crates/platform-core::envelope_wire_format::an_envelope_nested_too_deep_is_a_decoding_error",
       "since": "4.12.21+"
+    },
+    {
+      "id": "msgpack-hostile-header",
+      "claim": "A MsgPack decoder of the engine - serializer::from_msgpack (the envelope and the Event API), EventEnvelope::from_bytes and canonical_packager::decode - refuses a header whose declared str, bin or ext length or array or map count exceeds the bytes that remain, as a decoding error and without allocating for the declared size, and refuses the format byte 0xc1, which the specification never uses; the shared vector file msgpack-hostile-header-vectors.json pins the same inputs in both engines.",
+      "pages": [
+        "docs/guides/event-envelope-reference.md"
+      ],
+      "quote": "A header that promises more than the input holds is refused at the header",
+      "test": "crates/platform-core::msgpack_hostile_header_vectors::every_hostile_header_is_refused_at_the_header",
+      "since": "4.12.21+"
     }
   ]
 }

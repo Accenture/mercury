@@ -4492,3 +4492,32 @@ Java engine, whose shutdown hook now removes its emptied holding folder too (Eri
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
 `check-doc-claims`, `check-llms-links`; and the per-binary measurement again, which lists nothing left behind.
+
+## Increment 163 — Shared hostile-header vectors for the MsgPack decoders (2026-10-06)
+
+The Java engine replaced `msgpack-core` with its own codec (mercury-composable #517, ADR-0028) and, with it, wrote down how a
+decoder must treat a header that promises more than the input holds. This engine was believed to behave that way - `rmpv` collects
+an array or map into a `Vec::new()` rather than preallocating the declared count (its issue #151 rule), `rmp-serde` bounds its
+string and binary preallocation, and both engines bound nesting at 64 since Increment 160 - but the parity was a belief, not a
+test, and the test found one gap. Eric asked for the shared vectors.
+
+- **The file:** `crates/platform-core/tests/resources/msgpack-hostile-header-vectors.json`, byte-identical with the Java engine's
+  `system/platform-core/src/test/resources/` copy. 22 inputs every decoder must refuse - a str, bin or ext length or an array or
+  map count beyond the remaining bytes (the `map 32` shape of CVE-2026-90473 among them), fixed-width values cut short, the
+  never-used byte `0xc1`, 65 nested arrays or maps - and 9 controls that must decode to exactly their JSON value (non-minimal
+  headers, a small `uint 64`, 64 nested arrays), so a decoder that refuses everything fails too. Every input is a top-level
+  container, so it reaches a decoder through the same entry points as an event payload.
+- **The test:** `msgpack_hostile_header_vectors` runs every vector through `serializer::from_msgpack::<rmpv::Value>` (the envelope
+  and the Event API's format check), `EventEnvelope::from_bytes` and `canonical_packager::decode`; the Java twin
+  `MsgPackHostileHeaderVectorsTest` runs the same file through `MsgPack.unpack`, `EventEnvelope` and `CanonicalPackager.decode`.
+  A rejection must be a decoding error - never a panic, a stack overflow or an allocation sized by the header.
+- **The gap the vectors found, fixed:** `rmpv` reads the never-used byte `0xc1` as nil, so `canonical_packager::decode` accepted
+  `91 c1` where `rmp-serde` and the Java decoder refuse it. The canonical decoder now walks the markers first (`check_markers`,
+  iterative, no decoding and no allocation): `0xc1` and a header whose declared length or count exceeds the remaining bytes are
+  refused at the header, the Java reader's rule. The envelope path (`rmp-serde`) already refused both.
+- **The claim** `msgpack-hostile-header` states the rule in the envelope reference on both engines, beside `msgpack-nesting-limit`.
+- **Observed, not changed:** on empty input the Java `MsgPack.unpack` returns an empty map while this engine's decoders refuse it;
+  the vectors leave that case out until it is ruled on.
+
+Gates: `cargo fmt --all --check`, `cargo clippy -p platform-core --tests -- -D warnings`, `cargo test -p platform-core`,
+`check-doc-claims`, `check-llms-links`.

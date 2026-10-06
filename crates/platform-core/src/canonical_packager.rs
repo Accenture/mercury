@@ -229,8 +229,12 @@ pub fn unpack_with(bytes: &[u8], strict: bool) -> Result<Package, PackagerError>
 }
 
 /// Decode MsgPack bytes holding exactly one value into ordered maps, lists and scalars. A non-text key, a
-/// duplicate key, an extension type, bytes after the value and nesting beyond the bound are errors.
+/// duplicate key, an extension type, bytes after the value, nesting beyond the bound, the never-used format byte
+/// `0xc1` and a header that promises more than the input holds are errors.
 pub fn decode(bytes: &[u8]) -> Result<Value, PackagerError> {
+    // the markers are walked first, without decoding or allocating: `rmpv` reads the never-used byte 0xc1 as nil, and
+    // a hostile header is refused at the header, as the Java engine's reader does (claim `msgpack-hostile-header`)
+    check_markers(bytes)?;
     let mut cursor = std::io::Cursor::new(bytes);
     // rmpv spends two units of its depth counter per level of nesting, so its own limit is only a stack guard set
     // well above the bound; the bound itself (the same 64 levels as the Java engine) is enforced by check_decoded
@@ -248,6 +252,126 @@ pub fn decode(bytes: &[u8]) -> Result<Value, PackagerError> {
     }
     check_decoded(&value, "$", 0)?;
     Ok(value)
+}
+
+/// Walk the bytes marker by marker, without decoding or allocating: refuse the never-used marker `0xc1` and any header
+/// whose declared length or count exceeds the bytes that remain (an element needs at least one byte, an entry two), so a
+/// hostile package is refused at its header. Iterative, so the nesting costs no stack; one value is walked and bytes
+/// after it are left to the caller. The shared vector file `msgpack-hostile-header-vectors.json` pins the rule in both
+/// engines.
+fn check_markers(bytes: &[u8]) -> Result<(), PackagerError> {
+    use rmp::Marker;
+    fn end_of_input(at: usize) -> PackagerError {
+        malformed(format!(
+            "Malformed MsgPack: unexpected end of input at offset {at}"
+        ))
+    }
+    fn big_endian(bytes: &[u8], at: usize, width: usize) -> Result<u64, PackagerError> {
+        let end = at
+            .checked_add(width)
+            .filter(|&end| end <= bytes.len())
+            .ok_or_else(|| end_of_input(at))?;
+        Ok(bytes[at..end]
+            .iter()
+            .fold(0u64, |acc, b| (acc << 8) | u64::from(*b)))
+    }
+    let mut pos = 0usize;
+    let mut pending: u64 = 1;
+    while pending > 0 {
+        let start = pos;
+        let marker = Marker::from_u8(*bytes.get(pos).ok_or_else(|| end_of_input(pos))?);
+        pos += 1;
+        pending -= 1;
+        // (fixed payload bytes, declared payload length, declared element count)
+        let (fixed, length, count): (u64, u64, u64) = match marker {
+            Marker::FixPos(_) | Marker::FixNeg(_) | Marker::Null | Marker::True | Marker::False => {
+                (0, 0, 0)
+            }
+            Marker::U8 | Marker::I8 => (1, 0, 0),
+            Marker::U16 | Marker::I16 => (2, 0, 0),
+            Marker::U32 | Marker::I32 | Marker::F32 => (4, 0, 0),
+            Marker::U64 | Marker::I64 | Marker::F64 => (8, 0, 0),
+            Marker::FixExt1 => (2, 0, 0),
+            Marker::FixExt2 => (3, 0, 0),
+            Marker::FixExt4 => (5, 0, 0),
+            Marker::FixExt8 => (9, 0, 0),
+            Marker::FixExt16 => (17, 0, 0),
+            Marker::FixStr(n) => (0, u64::from(n), 0),
+            Marker::Str8 | Marker::Bin8 => {
+                let n = big_endian(bytes, pos, 1)?;
+                pos += 1;
+                (0, n, 0)
+            }
+            Marker::Str16 | Marker::Bin16 => {
+                let n = big_endian(bytes, pos, 2)?;
+                pos += 2;
+                (0, n, 0)
+            }
+            Marker::Str32 | Marker::Bin32 => {
+                let n = big_endian(bytes, pos, 4)?;
+                pos += 4;
+                (0, n, 0)
+            }
+            // an ext carries its type byte before the data
+            Marker::Ext8 => {
+                let n = big_endian(bytes, pos, 1)?;
+                pos += 1;
+                (1, n, 0)
+            }
+            Marker::Ext16 => {
+                let n = big_endian(bytes, pos, 2)?;
+                pos += 2;
+                (1, n, 0)
+            }
+            Marker::Ext32 => {
+                let n = big_endian(bytes, pos, 4)?;
+                pos += 4;
+                (1, n, 0)
+            }
+            Marker::FixArray(n) => (0, 0, u64::from(n)),
+            Marker::Array16 => {
+                let n = big_endian(bytes, pos, 2)?;
+                pos += 2;
+                (0, 0, n)
+            }
+            Marker::Array32 => {
+                let n = big_endian(bytes, pos, 4)?;
+                pos += 4;
+                (0, 0, n)
+            }
+            Marker::FixMap(n) => (0, 0, 2 * u64::from(n)),
+            Marker::Map16 => {
+                let n = big_endian(bytes, pos, 2)?;
+                pos += 2;
+                (0, 0, 2 * n)
+            }
+            Marker::Map32 => {
+                let n = big_endian(bytes, pos, 4)?;
+                pos += 4;
+                (0, 0, 2 * n)
+            }
+            Marker::Reserved => {
+                return Err(malformed(format!(
+                    "Malformed MsgPack: invalid format byte 0xc1 at offset {start}"
+                )))
+            }
+        };
+        let remaining = (bytes.len() - pos) as u64;
+        if fixed + length > remaining {
+            return Err(malformed(format!(
+                "Malformed MsgPack: a value declares {} byte(s) but only {remaining} follow at offset {start}",
+                fixed + length
+            )));
+        }
+        if count > remaining - fixed - length {
+            return Err(malformed(format!(
+                "Malformed MsgPack: a container declares {count} element(s) but only {remaining} byte(s) follow at offset {start}"
+            )));
+        }
+        pos += (fixed + length) as usize;
+        pending += count;
+    }
+    Ok(())
 }
 
 fn check_decoded(value: &Value, path: &str, depth: usize) -> Result<(), PackagerError> {

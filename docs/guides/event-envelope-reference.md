@@ -163,6 +163,9 @@ A payload nested deeper than 64 maps and lists is refused as a decoding error, t
 so a body may nest 63 levels (`serializer::MAX_DEPTH`, the Java engine's `MsgPack.MAX_DEPTH`). The limit keeps a
 crafted payload from exhausting the decoder's stack. `EventEnvelope::from_bytes` reports
 `Nesting deeper than 64 levels`, and the Event API answers such a request with HTTP 400.
+A header that promises more than the input holds is refused at the header, before anything is allocated for its
+declared length or count, and so is the format byte `0xc1`, which the specification never uses; the shared vector file
+`msgpack-hostile-header-vectors.json` pins the same inputs in both engines.
 
 ## Performance metadata
 
