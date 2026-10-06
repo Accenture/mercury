@@ -171,6 +171,11 @@ Empty input decodes as an empty map, so an empty byte array is an empty envelope
 Java engine - the reference implementation - reads it; the canonical package decoder refuses it, because a package is
 never empty.
 
+Bytes after the top-level container, well-formed or not, are refused as a decoding error: a payload holds exactly one
+value, in the event codec as in the canonical package decoder. `EventEnvelope::from_bytes` reports `Unexpected bytes
+after the value at offset N`, and the Event API answers such a request with HTTP 400; the Java engine, the reference
+implementation, applies the same rule.
+
 ## Performance metadata
 
 #### `exec_time()`

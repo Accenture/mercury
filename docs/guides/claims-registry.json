@@ -398,6 +398,16 @@
       "quote": "Empty input decodes as an empty map, so an empty byte array is an empty envelope and never a decoding error",
       "test": "crates/platform-core::msgpack_hostile_header_vectors::empty_input_is_an_empty_envelope_as_in_java",
       "since": "4.12.21+"
+    },
+    {
+      "id": "msgpack-exactly-one-value",
+      "claim": "A MsgPack payload the engine decodes holds exactly one value: serializer::from_msgpack (the envelope and the Event API) and canonical_packager::decode refuse bytes after the top-level container, well-formed or not, as a decoding error (Unexpected bytes after the value at offset N; HTTP 400 at the Event API), so two different byte strings never decode to the same value, following the Java engine (the reference implementation); the canonical decoder always did, the event codec does since Increment 165, and the shared vector file pins an empty map followed by 0xc1 and by a well-formed nil in both engines.",
+      "pages": [
+        "docs/guides/event-envelope-reference.md"
+      ],
+      "quote": "Bytes after the top-level container, well-formed or not, are refused as a decoding error",
+      "test": "crates/platform-core::msgpack_hostile_header_vectors::bytes_after_the_value_are_refused",
+      "since": "4.12.21+"
     }
   ]
 }

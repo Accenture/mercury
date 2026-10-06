@@ -4542,3 +4542,29 @@ the reference implementation, so the Rust port follows.
 
 Gates: `cargo fmt --all --check`, `cargo clippy -p mercury-platform-core --tests -- -D warnings`, `cargo test -p mercury-platform-core`,
 `check-doc-claims`, `check-llms-links`.
+
+## Increment 165 — A MsgPack payload holds exactly one value: bytes after it are refused (2026-10-06)
+
+An independent correctness review of the Java engine's new codec found that its event payload decoder read one value and stopped, so
+`80 c1` - an empty map, then the format byte the specification never uses - decoded as an empty map while the canonical package decoder
+refused the same bytes as `Unexpected bytes after the value`. This engine behaved the same way: `rmp_serde` decodes the first value and
+ignores what follows. The Java engine closed the gap as the reference implementation; this increment follows it.
+
+- **The change:** `serializer::from_msgpack` proves the end of the input after the value. The zero-copy reader keeps its cursor to
+  itself, so the decoder reads on: a probe for a number must fail for want of a marker byte (`InvalidMarkerRead` with `UnexpectedEof`,
+  which a marker that is present can never produce, since the probe reads that marker and at most eight data bytes), and any other
+  outcome - a value, or a failure past the first byte - means bytes follow the value, refused as `Unexpected bytes after the value at
+  offset N`; the offset comes from a cursor-backed re-read of the first value, on the error path only. Nothing else changes: the hot
+  path keeps the zero-copy reader and its messages, the nesting limit stands, and `canonical_packager::decode` already applied the
+  rule. The Event API answers such a request with HTTP 400.
+- **The vectors:** `bytes-after-the-value-never-used-byte` (`80 c1`) and `bytes-after-the-value-well-formed-nil` (`80 c0`) in the shared
+  file, 24 rejects now, byte-identical with the Java engine's copy; the second shows the rule is about what follows the value, not about
+  an invalid byte. An `IgnoredAny` probe was rejected on the way: a trailing truncated container (`80 91`) ends the input inside the
+  probe, with the very error a clean end produces.
+- **Tests and claim:** `serializer::tests::bytes_after_the_value_are_refused` (six trailing shapes, among them a truncated array header and
+  a truncated `uint 8`, the cases that tell a present marker from a missing one, and the offset of a longer value) and
+  `msgpack_hostile_header_vectors::bytes_after_the_value_are_refused`, the pin of the claim `msgpack-exactly-one-value` in the envelope
+  reference; the Java twin pins the same rule in `MsgPackTest`.
+
+Gates: `cargo fmt --all --check`, `cargo clippy -p mercury-platform-core --tests -- -D warnings`, `cargo test -p mercury-platform-core`,
+`check-doc-claims`, `check-llms-links`.
