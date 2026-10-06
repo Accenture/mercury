@@ -37,6 +37,7 @@ pub mod extension;
 pub mod features;
 pub mod fetcher;
 pub mod graph_set;
+pub mod graph_set_loader;
 pub mod graphs;
 pub mod math;
 pub mod mock;

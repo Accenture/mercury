@@ -1000,12 +1000,18 @@ fn list_graphs() -> String {
     let total = ids.len();
     for id in ids {
         match graph_purpose(&id) {
-            Some(purpose) => sb.push_str(&format!("{id} - {purpose}\n")),
-            None => {
-                sb.push_str(&id);
-                sb.push('\n');
+            Some(purpose) => sb.push_str(&format!("{id} - {purpose}")),
+            None => sb.push_str(&id),
+        }
+        // a graph deployed from a set shows the set and its version (ADR-0027)
+        if let Some(set) = crate::graphs::graph_set(&id) {
+            if set.version.is_empty() {
+                sb.push_str(&format!(" (set {})", set.name));
+            } else {
+                sb.push_str(&format!(" (set {}, version {})", set.name, set.version));
             }
         }
+        sb.push('\n');
     }
     sb.push_str(&format!(
         "Total {total} graph model{}\n",

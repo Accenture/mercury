@@ -37,6 +37,11 @@
 //!    rules ([`crate::model_validator`]); the runtime guards remain the
 //!    enforcement floor for the playground dry-run surface.
 //!
+//! A manifest may also list packaged graph sets (ADR-0027 in the Java repository's ledger): `sets`
+//! names packages read from its location as `{set}.pack`, and `unpack` names a `file:/` folder the
+//! application can write. [`crate::graph_set_loader`] unpacks each set there and deploys it all or
+//! none, right after the manifest's own graphs.
+//!
 //! The four checks read the model alone, so they live in
 //! [`crate::model_gate`], which the graph packager shares: a graph set is
 //! refused at pack time for the reasons this gate would reject it at startup.
@@ -71,6 +76,7 @@ const CLASSPATH_PREFIX: &str = "classpath:/";
 /// Compile and register every graph model listed by `graph.model.automation`.
 /// Returns the ids of all graphs in the registry (Java logs the same count).
 pub fn compile_graphs() -> Vec<String> {
+    crate::graph_set_loader::reset();
     let config = AppConfigReader::get_instance();
     if !config
         .get_property_or("location.graph.deployed", "")
@@ -103,7 +109,9 @@ pub fn compile_graphs() -> Vec<String> {
     all
 }
 
-fn compile_manifest(manifest: &str) {
+/// Compile one manifest: its loose graphs, then its packaged sets (ADR-0027 in the Java repository's
+/// ledger; [`crate::graph_set_loader`]).
+pub fn compile_manifest(manifest: &str) {
     match ConfigReader::load(manifest) {
         Ok(reader) => {
             log::info!("Loading graph manifest {manifest}");
@@ -129,6 +137,8 @@ fn compile_manifest(manifest: &str) {
                     }
                 }
             }
+            // a manifest's sets compile right after its own graphs, before the next manifest
+            crate::graph_set_loader::deploy(manifest, &reader, &deploy_location);
         }
         Err(e) => log::warn!("Unable to load graph manifest {manifest} - {e}"),
     }
@@ -140,7 +150,18 @@ fn compile_one_graph(deploy_location: &str, graph_id: &str) {
     // not executable (404) rather than silently served from the copy the operator meant to
     // replace (a curl test would otherwise pass against the old behavior)
     if let Some(previous) = graphs::graph_location(graph_id).filter(|p| p != deploy_location) {
-        log::warn!("Graph {graph_id} from {deploy_location} replaces the copy from {previous}");
+        match graphs::graph_set(graph_id) {
+            None => {
+                log::warn!(
+                    "Graph {graph_id} from {deploy_location} replaces the copy from {previous}"
+                )
+            }
+            // a duplicate that involves a graph set is an error, the later copy still wins (ADR-0027)
+            Some(set) => log::error!(
+                "Graph {graph_id} from {deploy_location} replaces the copy from {}",
+                crate::graph_set_loader::describe(&previous, Some(&set))
+            ),
+        }
         graphs::remove_graph(graph_id);
     }
     match load_and_validate(deploy_location, graph_id) {
