@@ -345,8 +345,12 @@ layers shipped; the two above have held through every re-verify.)*
   apply (Eric's rulings, 2026-10-05; Increment 158, PR #356, open at writing; Java twin `graph-null-property-filtered` in mercury-composable #508).** The Java
   configuration reader drops a null-valued key when it loads a graph; this reader kept it and `MiniGraph::import_graph` refused it, so a graph deployed on Java
   only. `model_gate::without_null_properties` (= `serializer::strip_nulls_always`, the transport strip without its switch: map values only, list elements and
-  empty collections kept) now runs in `compiler::load_raw_graph` (startup and `import graph from`) and `graph_set::pack`/`read`. READ: a graph refused for a
-  null property now deploys. The switch governs only what the event transport keeps; a CLI test packs the same bytes with it on.
+  empty collections kept) runs in `graph_set::pack`/`read` and in the Playground's draft import (`import_graph_model` + `validate_graph_model`: the REST
+  import, its replay and `import graph from`, which reads a file as text). **The deploy read reproduces Java's (Eric approved options A and E, 2026-10-05):**
+  Java's flatten-and-rebuild also drops an empty map or list (and one left empty), turns such an element inside a list into null and drops it at the end;
+  `model_gate::normalize_graph` does the same in `compiler::load_raw_graph` (startup and `instantiate graph`) and the packager's check copy, pinned by
+  `tests/resources/graph-read-normalization-vectors.json`, byte-identical with the Java engine's. READ: a graph refused for a null property or a mapping list
+  ending in null now deploys; an empty `{}`/`[]` property is no longer deployed. The switch governs only what the event transport keeps.
   <!-- id: graph-null-property-filtered-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 1 | tier: working | origin: 2026-10-06-000759 -->
 
 ## Conventions
