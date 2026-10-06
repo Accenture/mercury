@@ -899,6 +899,15 @@ async fn import_graph_from_filters_a_null_property(platform: &Platform) {
     let _ = std::fs::remove_file(&file);
 }
 
+/// Removes a step's folder when the step ends, a failed one included.
+struct RemoveOnDrop(std::path::PathBuf);
+
+impl Drop for RemoveOnDrop {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 /// A graph deployed from a set (ADR-0027 in the Java repository's ledger): `list graphs` shows its set
 /// and version, and `import graph from` finds its unpacked file, because the unpack folder is a deployed
 /// location. (Java twin: CompanionSyncTest.aGraphFromASetIsListedWithItsSetAndImports)
@@ -907,6 +916,7 @@ async fn a_graph_from_a_set_is_listed_with_its_set_and_imports(platform: &Platfo
     let folder = std::env::temp_dir().join(format!("graph-set-sync-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&folder);
     std::fs::create_dir_all(&folder).expect("a folder");
+    let _cleanup = RemoveOnDrop(folder.clone());
     let model = event_script::conversions::from_json(&serde_json::json!({
         "nodes": [
             {"alias": "root", "types": ["Root"],
@@ -967,7 +977,6 @@ async fn a_graph_from_a_set_is_listed_with_its_set_and_imports(platform: &Platfo
         root.get_property("name")
     );
     knowledge_graph::graphs::remove_graph("unit-test-set-listed");
-    let _ = std::fs::remove_dir_all(&folder);
 }
 
 /// The export guard validates the root name only when one is DECLARED: a missing or
