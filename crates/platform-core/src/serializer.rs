@@ -104,6 +104,26 @@ pub fn strip_nulls_always(value: &Value) -> Value {
     }
 }
 
+/// The deepest nesting of maps and lists a MsgPack payload may carry, the outermost container being level 1
+/// (Java `MsgPack.MAX_DEPTH`). The decoder recurses once per level, and in Rust a stack overflow aborts the
+/// whole process, so a payload nested deeper is refused as a decoding error. rmp-serde's own default (1,024) is
+/// no guard: a debug build's 2 MiB thread stack overflows at about 550 levels.
+pub const MAX_DEPTH: usize = 64;
+
+/// Decode MsgPack bytes with their nesting bounded at [`MAX_DEPTH`]: `rmp_serde::from_slice` with a depth limit.
+/// Bytes that arrive from outside the process are decoded here (the envelope, the Event API's format check).
+pub fn from_msgpack<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8]) -> Result<T, String> {
+    let mut de = rmp_serde::Deserializer::from_read_ref(bytes);
+    // rmp-serde refuses the container that brings its counter to zero, so MAX_DEPTH + 1 accepts MAX_DEPTH levels
+    de.set_max_depth(MAX_DEPTH + 1);
+    T::deserialize(&mut de).map_err(|e| match e {
+        rmp_serde::decode::Error::DepthLimitExceeded => {
+            format!("Nesting deeper than {MAX_DEPTH} levels")
+        }
+        other => other.to_string(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,5 +265,65 @@ mod tests {
         assert_eq!(items[2], Value::from(2));
         assert!(matches!(items[3], Value::Nil));
         assert_eq!(items[4], Value::from(4));
+    }
+
+    // each 0x91 opens an array of one element; the innermost element is nil (0xc0)
+    fn nested_arrays(depth: usize) -> Vec<u8> {
+        let mut bytes = vec![0x91u8; depth];
+        bytes.push(0xc0);
+        bytes
+    }
+
+    // each level is a map of one entry, the key "a" (0x81 0xa1 0x61); the innermost value is nil
+    fn nested_maps(depth: usize) -> Vec<u8> {
+        let mut bytes = [0x81u8, 0xa1, 0x61].repeat(depth);
+        bytes.push(0xc0);
+        bytes
+    }
+
+    // maps and arrays alternate, starting with a map
+    fn nested_mix(depth: usize) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        for i in 0..depth {
+            bytes.extend_from_slice(if i % 2 == 0 {
+                &[0x81, 0xa1, 0x61]
+            } else {
+                &[0x91]
+            });
+        }
+        bytes.push(0xc0);
+        bytes
+    }
+
+    #[test]
+    fn nesting_up_to_the_limit_decodes() {
+        // 64 nested arrays, the outermost being level 1, decode (Java `MsgPackTest`, same payloads)
+        let mut value: Value = from_msgpack(&nested_arrays(MAX_DEPTH)).expect("64 levels decode");
+        let mut depth = 0;
+        while let Value::Array(items) = value {
+            depth += 1;
+            value = items.into_iter().next().unwrap_or(Value::Nil);
+        }
+        assert_eq!(MAX_DEPTH, depth);
+        assert!(from_msgpack::<Value>(&nested_maps(MAX_DEPTH)).is_ok());
+        assert!(from_msgpack::<Value>(&nested_mix(MAX_DEPTH)).is_ok());
+    }
+
+    #[test]
+    fn nesting_beyond_the_limit_is_refused() {
+        // one level more is refused by name; maps count like arrays, and so does a mix of both
+        assert_eq!(
+            Err("Nesting deeper than 64 levels".to_string()),
+            from_msgpack::<Value>(&nested_arrays(MAX_DEPTH + 1))
+        );
+        assert!(from_msgpack::<Value>(&nested_maps(MAX_DEPTH + 1)).is_err());
+        assert!(from_msgpack::<Value>(&nested_mix(MAX_DEPTH + 1)).is_err());
+    }
+
+    #[test]
+    fn a_deeply_nested_payload_is_refused_before_the_stack_runs_out() {
+        // 100,000 nested arrays, about 100 KB: rmp-serde's default stops at 1,024, but a debug build's thread
+        // stack overflowed first, at about 550 levels, and a stack overflow aborts the process
+        assert!(from_msgpack::<Value>(&nested_arrays(100_000)).is_err());
     }
 }

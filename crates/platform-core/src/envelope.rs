@@ -401,7 +401,8 @@ impl EventEnvelope {
 
     /// Decode an envelope from MsgPack bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, AppError> {
-        rmp_serde::from_slice(bytes)
+        // the nesting is bounded (serializer::MAX_DEPTH), so crafted bytes cannot exhaust the stack
+        crate::serializer::from_msgpack(bytes)
             .map_err(|e| AppError::new(500, format!("unable to decode envelope: {e}")))
     }
 }

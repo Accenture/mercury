@@ -368,6 +368,16 @@
       "quote": "The result shape depends on the kind of path, not on the number of matches",
       "test": "crates/knowledge-graph::graph_runtime::json_path_source_takes_the_jayway_shape",
       "since": "4.12.21+"
+    },
+    {
+      "id": "msgpack-nesting-limit",
+      "claim": "A MsgPack payload the engine decodes - an event envelope, an Event API request, MsgPack.unpack - may nest at most 64 maps and lists, the outermost container being level 1, so an envelope's body may nest 63; one level more is refused as a decoding error naming the limit (Nesting deeper than 64 levels; HTTP 400 at the Event API) before the decoder's recursion can exhaust the stack.",
+      "pages": [
+        "docs/guides/event-envelope-reference.md"
+      ],
+      "quote": "A payload nested deeper than 64 maps and lists is refused as a decoding error, the envelope map being level 1",
+      "test": "crates/platform-core::envelope_wire_format::an_envelope_nested_too_deep_is_a_decoding_error",
+      "since": "4.12.21+"
     }
   ]
 }

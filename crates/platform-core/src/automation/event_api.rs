@@ -268,7 +268,7 @@ fn error_envelope(status: i32, message: &str) -> Vec<u8> {
 /// A compact (legacy Java) envelope has ONLY single-character top-level keys;
 /// the standard format's keys are all longer, so the namespaces are disjoint.
 fn is_compact_envelope(bytes: &[u8]) -> bool {
-    match rmp_serde::from_slice::<Value>(bytes) {
+    match crate::serializer::from_msgpack::<Value>(bytes) {
         Ok(Value::Map(entries)) if !entries.is_empty() => entries
             .iter()
             .all(|(k, _)| k.as_str().is_some_and(|s| s.chars().count() == 1)),

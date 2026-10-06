@@ -4411,3 +4411,26 @@ unpacked file, and failed once a manifest field changed.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p mercury-graph-packager`,
 `check-doc-claims`, `check-llms-links`.
+
+## Increment 160 — A MsgPack payload nested deeper than 64 levels is refused (2026-10-06)
+
+Found while answering a security finding on the Java engine's `msgpack-core` 0.9.12 (CVE-2026-90472, deep nesting in the library's
+`unpackValue`): the Java engine never calls that method, but its own `MsgPack` reader recursed without a bound, and Eric asked for a
+nesting limit in both engines - "a smaller and realistic nesting level" than the libraries' 1,024.
+
+- **Measured first** (a throwaway test, not committed): this engine decodes untrusted bytes with `rmp_serde::from_slice` - the envelope
+  (`EventEnvelope::from_bytes`) and the Event API's compact-format check (`is_compact_envelope`). rmp-serde's default depth is 1,024 and
+  it counts the outermost container, so a release build decodes 1,023 nested arrays and refuses the 1,024th. A debug build's 2 MiB
+  thread stack overflowed first: 500 nested arrays decoded and 600 aborted the process (`fatal runtime error: stack overflow`).
+- **The limit:** `platform_core::serializer::MAX_DEPTH` = 64, the outermost container being level 1, the same number and the same
+  counting as the Java engine's `MsgPack.MAX_DEPTH` and both engines' canonical packager. `serializer::from_msgpack` is
+  `rmp_serde::from_slice` with `set_max_depth(MAX_DEPTH + 1)` (rmp-serde refuses the container that brings its counter to zero) and
+  reports `Nesting deeper than 64 levels`, the Java engine's text. `EventEnvelope::from_bytes`, `is_compact_envelope` and the
+  distributed-cache example's `unpack` decode through it; the canonical packager keeps its own bound.
+- **Tests:** `serializer` unit tests (64 nested arrays, maps or a mix decode; 65 are refused by name; 100,000 nested arrays are refused
+  instead of overflowing the stack) and `envelope_wire_format::an_envelope_nested_too_deep_is_a_decoding_error` (a body nesting 63
+  levels decodes, 64 does not, because the envelope map is level 1), twin of the Java `EventEnvelopeTest`. The claim
+  `msgpack-nesting-limit` pins the rule in the envelope reference on both engines.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`.

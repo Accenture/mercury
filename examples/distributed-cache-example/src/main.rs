@@ -71,7 +71,7 @@ fn pack(profile: &Value) -> Result<Vec<u8>, AppError> {
 
 /// The inverse of [`pack`] (Java `MsgPack.unpackMapOrList`).
 fn unpack(bytes: &[u8]) -> Result<Value, AppError> {
-    rmpv::decode::read_value(&mut &bytes[..])
+    platform_core::serializer::from_msgpack(bytes)
         .map_err(|e| AppError::new(500, format!("Unable to unpack the profile - {e}")))
 }
 

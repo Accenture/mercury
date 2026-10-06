@@ -157,6 +157,13 @@ let request: serde_json::Value = input.body_as()?;      // free-form
 let profile: Profile = reply.body_as()?;                // typed
 ```
 
+#### Nesting limit
+
+A payload nested deeper than 64 maps and lists is refused as a decoding error, the envelope map being level 1,
+so a body may nest 63 levels (`serializer::MAX_DEPTH`, the Java engine's `MsgPack.MAX_DEPTH`). The limit keeps a
+crafted payload from exhausting the decoder's stack. `EventEnvelope::from_bytes` reports
+`Nesting deeper than 64 levels`, and the Event API answers such a request with HTTP 400.
+
 ## Performance metadata
 
 #### `exec_time()`
