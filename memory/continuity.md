@@ -355,7 +355,7 @@ layers shipped; the two above have held through every re-verify.)*
   empty envelope with a fresh id as on Java and the Event API answers an empty body `400 Missing routing path`; the canonical
   decoder keeps refusing empty input, and the shared file carries the case as the first `canonical: reject` control. Lesson: parity believed is not parity tested - the shared-file method caught a divergence
   the first time it ran. Extends [[msgpack-nesting-limit-64-rust]]. **Exactly one value (Increment 165, branch `fix/msgpack-trailing-bytes` `14c0a687`, PR
-  pending; the Java twin on the Java repository's branch of the same name):** an independent correctness review of the Java codec found
+  #363 open; the Java twin mercury-composable #521, `987dc053`, open):** an independent correctness review of the Java codec found
   that both engines' event codecs read one value and ignored what followed (`80 c1` decoded as an empty map) while both canonical
   decoders refused it; the Java engine fixed it as the reference and this engine follows - `from_msgpack` probes for a `u8` after the
   value (only a missing marker fails as `InvalidMarkerRead`/`UnexpectedEof`, since the probe reads at most nine bytes) and refuses the
