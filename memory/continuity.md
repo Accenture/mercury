@@ -315,8 +315,11 @@ layers shipped; the two above have held through every re-verify.)*
 - **Graph sets follow ADR-0027 in the Java repository's ledger (RFC-0005, promoted 2026-10-06): one or more graphs in a canonical
   `<set>.pack`, checked by the gate when packed and deployed all or none through a generated manifest; a set of one graph is how one graph
   is signed (Eric, 2026-10-06; Increment 159, PR #357 merge `60e59aeb`, MERGED 2026-10-06 01:27Z).** This engine's homes: `knowledge_graph::model_gate` (the shared
-  gate), `knowledge_graph::graph_set` (the set rules) and `tools/graph-packager` (`publish = false`); the loader (WP3: `sets` + `unpack` in
-  `graphs.yaml`) comes next, in lock-step with the Java engine. The one-graph rule is pinned by `tests/cli.rs`
+  gate), `knowledge_graph::graph_set` (the set rules), `tools/graph-packager` (`publish = false`) and the loader
+  `knowledge_graph::graph_set_loader` (WP3, Increment 161, PR #359 merge `42f6cf81`, MERGED 2026-10-06 04:46Z; Java twin mercury-composable
+  #515): `sets` + `unpack` in `graphs.yaml`, each set unpacked into `<unpack>/<id>.json`, gated and registered all or none, and a generated
+  `<unpack>/graphs.yaml` whose `graphs` lists what deployed and `generated` every file written, which the next start removes. WP4 to WP6
+  remain. The one-graph rule is pinned by `tests/cli.rs`
   `a_single_graph_is_packed_alone_so_it_can_be_signed` and its Java twin: one 327-byte set, SHA-256 `c500281a…` in both engines. A change
   that alters those bytes breaks the signatures made over the old ones. Java twin fact `graph-set-pack-and-deploy`; the sprint thread is the
   Java repository's `graph-set-packaging`. Relates [[graph-null-property-filtered-rust]].
