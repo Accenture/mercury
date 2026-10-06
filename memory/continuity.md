@@ -48,7 +48,13 @@
   facade, `Platform::keep_running`, `group.protocol=auto`; 12 crates. Origin 2026-09-22-010413.md.) Prior: v4.12.12
   (2026-09-21 — the catch-up release 4.12.7 → 4.12.12 in one step, PR #296 → `983e7550`, tag → `1ef183cb`; Increments 118–124.)
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-10-04 | through 2026-10-04-160854.md (CADENCE + SIZE, on Eric's command — 11 sessions since the 2026-09-28 review
+- **last_review:** 2026-10-06 | through 2026-10-06-013022.md (CADENCE — 10 sessions since the 2026-10-04 review: `refresh-metadata`
+  refreshed 16 footers, 16 tier changes (13 → archive-candidate, 3 → active); archived 2 faded facts, `graph-math-dialect-closed-set-rust`
+  (sslu 22) and `conv-template-version-sweep-rust` (sslu 23), after step 6 found no reliance in the window - its one commit on their paths,
+  `1e8f3ad4`, changed `skills-reference.md` in the data-mapper section, not the dialect, and the v4.12.20 sweep `a033ea70` falls before the
+  window; swept 0 (the three closed threads closed inside the window); reactivated 0, superseded 0, archive-verify pass; invariants not due
+  (re-verified 2026-10-04); no stalled thread; contradiction scan: none; Doc Gaps: none open. Live facts 28 → 26.)
+  Prior: 2026-10-04 | through 2026-10-04-160854.md (CADENCE + SIZE, on Eric's command — 11 sessions since the 2026-09-28 review
   (`review_every` 10) and continuity 604 lines > 600; `refresh-metadata` refreshed 19 footers (16 before the review log, 3 after it), 17 tier changes
   (8 working → active, 3 archive-candidate → active, 4 active → archive-candidate, 2 working → archive-candidate); archived 7 — 6 faded Key
   Decisions (`redis-connection-foundation-rust`, `distributed-cache-rust`, `redis-failure-classification-rust`, `headless-app-keep-running`,
@@ -190,7 +196,7 @@ layers shipped; the two above have held through every re-verify.)*
   still drives its own manager (follow-up). Java needs no twin (Lettuce). Lesson: "fail fast" under a known outage means
   one deadline-bounded attempt, never two — a test expectation was wrong on the way, not the code. Extends
   [[redis-connection-foundation-rust]], [[redis-failure-classification-rust]]; closes the polyglot report's note 3.
-  <!-- id: redis-restart-aware-retry | created: 2026-09-22 | last_used: 2026-10-04 | uses: 3 | tier: active | origin: 2026-09-22-235800 -->
+  <!-- id: redis-restart-aware-retry | created: 2026-09-22 | last_used: 2026-10-04 | uses: 3 | tier: archive-candidate | origin: 2026-09-22-235800 -->
 
 - **A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a generic function by ONE
   `graph.task` input entry; never hard-coded in a function bundled with the graph (Eric, 2026-09-20; Increment 123, a doc
@@ -215,7 +221,7 @@ layers shipped; the two above have held through every re-verify.)*
   a new table is a new graph version and never a code change, and the function stays generic by reading rule names from
   `table.keys`. In `skills-reference.md`, the in-Playground help and the AI agent guide's checklist; pinned by
   `unit-test-task-9` (`graph_runtime.rs`) in lockstep with Java. Extends [[conventions-rust-baseline]].
-  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-10-04 | uses: 4 | tier: active | origin: 2026-09-20-152809 -->
+  <!-- id: static-decision-table-is-graph-data-rust | created: 2026-09-20 | last_used: 2026-10-04 | uses: 4 | tier: archive-candidate | origin: 2026-09-20-152809 -->
 
 - **graph.math is typed and finite — a boolean is never a number, an unknown function and an overflow fail by name, and
   `CONDITION` is the declared boolean statement (Eric's rulings on a field page of nine "wrong answer" behaviours,
@@ -245,7 +251,7 @@ layers shipped; the two above have held through every re-verify.)*
   Increment 145, shipped in v4.12.20):** the minimalist boundary no longer holds - exact decimal arithmetic IS a `graph.math` statement,
   `DECIMAL:` (canonical decimal strings at rest, rounding always explicit); the typed and finite `COMPUTE` rules above stand, as in the
   Java twin's note. (Found stale by the 2026-10-04 review's contradiction scan.)
-  <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-10-04 | uses: 5 | tier: active | origin: 2026-09-25-190229 -->
+  <!-- id: graph-math-typed-arithmetic-rust | created: 2026-09-25 | last_used: 2026-10-04 | uses: 5 | tier: archive-candidate | origin: 2026-09-25-190229 -->
 
 - **`graph.model.automation` accepts a comma-separated list of manifests, and the later manifest wins — the Rust twin
   (Increment 142, 2026-09-25; PR #332 merge `d3d82a3f` MERGED 2026-09-25, lock-step with mercury-composable #465 squash
@@ -260,22 +266,7 @@ layers shipped; the two above have held through every re-verify.)*
   file:/tmp/graph/deploy/graphs.yaml'`), not a JVM flag. Entries are manifests, never bare folders (the manifest is the
   gate's allowlist). Claim `graph-manifest-list-later-wins` pinned to `compiler::later_manifest_wins_for_a_duplicate_graph_id`;
   the recipe lives in `ai-agent-guide.md#deploy-without-rebuild`.
-  <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-10-02 | uses: 5 | tier: archive-candidate | origin: 2026-09-25-224149 -->
-
-- **The graph.math expression dialect is documented as the closed set it is, and pinned — the Rust twin of mercury-composable
-  #467/#468 (Increment 143, 2026-09-28; PR #334 merge `41a7f418` MERGED 2026-09-28; SHIPPED in v4.12.20).** A live MiniGraph demo showed the gap: an agent building
-  `a + b ** 2` had to read the evaluator to know whether `**` parses — the grammar page said "no function calls", the skills
-  reference listed a partial function set, no page named the operators. Now `skills-reference.md#math-dialect` lists everything a
-  `COMPUTE`/`CONDITION`/`IF` may contain (literals; `{…}` variables and how they render — a text value becomes a quoted string
-  literal in a boolean context; operators by precedence with the strict `**` unary rule; the eighteen functions with arity, all
-  under `Math.` too; `PI`, `E`; the exclusions), the grammar summary links to it, the in-band `help graph-math` carries the same
-  catalog, and `minigraph-commands.json` has an `expression_dialect` object. **Gated:** claim `math-expression-dialect` →
-  `tests/expression_dialect.rs`, set-equality on `EvalContext::with_defaults()` through the new `EvalContext::names()` /
-  `namespace_names()` (the Java `snapshot()` analog; the one code change, no behaviour change) — a function or constant added or
-  removed fails the build on both engines. **Rule:** a dialect is a closed set; document it as one and pin the set, or every agent
-  re-derives it from source. Grouped one concern per test from the start (Sonar S5961 flagged the Java original at 29 assertions
-  in one method — #468). Extends [[graph-math-typed-arithmetic-rust]] and [[conventions-rust-baseline]].
-  <!-- id: graph-math-dialect-closed-set-rust | created: 2026-09-28 | last_used: 2026-09-28 | uses: 1 | tier: archive-candidate | origin: 2026-09-28-234016 -->
+  <!-- id: graph-manifest-list-later-wins-rust | created: 2026-09-25 | last_used: 2026-10-05 | uses: 6 | tier: active | origin: 2026-09-25-224149 -->
 
 - **The starter template and the playground example carry their own flows config, mimicking the Java twins, and tutorial 13 is deployed in the example (Eric,
   2026-10-01; Increment 149, PR #343 merge `86b59cb0`).** `templates/starter-graph` gained `resources/flows.yaml` and `flows/graph-executor.yml`; `examples/minigraph-playground`
@@ -289,7 +280,7 @@ layers shipped; the two above have held through every re-verify.)*
   app's own dev mock endpoint; the comment outlived it (the Java example omitted tutorial 13 for the same reason, fixed in mercury-composable #489). The app now compiles 15 graphs, and the test
   boots on a KNOWN port because CompileGraph resolves `${rest.server.port:8080}` at load time. `v1.hello.task` is NOT re-added (Eric: tutorial 13 no longer needs it). Not aligned: the
   distributed-cache example lists `graph-executor.yml` and resolves it from the engine without a local copy. Follow-up: [[hello-task-doc-references]] (closed 2026-10-02: PR #345 and #346).
-  <!-- id: example-and-template-carry-their-flows | created: 2026-10-01 | last_used: 2026-10-02 | uses: 4 | tier: active | origin: 2026-10-02-001532 -->
+  <!-- id: example-and-template-carry-their-flows | created: 2026-10-01 | last_used: 2026-10-02 | uses: 4 | tier: archive-candidate | origin: 2026-10-02-001532 -->
 
 - **The Rust engine certified the LLM helper without changing: the playground's AI nodes point at the helper app, and the helper's contract lives in the language packs (Increment 148, PR #342
   merge `755af30e`; Eric, 2026-10-01).** The helper (`llm.chat`, `llm.stream`, `llm.health` on the Anthropic SDK) is `examples/llm-helper` in mercury-python and mercury-nodejs (PRs #38 and #106),
@@ -310,7 +301,7 @@ layers shipped; the two above have held through every re-verify.)*
   controls became three steps in the same round - Instantiate, Upload (optional; the form opens for the clicking session only, no console command) and Run - and the
   multi-select hint left the canvas; the UI lives in the Java repo and arrives here as the bundle `index-Bg13jQpc` ([[webapp-single-source-java-repo]]). Pinned by
   `mock_upload_loads_every_member_instance` in `tests/graph_runtime.rs`.
-  <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-03 | uses: 2 | tier: active | origin: 2026-10-02-232252 -->
+  <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-03 | uses: 2 | tier: archive-candidate | origin: 2026-10-02-232252 -->
 
 - **A graph model imported from a file travels like a command: `POST /api/graph/import/{id}` makes it every member's draft (Eric's Playground usability sprint, 2026-10-03; PR #350 merge `dae6377d`, Increment 155; lock-step with mercury-composable #500 squash `856e084b`; both MERGED 2026-10-03 16:03Z).**
   `commands::import_content` validates first (`validate_graph_model`: a JSON object whose only top-level sections are `nodes`, a mandatory list, and `connections`, an optional list; then
@@ -321,7 +312,7 @@ layers shipped; the two above have held through every re-verify.)*
   bundle `index-Cv2pdvxg` ([[webapp-single-source-java-repo]]): the Import Graph button, the `.json` file drop (a confirmation before replacing a loaded graph), the Download button
   (`<graph-id>.json`, the root node named after the id as `export graph as` does) and the Raw tab. A dev-route addition touches the example, the starter template and the cache example
   `rest.yaml`. Extends [[mock-upload-loads-every-member]]. Pinned by `graph_import_loads_every_member_draft` in `tests/graph_runtime.rs`.
-  <!-- id: graph-import-travels-like-command | created: 2026-10-03 | last_used: 2026-10-03 | uses: 1 | tier: working | origin: 2026-10-03-153752 -->
+  <!-- id: graph-import-travels-like-command | created: 2026-10-03 | last_used: 2026-10-03 | uses: 1 | tier: archive-candidate | origin: 2026-10-03-153752 -->
 
 - **A mapping source inserts its `{namespace.key}` values verbatim, never quoted; a JSONPath filter is the one place a text value is quoted (Eric's ruling, 2026-10-03;
   PR #351 merge `5c408037`, Increment 156, lock-step with mercury-composable #503 squash `8db2a46f`; both MERGED 2026-10-04 06:01Z).** A graph mapping source may embed a reference that resolves before the source
@@ -331,7 +322,7 @@ layers shipped; the two above have held through every re-verify.)*
   mapping target is never resolved (literal); also documented: any namespace may be read (Event Script: `model.*` only), a composed key is case-sensitive. Pinned by the byte-identical fixture `unit-test-mapping-1`,
   `mapping_source_resolves_dynamic_variables_verbatim` and the claim `mapping-source-dynamic-variables`. Extends [[static-decision-table-is-graph-data-rust]]; applies
   [[webapp-single-source-java-repo]] (bundle `index-Bz9k-ffR`). The JSONPath result shape follows Jayway since Increment 157: [[jsonpath-jayway-result-shape]].
-  <!-- id: mapping-source-verbatim-substitution | created: 2026-10-03 | last_used: 2026-10-04 | uses: 2 | tier: active | origin: 2026-10-04-054444 -->
+  <!-- id: mapping-source-verbatim-substitution | created: 2026-10-03 | last_used: 2026-10-04 | uses: 2 | tier: archive-candidate | origin: 2026-10-04-054444 -->
 
 - **A `$.` JSONPath result takes Jayway's shape - by the kind of path, not the number of matches (Increment 157, PR #352 merge `bdc7b5be`, MERGED 2026-10-04 06:08Z;
   the Java engine is the reference, its pin mercury-composable #504).** A definite path (child member names and single indexes only) yields the value or nothing; an
@@ -340,7 +331,7 @@ layers shipped; the two above have held through every re-verify.)*
   3.0.0. `serde_json_path` keeps its parsed query private, so `mlm.rs` classifies the parsed path string (`path_shape`, `misses_a_member_name`); an unrecognized
   construct keeps the count rule. Holds in Event Script flows and graphs alike; pinned by `json_path_result_shape_follows_jayway`, the shared fixture
   `unit-test-jsonpath-1` and the claim `json-path-result-shape`. Closed [[rust-jsonpath-indefinite-list]].
-  <!-- id: jsonpath-jayway-result-shape | created: 2026-10-03 | last_used: 2026-10-04 | uses: 1 | tier: working | origin: 2026-10-04-060541 -->
+  <!-- id: jsonpath-jayway-result-shape | created: 2026-10-03 | last_used: 2026-10-04 | uses: 1 | tier: archive-candidate | origin: 2026-10-04-060541 -->
 - **A graph holds no null property: `"key": null` is filtered out on deploy, pack and read, `"key": ""` is a value, and `serializer.null.transport` does not
   apply (Eric's rulings, 2026-10-05; Increment 158, PR #356 merge `779cffe1`, MERGED 2026-10-06 00:31Z; Java twin `graph-null-property-filtered` in mercury-composable #508).** The Java
   configuration reader drops a null-valued key when it loads a graph; this reader kept it and `MiniGraph::import_graph` refused it, so a graph deployed on Java
@@ -351,7 +342,7 @@ layers shipped; the two above have held through every re-verify.)*
   `model_gate::normalize_graph` does the same in `compiler::load_raw_graph` (startup and `instantiate graph`) and the packager's check copy, pinned by
   `tests/resources/graph-read-normalization-vectors.json`, byte-identical with the Java engine's. READ: a graph refused for a null property or a mapping list
   ending in null now deploys; an empty `{}`/`[]` property is no longer deployed. The switch governs only what the event transport keeps.
-  <!-- id: graph-null-property-filtered-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 1 | tier: working | origin: 2026-10-06-000759 -->
+  <!-- id: graph-null-property-filtered-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 3 | tier: active | origin: 2026-10-06-000759 -->
 
 - **Graph sets follow ADR-0027 in the Java repository's ledger (RFC-0005, promoted 2026-10-06): one or more graphs in a canonical
   `<set>.pack`, checked by the gate when packed and deployed all or none through a generated manifest; a set of one graph is how one graph
@@ -361,7 +352,7 @@ layers shipped; the two above have held through every re-verify.)*
   `a_single_graph_is_packed_alone_so_it_can_be_signed` and its Java twin: one 327-byte set, SHA-256 `c500281a…` in both engines. A change
   that alters those bytes breaks the signatures made over the old ones. Java twin fact `graph-set-pack-and-deploy`; the sprint thread is the
   Java repository's `graph-set-packaging`. Relates [[graph-null-property-filtered-rust]].
-  <!-- id: graph-set-pack-and-deploy-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 1 | tier: working | origin: 2026-10-06-012631 -->
+  <!-- id: graph-set-pack-and-deploy-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 2 | tier: active | origin: 2026-10-06-012631 -->
 
 ## Conventions
 
@@ -374,12 +365,6 @@ layers shipped; the two above have held through every re-verify.)*
   header style). EXCEPTION ruled by Eric 2026-09-11: `templates/*` starter sources carry a
   ONE-LINE scaffold attribution instead — templates seed field applications that are not
   open source, so the full Accenture copyright header must not ride into user code.
-- **Release version bumps must include the starter templates (2026-09-11).** Each
-  `templates/*/Cargo.toml` carries an EXPLICIT `version = "<version>"` and mercury-* dep
-  pins (deliberately NOT workspace-inherited, so a copied-out template builds as-is after
-  deleting the in-repo `path` keys) — the release edit list grows from 5 manifests to 8.
-  **Extended 2026-09-22 (the v4.12.14 publish):** before a crate's FIRST publish, audit its manifest metadata as part of the release sweep — `keywords` ≤ 5 and each ≤ 20 characters, valid `categories`, a `readme` path inside the package — because cargo validates none of it locally and crates.io rejects at upload, after the dependency-ordered run has already published everything before it (`progressive-rendering`, 21 chars, cost `mercury-sync-over-async` its place in the 4.12.14 run).
-  <!-- id: conv-template-version-sweep-rust | created: 2026-09-11 | last_used: 2026-09-25 | uses: 10 | tier: archive-candidate | origin: 2026-09-11-005808 -->
 - Each ported module's `//!` doc names the **Java class it ports** (e.g.
   `org.platformlambda.core.util.ConfigReader`) so reviewers can diff behavior side-by-side.
 - **Tests:** unit tests in-module (`#[cfg(test)]`), integration tests in `tests/` with
@@ -453,7 +438,7 @@ layers shipped; the two above have held through every re-verify.)*
   of a Java webapp fix). `Cargo.toml` has no `exclude` any more; `cargo package --list` carries 214 files, the 42 help pages, the bundle and the entry page, no
   webapp path and no source map. The source maps stay gitignored here. Supersedes [[webapp-bundle-follows-help-edits]] (the rule that a help edit needs the rebuilt bundle still holds, now from the
   Java repo). Relates [[example-and-template-carry-their-flows]].
-  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-04 | uses: 5 | tier: active | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
+  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-04 | uses: 5 | tier: archive-candidate | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
 
 - **A build from this checkout can reuse an engine artifact compiled in a worktree, and the engine's resource root is baked at compile time (found 2026-10-02).**
   `mercury-knowledge-graph` registers its `resources/` with `concat!(env!("CARGO_MANIFEST_DIR"), "/resources")` (`GraphResources`, `lib.rs`), so an rlib compiled in a worktree keeps the worktree's
@@ -461,7 +446,7 @@ layers shipped; the two above have held through every re-verify.)*
   not found`) although the files are in place. **Rule:** after a worktree build, `touch crates/knowledge-graph/src/lib.rs` (or `cargo clean -p mercury-knowledge-graph`) before `cargo run`, and read
   the baked root with `strings target/debug/minigraph-playground | grep knowledge-graph/resources`; a 404 on the Playground page right after a deploy is this, not the deploy. Relates
   [[webapp-single-source-java-repo]].
-  <!-- id: worktree-build-bakes-resource-root | created: 2026-10-02 | last_used: 2026-10-03 | uses: 3 | tier: active | origin: 2026-10-02-183818 -->
+  <!-- id: worktree-build-bakes-resource-root | created: 2026-10-02 | last_used: 2026-10-03 | uses: 3 | tier: archive-candidate | origin: 2026-10-02-183818 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 

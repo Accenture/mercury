@@ -115,3 +115,5 @@
 - otel-forwarder-certification — (certification — OpenTelemetry forwarder, 2026-09-22) CLOSED 2026-09-22 — the released — faded — 2026-Q4.md
 - webapp-bundle-follows-help-edits — A help or webapp-source edit is not done until the hashed bundle is rebuilt and committed… — superseded by webapp-single-source-java-repo — 2026-Q4.md
 - schema-registry-native-codec — The Schema Registry codec is this engine's own, and what it cannot delegate it refuses (Er… — faded — 2026-Q4.md
+- graph-math-dialect-closed-set-rust — The graph.math expression dialect is documented as the closed set it is, and pinned — the… — faded — 2026-Q4.md
+- conv-template-version-sweep-rust — Release version bumps must include the starter templates (2026-09-11). Each — faded — 2026-Q4.md
