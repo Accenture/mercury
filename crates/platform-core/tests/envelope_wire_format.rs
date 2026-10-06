@@ -135,3 +135,34 @@ fn absent_body_decodes_as_nil_and_unset_fields_are_omitted() {
     let decoded = EventEnvelope::from_bytes(&bytes).unwrap();
     assert!(matches!(decoded.body(), rmpv::Value::Nil));
 }
+
+/// The envelope map is level 1 of the decoder's nesting limit (`serializer::MAX_DEPTH`, 64), so a body may nest
+/// 63 levels and not 64 - the Java engine counts the same way (`EventEnvelopeTest`).
+#[test]
+fn an_envelope_nested_too_deep_is_a_decoding_error() {
+    fn nested(depth: usize) -> rmpv::Value {
+        let mut value = rmpv::Value::Array(vec![]);
+        for _ in 1..depth {
+            value = rmpv::Value::Array(vec![value]);
+        }
+        value
+    }
+    let limit = platform_core::serializer::MAX_DEPTH;
+    let ok = EventEnvelope::new()
+        .set_body(nested(limit - 1))
+        .unwrap()
+        .to_bytes()
+        .unwrap();
+    assert!(EventEnvelope::from_bytes(&ok).is_ok());
+    let deep = EventEnvelope::new()
+        .set_body(nested(limit))
+        .unwrap()
+        .to_bytes()
+        .unwrap();
+    let e = EventEnvelope::from_bytes(&deep).unwrap_err();
+    assert!(
+        e.message().contains("Nesting deeper than 64 levels"),
+        "{}",
+        e.message()
+    );
+}

@@ -155,6 +155,14 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
     `serializer.null.transport`, which decides only whether the event transport keeps a null. An empty string is a value and is
     kept. Upgrade note: none.
 
+18. **A MsgPack payload nested deeper than 64 maps and lists is refused (Increment 160).** The envelope decoder and the Event
+    API's format check decoded with `rmp_serde::from_slice`, whose depth limit is 1,024 levels. A release build reached that limit at
+    1,023, but a debug build's 2 MiB thread stack overflowed first, at about 550 nested arrays, and in Rust a stack overflow aborts
+    the process. `platform_core::serializer::from_msgpack` now decodes with the nesting bounded at 64 levels (`serializer::MAX_DEPTH`,
+    the outermost container being level 1; the Java engine's `MsgPack.MAX_DEPTH` and the canonical packager's bound) and refuses
+    deeper nesting with `Nesting deeper than 64 levels`, which the Event API answers with HTTP 400. The distributed-cache example's
+    `unpack` decodes through it too. Upgrade note: an event body may nest at most 63 levels inside its envelope.
+
 ---
 ## Version 4.12.20, 10/1/2026
 
