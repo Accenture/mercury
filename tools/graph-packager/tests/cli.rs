@@ -249,6 +249,93 @@ fn unpack_writes_readable_json_that_packs_to_the_same_bytes() {
 }
 
 #[test]
+fn a_single_graph_is_packed_alone_so_it_can_be_signed() {
+    // a set may hold one graph: packing a graph alone is how one graph is signed (ADR-0027). A signature is a
+    // detached file over the package bytes, so they must depend on the graph and the manifest fields only - on a
+    // second pack, on a pack of what unpack wrote, and in the Java engine, whose twin test pins the same digest
+    let s = Scratch::new();
+    let graph = write(
+        &s.path("graphs/single.json"),
+        r#"{"nodes": [
+          {"alias": "root", "types": ["Root"],
+           "properties": {"purpose": "a graph packed alone, so that it can be signed", "name": "single"}},
+          {"alias": "end", "types": ["End"], "properties": {}}],
+         "connections": [{"source": "root", "target": "end",
+                          "relations": [{"type": "done", "properties": {}}]}]}"#,
+    )
+    .display()
+    .to_string();
+    let digest = "c500281ada1b5582a5de986e7e9155f0c3d4019c5320b44af76fd5615797e68a";
+    let pack = |version: &str, out: &str, file: &str| {
+        run(&[
+            "pack",
+            "--set",
+            "single",
+            "--manifest",
+            version,
+            "--manifest",
+            "graph_id=single",
+            "--out",
+            out,
+            file,
+        ])
+    };
+    let r = pack("version=1.0.0", &s.arg("first"), &graph);
+    assert_eq!(0, r.code, "{}", r.err);
+    assert!(r.out.contains("Packed 1 graph into "), "{}", r.out);
+    assert!(r.out.contains(&format!("SHA-256 {digest}")), "{}", r.out);
+    let package = s.path("first").join("single.pack");
+    let bytes = fs::read(&package).expect("a package");
+    assert_eq!(digest, sha256(&bytes));
+    let contents = graph_set::read(&bytes).expect("a set");
+    let ids: Vec<&str> = contents.graphs.iter().map(|(id, _)| id.as_str()).collect();
+    assert_eq!(vec!["single"], ids);
+    assert_eq!(Some("single"), contents.manifest_field(graph_set::GRAPH_ID));
+    // a second pack, and a pack of the file unpack writes, give the same bytes, so a signature still verifies
+    assert_eq!(0, pack("version=1.0.0", &s.arg("second"), &graph).code);
+    assert_eq!(
+        bytes,
+        fs::read(s.path("second").join("single.pack")).expect("a package")
+    );
+    let r = run(&[
+        "unpack",
+        &package.display().to_string(),
+        "--out",
+        &s.arg("unpacked"),
+    ]);
+    assert_eq!(0, r.code, "{}", r.err);
+    let unpacked = s.path("unpacked").join("single.json").display().to_string();
+    assert_eq!(0, pack("version=1.0.0", &s.arg("repacked"), &unpacked).code);
+    assert_eq!(
+        bytes,
+        fs::read(s.path("repacked").join("single.pack")).expect("a package")
+    );
+    // the manifest is signed with the graph: another version is other bytes
+    assert_eq!(0, pack("version=1.0.1", &s.arg("other"), &graph).code);
+    assert_ne!(
+        digest,
+        sha256(&fs::read(s.path("other").join("single.pack")).expect("a package"))
+    );
+    // one graph is the least a set holds: an empty folder is refused and nothing is written
+    fs::create_dir_all(s.path("empty")).expect("folder");
+    let r = run(&[
+        "pack",
+        "--set",
+        "none",
+        "--out",
+        &s.arg("none"),
+        &s.arg("empty"),
+    ]);
+    assert_eq!(1, r.code);
+    assert!(
+        r.err.contains("a set needs at least one graph"),
+        "{}",
+        r.err
+    );
+    assert!(!s.path("none").join("none.pack").exists());
+}
+
+#[test]
 fn a_set_is_refused_with_every_reason_the_gate_gives() {
     let s = Scratch::new();
     let graphs = tutorials(&s.path("graphs"));
