@@ -1332,6 +1332,7 @@ dependencies = [
  "mercury-test-support",
  "moka",
  "rcgen",
+ "rmp",
  "rmp-serde",
  "rmpv",
  "rustls-native-certs",
