@@ -612,7 +612,7 @@ pub async fn inspect_state_machine(event: EventEnvelope) -> Result<EventEnvelope
     }
 }
 
-/// Java `PackGraphSet` (`pack.graph.set`): `POST /api/graph/pack` packs graph
+/// Java `PackGraphSet` (`pack.graph.set`): `POST /api/graph-set/pack` packs graph
 /// models into a graph set on the engine (ADR-0027), so the Playground's
 /// "Package graphs" panel never carries a packager of its own. The body is a
 /// JSON object, `{"manifest": {"set": "<name>", ...}, "graphs": {"<graph-id>":
@@ -712,7 +712,7 @@ fn graph_models(graphs: Option<&Value>) -> Result<BTreeMap<String, Value>, Strin
     }
 }
 
-/// Java `UnpackGraphSet` (`unpack.graph.set`): `POST /api/graph/unpack` reads
+/// Java `UnpackGraphSet` (`unpack.graph.set`): `POST /api/graph-set/unpack` reads
 /// a graph set (ADR-0027): the body is the package, a .pack file sent as
 /// application/octet-stream, and the answer is `{"manifest": {...}, "graphs":
 /// {"<graph-id>": <model>, ...}}` - the manifest as the package holds it, the
