@@ -341,7 +341,7 @@ layers shipped; the two above have held through every re-verify.)*
 
 - **The MsgPack decoders of both engines are pinned by one shared hostile-header vector file, and the canonical decoder now
   refuses the never-used byte `0xc1` at the header (Eric's ask, 2026-10-06; branch `test/msgpack-hostile-header-vectors` commit
-  `80040d61`, Increment 163; PR #361 MERGED 2026-10-06 as merge `59c964ab`; the Java twin mercury-composable #519).** `tests/resources/msgpack-hostile-header-vectors.json`, byte-identical with the Java engine's
+  `80040d61`, Increment 163; PR #361 MERGED 2026-10-06 as merge `59c964ab`; the Java twin mercury-composable #519 MERGED the same day as squash `3543a65a`).** `tests/resources/msgpack-hostile-header-vectors.json`, byte-identical with the Java engine's
   copy: 22 inputs every decoder must refuse (a str, bin or ext length or an array or map count beyond the remaining bytes, the
   CVE-2026-90473 `map 32` shape among them; fixed-width values cut short; `0xc1`; 65-level nesting) and 9 controls that must decode
   to exactly their JSON value. `msgpack_hostile_header_vectors` runs them through `serializer::from_msgpack`,
