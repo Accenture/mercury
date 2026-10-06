@@ -339,6 +339,21 @@ layers shipped; the two above have held through every re-verify.)*
   canonical packager's 64).
   <!-- id: msgpack-nesting-limit-64-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 1 | tier: working | origin: 2026-10-06-025704 -->
 
+- **The MsgPack decoders of both engines are pinned by one shared hostile-header vector file, and the canonical decoder now
+  refuses the never-used byte `0xc1` at the header (Eric's ask, 2026-10-06; branch `test/msgpack-hostile-header-vectors` commit
+  `80040d61`, Increment 163; PR pending).** `tests/resources/msgpack-hostile-header-vectors.json`, byte-identical with the Java engine's
+  copy: 22 inputs every decoder must refuse (a str, bin or ext length or an array or map count beyond the remaining bytes, the
+  CVE-2026-90473 `map 32` shape among them; fixed-width values cut short; `0xc1`; 65-level nesting) and 9 controls that must decode
+  to exactly their JSON value. `msgpack_hostile_header_vectors` runs them through `serializer::from_msgpack`,
+  `EventEnvelope::from_bytes` and `canonical_packager::decode`; the claim `msgpack-hostile-header` sits beside
+  `msgpack-nesting-limit`. **The first run found the gap:** `rmpv` reads `0xc1` as nil, so the canonical decoder accepted `91 c1`
+  while `rmp-serde` and the Java reader refuse it; `check_markers` (iterative, allocation-free) now walks the markers before
+  decoding and refuses `0xc1` and any header that promises more than the input holds - the Java reader's rule - with `rmp`
+  declared as a direct dependency for `Marker`. **Observed, not ruled:** on empty input this engine refuses while Java's
+  `MsgPack.unpack` returns an empty map. Lesson: parity believed is not parity tested - the shared-file method caught a divergence
+  the first time it ran. Extends [[msgpack-nesting-limit-64-rust]].
+  <!-- id: msgpack-hostile-header-vectors-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 1 | tier: working | origin: 2026-10-06-185502 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
