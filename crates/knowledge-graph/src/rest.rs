@@ -21,7 +21,7 @@
 //! `#[optional_service("app.env=dev")]` (the Java `@RestEndpoint`/`@PreLoad`
 //! + `@OptionalService` analog), so they register only when `app.env=dev`.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -32,7 +32,7 @@ use platform_core::{
 };
 use rmpv::Value;
 
-use crate::commands;
+use crate::{commands, graph_set};
 
 fn invalid(message: impl Into<String>) -> AppError {
     AppError::new(400, message)
@@ -610,4 +610,141 @@ pub async fn inspect_state_machine(event: EventEnvelope) -> Result<EventEnvelope
             ]))),
         None => Err(AppError::new(404, "Not found")),
     }
+}
+
+/// Java `PackGraphSet` (`pack.graph.set`): `POST /api/graph/pack` packs graph
+/// models into a graph set on the engine (ADR-0027), so the Playground's
+/// "Package graphs" panel never carries a packager of its own. The body is a
+/// JSON object, `{"manifest": {"set": "<name>", ...}, "graphs": {"<graph-id>":
+/// <model>, ...}}`: the manifest field `set` names the set and its file, every
+/// other manifest field is caller text (`format` and `format_version` are
+/// written by the packager), and each graph is a model as a file holds it.
+/// Every model passes the import validation and then the deployment gate's
+/// checks, as the graph packager's pack command does, and the set is refused
+/// with every reason when any rule fails. The answer is the package as a
+/// download named `<set>.pack` - the same bytes for the same graphs and
+/// fields, wherever they are packed.
+pub async fn pack_graph_set(event: EventEnvelope) -> Result<EventEnvelope, AppError> {
+    const NOT_PACKED: &str = "Set not packed - ";
+    let (_, body, _) = request_view(&event);
+    let Value::Map(entries) = &body else {
+        return Err(invalid(format!(
+            "{NOT_PACKED}the request body is a JSON object with 'manifest' and 'graphs'"
+        )));
+    };
+    let section = |key: &str| {
+        entries
+            .iter()
+            .find(|(k, _)| k.as_str() == Some(key))
+            .map(|(_, v)| v)
+    };
+    let mut fields = manifest_fields(section("manifest"))
+        .map_err(|reason| invalid(format!("{NOT_PACKED}{reason}")))?;
+    let set_name = match fields.iter().position(|(k, _)| k == graph_set::SET) {
+        Some(i) => fields.remove(i).1,
+        None => String::new(),
+    };
+    if set_name.trim().is_empty() {
+        return Err(invalid(format!(
+            "{NOT_PACKED}manifest field 'set' is required - it names the set and its file"
+        )));
+    }
+    let graphs = graph_models(section("graphs"))
+        .map_err(|reason| invalid(format!("{NOT_PACKED}{reason}")))?;
+    let bytes = graph_set::pack(&set_name, &fields, &graphs)
+        .map_err(|e| invalid(format!("{NOT_PACKED}{e}")))?;
+    Ok(EventEnvelope::new()
+        .set_header("Content-Type", "application/octet-stream")
+        .set_header(
+            "Content-Disposition",
+            &format!(
+                "attachment; filename=\"{set_name}{}\"",
+                graph_set::EXTENSION
+            ),
+        )
+        .set_raw_body(Value::Binary(bytes)))
+}
+
+/// The caller's manifest fields as text, in the order given (Java `PackGraphSet.manifestFields`).
+fn manifest_fields(manifest: Option<&Value>) -> Result<Vec<(String, String)>, String> {
+    let mut fields = Vec::new();
+    match manifest {
+        None | Some(Value::Nil) => {}
+        Some(Value::Map(entries)) => {
+            for (key, value) in entries {
+                let key = display(key);
+                match value {
+                    Value::Nil | Value::Map(_) | Value::Array(_) => {
+                        return Err(format!("manifest field '{key}' - a value is text"));
+                    }
+                    other => fields.push((key, display(other))),
+                }
+            }
+        }
+        Some(_) => return Err("'manifest' is a JSON object of text fields".to_string()),
+    }
+    Ok(fields)
+}
+
+/// The graph models keyed by id, each past the import validation, every
+/// failure reported (Java `PackGraphSet.graphModels`).
+fn graph_models(graphs: Option<&Value>) -> Result<BTreeMap<String, Value>, String> {
+    let Some(Value::Map(entries)) = graphs else {
+        return Err(
+            "'graphs' is a JSON object keyed by graph id, each value a graph model".to_string(),
+        );
+    };
+    let mut reasons = Vec::new();
+    let mut models = BTreeMap::new();
+    for (key, model) in entries {
+        let id = display(key);
+        match commands::validate_graph_model(model) {
+            Ok(()) => {
+                models.insert(id, crate::model_gate::without_null_properties(model));
+            }
+            Err(problem) => reasons.push(format!("{id}: {problem}")),
+        }
+    }
+    if reasons.is_empty() {
+        Ok(models)
+    } else {
+        Err(reasons.join("; "))
+    }
+}
+
+/// Java `UnpackGraphSet` (`unpack.graph.set`): `POST /api/graph/unpack` reads
+/// a graph set (ADR-0027): the body is the package, a .pack file sent as
+/// application/octet-stream, and the answer is `{"manifest": {...}, "graphs":
+/// {"<graph-id>": <model>, ...}}` - the manifest as the package holds it, the
+/// packager's `format` and `format_version` included, and each graph as a
+/// file holds it. The Playground's "Package graphs" panel inspects a dropped
+/// package with it and imports one of its graphs as the draft through
+/// `POST /api/graph/import/{id}`. Bytes that are not a canonical package, and
+/// a set that breaks a rule - an entry not named `<graph-id>.json`, a root
+/// name that differs from its graph id, a `graph_id` that names no graph -
+/// are refused with the reason.
+pub async fn unpack_graph_set(event: EventEnvelope) -> Result<EventEnvelope, AppError> {
+    let (_, body, _) = request_view(&event);
+    let Value::Binary(bytes) = &body else {
+        return Err(invalid(
+            "The request body is the graph set (.pack) to read, sent as application/octet-stream",
+        ));
+    };
+    let contents = graph_set::read(bytes).map_err(|e| invalid(format!("Not a graph set - {e}")))?;
+    let manifest: Vec<(Value, Value)> = contents
+        .manifest
+        .iter()
+        .map(|(k, v)| (Value::from(k.as_str()), Value::from(v.as_str())))
+        .collect();
+    let graphs: Vec<(Value, Value)> = contents
+        .graphs
+        .into_iter()
+        .map(|(id, model)| (Value::from(id), model))
+        .collect();
+    Ok(EventEnvelope::new()
+        .set_header("Content-Type", "application/json")
+        .set_raw_body(Value::Map(vec![
+            (Value::from("manifest"), Value::Map(manifest)),
+            (Value::from("graphs"), Value::Map(graphs)),
+        ])))
 }

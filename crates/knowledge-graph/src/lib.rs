@@ -505,6 +505,40 @@ impl ComposableFunction for ImportGraphContent {
     }
 }
 
+/// Java `PackGraphSet` (`pack.graph.set`).
+#[preload(route = "pack.graph.set", instances = 10)]
+#[optional_service("app.env=dev")]
+pub struct PackGraphSet;
+
+#[async_trait]
+impl ComposableFunction for PackGraphSet {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::pack_graph_set(input).await
+    }
+}
+
+/// Java `UnpackGraphSet` (`unpack.graph.set`).
+#[preload(route = "unpack.graph.set", instances = 10)]
+#[optional_service("app.env=dev")]
+pub struct UnpackGraphSet;
+
+#[async_trait]
+impl ComposableFunction for UnpackGraphSet {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::unpack_graph_set(input).await
+    }
+}
+
 /// Java `DescribeGraph` (`show.graph.model`).
 #[preload(route = "show.graph.model", instances = 20)]
 #[optional_service("app.env=dev")]
