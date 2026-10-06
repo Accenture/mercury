@@ -353,6 +353,16 @@ layers shipped; the two above have held through every re-verify.)*
   ending in null now deploys; an empty `{}`/`[]` property is no longer deployed. The switch governs only what the event transport keeps.
   <!-- id: graph-null-property-filtered-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 1 | tier: working | origin: 2026-10-06-000759 -->
 
+- **Graph sets follow ADR-0027 in the Java repository's ledger (RFC-0005, promoted 2026-10-06): one or more graphs in a canonical
+  `<set>.pack`, checked by the gate when packed and deployed all or none through a generated manifest; a set of one graph is how one graph
+  is signed (Eric, 2026-10-06; Increment 159, PR #357, open at writing).** This engine's homes: `knowledge_graph::model_gate` (the shared
+  gate), `knowledge_graph::graph_set` (the set rules) and `tools/graph-packager` (`publish = false`); the loader (WP3: `sets` + `unpack` in
+  `graphs.yaml`) comes next, in lock-step with the Java engine. The one-graph rule is pinned by `tests/cli.rs`
+  `a_single_graph_is_packed_alone_so_it_can_be_signed` and its Java twin: one 327-byte set, SHA-256 `c500281a…` in both engines. A change
+  that alters those bytes breaks the signatures made over the old ones. Java twin fact `graph-set-pack-and-deploy`; the sprint thread is the
+  Java repository's `graph-set-packaging`. Relates [[graph-null-property-filtered-rust]].
+  <!-- id: graph-set-pack-and-deploy-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 1 | tier: working | origin: 2026-10-06-012631 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
