@@ -244,8 +244,9 @@ fn check(graph_id: &str, model: &Value) -> Option<String> {
     model_gate::validate(graph_id, &mut deployed).err()
 }
 
-/// The model the way the gate reads a deployed graph: normalized, with its
-/// `${...}` references resolved (Java `new ConfigReader().load(map)`).
+/// The model the way the gate reads a deployed graph: with its `${...}`
+/// references resolved and normalized as the startup compiler normalizes it
+/// (Java `new ConfigReader().load(map)`; [`model_gate::normalize_graph`]).
 fn as_deployed(model: &Value) -> Value {
     let Some(json) = event_script::conversions::to_json(model) else {
         return model.clone();
@@ -254,7 +255,7 @@ fn as_deployed(model: &Value) -> Value {
         ConfigValue::Map(map) => {
             let reader = ConfigReader::from_map(map);
             let resolved = ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
-            event_script::conversions::from_json(&resolved)
+            model_gate::normalize_graph(&event_script::conversions::from_json(&resolved))
         }
         _ => model.clone(),
     }

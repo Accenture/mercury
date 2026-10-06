@@ -819,6 +819,7 @@ async fn playground_command_grammar_and_companion() {
     // additional playground cases run sequentially on the same booted server
     // (a second `#[tokio::test]` would drop this runtime and kill the server)
     export_name_guard_accepts_missing_and_rejects_mismatch(&platform).await;
+    import_graph_from_filters_a_null_property(&platform).await;
 }
 
 /// Open a playground session and return its captured console (the .out route).
@@ -851,6 +852,50 @@ async fn open_console(
         .await;
     tokio::time::sleep(Duration::from_millis(60)).await;
     (lines, in_route, out_route)
+}
+
+/// A graph holds no null property. `import graph from` reads its file as JSON text, so a
+/// `"key": null` reaches the draft import, which filters it out - whatever
+/// `serializer.null.transport` says - instead of refusing the model ("value cannot be
+/// null"). An empty string stays a value. (Java twin:
+/// CompanionSyncTest.importGraphFromFiltersANullProperty)
+async fn import_graph_from_filters_a_null_property(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let file = knowledge_graph::commands::temp_dir().join("null-properties.json");
+    std::fs::write(
+        &file,
+        r#"{"nodes": [
+          {"alias": "root", "types": ["Root"],
+           "properties": {"purpose": "null properties", "name": "null-properties", "note": null, "empty": ""}},
+          {"alias": "end", "types": ["End"], "properties": {}}],
+         "connections": [{"source": "root", "target": "end",
+                          "relations": [{"type": "done", "properties": {"x": null}}]}]}"#,
+    )
+    .expect("a graph file");
+    let (lines, in_route, out_route) = open_console(platform, &po, "100041").await;
+    command(
+        &po,
+        &in_route,
+        &out_route,
+        "import graph from null-properties",
+    )
+    .await;
+    assert!(
+        console_gets(&lines, "Graph model imported").await,
+        "the import succeeds: {:?}",
+        lines.lock().expect("console")
+    );
+    assert!(
+        !console_has(&lines, "cannot be null"),
+        "the null is filtered, not refused"
+    );
+    let root = knowledge_graph::session::get_graph_model(&in_route)
+        .expect("a draft")
+        .get_root_node()
+        .expect("the root node");
+    assert_eq!(None, root.get_property("note"));
+    assert_eq!(Some(Value::from("")), root.get_property("empty"));
+    let _ = std::fs::remove_file(&file);
 }
 
 /// The export guard validates the root name only when one is DECLARED: a missing or

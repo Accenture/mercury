@@ -1,0 +1,39 @@
+{
+  "description": "How an application reads a deployed graph, in both engines. The Java configuration reader normalizes a graph by flattening it to composite keys and rebuilding it; the Rust engine reproduces that for graphs (model_gate::normalize_graph). A null, an empty map and an empty list carry no value: a map drops such an entry, and a map or list that it leaves empty, while a list keeps such an element's place as null when an element with a value follows it and drops it at the end. An empty string is a value, and a dotted key becomes nested maps. Each engine writes 'input' to a file, reads it the way its startup compiler does and compares the result with 'expected'; 'gate' is what the deployment gate does with the result. Kept byte-identical in mercury-composable (system/minigraph-playground-engine/src/test/resources) and mercury (crates/knowledge-graph/tests/resources).",
+  "cases": [
+    {
+      "name": "values",
+      "input": {
+        "a": {}, "b": [], "c": [true, null], "d": [null, true], "e": "", "f": null, "g": {"h": null},
+        "i": [[], {}], "j": [{"k": null}], "m": [{}, "x", [], "y", null], "n": {"a.b": 1, "c": {"d.e": [1]}}
+      },
+      "expected": {
+        "c": [true], "d": [null, true], "e": "", "m": [null, "x", null, "y"], "n": {"a": {"b": 1}, "c": {"d": {"e": [1]}}}
+      }
+    },
+    {
+      "name": "graph",
+      "input": {
+        "nodes": [
+          {"alias": "root", "types": ["Root"],
+           "properties": {"purpose": "nulls and empty values", "name": "graph", "note": null, "empty": ""}},
+          {"alias": "rules", "types": ["Data"], "properties": {"table": {}, "keep": "x"}},
+          {"alias": "end", "types": ["End"],
+           "properties": {"skill": "graph.data.mapper", "mapping": ["text(a) -> output.body.a", null]}}
+        ],
+        "connections": [{"source": "root", "target": "end", "relations": [{"type": "done", "properties": {}}]}]
+      },
+      "expected": {
+        "nodes": [
+          {"alias": "root", "types": ["Root"],
+           "properties": {"purpose": "nulls and empty values", "name": "graph", "empty": ""}},
+          {"alias": "rules", "types": ["Data"], "properties": {"keep": "x"}},
+          {"alias": "end", "types": ["End"],
+           "properties": {"skill": "graph.data.mapper", "mapping": ["text(a) -> output.body.a"]}}
+        ],
+        "connections": [{"source": "root", "target": "end", "relations": [{"type": "done"}]}]
+      },
+      "gate": "accepted"
+    }
+  ]
+}

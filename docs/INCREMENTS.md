@@ -4368,11 +4368,24 @@ canonical package of ADR-0026; this is its first consumer.
   a graph (the engine's serializer drops one by default too), while this reader kept it and `MiniGraph::import_graph` refused it
   ("value cannot be null"), so a graph holding `"key": null` deployed on Java and was refused here, by the compiler and the packager
   alike. Now `model_gate::without_null_properties` filters a map entry whose value is null, at every depth - `"key": ""` stays,
-  and a list keeps its elements in place - in `compiler::load_raw_graph` (the startup compiler and `import graph from`) and in
+  and a list keeps its elements in place - in `compiler::load_raw_graph` (the startup compiler and `instantiate graph`) and in
   `graph_set::pack` and `read`. It is `serializer::strip_nulls_always`, the transport serializer's strip without its switch, so
   `serializer.null.transport=true` (which keeps nulls on the event transport) changes nothing in a graph or a package; the CLI
   test `the_null_transport_switch_does_not_reach_the_package` turns the switch on, shows the switched strip keeping a null, and
-  packs the same bytes. Pinned by `compiler::tests::a_deployed_null_property_is_filtered_out`, the `graph_set` and
+  packs the same bytes.
+- **The deploy read reproduces Java's normalization; the draft import filters nulls (Eric approved both, 2026-10-05, as options A
+  and E of the alignment write-up).** Probing both engines' graph read with the same inputs showed that the Java configuration
+  reader drops more than nulls: its flatten-and-rebuild also removes an empty map or list (and one left empty), turns such an
+  element inside a list into null and drops it at the end - so a mapping list ending in null passed the Java gate and failed this
+  one, and an empty `{}` property deployed here but not there. `model_gate::normalize_graph` reproduces that after this
+  engine's configuration reader (which already splits dotted keys the same way); `compiler::load_raw_graph` (startup and
+  `instantiate graph`) and the packager's check copy apply it. A shared vector file,
+  `tests/resources/graph-read-normalization-vectors.json` (byte-identical with the Java engine's test resources), pins the read
+  in both engines (`compiler::tests::the_graph_read_follows_the_shared_normalization_vectors`, Java `GraphSetTest`). The Playground's
+  draft import (`commands::import_graph_model`, the one place the REST import, its replay and `import graph from` pass) and
+  `validate_graph_model` filter `"key": null` first: `import graph from` reads a file as text, so a deployed graph holding a null
+  could not be imported before. Negative control: without the filter the new playground step reads `Graph model not imported -
+  value cannot be null`. Java twin: `GraphCommandService.importGraphAsDraft` and `validateGraphModel`. Pinned by `compiler::tests::a_deployed_null_property_is_filtered_out`, the `graph_set` and
   `model_gate` unit tests and the CLI test `a_null_property_is_filtered_out_when_packed`; both command lines pack a graph holding
   nulls to identical bytes (336, `f2517ea7c0402067…`). Java twin: `GraphModelGate.withoutNullProperties`.
 

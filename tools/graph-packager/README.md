@@ -57,6 +57,8 @@ serializer does by default and as an application's configuration reader does whe
 string (`"key": ""`) is a value and is kept, and a list keeps its elements in place. This holds whatever
 `serializer.null.transport` says: that switch governs what platform-core's serializers keep on the event transport
 (SimpleMapper and MsgPack), and the packager writes a package through the canonical packager, never through them.
+When an application loads a deployed graph it also drops an empty map or list; a package keeps them, as the files hold them,
+and both engines read them the same way at deployment.
 
 `unpack` and `inspect` read a package strictly (a byte form that is not canonical is refused) and check the entry
 names, the root names and `graph_id` before any name becomes a path.

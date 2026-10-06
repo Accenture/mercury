@@ -187,6 +187,9 @@ empty string (`"key": ""`) is a value and is kept, and a list keeps its elements
 proof. The rule does not follow `serializer.null.transport`, the switch with which platform-core's serializers keep nulls on
 the event transport: both packagers write through the canonical packager, never through those serializers, and both engines'
 tests pack the same bytes with the switch on (Java in a second JVM, where `SimpleMapper` is shown keeping a null first).
+The read at deployment now agrees beyond nulls too: the Rust engine reproduces the Java configuration reader's normalization of
+a graph (an empty map or list is dropped, and inside a list such an element is null when a value follows it and dropped at the
+end), pinned by the vector file `graph-read-normalization-vectors.json`, byte-identical in both repositories.
 
 To reproduce, build each command line from its branch and run the command above on
 `system/minigraph-playground-engine/src/main/resources/graph` (Java,

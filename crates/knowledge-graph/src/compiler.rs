@@ -155,10 +155,11 @@ fn compile_one_graph(deploy_location: &str, graph_id: &str) {
 }
 
 /// Load a graph JSON as an rmpv value with `${...}` references resolved and
-/// its null properties filtered out — the raw form the startup compiler
-/// shares with the playground's temp workspace import (Java uses
-/// `ConfigReader` in both places, whose normalization drops a null-valued
-/// key; this reader keeps one, so the filter is explicit here).
+/// normalized the way the Java engine reads it — the raw form the startup
+/// compiler shares with the playground's temp workspace import (Java uses
+/// `ConfigReader` in both places, whose normalization drops nulls, empty maps
+/// and empty lists; this reader keeps them, so [`model_gate::normalize_graph`]
+/// is applied here).
 pub(crate) fn load_raw_graph(deploy_location: &str, graph_id: &str) -> Result<Value, String> {
     // pass the loader error through untouched (Java parity): a missing model
     // file logs the FULL normalized path — "Rejected graph g1 -
@@ -167,8 +168,8 @@ pub(crate) fn load_raw_graph(deploy_location: &str, graph_id: &str) -> Result<Va
     let reader = ConfigReader::load(&normalized_path(deploy_location, graph_id))
         .map_err(|e| e.to_string())?;
     let json = ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
-    // a graph holds no null property ("key": null), while "key": "" is a value
-    Ok(model_gate::without_null_properties(
+    // a graph holds no null property ("key": null) and no empty map or list, while "key": "" is a value
+    Ok(model_gate::normalize_graph(
         &event_script::conversions::from_json(&json),
     ))
 }
@@ -226,5 +227,44 @@ mod tests {
             None,
             mm.get_element("connections[0].relations[0].properties.x")
         );
+    }
+
+    /// The graph read reproduces the Java configuration reader's normalization -
+    /// nulls, empty maps and empty lists carry no value; inside a list such an
+    /// element keeps its place as null unless nothing with a value follows - with
+    /// the vector file the Java engine's `GraphSetTest` reads too (byte-identical).
+    #[test]
+    fn the_graph_read_follows_the_shared_normalization_vectors() {
+        let vectors: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/tests/resources/graph-read-normalization-vectors.json"
+            ))
+            .expect("the vector file"),
+        )
+        .expect("JSON");
+        let dir = std::env::temp_dir().join(format!("graph-read-vectors-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("a folder");
+        let location = format!("file:{}", dir.display());
+        let cases = vectors["cases"].as_array().expect("cases");
+        assert!(!cases.is_empty());
+        for case in cases {
+            let name = case["name"].as_str().expect("a name");
+            std::fs::write(dir.join(format!("{name}.json")), case["input"].to_string())
+                .expect("written");
+            let read = load_raw_graph(&location, name).expect("read");
+            let expected = event_script::conversions::from_json(&case["expected"]);
+            assert_eq!(
+                platform_core::canonical_packager::encode(&expected).expect("encodes"),
+                platform_core::canonical_packager::encode(&read).expect("encodes"),
+                "{name}: {}",
+                event_script::conversions::to_json(&read).expect("JSON")
+            );
+            if case["gate"] == "accepted" {
+                let mut model = read;
+                assert!(model_gate::validate(name, &mut model).is_ok(), "{name}");
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

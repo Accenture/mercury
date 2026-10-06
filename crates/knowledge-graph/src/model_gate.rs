@@ -105,6 +105,46 @@ pub fn without_null_properties(model: &Value) -> Value {
     platform_core::serializer::strip_nulls_always(model)
 }
 
+/// A deployed graph the way the Java engine reads it: its configuration reader
+/// normalizes a graph by flattening it to composite keys and rebuilding it
+/// (`Utility.getFlatMap`, then `MultiLevelMap.setElement`), and only a value
+/// that carries something gets a key. So a null, an empty map and an empty
+/// list - and a map or list left empty by them - disappear from a map, while
+/// inside a list such an element keeps its place as null when an element with
+/// a value follows it and is dropped at the end. An empty string is a value.
+/// This engine's configuration reader keeps those values (and already splits a
+/// dotted key into nested maps the same way), so the graph read applies this
+/// after it, and both engines deploy the same model; the shared vectors in
+/// `tests/resources/graph-read-normalization-vectors.json` pin it.
+pub fn normalize_graph(model: &Value) -> Value {
+    with_value(model).unwrap_or_else(|| Value::Map(Vec::new()))
+}
+
+/// `None` when the value carries nothing - the Java flattening gives it no key.
+fn with_value(value: &Value) -> Option<Value> {
+    match value {
+        Value::Nil => None,
+        Value::Map(entries) => {
+            let kept: Vec<(Value, Value)> = entries
+                .iter()
+                .filter_map(|(k, v)| with_value(v).map(|v| (k.clone(), v)))
+                .collect();
+            (!kept.is_empty()).then_some(Value::Map(kept))
+        }
+        Value::Array(items) => {
+            let mut kept: Vec<Value> = items
+                .iter()
+                .map(|v| with_value(v).unwrap_or(Value::Nil))
+                .collect();
+            while matches!(kept.last(), Some(Value::Nil)) {
+                kept.pop();
+            }
+            (!kept.is_empty()).then_some(Value::Array(kept))
+        }
+        other => Some(other.clone()),
+    }
+}
+
 fn has_root_purpose(model: &Value) -> bool {
     let mm = MultiLevelMap::from_value(model.clone());
     let Some(Value::Array(nodes)) = mm.get_element("nodes") else {

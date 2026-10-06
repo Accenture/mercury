@@ -137,12 +137,21 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    value, and one that matches nothing gives an empty list instead of no value; a mapping that expected the bare value reads the
    first element (`f:getFirst`, which takes a non-empty list).
 
-16. **A deployed graph holding `"key": null` compiles, as on the Java engine (Increment 158).** The Java engine's configuration
-    reader drops a null-valued key when it loads a graph; this engine's reader kept it, and the graph import refused it with
-    `value cannot be null`, so the same graph deployed on Java and was rejected here. The compiler now filters a graph's null
-    properties when it reads one (`model_gate::without_null_properties`, which `import graph from` shares through
-    `compiler::load_raw_graph`), and the graph packager does the same; `"key": ""` is a value and is kept. Upgrade note: a graph
-    that was rejected for a null property now deploys.
+16. **A deployed graph is read as the Java engine reads it (Increment 158).** The Java configuration reader normalizes a graph by
+    flattening and rebuilding it, so a null, an empty map and an empty list - and a map or list they leave empty - disappear, and
+    inside a list such an element keeps its place as null when an element with a value follows it and is dropped at the end. This
+    engine's reader kept them: a graph holding `"key": null` was refused with `value cannot be null`, a mapping list ending in null
+    failed the gate (`missing '->' in 'null'`), and an empty `{}` or `[]` property was deployed where Java deploys nothing. The
+    compiler's graph read (`compiler::load_raw_graph`, which `instantiate graph` shares) now applies `model_gate::normalize_graph`,
+    pinned by `graph-read-normalization-vectors.json`, byte-identical with the Java engine's; `"key": ""` is a value and is kept.
+    Upgrade note: a graph rejected for a null property, or for a null at the end of a mapping list, now deploys; a mapping that
+    read an empty `{}` or `[]` property now reads nothing, as on Java.
+
+17. **A graph imported into the MiniGraph Playground drops its null properties (Increment 158).** The draft import - the Import
+    Graph button and file drop (`POST /api/graph/import/{id}`), its replay to a shared session, and `import graph from` - filters a
+    `"key": null` out before it imports the model, instead of refusing it with `value cannot be null`. It no longer depends on
+    `serializer.null.transport`, which decides only whether the event transport keeps a null. An empty string is a value and is
+    kept. Upgrade note: none.
 
 ---
 ## Version 4.12.20, 10/1/2026
