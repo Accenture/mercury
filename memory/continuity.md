@@ -342,7 +342,7 @@ layers shipped; the two above have held through every re-verify.)*
   `unit-test-jsonpath-1` and the claim `json-path-result-shape`. Closed [[rust-jsonpath-indefinite-list]].
   <!-- id: jsonpath-jayway-result-shape | created: 2026-10-03 | last_used: 2026-10-04 | uses: 1 | tier: working | origin: 2026-10-04-060541 -->
 - **A graph holds no null property: `"key": null` is filtered out on deploy, pack and read, `"key": ""` is a value, and `serializer.null.transport` does not
-  apply (Eric's rulings, 2026-10-05; Increment 158, PR #356, open at writing; Java twin `graph-null-property-filtered` in mercury-composable #508).** The Java
+  apply (Eric's rulings, 2026-10-05; Increment 158, PR #356 merge `779cffe1`, MERGED 2026-10-06 00:31Z; Java twin `graph-null-property-filtered` in mercury-composable #508).** The Java
   configuration reader drops a null-valued key when it loads a graph; this reader kept it and `MiniGraph::import_graph` refused it, so a graph deployed on Java
   only. `model_gate::without_null_properties` (= `serializer::strip_nulls_always`, the transport strip without its switch: map values only, list elements and
   empty collections kept) runs in `graph_set::pack`/`read` and in the Playground's draft import (`import_graph_model` + `validate_graph_model`: the REST
