@@ -195,6 +195,16 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
     Upgrade note: none.
 
 ---
+
+22. **Empty MsgPack input decodes as an empty map and an empty envelope, as the Java engine reads it (Increment 164).**
+    `serializer::from_msgpack` read empty bytes as a decoding error, while the Java engine's `MsgPack.unpack` returns an empty map
+    and `new EventEnvelope(new byte[0])` an empty envelope; Java is the reference implementation, so this engine now reads empty
+    input the same way - `EventEnvelope::from_bytes(&[])` is an empty envelope with a fresh id, and a standard envelope that omits a
+    key now decodes with that key at its default, as on Java (`EventEnvelope` gained a struct-level serde default; its `id` had
+    none) - while `canonical_packager::decode` keeps refusing
+    it, as the Java canonical decoder does. The shared vector file gains the case as a control the event codec accepts and the
+    canonical decoder rejects; the claim `msgpack-empty-input` states the rule. Upgrade note: an empty Event API body is answered
+    with `400 Missing routing path`, as on the Java engine, instead of a decoding error.
 ## Version 4.12.20, 10/1/2026
 
 The lock-step twin of Java 4.12.20 (Increments 143 to 147): exact decimal arithmetic for money and rates, and a deterministic

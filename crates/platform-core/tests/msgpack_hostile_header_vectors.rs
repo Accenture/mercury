@@ -111,13 +111,38 @@ fn every_control_decodes_to_its_value() {
             expected,
             "{id} through serializer::from_msgpack"
         );
-        let canonical = canonical_packager::decode(&bytes).unwrap_or_else(|e| panic!("{id}: {e}"));
-        assert_eq!(
-            &to_json(&canonical),
-            expected,
-            "{id} through canonical_packager::decode"
-        );
+        let canonical = canonical_packager::decode(&bytes);
+        if v["canonical"] == "reject" {
+            // the one control the canonical decoder must refuse: empty input, since a package is never empty
+            assert!(
+                canonical.is_err(),
+                "{id}: canonical_packager::decode accepted it"
+            );
+        } else {
+            let canonical = canonical.unwrap_or_else(|e| panic!("{id}: {e}"));
+            assert_eq!(
+                &to_json(&canonical),
+                expected,
+                "{id} through canonical_packager::decode"
+            );
+        }
         checked += 1;
     }
     assert!(checked >= 8, "controls checked: {checked}");
+}
+
+/// Empty input is an empty map at the event payload codec and an empty envelope, never a decoding error, as the Java
+/// engine - the reference implementation - reads it; the canonical package decoder refuses it, because a package is
+/// never empty.
+#[test]
+fn empty_input_is_an_empty_envelope_as_in_java() {
+    assert_eq!(Ok(Value::Map(vec![])), from_msgpack::<Value>(&[]));
+    assert!(
+        EventEnvelope::from_bytes(&[]).is_ok(),
+        "an empty byte array is an empty envelope"
+    );
+    assert!(
+        canonical_packager::decode(&[]).is_err(),
+        "a package is never empty"
+    );
 }

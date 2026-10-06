@@ -110,9 +110,17 @@ pub fn strip_nulls_always(value: &Value) -> Value {
 /// no guard: a debug build's 2 MiB thread stack overflows at about 550 levels.
 pub const MAX_DEPTH: usize = 64;
 
+/// The bytes of an empty map, which empty input decodes as.
+const EMPTY_MAP: &[u8] = &[0x80];
+
 /// Decode MsgPack bytes with their nesting bounded at [`MAX_DEPTH`]: `rmp_serde::from_slice` with a depth limit.
 /// Bytes that arrive from outside the process are decoded here (the envelope, the Event API's format check).
+///
+/// Empty input decodes as an empty map - so an empty byte array is an empty envelope, never a decoding error - as the
+/// Java engine's `MsgPack.unpack` reads it; the Java engine is the reference implementation (Eric, 2026-10-06). The
+/// canonical package decoder keeps refusing empty input, as the Java one does: a package is never empty.
 pub fn from_msgpack<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8]) -> Result<T, String> {
+    let bytes = if bytes.is_empty() { EMPTY_MAP } else { bytes };
     let mut de = rmp_serde::Deserializer::from_read_ref(bytes);
     // rmp-serde refuses the container that brings its counter to zero, so MAX_DEPTH + 1 accepts MAX_DEPTH levels
     de.set_max_depth(MAX_DEPTH + 1);
@@ -325,5 +333,11 @@ mod tests {
         // 100,000 nested arrays, about 100 KB: rmp-serde's default stops at 1,024, but a debug build's thread
         // stack overflowed first, at about 550 levels, and a stack overflow aborts the process
         assert!(from_msgpack::<Value>(&nested_arrays(100_000)).is_err());
+    }
+
+    #[test]
+    fn empty_input_is_an_empty_map_as_in_java() {
+        // the Java engine's MsgPack.unpack returns an empty map for empty input; this engine follows the reference
+        assert_eq!(Ok(Value::Map(vec![])), from_msgpack::<Value>(&[]));
     }
 }

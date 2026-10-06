@@ -4521,3 +4521,24 @@ test, and the test found one gap. Eric asked for the shared vectors.
 
 Gates: `cargo fmt --all --check`, `cargo clippy -p platform-core --tests -- -D warnings`, `cargo test -p platform-core`,
 `check-doc-claims`, `check-llms-links`.
+
+## Increment 164 — Empty MsgPack input is an empty map, as the Java engine reads it (2026-10-06)
+
+The shared hostile-header vectors (Increment 163) left one divergence out: on empty input the Java engine's `MsgPack.unpack` returns
+an empty map (and `new EventEnvelope(new byte[0])` an empty envelope) while this engine's decoders refused it. Eric's ruling: Java is
+the reference implementation, so the Rust port follows.
+
+- **The change:** `serializer::from_msgpack` reads empty input as an empty map (`0x80`), and `EventEnvelope` carries a struct-level
+  `#[serde(default)]` (its `id` had none, so `{}` failed on a missing field): `EventEnvelope::from_bytes(&[])` is an empty envelope -
+  every field as `EventEnvelope::new()` gives it, the id a fresh uuid, exactly what Java's `new EventEnvelope(new byte[0])` holds -
+  and a standard envelope that omits a key decodes as it does on Java. The Event API answers an empty body with `400 Missing routing path`, as the Java
+  engine does, instead of a decoding error; its compact-format check is unchanged (an empty map is not compact).
+  `canonical_packager::decode` keeps refusing empty input, as the Java canonical decoder does: a package is never empty.
+- **The vector:** `control-empty-input-is-an-empty-map` in the shared file, the first control with `canonical: reject` - the event
+  payload codec must decode it to `{}` while the canonical decoder must refuse it; both engines' vector tests read the marker.
+- **Tests and claim:** `serializer::tests::empty_input_is_an_empty_map_as_in_java` and
+  `msgpack_hostile_header_vectors::empty_input_is_an_empty_envelope_as_in_java` (the claim `msgpack-empty-input` in the envelope
+  reference); the Java twin pins the same rule in `MsgPackHostileHeaderVectorsTest`.
+
+Gates: `cargo fmt --all --check`, `cargo clippy -p mercury-platform-core --tests -- -D warnings`, `cargo test -p mercury-platform-core`,
+`check-doc-claims`, `check-llms-links`.
