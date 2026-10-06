@@ -341,6 +341,13 @@ layers shipped; the two above have held through every re-verify.)*
   construct keeps the count rule. Holds in Event Script flows and graphs alike; pinned by `json_path_result_shape_follows_jayway`, the shared fixture
   `unit-test-jsonpath-1` and the claim `json-path-result-shape`. Closed [[rust-jsonpath-indefinite-list]].
   <!-- id: jsonpath-jayway-result-shape | created: 2026-10-03 | last_used: 2026-10-04 | uses: 1 | tier: working | origin: 2026-10-04-060541 -->
+- **A graph holds no null property: `"key": null` is filtered out on deploy, pack and read, `"key": ""` is a value, and `serializer.null.transport` does not
+  apply (Eric's rulings, 2026-10-05; Increment 158, PR #356, open at writing; Java twin `graph-null-property-filtered` in mercury-composable #508).** The Java
+  configuration reader drops a null-valued key when it loads a graph; this reader kept it and `MiniGraph::import_graph` refused it, so a graph deployed on Java
+  only. `model_gate::without_null_properties` (= `serializer::strip_nulls_always`, the transport strip without its switch: map values only, list elements and
+  empty collections kept) now runs in `compiler::load_raw_graph` (startup and `import graph from`) and `graph_set::pack`/`read`. READ: a graph refused for a
+  null property now deploys. The switch governs only what the event transport keeps; a CLI test packs the same bytes with it on.
+  <!-- id: graph-null-property-filtered-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 1 | tier: working | origin: 2026-10-06-000759 -->
 
 ## Conventions
 
