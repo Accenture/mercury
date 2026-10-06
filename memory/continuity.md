@@ -323,7 +323,8 @@ layers shipped; the two above have held through every re-verify.)*
   <!-- id: graph-set-pack-and-deploy-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 2 | tier: active | origin: 2026-10-06-012631 -->
 
 - **A MsgPack payload may nest at most 64 maps and lists, the outermost container being level 1, the same rule as the Java engine (Eric,
-  2026-10-06; Increment 160, PR #358, open at writing; Java twin mercury-composable #514, fact `msgpack-nesting-limit-64`).** This engine
+  2026-10-06; Increment 160, PR #358 merge `49d599a0`, MERGED 2026-10-06 02:59Z; Java twin mercury-composable #514, fact
+  `msgpack-nesting-limit-64`).** This engine
   decoded untrusted bytes with `rmp_serde::from_slice`: the envelope (`EventEnvelope::from_bytes`) and the Event API's compact-format
   check. Measured with a throwaway test: rmp-serde's default of 1,024 counts the outermost container, so a release build decodes 1,023
   levels, but a debug build's 2 MiB thread stack overflowed between 500 and 600 nested arrays and aborted the process. Now
