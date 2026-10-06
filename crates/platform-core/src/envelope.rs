@@ -44,7 +44,10 @@ use crate::function::AppError;
 /// `headers` always and other fields only when set; decoders treat absent and
 /// nil identically and ignore unknown keys (Java may add `tags`, `stack`,
 /// `obj_type`, `exception`).
+// a key the bytes omit takes the value `EventEnvelope::default()` gives it - the id a fresh uuid - as the Java engine's
+// constructor-then-load does, so an empty map is an empty envelope (the Java reference's rule; Increment 164)
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct EventEnvelope {
     id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

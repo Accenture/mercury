@@ -1,7 +1,7 @@
 {
   "format": "mercury-msgpack-hostile-header-vectors",
   "version": "1",
-  "note": "Shared by the Java and Rust engines, byte-identical in both repositories. Every input is a top-level container, so it reaches a decoder through the same entry points as an event payload. A vector with expect=reject must fail as a decoding error - never as an unchecked exception, a panic, a stack overflow or an allocation sized by the hostile header - before anything is allocated for the declared count or length. A vector with expect=accept must decode to exactly the JSON in value (a JSON number without a fraction is an integer, any other a float64); the controls keep a decoder that refuses everything from passing.",
+  "note": "Shared by the Java and Rust engines, byte-identical in both repositories. Every input is a top-level container, so it reaches a decoder through the same entry points as an event payload. A vector with expect=reject must fail as a decoding error - never as an unchecked exception, a panic, a stack overflow or an allocation sized by the hostile header - before anything is allocated for the declared count or length. A vector with expect=accept must decode to exactly the JSON in value (a JSON number without a fraction is an integer, any other a float64); the controls keep a decoder that refuses everything from passing. A control may carry canonical=reject: the event payload codec must decode it to value while the canonical package decoder must refuse it (empty input is the one case: the Java engine, the reference, reads it as an empty map and an empty envelope, and a package is never empty).",
   "vectors": [
     {
       "id": "array32-max-count-nothing-follows",
@@ -362,6 +362,14 @@
         ]
       ],
       "description": "64 nested arrays of one element, the deepest holding nil: the bound itself decodes"
+    },
+    {
+      "id": "control-empty-input-is-an-empty-map",
+      "hex": "",
+      "expect": "accept",
+      "value": {},
+      "description": "no bytes at all: the event payload codec decodes an empty map, the canonical decoder refuses it",
+      "canonical": "reject"
     }
   ]
 }

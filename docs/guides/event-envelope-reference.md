@@ -167,6 +167,10 @@ A header that promises more than the input holds is refused at the header, befor
 declared length or count, and so is the format byte `0xc1`, which the specification never uses; the shared vector file
 `msgpack-hostile-header-vectors.json` pins the same inputs in both engines.
 
+Empty input decodes as an empty map, so an empty byte array is an empty envelope and never a decoding error, as the
+Java engine - the reference implementation - reads it; the canonical package decoder refuses it, because a package is
+never empty.
+
 ## Performance metadata
 
 #### `exec_time()`

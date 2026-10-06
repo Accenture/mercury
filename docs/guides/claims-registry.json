@@ -388,6 +388,16 @@
       "quote": "A header that promises more than the input holds is refused at the header",
       "test": "crates/platform-core::msgpack_hostile_header_vectors::every_hostile_header_is_refused_at_the_header",
       "since": "4.12.21+"
+    },
+    {
+      "id": "msgpack-empty-input",
+      "claim": "Empty MsgPack input decodes as an empty map at serializer::from_msgpack and as an empty envelope at EventEnvelope::from_bytes, never as a decoding error, following the Java engine's MsgPack.unpack (the reference implementation), while canonical_packager::decode refuses empty input because a package is never empty; the shared vector file pins it as the control the event codec accepts and the canonical decoder rejects.",
+      "pages": [
+        "docs/guides/event-envelope-reference.md"
+      ],
+      "quote": "Empty input decodes as an empty map, so an empty byte array is an empty envelope and never a decoding error",
+      "test": "crates/platform-core::msgpack_hostile_header_vectors::empty_input_is_an_empty_envelope_as_in_java",
+      "since": "4.12.21+"
     }
   ]
 }
