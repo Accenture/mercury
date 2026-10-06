@@ -153,7 +153,7 @@ fn pack(args: &[String], out: &mut dyn Write) -> Result<i32, Failure> {
     let set_name = a
         .single(SET)
         .ok_or_else(|| Failure::Usage("pack needs --set <name>".to_string()))?;
-    let fields = manifest_fields(a.all(MANIFEST))?;
+    let fields = manifest_fields(a.manifest_values())?;
     let files = match a.single(FROM_MANIFEST) {
         Some(manifest) => {
             if !a.positional.is_empty() {
@@ -232,7 +232,7 @@ fn inspect(args: &[String], out: &mut dyn Write) -> Result<i32, Failure> {
     let bytes = read_package(file)?;
     let contents = graph_set::read(&bytes)?;
     let sha = sha256(&bytes);
-    if a.has(JSON) {
+    if a.json_report() {
         // keys in sorted order, so both engines' packagers print the same report
         let mut manifest = serde_json::Map::new();
         for (k, v) in &contents.manifest {
@@ -484,12 +484,12 @@ impl Arguments {
             .map(String::as_str)
     }
 
-    fn all(&self, name: &str) -> &[String] {
-        self.options.get(name).map(Vec::as_slice).unwrap_or(&[])
+    fn manifest_values(&self) -> &[String] {
+        self.options.get(MANIFEST).map(Vec::as_slice).unwrap_or(&[])
     }
 
-    fn has(&self, name: &str) -> bool {
-        self.options.contains_key(name)
+    fn json_report(&self) -> bool {
+        self.options.contains_key(JSON)
     }
 }
 
