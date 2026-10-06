@@ -49,11 +49,12 @@
   (2026-09-21 — the catch-up release 4.12.7 → 4.12.12 in one step, PR #296 → `983e7550`, tag → `1ef183cb`; Increments 118–124.)
 - **last_enabled:** 2026-07-15
 - **last_review:** 2026-10-06 | through 2026-10-06-013022.md (CADENCE — 10 sessions since the 2026-10-04 review: `refresh-metadata`
-  refreshed 16 footers, 16 tier changes (13 → archive-candidate, 3 → active); archived 2 faded facts, `graph-math-dialect-closed-set-rust`
-  (sslu 22) and `conv-template-version-sweep-rust` (sslu 23), after step 6 found no reliance in the window - its one commit on their paths,
+  refreshed 16 footers, 16 tier changes (13 → archive-candidate, 3 → active); archived 4 faded facts, `graph-math-dialect-closed-set-rust`
+  (sslu 22), `conv-template-version-sweep-rust` (sslu 23), and `connected-edge-spans` and `llm-helper-certification-rust`, which crossed the
+  window with the review's own log, after step 6 found no reliance in the window - its one commit on their paths,
   `1e8f3ad4`, changed `skills-reference.md` in the data-mapper section, not the dialect, and the v4.12.20 sweep `a033ea70` falls before the
   window; swept 0 (the three closed threads closed inside the window); reactivated 0, superseded 0, archive-verify pass; invariants not due
-  (re-verified 2026-10-04); no stalled thread; contradiction scan: none; Doc Gaps: none open. Live facts 28 → 26.)
+  (re-verified 2026-10-04); no stalled thread; contradiction scan: none; Doc Gaps: none open. Live facts 28 → 24.)
   Prior: 2026-10-04 | through 2026-10-04-160854.md (CADENCE + SIZE, on Eric's command — 11 sessions since the 2026-09-28 review
   (`review_every` 10) and continuity 604 lines > 600; `refresh-metadata` refreshed 19 footers (16 before the review log, 3 after it), 17 tier changes
   (8 working → active, 3 archive-candidate → active, 4 active → archive-candidate, 2 working → archive-candidate); archived 7 — 6 faded Key
@@ -155,28 +156,6 @@ layers shipped; the two above have held through every re-verify.)*
   knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
   spec (map, don't mirror).
   <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-30 | uses: 104 | tier: core | origin: 2026-07-15-215538.md -->
-
-- **A traced HTTP request is ONE connected span tree whose root is the edge's round-trip span; a streamed response is
-  traced at its head and its tail, never per token (Eric's rulings on the Dynatrace review of the v4.12.15 certification
-  traces, 2026-09-22; Increment 133, PR #315, lock-step with mercury-composable #444; SHIPPED in v4.12.15).**
-  `automation/server.rs` mints the span at receipt (`EdgeTrace`), every dispatch parents onto it, and the record
-  `service=http.request` is emitted by `handle` (buffered response, edge error) or by the stream renderer at the terminal
-  (head status, the in-band failure's status, or the idle 408) — `start` = receipt, `exec_time` = the round trip,
-  `parent_span_id` = the inbound traceparent span. **All four OTel forwarders map SERVER iff `service == http.request`;
-  every function execution is INTERNAL.** The stream relay's client leg parents onto the sender because `is_zero_traced`
-  no longer consults `skip.rpc.tracing` — the list only suppresses the caller-side RPC `round_trip` record (Java
-  `InboxBase` semantics; the RPC path had masked the drift for months). `EventStreamWriter` sends the first segment and
-  the terminals traced and the data segments through `PostOffice::send_untraced`; the HTTP client relays stamp the client
-  leg's own trace (`RelayTrace`) on synthesized head/eof/exception segments and forward raw token frames untraced;
-  `StreamLaneService` annotates the terminal record with `frames` = the data-segment count. **Why it was invisible:** 0
-  export failures in every drive; only the backend's trace tree showed the orphans — and the drive's fabricated
-  `traceparent` broke every root, a drive artifact that looked like an engine defect (send `X-Trace-Id`, or nothing,
-  without a real upstream span). **READ at 4.12.15:** one more span per traced request; the first function is INTERNAL;
-  an Event-over-HTTP callee edge records its own round trip between the caller's span and `event.api.service`. Confirmed
-  in Dynatrace by Eric (Scenario 9 and the token-bearing drive 9, `annotation.frames: 8`; reports in
-  `docs/test-reports/`). Extends [[otel-forwarder-no-sdk]]; pinned by
-  `event_over_http_stream::edge_relay_spans_are_connected`.
-  <!-- id: connected-edge-spans | created: 2026-09-22 | last_used: 2026-10-02 | uses: 3 | tier: archive-candidate | origin: 2026-09-22-200854 -->
 
 - **The Redis foundation retries intelligently — a heartbeat monitor plus one retry per lost connection for idempotent
   commands only, never a replay of a non-idempotent one (Eric's ruling on polyglot note 3, 2026-09-22; Increment 135, PR
@@ -281,17 +260,6 @@ layers shipped; the two above have held through every re-verify.)*
   boots on a KNOWN port because CompileGraph resolves `${rest.server.port:8080}` at load time. `v1.hello.task` is NOT re-added (Eric: tutorial 13 no longer needs it). Not aligned: the
   distributed-cache example lists `graph-executor.yml` and resolves it from the engine without a local copy. Follow-up: [[hello-task-doc-references]] (closed 2026-10-02: PR #345 and #346).
   <!-- id: example-and-template-carry-their-flows | created: 2026-10-01 | last_used: 2026-10-02 | uses: 4 | tier: archive-candidate | origin: 2026-10-02-001532 -->
-
-- **The Rust engine certified the LLM helper without changing: the playground's AI nodes point at the helper app, and the helper's contract lives in the language packs (Increment 148, PR #342
-  merge `755af30e`; Eric, 2026-10-01).** The helper (`llm.chat`, `llm.stream`, `llm.health` on the Anthropic SDK) is `examples/llm-helper` in mercury-python and mercury-nodejs (PRs #38 and #106),
-  not engine code: the engine stays LLM-free and holds no credential. The playground's `support-triage` graph (byte-identical with Java's) and the `/api/llm/stream` relay reach it through
-  `event-over-http.yaml` by route name. `docs/test-reports/llm-helper-certification.md` (byte-identical with the Java copy) records Java and Rust in front of both helpers, through a Layer 1
-  streaming service, a Layer 2 flow and two Layer 3 graphs, with real Claude calls (40 results per pair, 124 model calls): every batch the helper forwarded reached the edge as its own frame
-  (the cadence is the API's and depends on the model), the error contract holds on the real SDKs, and every trace is one tree ([[connected-edge-spans]]). The no-rebuild lane did the
-  deploying ([[graph-manifest-list-later-wins-rust]]); Rust's `yaml.rest.automation` reads ONE location, so the chat flow's REST entry went into one combined `rest.yaml`. Opus 5.5, the helper's
-  default model and kept by Eric, thinks before it answers and its thinking tokens count against `max_tokens`: the triage graph now asks for 2000 tokens (512 before) and the README's stream
-  example for 2000 (300). AWS Bedrock through IAM is the helper's planned second backend, a thread in the packs.
-  <!-- id: llm-helper-certification-rust | created: 2026-10-01 | last_used: 2026-10-02 | uses: 1 | tier: archive-candidate | origin: 2026-10-02-001532 -->
 
 - **A mock-data upload travels like a command: it loads every member's instance (Eric's design, 2026-10-02; PR #349 merge `278bb023`, Increment 154; lock-step with mercury-composable #498 squash `ce0e7155`; both MERGED 2026-10-03 06:00Z).**
   `commands::upload_content` (REST `POST /api/mock/{id}`) no longer writes the uploader's instance alone: it sends an `upload` event to the command service,

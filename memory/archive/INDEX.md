@@ -117,3 +117,5 @@
 - schema-registry-native-codec — The Schema Registry codec is this engine's own, and what it cannot delegate it refuses (Er… — faded — 2026-Q4.md
 - graph-math-dialect-closed-set-rust — The graph.math expression dialect is documented as the closed set it is, and pinned — the… — faded — 2026-Q4.md
 - conv-template-version-sweep-rust — Release version bumps must include the starter templates (2026-09-11). Each — faded — 2026-Q4.md
+- connected-edge-spans — A traced HTTP request is ONE connected span tree whose root is the edge's round-trip span;… — faded — 2026-Q4.md
+- llm-helper-certification-rust — The Rust engine certified the LLM helper without changing: the playground's AI nodes point… — faded — 2026-Q4.md
