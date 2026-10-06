@@ -87,6 +87,7 @@ fn json(payload: &str) -> serde_json::Value {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_cache_failure_is_never_a_miss() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // the real cache function (and its health check) stay unregistered; the
     // stub above owns the route
     overrides::set("redis.cache.enabled", "false");

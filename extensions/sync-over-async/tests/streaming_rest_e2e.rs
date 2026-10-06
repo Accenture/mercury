@@ -326,8 +326,7 @@ impl UiPod {
         static INIT: Once = Once::new();
         INIT.call_once(|| {
             resources::prepend_resource_root("tests/resources");
-            let rest_file =
-                std::env::temp_dir().join(format!("rest-soa-e2e-{}.yaml", std::process::id()));
+            let rest_file = test_support::temp_path("rest-soa-e2e.yaml");
             std::fs::write(&rest_file, REST_YAML).expect("write rest.yaml");
             overrides::set(
                 "yaml.rest.automation",
@@ -484,6 +483,7 @@ async fn post_terminal(responder: &StreamResponder, cid: &str) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn chat_tokens_render_progressively_in_exact_order() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let pod = UiPod::boot().await;
     let collector = pod
         .open_sse("chat.collector", pod.sse_request("POST", "/api/chat"))
@@ -532,6 +532,7 @@ async fn chat_tokens_render_progressively_in_exact_order() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn notification_channel_serves_several_producers_and_backend_close() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let pod = UiPod::boot().await;
     let collector = pod
         .open_sse(
@@ -602,6 +603,7 @@ async fn notification_channel_serves_several_producers_and_backend_close() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn idle_expiry_final_drain_recovers_a_lost_close() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let pod = UiPod::boot().await;
     let collector = pod
         .open_sse(
@@ -667,6 +669,7 @@ async fn idle_expiry_final_drain_recovers_a_lost_close() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn idle_expiry_with_nothing_queued_fails_in_band_and_stops_producers() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let pod = UiPod::boot().await;
     let collector = pod
         .open_sse(

@@ -26,6 +26,7 @@ use platform_core::{ComposableFunction, EventEnvelope};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn disabled_producer_fails_loudly_with_the_flag_name() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let headers: HashMap<String, String> =
         HashMap::from([("topic".to_string(), "orders".to_string())]);
     let error = SimpleKafkaNotification

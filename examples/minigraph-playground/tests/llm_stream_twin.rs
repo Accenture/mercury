@@ -37,6 +37,7 @@ fn body_text(body: &Value) -> String {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn support_triage_compiles_and_the_relay_teaches_when_unmapped() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     overrides::set("rest.server.port", "0");
     // no peer map in this test: the relay's teaching failure, not a hop into nothing
     overrides::set("yaml.event.over.http", "classpath:/no-such-peer-map.yaml");

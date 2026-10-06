@@ -24,3 +24,5 @@ log = "0.4"
 mercury-knowledge-graph = { path = "../../crates/knowledge-graph" }
 rmpv = { version = "1", features = ["with-serde"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util"] }
+# one temporary folder per test process, removed when the process exits (dev-only)
+mercury-test-support = { path = "../../crates/test-support" }

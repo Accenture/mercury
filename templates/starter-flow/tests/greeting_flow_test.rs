@@ -37,8 +37,19 @@ async fn http_post(port: u16, path: &str, body: &str) -> (u16, String) {
 
 // One test function on purpose: the app boots ONCE per process (AutoStart is
 // a run-once lifecycle), so all cases run in a single sequential test.
+/// A test binary never reaches the lifecycle's graceful exit, so this guard runs the elastic
+/// queue's cleanup when the test ends, a failed one included: its holding folder goes too.
+struct StoreCleanup;
+
+impl Drop for StoreCleanup {
+    fn drop(&mut self) {
+        platform_core::util::elastic_queue::shutdown_cleanup();
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn greeting_flow_end_to_end() {
+    let _store = StoreCleanup;
     overrides::set("rest.server.port", "0"); // an ephemeral port for the test
     AutoStart::main(vec![]).await.expect("app lifecycle");
     let port = automation::server_address().expect("server started").port();

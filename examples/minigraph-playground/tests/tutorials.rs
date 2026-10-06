@@ -101,7 +101,7 @@ async fn the_tutorials_are_deployed_and_run() {
         .expect("local address")
         .port();
     overrides::set("rest.server.port", &port.to_string());
-    let holding = std::env::temp_dir().join(format!("tutorials-{}", std::process::id()));
+    let holding = test_support::temp_path("tutorials");
     overrides::set("transient.data.store", &holding.display().to_string());
     AutoStart::main(vec![]).await.expect("app lifecycle");
     assert_eq!(

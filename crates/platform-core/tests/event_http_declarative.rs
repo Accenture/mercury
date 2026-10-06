@@ -94,7 +94,7 @@ impl ComposableFunction for CaptureCallback {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn declarative_event_over_http() {
     resources::prepend_resource_root("tests/resources");
-    let holding = std::env::temp_dir().join(format!("mercury-eoh-decl-{}", std::process::id()));
+    let holding = test_support::temp_path("mercury-eoh-decl");
     overrides::set("transient.data.store", &holding.display().to_string());
     overrides::set("rest.server.port", "0");
     // a minimal rest.yaml; /api/event arrives via the default-endpoint merge

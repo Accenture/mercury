@@ -125,7 +125,7 @@ fn declared_entry(routes: &[String]) -> Option<&'static PreloadEntry> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn function_kind_matches_golden_vectors() {
     resources::prepend_resource_root("tests/resources");
-    let holding = std::env::temp_dir().join(format!("mercury-vec-test-{}", std::process::id()));
+    let holding = test_support::temp_path("mercury-vec-test");
     overrides::set("transient.data.store", &holding.display().to_string());
     let vectors: serde_json::Value = serde_json::from_str(
         &std::fs::read_to_string("tests/resources/registration-vectors/core.json")

@@ -78,7 +78,7 @@ async fn server() -> (u16, Platform) {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         resources::prepend_resource_root("tests/resources");
-        let holding = std::env::temp_dir().join(format!("mercury-eoh-test-{}", std::process::id()));
+        let holding = test_support::temp_path("mercury-eoh-test");
         overrides::set("transient.data.store", &holding.display().to_string());
         overrides::set("rest.server.port", "0");
         // a minimal rest.yaml; /api/event arrives via the default-endpoint merge

@@ -86,8 +86,7 @@ fn setup_config() {
         // keeps the fixture manifests (and their exact-set assertions in
         // other test binaries) out of this registry and vice versa
         platform_core::overrides::set("yaml.flow.automation", "classpath:/claims-flows.yaml");
-        let holding =
-            std::env::temp_dir().join(format!("mercury-claims-test-{}", std::process::id()));
+        let holding = test_support::temp_path("mercury-claims-test");
         platform_core::overrides::set("transient.data.store", &holding.display().to_string());
         let _ = platform_core::AppConfigReader::get_instance();
     });
@@ -132,6 +131,7 @@ fn json_body(reply: &EventEnvelope) -> serde_json::Value {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn claims_pins_run_end_to_end() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     setup_config();
     AutoStart::main(vec![]).await.expect("lifecycle");
     let platform = Platform::get_instance();

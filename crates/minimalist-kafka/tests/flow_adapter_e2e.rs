@@ -326,6 +326,7 @@ fn payload_text(dataset: &serde_json::Value) -> String {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn inbound_adapter_end_to_end() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // the in-process Schema Registry double, reached through the same
     // ${SCHEMA_REGISTRY_URL} substitution a deployment would use - pinned
     // before the configuration snapshot, like the mock cluster

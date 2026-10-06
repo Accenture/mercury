@@ -216,9 +216,7 @@ fn shared() -> (u16, Platform) {
                     .expect("fixture runtime");
                 runtime.block_on(async move {
                     resources::prepend_resource_root("tests/resources");
-                    let pid = std::process::id();
-                    let rest_file =
-                        std::env::temp_dir().join(format!("rest-eoh-stream-{pid}.yaml"));
+                    let rest_file = test_support::temp_path("rest-eoh-stream.yaml");
                     std::fs::write(&rest_file, REST_YAML).expect("write rest.yaml");
                     overrides::set(
                         "yaml.rest.automation",
@@ -281,7 +279,7 @@ fn shared() -> (u16, Platform) {
                         .expect("http server");
                     let edge_port = addr.port();
                     let mock_port = start_misbehaving_peer().await;
-                    let map_file = std::env::temp_dir().join(format!("eoh-map-{pid}.yaml"));
+                    let map_file = test_support::temp_path("eoh-map.yaml");
                     let map = format!(
                         r#"
 event.http:
@@ -509,6 +507,7 @@ async fn http_get(port: u16, path: &str, headers: &[(&str, &str)]) -> (u16, Stri
 /// and no lane record is left without a parent.
 #[tokio::test]
 async fn edge_relay_spans_are_connected() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let (port, platform) = shared();
     let datasets = telemetry_capture(&platform);
     let trace_id = trace::new_trace_id();
@@ -745,6 +744,7 @@ async fn send_streaming(
 
 #[tokio::test]
 async fn streaming_target_relays_progressively_to_callback() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (_, platform) = shared();
     let events = send_streaming(&platform, STREAMING_TARGET, Some("tokens"), None, 3).await;
@@ -774,6 +774,7 @@ async fn streaming_target_relays_progressively_to_callback() {
 
 #[tokio::test]
 async fn typed_segments_round_trip_exactly() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (_, platform) = shared();
     let events = send_streaming(&platform, STREAMING_TARGET, Some("typed"), None, 6).await;
@@ -815,6 +816,7 @@ async fn typed_segments_round_trip_exactly() {
 
 #[tokio::test]
 async fn single_shot_target_over_capable_path_is_classic() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (_, platform) = shared();
     // classic callback (no accept header) as the baseline
@@ -890,6 +892,7 @@ async fn wait_for_one(received: &Arc<Mutex<Vec<EventEnvelope>>>, index: usize) -
 
 #[tokio::test]
 async fn streaming_target_without_accept_is_refused_406() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (_, platform) = shared();
     // classic callback mode (no accept opt-in) against a streaming function:
@@ -930,6 +933,7 @@ async fn streaming_target_without_accept_is_refused_406() {
 
 #[tokio::test]
 async fn streaming_target_via_rpc_is_refused_406() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (edge_port, platform) = shared();
     // the RPC path never streams (a request completes once)
@@ -955,6 +959,7 @@ async fn streaming_target_via_rpc_is_refused_406() {
 
 #[tokio::test]
 async fn mid_stream_failure_propagates_exact_status() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (_, platform) = shared();
     let events = send_streaming(&platform, STREAMING_TARGET, Some("error-mid"), None, 2).await;
@@ -971,6 +976,7 @@ async fn mid_stream_failure_propagates_exact_status() {
 
 #[tokio::test]
 async fn failure_before_first_segment_arrives_as_exception() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (_, platform) = shared();
     // a pre-head failure still rides the stream (SSE-uniform) - the caller
@@ -985,6 +991,7 @@ async fn failure_before_first_segment_arrives_as_exception() {
 
 #[tokio::test]
 async fn idle_stall_fails_in_band_408() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (_, platform) = shared();
     // the target declares a one-second idle allowance and goes silent - the
@@ -1009,6 +1016,7 @@ async fn idle_stall_fails_in_band_408() {
 
 #[tokio::test]
 async fn server_pool_exhaustion_answers_503() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (_, platform) = shared();
     // with no reply lane available, a streaming-capable call is refused
@@ -1035,6 +1043,7 @@ async fn server_pool_exhaustion_answers_503() {
 
 #[tokio::test]
 async fn rest_level_error_unwraps_to_callback() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (_, platform) = shared();
     // the relay POSTs to a GET-only endpoint: the edge answers a REST error
@@ -1050,6 +1059,7 @@ async fn rest_level_error_unwraps_to_callback() {
 
 #[tokio::test]
 async fn raw_first_frame_from_foreign_server_is_rejected() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (_, platform) = shared();
     let events = send_streaming(&platform, "mock.sse.raw.first", None, None, 1).await;
@@ -1065,6 +1075,7 @@ async fn raw_first_frame_from_foreign_server_is_rejected() {
 
 #[tokio::test]
 async fn transport_end_without_terminal_is_truncation() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (_, platform) = shared();
     let events = send_streaming(&platform, "mock.sse.no.terminal", None, None, 2).await;
@@ -1084,6 +1095,7 @@ async fn transport_end_without_terminal_is_truncation() {
 
 #[tokio::test]
 async fn foreign_dialect_peer_works_and_trailing_frames_drop() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (_, platform) = shared();
     let events = send_streaming(&platform, "mock.sse.foreign", None, None, 3).await;
@@ -1104,6 +1116,7 @@ async fn foreign_dialect_peer_works_and_trailing_frames_drop() {
 
 #[tokio::test]
 async fn remote_stream_renders_progressively_out_the_edge() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _guard = suite_guard().await;
     let (edge_port, _) = shared();
     // the engine-to-engine composition: a streaming edge endpoint forwards its

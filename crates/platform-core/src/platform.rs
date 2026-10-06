@@ -1082,6 +1082,7 @@ mod tests {
     /// standalone entry point reads the flag to stay alive until Ctrl-C or SIGTERM.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn keep_running_is_declared_once_and_read_by_the_entry_point() {
+        test_support::run_at_exit(crate::util::elastic_queue::shutdown_cleanup);
         let platform = Platform::new();
         platform.keep_running("test component");
         platform.keep_running("test component again");
@@ -1092,6 +1093,7 @@ mod tests {
     /// one hook's failure never stops the others.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn shutdown_hooks_run_newest_first_once_and_isolated() {
+        test_support::run_at_exit(crate::util::elastic_queue::shutdown_cleanup);
         let order = Arc::new(std::sync::Mutex::new(Vec::new()));
         let platform = Platform::new();
         for tag in ["first", "second", "third"] {

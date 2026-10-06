@@ -163,8 +163,7 @@ async fn server() -> (u16, Platform) {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         resources::prepend_resource_root("tests/resources");
-        let rest_file =
-            std::env::temp_dir().join(format!("rest-sse-client-{}.yaml", std::process::id()));
+        let rest_file = test_support::temp_path("rest-sse-client.yaml");
         std::fs::write(&rest_file, REST_YAML).unwrap();
         overrides::set(
             "yaml.rest.automation",
@@ -407,6 +406,7 @@ fn body_text(event: &EventEnvelope) -> String {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn raw_sse_events_map_to_data_envelopes_with_terminal_eof() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let (port, platform) = server().await;
     let events = consume(
         &platform,
@@ -435,6 +435,7 @@ async fn raw_sse_events_map_to_data_envelopes_with_terminal_eof() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn multi_field_frames_map_per_sse_specification() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let (_port, platform) = server().await;
     let upstream = mock_sse_upstream();
     let events = consume(
@@ -458,6 +459,7 @@ async fn multi_field_frames_map_per_sse_specification() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn burst_events_arrive_in_strict_fifo_order() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let (_port, platform) = server().await;
     let upstream = mock_sse_upstream();
     let events = consume(
@@ -481,6 +483,7 @@ async fn burst_events_arrive_in_strict_fifo_order() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn idle_stall_fails_in_band_with_timeout_408() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let (_port, platform) = server().await;
     let upstream = mock_sse_upstream();
     let events = consume(
@@ -501,6 +504,7 @@ async fn idle_stall_fails_in_band_with_timeout_408() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn keep_alive_comments_reset_the_idle_allowance() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // quiet for ~2.5s with 300ms comments under a 2s idle allowance:
     // the comments prove liveness, so the stream must complete
     let (_port, platform) = server().await;
@@ -521,6 +525,7 @@ async fn keep_alive_comments_reset_the_idle_allowance() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mid_stream_disconnect_fails_in_band() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let (_port, platform) = server().await;
     let upstream = mock_sse_upstream();
     let events = consume(
@@ -539,6 +544,7 @@ async fn mid_stream_disconnect_fails_in_band() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn non_sse_upstream_falls_back_to_buffered_single_shot() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // Accept opted in, but the upstream answers JSON - one unmarked reply
     let (port, platform) = server().await;
     let events = consume(
@@ -562,6 +568,7 @@ async fn non_sse_upstream_falls_back_to_buffered_single_shot() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn without_accept_the_sse_response_buffers_as_before() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // backward-compat pin: an RPC without Accept: text/event-stream receives
     // the whole SSE payload buffered as one text body (today's behavior)
     let (port, platform) = server().await;
@@ -611,6 +618,7 @@ fn decode_chunked(raw: &[u8]) -> Vec<u8> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn self_relay_streams_progressively_out_the_edge() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // the flagship composition: /api/hello/relay forwards its reply lane into
     // async.http.request aimed at this app's own SSE endpoint - upstream
     // frames re-render at the edge, followed by the relay's own terminal

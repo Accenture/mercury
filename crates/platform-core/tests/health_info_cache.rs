@@ -72,11 +72,9 @@ fn setup_config() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         resources::prepend_resource_root("tests/resources");
-        let holding =
-            std::env::temp_dir().join(format!("mercury-health-cache-test-{}", std::process::id()));
+        let holding = test_support::temp_path("mercury-health-cache-test");
         overrides::set("transient.data.store", &holding.display().to_string());
-        let rest_file =
-            std::env::temp_dir().join(format!("rest-health-cache-{}.yaml", std::process::id()));
+        let rest_file = test_support::temp_path("rest-health-cache.yaml");
         std::fs::write(
             &rest_file,
             "rest:\n  - service: \"noop.demo\"\n    methods: ['GET']\n    url: \"/api/noop\"\n",

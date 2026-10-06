@@ -218,6 +218,7 @@ fn json(value: &rmpv::Value) -> serde_json::Value {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn synchronous_round_trip_and_timeout() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     boot().await;
 
     // --- the facade returns the async response synchronously

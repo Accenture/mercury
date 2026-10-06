@@ -100,7 +100,7 @@ async fn http_post(port: u16, path: &str, body: &str) -> (u16, String) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn both_event_over_http_demo_endpoints_round_trip() {
-    let holding = std::env::temp_dir().join(format!("hello-flow-demo-{}", std::process::id()));
+    let holding = test_support::temp_path("hello-flow-demo");
     overrides::set("transient.data.store", &holding.display().to_string());
     // an ephemeral port; the peer address is set to the SAME server below
     overrides::set("rest.server.port", "0");

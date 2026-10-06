@@ -44,3 +44,5 @@ uuid = { version = "1", features = ["v4"] }
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 http-body-util = "0.1"
+# one temporary folder per test process, removed when the process exits (dev-only)
+mercury-test-support = { path = "../test-support" }

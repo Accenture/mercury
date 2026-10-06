@@ -512,12 +512,20 @@ fn setup_config() {
     static INIT: std::sync::Once = std::sync::Once::new();
     INIT.call_once(|| {
         platform_core::resources::prepend_resource_root("tests/resources");
-        let holding =
-            std::env::temp_dir().join(format!("mercury-flow-test-{}", std::process::id()));
+        let holding = test_support::temp_path("mercury-flow-test");
         platform_core::overrides::set("transient.data.store", &holding.display().to_string());
         // pin the configuration snapshot NOW, with the test root in place
         let _ = platform_core::AppConfigReader::get_instance();
     });
+}
+
+/// Removes a folder when the test ends, a failed one included.
+struct RemoveOnDrop(std::path::PathBuf);
+
+impl Drop for RemoveOnDrop {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -1385,6 +1393,8 @@ async fn flows_run_end_to_end_like_java() {
 
     // --- E-9: resilience handler — gatekeeper (200) passes straight through
     let _ = std::fs::remove_dir_all("/tmp/resilience");
+    // the resilience-demo flow keeps its state in /tmp/resilience: the folder goes when the test ends
+    let _resilience = RemoveOnDrop(std::path::PathBuf::from("/tmp/resilience"));
     let reply = run_flow(
         &platform,
         "resilience-demo",

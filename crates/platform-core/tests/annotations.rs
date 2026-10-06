@@ -384,7 +384,7 @@ impl EntryPoint for TheApp {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn annotation_macros_end_to_end() {
     resources::prepend_resource_root("tests/resources");
-    let holding = std::env::temp_dir().join(format!("mercury-anno-test-{}", std::process::id()));
+    let holding = test_support::temp_path("mercury-anno-test");
     overrides::set("transient.data.store", &holding.display().to_string());
     // envInstances source for anno.untyped.echo (a -D style process override)
     overrides::set("anno.pool.size", "7");

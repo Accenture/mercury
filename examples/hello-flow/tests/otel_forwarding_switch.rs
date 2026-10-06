@@ -35,6 +35,7 @@ const FORWARDER_ROUTE: &str = "distributed.trace.forwarder";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_forwarder_is_not_registered_when_forwarding_is_off() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     overrides::set("rest.server.port", "0");
     AutoStart::main(vec![]).await.expect("app lifecycle");
     let config = AppConfigReader::get_instance();

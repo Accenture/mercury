@@ -108,6 +108,7 @@ fn journal_count(journal: &common::CommandJournal, command: &str) -> usize {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn distributed_cache_contract() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let (port, raw_store, journal) = common::start_resp_double("7.4.1").await;
     platform_core::resources::prepend_resource_root("tests/resources");
     overrides::set("redis.cache.enabled", "true");
