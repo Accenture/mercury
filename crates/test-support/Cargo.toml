@@ -1,0 +1,11 @@
+[package]
+name = "mercury-test-support"
+description = "One temporary folder per test process, removed when the process exits (dev-only, never published)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "test_support"

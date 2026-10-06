@@ -37,8 +37,7 @@ fn setup_config() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         resources::prepend_resource_root("tests/resources");
-        let holding =
-            std::env::temp_dir().join(format!("mercury-lifecycle-test-{}", std::process::id()));
+        let holding = test_support::temp_path("mercury-lifecycle-test");
         overrides::set("transient.data.store", &holding.display().to_string());
         let _ = AppConfigReader::get_instance();
     });
@@ -147,9 +146,9 @@ async fn lifecycle_runs_phases_in_order() {
         journal.lock().unwrap().clone(),
         vec!["before-3", "before-5", "main"]
     );
-    // housekeeping started: the holding area exists (the RUNNING marker is
-    // asserted in the shutdown test, which owns the marker's lifecycle —
-    // tests share the process-wide holding area)
+    // housekeeping started: the holding area exists (the marker and the
+    // cleanup are asserted in tests/shutdown_cleanup.rs, a process of its own,
+    // because the cleanup removes the holding area the tests here share)
     assert!(elastic_queue::base_dir().is_dir());
 }
 
@@ -271,28 +270,4 @@ async fn unknown_holding_area_with_segments_is_removed() {
     elastic_queue::scan_expired_stores();
     assert!(alive.exists(), "live holding area must survive the scan");
     std::fs::remove_dir_all(&alive).ok();
-}
-
-#[tokio::test]
-async fn shutdown_cleanup_removes_marker_and_segments() {
-    setup_config();
-    // ensure the holding area + marker exist
-    let dir = elastic_queue::base_dir().to_path_buf();
-    elastic_queue::start_housekeeping();
-    assert!(dir.join("RUNNING").is_file());
-    elastic_queue::shutdown_cleanup();
-    assert!(!dir.join("RUNNING").exists());
-    // no segment files left behind
-    let leftovers: Vec<_> = std::fs::read_dir(&dir)
-        .unwrap()
-        .flatten()
-        .map(|e| e.file_name().to_string_lossy().to_string())
-        .filter(|n| n.starts_with("eq-") && n.ends_with(".dat"))
-        .collect();
-    assert!(
-        leftovers.is_empty(),
-        "segments should be purged: {leftovers:?}"
-    );
-    // restore the marker for any test still using the shared holding area
-    std::fs::write(dir.join("RUNNING"), b"restored").unwrap();
 }

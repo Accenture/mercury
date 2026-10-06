@@ -8,6 +8,9 @@ members = [
     "crates/knowledge-graph",
     "crates/knowledge-graph-macros",
     "crates/minimalist-kafka",
+    # dev-only: one temporary folder per test process, removed when the process exits
+    # (publish = false, never shipped)
+    "crates/test-support",
     # dev-only: the in-process RESP2 server double shared by the Redis-backed
     # suites (publish = false, never shipped - listed so every build proves it
     # stays current for both consumers)

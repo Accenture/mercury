@@ -40,8 +40,8 @@
 //! liveness marker every 20 s and runs [`scan_expired_stores`] once (removes
 //! sibling holding areas whose marker is stale for > 1 h, or unknown dirs
 //! holding segment files); [`shutdown_cleanup`] purges segments + the marker on
-//! graceful exit (Java uses a JVM shutdown hook; signal handling is a later
-//! increment — call it from your main).
+//! graceful exit and removes the emptied per-instance folder (Java uses a JVM
+//! shutdown hook; signal handling is a later increment — call it from your main).
 
 use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};
@@ -180,13 +180,32 @@ fn has_segment_files(folder: &Path) -> bool {
 }
 
 /// Graceful-exit cleanup (Java's JVM shutdown hook): purge this process's
-/// segment files and remove the RUNNING marker. Call from your main after the
-/// lifecycle completes; OS-signal wiring is a later increment.
+/// segment files and the RUNNING marker, then remove its holding folder once
+/// empty. Call from your main after the lifecycle completes; OS-signal wiring
+/// is a later increment. A process that never opened the store has nothing to
+/// clean.
 pub fn shutdown_cleanup() {
-    let dir = base_dir();
+    if let Some(dir) = BASE_DIR.get() {
+        let running_in_cloud =
+            AppConfigReader::get_instance().get_property_or("running.in.cloud", "false") == "true";
+        remove_holding_area(dir, !running_in_cloud);
+    }
+}
+
+/// Clean up a holding area at shutdown (Java `removeHoldingArea`): purge its
+/// segment files and the RUNNING marker, then remove the per-instance folder
+/// once it is empty. With `running.in.cloud` the folder is the configured store
+/// itself, so it stays; so does a folder that holds files of another kind.
+fn remove_holding_area(dir: &Path, instance_folder: bool) {
     purge_leftover_segments(dir, None);
     if let Err(e) = std::fs::remove_file(dir.join(RUNNING)) {
         log::debug!("Unable to delete {RUNNING} marker - {e}");
+    }
+    if instance_folder {
+        // remove_dir removes an empty folder only
+        if let Err(e) = std::fs::remove_dir(dir) {
+            log::debug!("Holding area {} kept - {e}", dir.display());
+        }
     }
 }
 
@@ -501,5 +520,50 @@ impl ElasticQueue {
 impl Drop for ElasticQueue {
     fn drop(&mut self) {
         self.destroy();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Removes the test's scratch folder when the test ends, a failed one included.
+    struct Scratch(PathBuf);
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn shutdown_removes_the_instance_folder_it_emptied() {
+        let root =
+            Scratch(std::env::temp_dir().join(format!("elastic-shutdown-{}", std::process::id())));
+        // the shutdown cleanup purges the segments and the RUNNING marker, then removes the emptied instance folder
+        let instance = root.0.join("app-instance");
+        std::fs::create_dir_all(&instance).expect("instance folder");
+        std::fs::write(instance.join(RUNNING), "now").expect("marker");
+        std::fs::write(instance.join("eq-route-1-0.dat"), [1u8, 2, 3]).expect("segment");
+        remove_holding_area(&instance, true);
+        assert!(!instance.exists(), "the emptied instance folder is removed");
+        // a folder that holds a file of another kind stays, without its marker
+        let shared = root.0.join("shared");
+        std::fs::create_dir_all(&shared).expect("shared folder");
+        std::fs::write(shared.join(RUNNING), "now").expect("marker");
+        std::fs::write(shared.join("notes.txt"), "not a segment").expect("other file");
+        remove_holding_area(&shared, true);
+        assert!(
+            shared.join("notes.txt").exists(),
+            "a file of another kind keeps its folder"
+        );
+        assert!(!shared.join(RUNNING).exists(), "the marker is gone");
+        // with running.in.cloud the folder is the configured store itself, so it stays
+        let cloud = root.0.join("cloud");
+        std::fs::create_dir_all(&cloud).expect("cloud store");
+        std::fs::write(cloud.join(RUNNING), "now").expect("marker");
+        remove_holding_area(&cloud, false);
+        assert!(cloud.exists(), "the configured store stays");
+        assert!(!cloud.join(RUNNING).exists(), "the marker is gone");
     }
 }
