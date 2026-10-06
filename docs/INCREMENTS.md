@@ -4434,3 +4434,33 @@ nesting limit in both engines - "a smaller and realistic nesting level" than the
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
 `check-doc-claims`, `check-llms-links`.
+
+## Increment 161 — A deployment manifest deploys packaged graph sets (2026-10-06)
+
+ADR-0027's third work package (WP3, the loader), in lock-step with the Java engine's `GraphSetLoader` (messages word for word).
+
+- **The manifest:** beside `graphs`, a manifest may list `sets` (packages read from its `location` as `<set>.pack`, `classpath:` or
+  `file:`) and name `unpack`, a `file:/` folder the application can write. `unpack` is refused when it is missing, not `file:/`,
+  the Playground's temporary folder (`location.graph.temp`) or inside it, used by another manifest, or not writable (a probe file);
+  the manifest's sets are then skipped with an ERROR and its loose graphs still compile.
+- **The loader** (`knowledge_graph::graph_set_loader`, called by `compiler::compile_manifest` after the manifest's own graphs):
+  - `load` checks the set name before it becomes part of a path, reads the package strictly with `graph_set::read`, which checks
+    the entry names, the root names and `graph_id`;
+  - the graphs are written to `<unpack>/<graph-id>.json` with `graph_set::to_json`;
+  - `gate` reads each one back the way a deployed graph is read (`compiler::load_raw_graph`, references resolved) and validates
+    it with `model_gate::validate`; any failure registers none of the set (`Set x rejected - n of m graphs failed: ...`);
+  - `register` replaces an earlier copy with an ERROR (`Graph x from set s (unpack) replaces the copy from ...`), and a loose
+    graph of a later manifest that replaces a set's copy logs an ERROR too.
+- **The generated manifest** `<unpack>/graphs.yaml` lists the deployed graphs with `location: <unpack>`, records each set's source,
+  SHA-256 and manifest fields as comments, and keeps a `generated` map of the files per set, which the next start deletes before
+  it unpacks again; no other file in the folder is touched. The unpack folder is a deployed location, so `list graphs` (which now
+  shows `(set s, version v)`) and `import graph from` find the unpacked graphs. The registry keeps each graph's set
+  (`graphs::DeployedSet`, `add_set_graph`, `graph_set`).
+- **Tests:** `tests/graph_set_loader.rs`, one runtime for eight steps, twins of the Java `GraphSetLoaderTest`: a set deploys and
+  the graph executor serves it; a set with a graph the gate refuses registers none; a duplicate is won by the later copy in both
+  directions; the `unpack` refusals; the next start removes a dropped graph's file and keeps the operator's own file; a crafted
+  entry name writes nothing; a missing package leaves the other sets deployed; a set read from a `classpath:` location. The
+  playground scenario gains `a_graph_from_a_set_is_listed_with_its_set_and_imports` (Java twin in `CompanionSyncTest`).
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`.

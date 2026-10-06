@@ -36,6 +36,8 @@ tokio = { version = "1", features = ["rt", "time", "macros"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
+# the generated manifest of the graph-set loader records each set's SHA-256 (ADR-0027)
+sha2 = "0.10"
 # OS entropy for the math engine's random() — the SecureRandom analog
 getrandom = "0.4"
 thiserror = "1"

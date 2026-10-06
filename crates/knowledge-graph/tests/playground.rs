@@ -820,6 +820,7 @@ async fn playground_command_grammar_and_companion() {
     // (a second `#[tokio::test]` would drop this runtime and kill the server)
     export_name_guard_accepts_missing_and_rejects_mismatch(&platform).await;
     import_graph_from_filters_a_null_property(&platform).await;
+    a_graph_from_a_set_is_listed_with_its_set_and_imports(&platform).await;
 }
 
 /// Open a playground session and return its captured console (the .out route).
@@ -896,6 +897,77 @@ async fn import_graph_from_filters_a_null_property(platform: &Platform) {
     assert_eq!(None, root.get_property("note"));
     assert_eq!(Some(Value::from("")), root.get_property("empty"));
     let _ = std::fs::remove_file(&file);
+}
+
+/// A graph deployed from a set (ADR-0027 in the Java repository's ledger): `list graphs` shows its set
+/// and version, and `import graph from` finds its unpacked file, because the unpack folder is a deployed
+/// location. (Java twin: CompanionSyncTest.aGraphFromASetIsListedWithItsSetAndImports)
+async fn a_graph_from_a_set_is_listed_with_its_set_and_imports(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let folder = std::env::temp_dir().join(format!("graph-set-sync-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&folder);
+    std::fs::create_dir_all(&folder).expect("a folder");
+    let model = event_script::conversions::from_json(&serde_json::json!({
+        "nodes": [
+            {"alias": "root", "types": ["Root"],
+             "properties": {"purpose": "a graph from a set", "name": "unit-test-set-listed"}},
+            {"alias": "end", "types": ["End"], "properties": {}}],
+        "connections": [{"source": "root", "target": "end", "relations": [{"type": "done", "properties": {}}]}]
+    }));
+    let graphs = std::collections::BTreeMap::from([("unit-test-set-listed".to_string(), model)]);
+    let bytes = knowledge_graph::graph_set::pack(
+        "listed-set",
+        &[("version".to_string(), "2.0.0".to_string())],
+        &graphs,
+    )
+    .expect("a set");
+    std::fs::write(folder.join("listed-set.pack"), bytes).expect("a package");
+    std::fs::write(
+        folder.join("graphs.yaml"),
+        format!(
+            "location: 'file:{}'\nsets:\n  - 'listed-set'\nunpack: 'file:{}'\n",
+            folder.display(),
+            folder.join("unpack").display()
+        ),
+    )
+    .expect("a manifest");
+    knowledge_graph::compiler::compile_manifest(&format!(
+        "file:{}",
+        folder.join("graphs.yaml").display()
+    ));
+    let (lines, in_route, out_route) = open_console(platform, &po, "100042").await;
+    command(&po, &in_route, &out_route, "list graphs").await;
+    assert!(
+        console_gets(
+            &lines,
+            "unit-test-set-listed - a graph from a set (set listed-set, version 2.0.0)"
+        )
+        .await,
+        "{:?}",
+        lines.lock().expect("console")
+    );
+    command(
+        &po,
+        &in_route,
+        &out_route,
+        "import graph from unit-test-set-listed",
+    )
+    .await;
+    assert!(
+        console_gets(&lines, "Graph model imported").await,
+        "{:?}",
+        lines.lock().expect("console")
+    );
+    let root = knowledge_graph::session::get_graph_model(&in_route)
+        .expect("a draft")
+        .get_root_node()
+        .expect("the root node");
+    assert_eq!(
+        Some(Value::from("unit-test-set-listed")),
+        root.get_property("name")
+    );
+    knowledge_graph::graphs::remove_graph("unit-test-set-listed");
+    let _ = std::fs::remove_dir_all(&folder);
 }
 
 /// The export guard validates the root name only when one is DECLARED: a missing or

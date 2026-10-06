@@ -55,6 +55,21 @@ fn locations() -> &'static RwLock<HashMap<String, String>> {
 }
 
 /// every manifest's deployed location, in manifest order
+/// The graph set a deployed graph came from (ADR-0027 in the Java repository's ledger; Java
+/// `CompiledGraphs.DeployedSet`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeployedSet {
+    /// The set name, which is the package's file name without `.pack`.
+    pub name: String,
+    /// The set's `version` manifest field, empty when the set has none.
+    pub version: String,
+}
+
+fn sets() -> &'static RwLock<HashMap<String, DeployedSet>> {
+    static GRAPH_SETS: OnceLock<RwLock<HashMap<String, DeployedSet>>> = OnceLock::new();
+    GRAPH_SETS.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
 fn deployed_locations_slot() -> &'static RwLock<Vec<String>> {
     static DEPLOYED_LOCATIONS: OnceLock<RwLock<Vec<String>>> = OnceLock::new();
     DEPLOYED_LOCATIONS.get_or_init(|| RwLock::new(Vec::new()))
@@ -79,6 +94,33 @@ pub fn graph_exists(graph_id: &str) -> bool {
 
 /// Register a compiled graph model and the deployed location it was compiled from.
 pub fn add_graph(graph_id: &str, model: Value, location: &str) {
+    sets()
+        .write()
+        .expect("graph sets poisoned")
+        .remove(graph_id);
+    register(graph_id, model, location);
+}
+
+/// Register a compiled graph model that came from a graph set.
+pub fn add_set_graph(graph_id: &str, model: Value, location: &str, set: DeployedSet) {
+    sets()
+        .write()
+        .expect("graph sets poisoned")
+        .insert(graph_id.to_string(), set);
+    register(graph_id, model, location);
+}
+
+/// The graph set a compiled graph came from (`None` when a manifest lists the graph or it is
+/// not compiled).
+pub fn graph_set(graph_id: &str) -> Option<DeployedSet> {
+    sets()
+        .read()
+        .expect("graph sets poisoned")
+        .get(graph_id)
+        .cloned()
+}
+
+fn register(graph_id: &str, model: Value, location: &str) {
     registry()
         .write()
         .expect("graph registry poisoned")
@@ -91,6 +133,10 @@ pub fn add_graph(graph_id: &str, model: Value, location: &str) {
 
 /// Drop a compiled graph model — a later manifest takes ownership of the id.
 pub fn remove_graph(graph_id: &str) {
+    sets()
+        .write()
+        .expect("graph sets poisoned")
+        .remove(graph_id);
     locations()
         .write()
         .expect("graph locations poisoned")
