@@ -354,7 +354,14 @@ layers shipped; the two above have held through every re-verify.)*
   input as an empty map and `EventEnvelope` carries a struct-level serde default (its `id` had none), so `from_bytes(&[])` is an
   empty envelope with a fresh id as on Java and the Event API answers an empty body `400 Missing routing path`; the canonical
   decoder keeps refusing empty input, and the shared file carries the case as the first `canonical: reject` control. Lesson: parity believed is not parity tested - the shared-file method caught a divergence
-  the first time it ran. Extends [[msgpack-nesting-limit-64-rust]].
+  the first time it ran. Extends [[msgpack-nesting-limit-64-rust]]. **Exactly one value (Increment 165, branch `fix/msgpack-trailing-bytes` `14c0a687`, PR
+  pending; the Java twin on the Java repository's branch of the same name):** an independent correctness review of the Java codec found
+  that both engines' event codecs read one value and ignored what followed (`80 c1` decoded as an empty map) while both canonical
+  decoders refused it; the Java engine fixed it as the reference and this engine follows - `from_msgpack` probes for a `u8` after the
+  value (only a missing marker fails as `InvalidMarkerRead`/`UnexpectedEof`, since the probe reads at most nine bytes) and refuses the
+  rest as `Unexpected bytes after the value at offset N`, at no cost on a clean input; the shared file gains `80 c1` and `80 c0` (24
+  rejects), claim `msgpack-exactly-one-value`. Lesson: a probe for the end of the input must read a bounded number of bytes - an
+  `IgnoredAny` probe ends inside a trailing truncated container with the same error a clean end gives.
   <!-- id: msgpack-hostile-header-vectors-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 1 | tier: working | origin: 2026-10-06-185502 -->
 
 ## Conventions
