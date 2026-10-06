@@ -4335,3 +4335,59 @@ matches, so a filter that matched one node gave a bare value here and a one-elem
   Event Script syntax page, which states the rule; the knowledge-graph grammar's `$.…` entry points at it.
 
 Gates: `cargo test` for the workspace, `check-doc-claims`, `check-llms-links`.
+
+## Increment 158 — The graph packager: pack, unpack and inspect graph sets from the command line (2026-10-05)
+
+RFC-0005 (graph sets, decided by Eric on 2026-10-03) starts with its first two work packages, in lock-step with the Java engine:
+the deployment gate becomes one shared function (WP1), and a command line packs graph sets with it (WP2). The package is the
+canonical package of ADR-0026; this is its first consumer.
+
+- **WP1, the gate as a function.** The compiler's static checks - the deprecated mapping syntax converted in place, the structural
+  import, the root node's `purpose`, an `end` node and `model_validator::validate` - move from `compiler.rs` to
+  `knowledge_graph::model_gate::validate(graph_id, &mut model)`, which `compiler::load_and_validate` now calls (no change in
+  behavior; the property-aware mapping-entry test moved with the code). The module also holds the file-name rule
+  (`is_valid_graph_id`, which `commands.rs` now delegates to) and `declared_root_name`. Java twin: `GraphModelGate`.
+- **The set rules.** `knowledge_graph::graph_set` (Java twin: `GraphSet`, messages word for word): `pack` refuses with every reason -
+  the set name and graph ids by the file-name rule, a root `name` that differs from its graph id, the reserved manifest fields
+  (`set` is written from the set name, `format` and `format_version` by the packager), a `graph_id` that names no graph, and every
+  gate failure, checked on a copy read the way the gate reads a deployed graph (`ConfigReader::from_map`, references resolved)
+  while the model is packed as written; `read` strict-reads and checks entry names, root names, binary values and `graph_id` before
+  a name becomes a path; `to_json` writes readable JSON in canonical key order.
+- **WP2, the command line.** The new workspace member `tools/graph-packager` (`mercury-graph-packager`, binary `graph-packager`,
+  `publish = false`, so the release's `cargo publish --workspace` leaves it out): `pack` (files, a folder, or `--from-manifest
+  graphs.yaml`, whose `classpath:` location is refused with a hint), `unpack`, `inspect [--json]`; exit codes 0, 1 (a refused input)
+  and 2 (an I/O or format error); log lines on standard error at `warn` (`RUST_LOG` overrides), so `inspect --json` is pure JSON.
+  Fourteen tests in `tests/cli.rs`, twins of the Java `GraphPackagerTest`.
+- **Cross-engine proof** (the interop report gains an addendum). Both command lines pack the 14 tutorials to identical bytes
+  (20,274 bytes, SHA-256 `4715598820261ca6…`), print identical `inspect` reports, unpack each other's files to identical JSON and
+  re-pack them to the original bytes; on the 52 fixtures byte-identical in both repositories both gates refuse the same 18 graphs
+  (17 reasons word for word; the eighteenth names `graph.js` only in Java), and the 34 accepted fixtures pack to identical bytes
+  (44,776 bytes, `7acbad4d862f2092…`). Negative control: one character changed in one tutorial changes the bytes.
+- **A graph holds no null property (Eric's ruling, 2026-10-05: "`"key": null` is not allowed and should be filtered out"; an empty
+  string is allowed).** Found while building the packager: the Java configuration reader drops a null-valued key when it normalizes
+  a graph (the engine's serializer drops one by default too), while this reader kept it and `MiniGraph::import_graph` refused it
+  ("value cannot be null"), so a graph holding `"key": null` deployed on Java and was refused here, by the compiler and the packager
+  alike. Now `model_gate::without_null_properties` filters a map entry whose value is null, at every depth - `"key": ""` stays,
+  and a list keeps its elements in place - in `compiler::load_raw_graph` (the startup compiler and `instantiate graph`) and in
+  `graph_set::pack` and `read`. It is `serializer::strip_nulls_always`, the transport serializer's strip without its switch, so
+  `serializer.null.transport=true` (which keeps nulls on the event transport) changes nothing in a graph or a package; the CLI
+  test `the_null_transport_switch_does_not_reach_the_package` turns the switch on, shows the switched strip keeping a null, and
+  packs the same bytes.
+- **The deploy read reproduces Java's normalization; the draft import filters nulls (Eric approved both, 2026-10-05, as options A
+  and E of the alignment write-up).** Probing both engines' graph read with the same inputs showed that the Java configuration
+  reader drops more than nulls: its flatten-and-rebuild also removes an empty map or list (and one left empty), turns such an
+  element inside a list into null and drops it at the end - so a mapping list ending in null passed the Java gate and failed this
+  one, and an empty `{}` property deployed here but not there. `model_gate::normalize_graph` reproduces that after this
+  engine's configuration reader (which already splits dotted keys the same way); `compiler::load_raw_graph` (startup and
+  `instantiate graph`) and the packager's check copy apply it. A shared vector file,
+  `tests/resources/graph-read-normalization-vectors.json` (byte-identical with the Java engine's test resources), pins the read
+  in both engines (`compiler::tests::the_graph_read_follows_the_shared_normalization_vectors`, Java `GraphSetTest`). The Playground's
+  draft import (`commands::import_graph_model`, the one place the REST import, its replay and `import graph from` pass) and
+  `validate_graph_model` filter `"key": null` first: `import graph from` reads a file as text, so a deployed graph holding a null
+  could not be imported before. Negative control: without the filter the new playground step reads `Graph model not imported -
+  value cannot be null`. Java twin: `GraphCommandService.importGraphAsDraft` and `validateGraphModel`. Pinned by `compiler::tests::a_deployed_null_property_is_filtered_out`, the `graph_set` and
+  `model_gate` unit tests and the CLI test `a_null_property_is_filtered_out_when_packed`; both command lines pack a graph holding
+  nulls to identical bytes (336, `f2517ea7c0402067…`). Java twin: `GraphModelGate.withoutNullProperties`.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test` for the workspace,
+`check-doc-claims`, `check-llms-links`.

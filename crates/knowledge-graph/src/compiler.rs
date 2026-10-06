@@ -37,6 +37,10 @@
 //!    rules ([`crate::model_validator`]); the runtime guards remain the
 //!    enforcement floor for the playground dry-run surface.
 //!
+//! The four checks read the model alone, so they live in
+//! [`crate::model_gate`], which the graph packager shares: a graph set is
+//! refused at pack time for the reasons this gate would reject it at startup.
+//!
 //! CompileGraph is the deployment gate: set `graph.model.automation` to a
 //! YAML manifest — or, since 4.12.19, a comma-separated list of manifests, each
 //! with its own `location`, the later manifest winning a duplicate graph id —
@@ -53,18 +57,12 @@
 //! since they are not known ahead of time (the playground dry-run runs from
 //! its own temp workspace).
 
-use event_script::converter;
-use event_script::mlm::MultiLevelMap;
-use platform_core::graph::MiniGraph;
 use platform_core::{AppConfigReader, ConfigReader, ConfigValue};
 use rmpv::Value;
 
 use crate::graphs;
-use crate::model_validator;
+use crate::model_gate;
 
-const INPUT: &str = "input";
-const MAPPING_PROPERTIES: &[&str] = &["mapping", INPUT, "output", "for_each"];
-const MAP_TO: &str = "->";
 const LOCATION: &str = "location";
 const DEFAULT_DEPLOY_DIR: &str = "classpath:/graph";
 const FILE_PREFIX: &str = "file:/";
@@ -156,9 +154,12 @@ fn compile_one_graph(deploy_location: &str, graph_id: &str) {
     }
 }
 
-/// Load a graph JSON as an rmpv value with `${...}` references resolved —
-/// the raw form the startup compiler shares with the playground's temp
-/// workspace import (Java uses `ConfigReader` in both places).
+/// Load a graph JSON as an rmpv value with `${...}` references resolved and
+/// normalized the way the Java engine reads it — the raw form the startup
+/// compiler shares with the playground's temp workspace import (Java uses
+/// `ConfigReader` in both places, whose normalization drops nulls, empty maps
+/// and empty lists; this reader keeps them, so [`model_gate::normalize_graph`]
+/// is applied here).
 pub(crate) fn load_raw_graph(deploy_location: &str, graph_id: &str) -> Result<Value, String> {
     // pass the loader error through untouched (Java parity): a missing model
     // file logs the FULL normalized path — "Rejected graph g1 -
@@ -167,101 +168,20 @@ pub(crate) fn load_raw_graph(deploy_location: &str, graph_id: &str) -> Result<Va
     let reader = ConfigReader::load(&normalized_path(deploy_location, graph_id))
         .map_err(|e| e.to_string())?;
     let json = ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
-    Ok(event_script::conversions::from_json(&json))
+    // a graph holds no null property ("key": null) and no empty map or list, while "key": "" is a value
+    Ok(model_gate::normalize_graph(
+        &event_script::conversions::from_json(&json),
+    ))
 }
 
 fn load_and_validate(deploy_location: &str, graph_id: &str) -> Result<Value, String> {
     // the ConfigReader load resolves ${...} references against the app
     // config, exactly like the Java loader
     let mut model = load_raw_graph(deploy_location, graph_id)?;
-    convert_data_mapping_entries(graph_id, &mut model)?;
-    // structural validation - a malformed graph is rejected with an error log
-    let graph = MiniGraph::new();
-    graph
-        .import_graph(&model)
-        .map_err(|e| e.message().to_string())?;
-    // discovery contract: every deployable graph documents itself - the root
-    // node's 'purpose' is what `list graphs` shows as living documentation
-    if !has_root_purpose(&model) {
-        return Err("root node must define a non-empty 'purpose' property".to_string());
-    }
-    // every run must be able to complete - the graph executor trusts this at runtime
-    if graph.get_end_node().is_none() {
-        return Err("graph must have an 'end' node".to_string());
-    }
-    model_validator::validate(&graph)?;
+    // the gate's static checks, shared with the graph packager - converts
+    // deprecated mapping syntax in place
+    model_gate::validate(graph_id, &mut model)?;
     Ok(model)
-}
-
-fn has_root_purpose(model: &Value) -> bool {
-    let mm = MultiLevelMap::from_value(model.clone());
-    let Some(Value::Array(nodes)) = mm.get_element("nodes") else {
-        return false;
-    };
-    for i in 0..nodes.len() {
-        if mm.get_element(&format!("nodes[{i}].alias")) == Some(Value::from("root")) {
-            return matches!(
-                mm.get_element(&format!("nodes[{i}].properties.purpose")),
-                Some(Value::String(text)) if !text.as_str().unwrap_or_default().trim().is_empty()
-            );
-        }
-    }
-    false
-}
-
-fn convert_data_mapping_entries(graph_id: &str, model: &mut Value) -> Result<(), String> {
-    let mut mm = MultiLevelMap::from_value(model.clone());
-    let node_count = match mm.get_element("nodes") {
-        Some(Value::Array(nodes)) => nodes.len(),
-        _ => return Ok(()),
-    };
-    for i in 0..node_count {
-        for key in MAPPING_PROPERTIES {
-            let path = format!("nodes[{i}].properties.{key}");
-            if let Some(Value::Array(entries)) = mm.get_element(&path) {
-                let converted = convert_entries(graph_id, i, key, &entries)?;
-                if mm.set_element(&path, Value::Array(converted)).is_err() {
-                    log::error!("Unable to update {path} in graph {graph_id}");
-                }
-            }
-        }
-    }
-    *model = mm.to_value();
-    Ok(())
-}
-
-fn convert_entries(
-    graph_id: &str,
-    node_index: usize,
-    property: &str,
-    entries: &[Value],
-) -> Result<Vec<Value>, String> {
-    let mut converted = Vec::with_capacity(entries.len());
-    for entry in entries {
-        let line = event_script::conversions::display(entry);
-        if line.contains(MAP_TO) {
-            let converted_line = converter::convert(&line);
-            if converted_line != line {
-                log::warn!(
-                    "Deprecated syntax in graph {graph_id} node[{node_index}].{property} - \
-                     '{line}' converted to '{converted_line}'"
-                );
-            }
-            converted.push(Value::from(converted_line));
-        } else if property == INPUT {
-            // an 'input' entry without '->' is skill vocabulary, not a data mapping -
-            // e.g. the fetcher's dictionary parameter names and feature flags
-            converted.push(Value::from(line));
-        } else {
-            // a mapping/for_each/output entry is always a data mapping: a line
-            // without '->' is guaranteed to fail at runtime, so reject the graph
-            // (this module is a quality gate - a compiled graph must be runnable)
-            return Err(format!(
-                "node [{node_index}].{property} - missing '{MAP_TO}' in '{line}'"
-            ));
-        }
-    }
-    Ok(converted)
 }
 
 /// Java `getNormalizedPath`: rejoin the folder on single slashes, keep the
@@ -274,23 +194,77 @@ fn normalized_path(folder: &str, graph_id: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use event_script::mlm::MultiLevelMap;
 
-    /// Property-aware mapping-entry rejection (the fetcher-vocabulary nuance):
-    /// a bare `input` entry is skill vocabulary (e.g. dictionary parameter
-    /// names) and passes; the same shape in mapping/for_each/output is a
-    /// guaranteed runtime failure, so the gate rejects the graph.
+    /// A deployed graph holding `"key": null` compiles, as on the Java engine,
+    /// whose configuration reader drops a null-valued key when it normalizes the
+    /// graph; `"key": ""` stays a value.
     #[test]
-    fn bare_input_entries_are_vocabulary_not_mappings() {
-        let entries = vec![Value::from("payload"), Value::from("dictionary")];
-        let passed = convert_entries("g", 0, "input", &entries).expect("input passes");
-        assert_eq!(entries, passed);
-        for property in ["mapping", "for_each", "output"] {
-            let err = convert_entries("g", 3, property, &entries)
-                .expect_err("a bare data-mapping entry must reject the graph");
+    fn a_deployed_null_property_is_filtered_out() {
+        let dir =
+            std::env::temp_dir().join(format!("compiler-null-property-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("a folder");
+        std::fs::write(
+            dir.join("nulls.json"),
+            r#"{"nodes": [
+              {"alias": "root", "types": ["Root"],
+               "properties": {"purpose": "null properties", "name": "nulls", "note": null, "empty": ""}},
+              {"alias": "end", "types": ["End"], "properties": {}}],
+             "connections": [{"source": "root", "target": "end",
+                              "relations": [{"type": "done", "properties": {"x": null}}]}]}"#,
+        )
+        .expect("a graph file");
+        let model = load_and_validate(&format!("file:{}", dir.display()), "nulls");
+        let _ = std::fs::remove_dir_all(&dir);
+        let mm =
+            MultiLevelMap::from_value(model.expect("a null property is filtered out, not refused"));
+        assert_eq!(None, mm.get_element("nodes[0].properties.note"));
+        assert_eq!(
+            Some(Value::from("")),
+            mm.get_element("nodes[0].properties.empty")
+        );
+        assert_eq!(
+            None,
+            mm.get_element("connections[0].relations[0].properties.x")
+        );
+    }
+
+    /// The graph read reproduces the Java configuration reader's normalization -
+    /// nulls, empty maps and empty lists carry no value; inside a list such an
+    /// element keeps its place as null unless nothing with a value follows - with
+    /// the vector file the Java engine's `GraphSetTest` reads too (byte-identical).
+    #[test]
+    fn the_graph_read_follows_the_shared_normalization_vectors() {
+        let vectors: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/tests/resources/graph-read-normalization-vectors.json"
+            ))
+            .expect("the vector file"),
+        )
+        .expect("JSON");
+        let dir = std::env::temp_dir().join(format!("graph-read-vectors-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("a folder");
+        let location = format!("file:{}", dir.display());
+        let cases = vectors["cases"].as_array().expect("cases");
+        assert!(!cases.is_empty());
+        for case in cases {
+            let name = case["name"].as_str().expect("a name");
+            std::fs::write(dir.join(format!("{name}.json")), case["input"].to_string())
+                .expect("written");
+            let read = load_raw_graph(&location, name).expect("read");
+            let expected = event_script::conversions::from_json(&case["expected"]);
             assert_eq!(
-                format!("node [3].{property} - missing '->' in 'payload'"),
-                err
+                platform_core::canonical_packager::encode(&expected).expect("encodes"),
+                platform_core::canonical_packager::encode(&read).expect("encodes"),
+                "{name}: {}",
+                event_script::conversions::to_json(&read).expect("JSON")
             );
+            if case["gate"] == "accepted" {
+                let mut model = read;
+                assert!(model_gate::validate(name, &mut model).is_ok(), "{name}");
+            }
         }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -1209,6 +1209,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "mercury-graph-packager"
+version = "4.12.20"
+dependencies = [
+ "log",
+ "mercury-event-script",
+ "mercury-knowledge-graph",
+ "mercury-platform-core",
+ "rmpv",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "mercury-knowledge-graph"
 version = "4.12.20"
 dependencies = [

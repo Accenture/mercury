@@ -1,6 +1,6 @@
 ---
 title: Interop Test Report — Canonical Package, Java ⇄ Rust
-summary: Permanent record of the byte-for-byte validation of the canonical MsgPack packager between the Java and Rust engines - the 14 tutorial graphs and 50 test graph fixtures packed by each engine, compared with a binary diff and cross-read - kept as the release evidence for the packager.
+summary: Permanent record of the byte-for-byte validation of the canonical MsgPack packager between the Java and Rust engines - the 14 tutorial graphs and 50 test graph fixtures packed by each engine, compared with a binary diff and cross-read, and the two graph packager command lines of RFC-0005 compared the same way - kept as the release evidence for the packager.
 layer: reference
 audience: [developer, architect]
 keywords: [interop, canonical package, msgpack, byte for byte, packager, rust, tutorials, test report]
@@ -152,6 +152,50 @@ Then `cmp java.pkg rust.pkg` (exit 0) and `shasum -a 256` on both. For the cross
 other engine's `unpack` and re-pack the entries; for the negative control, replace the packager with
 `MsgPack.packMapOrList` and `rmpv::encode::write_value`.
 
+## Addendum: the graph packager command lines (RFC-0005)
+
+*Conducted 2026-10-05 on the `feature/graph-packager-cli` branch of each repository, which adds the graph packager: Java
+`helpers/graph-packager` (an executable jar) and Rust `tools/graph-packager` (a binary).* Each command line reads graph
+files with its engine's JSON reader, checks every graph with its engine's deployment gate and writes with its engine's
+packager, so the question widens: **do the two command lines produce the same `.pack` file, accept the same graphs and read
+each other's files?** Both ran the same command on byte-identical inputs:
+
+```bash
+graph-packager pack --set tutorials --manifest version=4.12.20 --manifest description="The tutorial graphs" --out <dir> <graphs>
+```
+
+| Check | Outcome |
+|---|---|
+| The 14 tutorials, packed by each command line | **identical**: 20,274 bytes, SHA-256 `4715598820261ca6c98617fd124cdfb15f3c6cd138b0e9dffabde3adac7f051f` |
+| `inspect` and `inspect --json` of that file, run by each command line | **identical output**, text and JSON |
+| Each command line unpacks the file the other wrote | accepted; the 14 unpacked JSON files are **identical** across the engines |
+| Each command line packs the folder the other unpacked | **identical** to the original bytes |
+| The gate on the 52 fixtures that are byte-identical in both repositories | both refuse the **same 18 graphs**; 17 reasons are word for word the same, and the eighteenth differs only because the Java message for a misplaced `ttl` also names `graph.js`, which the Rust engine does not register |
+| The 34 fixtures both gates accept, packed by each command line | **identical**: 44,776 bytes, SHA-256 `7acbad4d862f209205468a1ef6cbd10af6eb59bdcade285a5f5120cbabe712f2` |
+| A graph holding `"key": null` (a root property and a relation property) and `"key": ""`, packed by each command line | **identical**: 336 bytes, SHA-256 `f2517ea7c0402067ab26afc2a02bcf24c8401012b76f782b40b625ab8b7330a2`; the null properties are filtered out, the empty string is kept, and the unpacked files are identical |
+| **Negative control**: one character changed in one tutorial (`hello world` to `hello World`) before the Rust pack | the files **differ** (`cmp` exit 1) |
+
+The tutorial package is 38 bytes longer than Leg 1's because its manifest holds `set`, `version` and `description`
+instead of `set` alone: the manifest is content, so it is part of the bytes.
+
+**One difference between the engines, found by this drive and closed in the same change.** When it normalizes a graph, the
+Java configuration reader drops a key whose value is null, as the engine's serializer does by default, while the Rust reader
+kept it and the Rust graph import refused a null property: a graph holding `"key": null` deployed on Java and was refused on
+Rust, by the startup gate and by the packager alike. The rule is now one rule in both engines: **a graph holds no null
+property**. A map entry whose value is null is filtered out, at every depth, when a graph is deployed, packed or read; an
+empty string (`"key": ""`) is a value and is kept, and a list keeps its elements in place. The null graph's row above is the
+proof. The rule does not follow `serializer.null.transport`, the switch with which platform-core's serializers keep nulls on
+the event transport: both packagers write through the canonical packager, never through those serializers, and both engines'
+tests pack the same bytes with the switch on (Java in a second JVM, where `SimpleMapper` is shown keeping a null first).
+The read at deployment now agrees beyond nulls too: the Rust engine reproduces the Java configuration reader's normalization of
+a graph (an empty map or list is dropped, and inside a list such an element is null when a value follows it and dropped at the
+end), pinned by the vector file `graph-read-normalization-vectors.json`, byte-identical in both repositories.
+
+To reproduce, build each command line from its branch and run the command above on
+`system/minigraph-playground-engine/src/main/resources/graph` (Java,
+`java -jar helpers/graph-packager/target/graph-packager-<version>.jar`) and on `crates/knowledge-graph/resources/graph`
+(Rust, `cargo run -p mercury-graph-packager --`), then `cmp` the two files.
+
 ## Conclusion
 
 The Java and Rust engines write **identical bytes** for the real graph models the Playground ships: 14 of 14 tutorials and
@@ -159,4 +203,5 @@ The Java and Rust engines write **identical bytes** for the real graph models th
 read. The same comparison fails on all 14 graphs without the packager, so the agreement is the packager's doing and the
 method can see a divergence. Together with the vector file, which holds the typed corners, the contract of the
 [Canonical Package Format](../guides/canonical-package-format.md) is verified across both engines from synthetic and from real
-content.
+content. Since RFC-0005 the same holds for the graph packager command lines: they pack the tutorials and the fixtures both
+gates accept to identical files, refuse the same graphs and read each other's packages.

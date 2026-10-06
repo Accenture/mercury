@@ -1923,10 +1923,7 @@ async fn handle_connect(
 // ---- export / import / instantiate ----
 
 fn valid_graph_file_name(name: &str) -> bool {
-    !name.is_empty()
-        && name
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+    crate::model_gate::is_valid_graph_id(name)
 }
 
 async fn handle_export(
@@ -2090,7 +2087,10 @@ async fn import_graph_model(po: &PostOffice, in_route: &str, out_route: &str, gr
     let Some(graph) = session::get_graph_model(in_route) else {
         return;
     };
-    if let Err(e) = graph.import_graph(graph_model) {
+    // the one place every import passes (the REST import, its replay to the members of a shared session,
+    // and `import graph from` a file or a deployed model): a graph holds no null property, so a
+    // "key": null is filtered out first, whatever serializer.null.transport let through
+    if let Err(e) = graph.import_graph(&crate::model_gate::without_null_properties(graph_model)) {
         say(
             po,
             out_route,
@@ -2543,8 +2543,11 @@ pub async fn upload_content(platform: &Platform, id: &str, content: Value) -> bo
 /// (a list, mandatory) and `connections` (a list, optional - a work in progress may
 /// have none). The model is then parsed by the same importer the session uses, so a
 /// node without alias or types is refused here instead of failing later in the
-/// session. CompileGraph remains the quality gate for everything else.
+/// session. CompileGraph remains the quality gate for everything else. A graph
+/// holds no null property, so a `"key": null` is filtered out before the checks
+/// (as the import does), whatever `serializer.null.transport` let through.
 pub fn validate_graph_model(content: &Value) -> Result<(), String> {
+    let content = &crate::model_gate::without_null_properties(content);
     let Value::Map(entries) = content else {
         return Err("A graph model is a JSON object with a 'nodes' section".to_string());
     };
@@ -2743,5 +2746,33 @@ mod tests {
             "anchored: one command passes per ~1 s"
         );
         assert!(!is_duplicate(route, "erase"), "a different command passes");
+    }
+
+    /// A graph holds no null property, whatever `serializer.null.transport` lets
+    /// through the event transport: the import filters `"key": null` out before it
+    /// checks the model, and an empty string stays a value.
+    #[test]
+    fn an_imported_null_property_is_filtered_out() {
+        let json: serde_json::Value = serde_json::from_str(
+            r#"{"nodes": [
+              {"alias": "root", "types": ["Root"], "properties": {"purpose": "p", "note": null, "empty": ""}},
+              {"alias": "end", "types": ["End"], "properties": {}}],
+             "connections": [{"source": "root", "target": "end", "relations": [{"type": "done", "properties": {"x": null}}]}]}"#,
+        )
+        .expect("JSON");
+        // the input holds the null; the importer alone would refuse it ("value cannot be null")
+        assert!(json["nodes"][0]["properties"]
+            .as_object()
+            .is_some_and(|p| p["note"].is_null() && p.contains_key("note")));
+        let model = event_script::conversions::from_json(&json);
+        assert_eq!(Ok(()), super::validate_graph_model(&model));
+        // the connections section given as null is absent, not "not a list"
+        let no_connections = event_script::conversions::from_json(
+            &serde_json::from_str(
+                r#"{"nodes": [{"alias": "root", "types": ["Root"]}], "connections": null}"#,
+            )
+            .expect("JSON"),
+        );
+        assert_eq!(Ok(()), super::validate_graph_model(&no_connections));
     }
 }

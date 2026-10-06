@@ -24,6 +24,9 @@ members = [
     "extensions/opentelemetry-forwarder",
     "benchmark/benchmark-reporter",
     "system/ai-contract-provider",
+    # the graph packager (RFC-0005): pack, unpack and inspect graph sets from the
+    # command line, twin of the Java helpers/graph-packager (publish = false)
+    "tools/graph-packager",
 
     "examples/hello-world",
     "examples/hello-flow",
