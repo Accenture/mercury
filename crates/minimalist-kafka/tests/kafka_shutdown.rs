@@ -51,6 +51,7 @@ const SETTLED_MEMBER: Duration = Duration::from_secs(4);
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn closing_a_flow_consumer_leaves_the_group_at_once() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let topic = "shutdown-test-topic";
     let group = "shutdown-test-group";
     let (cluster, config) = mock_cluster(topic, 2, group);
@@ -107,6 +108,7 @@ async fn closing_a_flow_consumer_leaves_the_group_at_once() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn stop_flow_consumers_stops_every_registered_consumer_and_is_idempotent() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let topic = "shutdown-hook-topic";
     let group = "shutdown-hook-group";
     let (cluster, config) = mock_cluster(topic, 1, group);
@@ -132,6 +134,7 @@ async fn stop_flow_consumers_stops_every_registered_consumer_and_is_idempotent()
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn close_publisher_delivers_the_lingering_records_then_forgets_the_handle() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // --- a record held back by the client's linger is delivered by the flush ---
     let topic = "shutdown-flush-topic";
     let cluster = MockCluster::new(1).expect("mock cluster");

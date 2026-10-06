@@ -261,7 +261,7 @@ async fn tutorial_14_purchase_workflow() {
     overrides::set("redis.host", "127.0.0.1");
     overrides::set("redis.port", &redis_port.to_string());
     overrides::set("rest.server.port", "0");
-    let holding = std::env::temp_dir().join(format!("tutorial-14-{}", std::process::id()));
+    let holding = test_support::temp_path("tutorial-14");
     overrides::set("transient.data.store", &holding.display().to_string());
     AutoStart::main(vec![]).await.expect("app lifecycle");
     let port = automation::server_address().expect("server started").port();

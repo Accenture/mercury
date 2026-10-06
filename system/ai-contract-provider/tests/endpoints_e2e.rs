@@ -54,7 +54,7 @@ async fn http_get(port: u16, path: &str) -> (u16, String) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn all_discovery_endpoints_serve_the_snapshot() {
-    let holding = std::env::temp_dir().join(format!("ai-contract-e2e-{}", std::process::id()));
+    let holding = test_support::temp_path("ai-contract-e2e");
     overrides::set("transient.data.store", &holding.display().to_string());
     // an ephemeral port keeps the test parallel-safe
     overrides::set("rest.server.port", "0");

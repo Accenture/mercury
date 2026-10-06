@@ -135,7 +135,7 @@ impl ComposableFunction for Untouched {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn preload_override_matches_java_semantics() {
     resources::prepend_resource_root("tests/resources");
-    let holding = std::env::temp_dir().join(format!("mercury-po-test-{}", std::process::id()));
+    let holding = test_support::temp_path("mercury-po-test");
     overrides::set("transient.data.store", &holding.display().to_string());
     // a missing file first in the chain is logged and SKIPPED, never an
     // error (Java chains classpath:/not-found.yaml to prove the same)

@@ -82,6 +82,7 @@ fn frame(id: i32, payload: &[u8]) -> Vec<u8> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn schema_codec_end_to_end() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let config = config();
     let _platform = http_platform();
     let registry = EmbeddedRegistry::start().await;

@@ -535,11 +535,10 @@ async fn server() -> TestServer {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         resources::prepend_resource_root("tests/resources");
-        let holding =
-            std::env::temp_dir().join(format!("mercury-rest-test-{}", std::process::id()));
+        let holding = test_support::temp_path("mercury-rest-test");
         overrides::set("transient.data.store", &holding.display().to_string());
         // ephemeral port + a dedicated rest.yaml written to a temp file
-        let rest_file = std::env::temp_dir().join(format!("rest-{}.yaml", std::process::id()));
+        let rest_file = test_support::temp_path("rest.yaml");
         std::fs::write(&rest_file, REST_YAML).unwrap();
         overrides::set(
             "yaml.rest.automation",

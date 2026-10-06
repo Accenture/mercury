@@ -26,3 +26,5 @@ mercury-redis-test-double = { path = "../redis-test-double" }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util", "sync"] }
 uuid = { version = "1", features = ["v4"] }
+# one temporary folder per test process, removed when the process exits (dev-only)
+mercury-test-support = { path = "../../crates/test-support" }

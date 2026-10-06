@@ -123,6 +123,7 @@ fn bytes(text: &str) -> EventEnvelope {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn subject_driven_publish_frames_the_document() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     bootstrap_servers();
     let platform = Platform::get_instance();
     if !platform.has_route(ASYNC_HTTP_REQUEST) {

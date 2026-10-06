@@ -37,6 +37,7 @@ impl EntryPoint for CacheDisabledTestApp {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn nothing_registers_while_the_cache_is_not_enabled() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     platform_core::resources::prepend_resource_root("tests/resources");
     overrides::clear("redis.cache.enabled");
     AutoStart::main(vec![]).await.expect("lifecycle");

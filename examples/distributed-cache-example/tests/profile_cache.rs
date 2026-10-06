@@ -106,6 +106,7 @@ async fn crud_cycle(port: u16, base: &str, layer: i64, id: &str) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn profile_crud_on_all_three_layers_over_one_cache() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let (redis_port, _raw_store, _journal) = common::start_resp_double("7.4.1").await;
     overrides::set("redis.host", "127.0.0.1");
     overrides::set("redis.port", &redis_port.to_string());

@@ -43,7 +43,7 @@ fn setup_config() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         resources::prepend_resource_root("tests/resources");
-        let holding = std::env::temp_dir().join(format!("mercury-bus-test-{}", std::process::id()));
+        let holding = test_support::temp_path("mercury-bus-test");
         overrides::set("transient.data.store", &holding.display().to_string());
         overrides::set("elastic.queue.segment.size.bytes", "512");
         let _ = AppConfigReader::get_instance();

@@ -85,6 +85,7 @@ fn is_empty_map(value: &Value) -> bool {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn transactional_consume_on_servers_older_than_6_2() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let (port, raw_store, journal) = common::start_resp_double("5.0.14").await;
     platform_core::resources::prepend_resource_root("tests/resources");
     overrides::set("redis.host", "127.0.0.1");

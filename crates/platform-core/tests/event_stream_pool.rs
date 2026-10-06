@@ -73,7 +73,7 @@ async fn server() -> u16 {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         resources::prepend_resource_root("tests/resources");
-        let rest_file = std::env::temp_dir().join(format!("rest-pool-{}.yaml", std::process::id()));
+        let rest_file = test_support::temp_path("rest-pool.yaml");
         std::fs::write(&rest_file, REST_YAML).unwrap();
         overrides::set(
             "yaml.rest.automation",
@@ -139,6 +139,7 @@ async fn settle_to(expected: usize) -> usize {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn pool_exhaustion_rejects_with_http_503_and_recovers() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let port = server().await;
     let _guard = pool_guard().lock().await;
     // drain the reply-lane pool: a streaming endpoint without an available
@@ -163,6 +164,7 @@ async fn pool_exhaustion_rejects_with_http_503_and_recovers() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_completed_stream_returns_its_lane_to_the_pool() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let port = server().await;
     let _guard = pool_guard().lock().await;
     let before = automation::available_lanes();
@@ -180,6 +182,7 @@ async fn a_completed_stream_returns_its_lane_to_the_pool() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn lane_checkout_rotates_through_the_pool() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let _port = server().await;
     let _guard = pool_guard().lock().await;
     // the pool is a rotating FIFO queue: a released lane rejoins at the tail,

@@ -93,7 +93,8 @@ impl EntryPoint for WsMacroApp {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn declarative_websocket_service_registers_through_the_lifecycle() {
-    let dir = std::env::temp_dir().join(format!("mercury-ws-macro-{}", std::process::id()));
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
+    let dir = test_support::temp_path("mercury-ws-macro");
     std::fs::create_dir_all(&dir).expect("temp dir");
     let rest_file = dir.join("rest.yaml");
     std::fs::write(&rest_file, "rest: []\n").expect("rest.yaml");

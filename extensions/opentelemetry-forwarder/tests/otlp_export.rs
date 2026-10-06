@@ -95,6 +95,7 @@ fn credential() -> Vec<(String, String)> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn exporter_end_to_end() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // the collector first: its random port must exist before the configuration
     // snapshot resolves ${OTEL_FWD_TEST_ENDPOINT}
     let collector = MockCollector::start().await;

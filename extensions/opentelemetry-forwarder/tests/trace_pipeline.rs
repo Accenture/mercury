@@ -118,6 +118,7 @@ impl ComposableFunction for Fun3 {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn traced_rpc_chain_produces_linked_spans() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let collector = MockCollector::start().await;
     std::env::set_var(
         "OTEL_FWD_TEST_ENDPOINT",

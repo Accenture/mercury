@@ -114,6 +114,7 @@ fn text(value: &[u8]) -> String {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn bytes_pass_verbatim_with_forwarded_headers_and_explicit_partition() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     call(
         &[
             ("topic", "t-partitioned"),
@@ -148,6 +149,7 @@ async fn bytes_pass_verbatim_with_forwarded_headers_and_explicit_partition() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn map_and_list_bodies_serialize_to_json_bytes() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     call(
         &[("topic", "t-json")],
         EventEnvelope::new()
@@ -175,6 +177,7 @@ async fn map_and_list_bodies_serialize_to_json_bytes() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn nil_body_publishes_a_tombstone() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     call(&[("topic", "t-nil")], EventEnvelope::new())
         .await
         .expect("tombstone publish");
@@ -184,6 +187,7 @@ async fn nil_body_publishes_a_tombstone() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn caller_input_errors_surface_with_java_parity_messages() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let missing_topic = call(&[], EventEnvelope::new()).await.expect_err("no topic");
     assert_eq!(400, missing_topic.status());
     assert_eq!("Missing 'topic' header", missing_topic.message());
@@ -230,6 +234,7 @@ async fn caller_input_errors_surface_with_java_parity_messages() {
 /// correlation id (carried as the my_correlation_id reserved header).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn correlation_id_falls_back_to_the_flow_cid() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     call(
         &[("topic", "t-cid"), ("my_correlation_id", "flow-cid-42")],
         EventEnvelope::new().set_raw_body(rmpv::Value::Binary(b"x".to_vec())),
@@ -251,6 +256,7 @@ async fn correlation_id_falls_back_to_the_flow_cid() {
 /// Kafka boundary.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn traced_publish_stamps_a_fresh_traceparent() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     bootstrap_servers();
     let platform = Platform::new();
     platform
@@ -292,6 +298,7 @@ async fn traced_publish_stamps_a_fresh_traceparent() {
 /// data (a sticky partitioner would put all 30 on one).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn keyless_records_spread_across_partitions() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     bootstrap_servers();
     // a dedicated producer built the library way (partitioner defaulted)
     let producer: FutureProducer = {

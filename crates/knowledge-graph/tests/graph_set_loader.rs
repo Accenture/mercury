@@ -201,6 +201,7 @@ async fn boot() -> Platform {
 /// first one started.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn graph_set_loader_end_to_end() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let platform = boot().await;
     a_set_deploys_its_graphs_and_the_endpoint_serves_them(&platform).await;
     a_set_with_a_graph_the_gate_refuses_registers_none();

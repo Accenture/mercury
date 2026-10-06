@@ -36,3 +36,5 @@ mercury-minimalist-kafka = { path = "../../crates/minimalist-kafka" }
 mercury-event-script = { path = "../../crates/event-script" }
 rdkafka = { version = "0.38", features = ["tokio"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util", "sync"] }
+# one temporary folder per test process, removed when the process exits (dev-only)
+mercury-test-support = { path = "../../crates/test-support" }

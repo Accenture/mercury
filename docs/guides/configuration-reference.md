@@ -513,9 +513,9 @@ consumers are slower than producers. Read by `crates/platform-core` (elastic que
 | boolean | `false` |
 
 When `false`, a per-instance subdirectory (`<application.name>-<origin>`) is created under
-`transient.data.store` and expired sibling stores are swept at startup. When `true`, the
-path is used as-is (for ephemeral containers). Read by `crates/platform-core` (elastic
-queue).
+`transient.data.store`, removed at a graceful shutdown, and expired sibling stores are swept at
+startup. When `true`, the path is used as-is (for ephemeral containers). Read by
+`crates/platform-core` (elastic queue).
 
 ## Serialization
 

@@ -50,6 +50,7 @@ fn echo() -> Arc<dyn ComposableFunction> {
 
 #[tokio::test]
 async fn registers_ordered_private_singleton_members() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let platform = Platform::new();
     let members = platform
         .register_route_pool("unit.test.pool.a", echo(), 3)
@@ -99,6 +100,7 @@ async fn registers_ordered_private_singleton_members() {
 
 #[tokio::test]
 async fn release_is_symmetric_and_absent_pool_returns_false() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let platform = Platform::new();
     assert!(!platform.release_route_pool("unit.test.no.such.pool"));
     platform
@@ -112,6 +114,7 @@ async fn release_is_symmetric_and_absent_pool_returns_false() {
 
 #[tokio::test]
 async fn re_registration_reloads_to_exactly_the_new_set() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let platform = Platform::new();
     platform
         .register_route_pool("unit.test.pool.c", echo(), 5)
@@ -129,6 +132,7 @@ async fn re_registration_reloads_to_exactly_the_new_set() {
 
 #[tokio::test]
 async fn invalid_arguments_are_rejected() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let platform = Platform::new();
     assert!(platform
         .register_route_pool("unit.test.pool.d", echo(), 0)
@@ -149,6 +153,7 @@ async fn invalid_arguments_are_rejected() {
 
 #[tokio::test]
 async fn individual_updates_to_members_are_tolerated_and_cleaned_up() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let platform = Platform::new();
     platform
         .register_route_pool("unit.test.pool.e", echo(), 3)
@@ -169,6 +174,7 @@ async fn individual_updates_to_members_are_tolerated_and_cleaned_up() {
 
 #[tokio::test]
 async fn neighbor_routes_outside_the_pool_range_are_untouched() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let platform = Platform::new();
     platform
         .register_private("unit.test.pool.f.10", echo(), 1)

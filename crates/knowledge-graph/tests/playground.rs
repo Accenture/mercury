@@ -92,7 +92,7 @@ impl platform_core::EntryPoint for PlaygroundTestApp {
 async fn boot() -> Platform {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
-        let dir = std::env::temp_dir().join(format!("mercury-playground-{}", std::process::id()));
+        let dir = test_support::temp_path("mercury-playground");
         std::fs::create_dir_all(&dir).expect("temp dir");
         overrides::set("location.graph.temp", &format!("file:{}", dir.display()));
         overrides::set("app.env", "dev");
@@ -158,6 +158,7 @@ async fn console_gets(lines: &Arc<Mutex<Vec<String>>>, needle: &str) -> bool {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn playground_command_grammar_and_companion() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let platform = boot().await;
     let po = PostOffice::new(&platform);
 
@@ -991,9 +992,7 @@ async fn a_graph_from_a_set_is_listed_with_its_set_and_imports(platform: &Platfo
 /// inside the single booted test.
 async fn export_name_guard_accepts_missing_and_rejects_mismatch(platform: &Platform) {
     let po = PostOffice::new(platform);
-    let file = std::env::temp_dir()
-        .join(format!("mercury-playground-{}", std::process::id()))
-        .join("export-guard-test.json");
+    let file = test_support::temp_path("mercury-playground").join("export-guard-test.json");
     let _ = std::fs::remove_file(&file);
 
     // an unnamed root exports fine when the file does not exist yet

@@ -140,7 +140,7 @@ impl ComposableFunction for EchoWs {
 async fn start_server(events: Arc<Mutex<Vec<String>>>) -> (u16, Platform) {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
-        let dir = std::env::temp_dir().join(format!("mercury-ws-test-{}", std::process::id()));
+        let dir = test_support::temp_path("mercury-ws-test");
         std::fs::create_dir_all(&dir).expect("temp dir");
         let rest_file = dir.join("rest.yaml");
         std::fs::write(&rest_file, "rest: []\n").expect("rest.yaml");
@@ -167,6 +167,7 @@ async fn start_server(events: Arc<Mutex<Vec<String>>>) -> (u16, Platform) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn websocket_sessions_follow_the_java_protocol() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let events: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     let (port, _platform) = start_server(events.clone()).await;
 

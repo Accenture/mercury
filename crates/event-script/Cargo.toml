@@ -40,3 +40,5 @@ bigdecimal = "0.4"
 # compile-fail guards for the macro surfaces (tests/ui)
 trybuild = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+# one temporary folder per test process, removed when the process exits (dev-only)
+mercury-test-support = { path = "../test-support" }

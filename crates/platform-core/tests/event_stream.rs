@@ -208,8 +208,7 @@ async fn server() -> u16 {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         resources::prepend_resource_root("tests/resources");
-        let rest_file =
-            std::env::temp_dir().join(format!("rest-stream-{}.yaml", std::process::id()));
+        let rest_file = test_support::temp_path("rest-stream.yaml");
         std::fs::write(&rest_file, REST_YAML).unwrap();
         overrides::set(
             "yaml.rest.automation",
@@ -349,6 +348,7 @@ fn plain(lines: &[TimedLine]) -> Vec<String> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sse_segments_arrive_progressively_with_terminal_done_event() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let port = server().await;
     let (status, head, lines) =
         stream_request(port, "/api/hello/stream?mode=sse", "text/event-stream").await;
@@ -387,6 +387,7 @@ async fn sse_segments_arrive_progressively_with_terminal_done_event() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn named_segments_become_typed_sse_events() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let port = server().await;
     let (_, _, lines) = stream_request(
         port,
@@ -409,6 +410,7 @@ async fn named_segments_become_typed_sse_events() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn multi_line_segment_splits_into_successive_data_lines() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let port = server().await;
     let (_, _, lines) = stream_request(
         port,
@@ -430,6 +432,7 @@ async fn multi_line_segment_splits_into_successive_data_lines() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn structured_segments_stream_as_json_lines_in_chunked_mode() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let port = server().await;
     let (status, head, lines) = stream_request(port, "/api/hello/stream?mode=ndjson", "*/*").await;
     assert_eq!(status, 200);
@@ -447,6 +450,7 @@ async fn structured_segments_stream_as_json_lines_in_chunked_mode() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn text_segments_append_in_chunked_mode() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let port = server().await;
     let (status, head, lines) =
         stream_request(port, "/api/hello/stream?mode=chunk", "text/plain").await;
@@ -459,6 +463,7 @@ async fn text_segments_append_in_chunked_mode() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mid_stream_failure_arrives_as_in_band_error_event() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let port = server().await;
     let (status, _, lines) =
         stream_request(port, "/api/hello/stream?mode=error", "text/event-stream").await;
@@ -480,6 +485,7 @@ async fn mid_stream_failure_arrives_as_in_band_error_event() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn failure_before_first_segment_is_a_normal_http_error() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let port = server().await;
     let (status, _, lines) = stream_request(
         port,
@@ -494,6 +500,7 @@ async fn failure_before_first_segment_is_a_normal_http_error() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn eof_only_stream_renders_terminal_event_immediately() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let port = server().await;
     let (status, head, lines) = stream_request(
         port,
@@ -513,6 +520,7 @@ async fn eof_only_stream_renders_terminal_event_immediately() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn keep_alive_comments_flow_while_the_producer_is_quiet() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // test configuration sets event.stream.keep.alive=1s; the producer is
     // quiet for 2.5s after its first segment
     let port = server().await;
@@ -529,6 +537,7 @@ async fn keep_alive_comments_flow_while_the_producer_is_quiet() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stalled_producer_times_out_in_band() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // the producer declares a one-second idle allowance (x-ttl) then goes
     // silent; the edge must fail the stream in-band
     let started = Instant::now();
@@ -554,6 +563,7 @@ async fn stalled_producer_times_out_in_band() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn arriving_segments_extend_the_idle_allowance() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // 3 segments 700ms apart under a 1s idle ttl: total 2.1s > ttl, but every
     // gap is within it - the per-segment arrival must keep the stream alive
     let port = server().await;
@@ -574,6 +584,7 @@ async fn arriving_segments_extend_the_idle_allowance() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn burst_segments_render_in_strict_fifo_order() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // 50 unpaced segments - the request's dedicated reply lane (a
     // single-instance route) must preserve exact FIFO order
     let port = server().await;
@@ -593,6 +604,7 @@ async fn burst_segments_render_in_strict_fifo_order() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn concurrent_streams_render_independently_and_in_order() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // four parallel 50-segment bursts: each request checks out its own
     // dedicated reply lane, so segments stay in strict FIFO while the
     // requests stream concurrently
@@ -620,6 +632,7 @@ async fn concurrent_streams_render_independently_and_in_order() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn response_header_transform_applies_to_the_streamed_head() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     // the endpoint declares "headers: header_2" (add x-stream-transform, drop
     // x-secret-header) - the streamed head must honor it like a single-shot
     // response; the stray x-stream-id is ignored (marker precedence)
@@ -647,6 +660,7 @@ async fn response_header_transform_applies_to_the_streamed_head() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unmarked_reply_on_a_streaming_endpoint_renders_single_shot() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let port = server().await;
     let (status, head, lines) =
         stream_request(port, "/api/hello/stream?mode=single-shot", "text/plain").await;
@@ -686,6 +700,7 @@ async fn captured_count(received: &Arc<Mutex<Vec<EventEnvelope>>>, at_least: usi
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn writer_speaks_the_multi_shot_reply_route_protocol() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let platform = Platform::new();
     let received = Arc::new(Mutex::new(Vec::new()));
     let route = "capture.stream.protocol";
@@ -748,6 +763,7 @@ async fn writer_speaks_the_multi_shot_reply_route_protocol() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn fail_maps_exceptions_to_the_in_band_error_contract() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let platform = Platform::new();
     let received = Arc::new(Mutex::new(Vec::new()));
     let route = "capture.stream.failure";
@@ -783,6 +799,7 @@ async fn fail_maps_exceptions_to_the_in_band_error_contract() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn writer_requires_a_reply_route() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let platform = Platform::new();
     assert!(EventStreamWriter::new(&platform, "", Some("cid")).is_err());
     let request_without_reply_to = EventEnvelope::new();

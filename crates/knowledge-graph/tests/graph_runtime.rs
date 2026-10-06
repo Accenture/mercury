@@ -442,6 +442,51 @@ impl EntryPoint for GraphRuntimeTestApp {
 
 // ---- helpers ----
 
+/// The inbound route of every Playground session a step opens, closed when the scenario ends.
+static OPENED: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// Create a session, mimicking the WebSocket "open" event.
+async fn open_session(po: &PostOffice, in_route: &str) {
+    OPENED
+        .lock()
+        .expect("opened sessions")
+        .push(in_route.to_string());
+    po.send(
+        EventEnvelope::new()
+            .set_to("graph.command.singleton")
+            .set_raw_body(rmpv::Value::Map(vec![
+                (rmpv::Value::from("type"), rmpv::Value::from("open")),
+                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+            ])),
+    )
+    .await
+    .expect("open dispatched");
+}
+
+/// Close every session the steps opened, as a closing WebSocket does, so the engine removes each
+/// session's draft from the graph temporary folder. A request, not a send: the reply comes after
+/// the session is closed.
+async fn close_sessions(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let opened = std::mem::take(&mut *OPENED.lock().expect("opened sessions"));
+    for in_route in opened {
+        po.request(
+            EventEnvelope::new()
+                .set_to("graph.command.singleton")
+                .set_raw_body(rmpv::Value::Map(vec![
+                    (rmpv::Value::from("type"), rmpv::Value::from("close")),
+                    (
+                        rmpv::Value::from("in"),
+                        rmpv::Value::from(in_route.as_str()),
+                    ),
+                ])),
+            Duration::from_secs(5),
+        )
+        .await
+        .expect("session closed");
+    }
+}
+
 async fn boot() -> Platform {
     platform_core::resources::prepend_resource_root("tests/resources");
     AutoStart::main(vec![]).await.expect("lifecycle");
@@ -580,6 +625,7 @@ async fn start_stub_peer(port: u16) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn graph_runtime_end_to_end() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let platform = boot().await;
     graphs_run_end_to_end_like_java(&platform).await;
     graph_task_matches_java_semantics(&platform).await;
@@ -619,6 +665,7 @@ async fn graph_runtime_end_to_end() {
     math_for_each_blocks_and_iteration(&platform).await;
     join_barrier_waits_for_a_retrying_branch(&platform).await;
     chained_join_counts_only_a_fired_upstream_join(&platform).await;
+    close_sessions(&platform).await;
 }
 
 /// Findings #62/#63 (HTTPS drive pre-flight): the `/sync` contract gaps.
@@ -631,16 +678,7 @@ async fn companion_sync_contract_gaps_closed(platform: &Platform) {
     let po = PostOffice::new(platform);
     let sid = "ws-770004-1";
     let in_route = "ws.770004.1.in";
-    po.send(
-        EventEnvelope::new()
-            .set_to("graph.command.singleton")
-            .set_raw_body(rmpv::Value::Map(vec![
-                (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
-            ])),
-    )
-    .await
-    .expect("open dispatched");
+    open_session(&po, in_route).await;
     for _ in 0..50 {
         if knowledge_graph::commands::has_session(sid) {
             break;
@@ -705,16 +743,7 @@ async fn companion_sync_contract_gaps_closed(platform: &Platform) {
     // the window — the second is dropped, so the console sees exactly one echo
     let sid2 = "ws-770005-1";
     let in2 = "ws.770005.1.in";
-    po.send(
-        EventEnvelope::new()
-            .set_to("graph.command.singleton")
-            .set_raw_body(rmpv::Value::Map(vec![
-                (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                (rmpv::Value::from("in"), rmpv::Value::from(in2)),
-            ])),
-    )
-    .await
-    .expect("open dispatched");
+    open_session(&po, in2).await;
     for _ in 0..50 {
         if knowledge_graph::commands::has_session(sid2) {
             break;
@@ -2136,16 +2165,7 @@ async fn companion_sync_returns_outcome_in_band(platform: &Platform) {
     let in_route = "ws.770001.1.in";
 
     // create the session (mimic the WebSocket "open" event)
-    po.send(
-        EventEnvelope::new()
-            .set_to("graph.command.singleton")
-            .set_raw_body(rmpv::Value::Map(vec![
-                (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
-            ])),
-    )
-    .await
-    .expect("open dispatched");
+    open_session(&po, in_route).await;
     for _ in 0..50 {
         if knowledge_graph::commands::has_session(sid) {
             break;
@@ -2257,16 +2277,7 @@ async fn mock_upload_loads_every_member_instance(platform: &Platform) {
         )
         .expect("register out tap B");
     for in_route in [in_a, in_b] {
-        po.send(
-            EventEnvelope::new()
-                .set_to("graph.command.singleton")
-                .set_raw_body(rmpv::Value::Map(vec![
-                    (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                    (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
-                ])),
-        )
-        .await
-        .expect("open dispatched");
+        open_session(&po, in_route).await;
     }
     for sid in [sid_a, sid_b] {
         for _ in 0..50 {
@@ -2410,16 +2421,7 @@ async fn companion_sync_rejects_session_topology_commands(platform: &Platform) {
     let in_route = "ws.770002.1.in";
     let peer = "ws-770001-1"; // the session opened by the previous helper
 
-    po.send(
-        EventEnvelope::new()
-            .set_to("graph.command.singleton")
-            .set_raw_body(rmpv::Value::Map(vec![
-                (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
-            ])),
-    )
-    .await
-    .expect("open dispatched");
+    open_session(&po, in_route).await;
     for _ in 0..50 {
         if knowledge_graph::commands::has_session(sid) {
             break;
@@ -2513,16 +2515,7 @@ async fn companion_sync_import_fallback_reports_ok(platform: &Platform) {
     let sid = "ws-770003-1";
     let in_route = "ws.770003.1.in";
 
-    po.send(
-        EventEnvelope::new()
-            .set_to("graph.command.singleton")
-            .set_raw_body(rmpv::Value::Map(vec![
-                (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
-            ])),
-    )
-    .await
-    .expect("open dispatched");
+    open_session(&po, in_route).await;
     for _ in 0..50 {
         if knowledge_graph::commands::has_session(sid) {
             break;
@@ -2763,6 +2756,8 @@ async fn suspend_resume_matches_java_semantics(platform: &Platform) {
         step_count("expiry", cid),
         "an expired record means a fresh run"
     );
+    // the run ends suspended, so its record is removed from the store folder
+    let _ = std::fs::remove_file(store_file("unit-test-suspend-5", cid));
 
     // --- forged record: the store is pluggable, so a record is EXTERNAL
     // input - reserved keys injected by a hostile writer must never reach
@@ -2956,6 +2951,9 @@ async fn same_cid_suspends_independently_per_graph(platform: &Platform) {
         store_file("unit-test-suspend-5", cid).exists(),
         "another graph's record for the same cid must survive"
     );
+    // the run ends suspended, so its record is removed from the store folder
+    let _ = std::fs::remove_file(store_file("unit-test-suspend-1", cid));
+    let _ = std::fs::remove_file(store_file("unit-test-suspend-5", cid));
 }
 
 /// The orchestrator pattern (Java `orchestratorParentDrivesSuspendingSubgraphPath`):
@@ -3258,16 +3256,7 @@ async fn companion_sync_inspect_error_shows_context(platform: &Platform) {
     let sid = "ws-770013-1";
     let in_route = "ws.770013.1.in";
 
-    po.send(
-        EventEnvelope::new()
-            .set_to("graph.command.singleton")
-            .set_raw_body(rmpv::Value::Map(vec![
-                (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
-            ])),
-    )
-    .await
-    .expect("open dispatched");
+    open_session(&po, in_route).await;
     for _ in 0..50 {
         if knowledge_graph::commands::has_session(sid) {
             break;
@@ -3531,16 +3520,7 @@ async fn companion_sync_inspect_error_reports_recovery(platform: &Platform) {
     let sid = "ws-770014-1";
     let in_route = "ws.770014.1.in";
 
-    po.send(
-        EventEnvelope::new()
-            .set_to("graph.command.singleton")
-            .set_raw_body(rmpv::Value::Map(vec![
-                (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
-            ])),
-    )
-    .await
-    .expect("open dispatched");
+    open_session(&po, in_route).await;
     for _ in 0..50 {
         if knowledge_graph::commands::has_session(sid) {
             break;
@@ -3629,16 +3609,7 @@ async fn companion_dry_run_resumes_across_instantiations(platform: &Platform) {
     let sid = "ws-770015-1";
     let in_route = "ws.770015.1.in";
 
-    po.send(
-        EventEnvelope::new()
-            .set_to("graph.command.singleton")
-            .set_raw_body(rmpv::Value::Map(vec![
-                (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
-            ])),
-    )
-    .await
-    .expect("open dispatched");
+    open_session(&po, in_route).await;
     for _ in 0..50 {
         if knowledge_graph::commands::has_session(sid) {
             break;
@@ -3757,16 +3728,7 @@ async fn companion_unnamed_draft_resumes_across_instantiations(platform: &Platfo
     let sid = "ws-770016-1";
     let in_route = "ws.770016.1.in";
 
-    po.send(
-        EventEnvelope::new()
-            .set_to("graph.command.singleton")
-            .set_raw_body(rmpv::Value::Map(vec![
-                (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
-            ])),
-    )
-    .await
-    .expect("open dispatched");
+    open_session(&po, in_route).await;
     for _ in 0..50 {
         if knowledge_graph::commands::has_session(sid) {
             break;
@@ -3949,16 +3911,7 @@ async fn companion_sync_pre_run_check_rejects_broken_suspend_contract(platform: 
     let sid = "ws-770011-3";
     let in_route = "ws.770011.3.in";
 
-    po.send(
-        EventEnvelope::new()
-            .set_to("graph.command.singleton")
-            .set_raw_body(rmpv::Value::Map(vec![
-                (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
-            ])),
-    )
-    .await
-    .expect("open dispatched");
+    open_session(&po, in_route).await;
     for _ in 0..50 {
         if knowledge_graph::commands::has_session(sid) {
             break;
@@ -4248,16 +4201,7 @@ async fn graph_import_loads_every_member_draft(platform: &Platform) {
         )
         .expect("register out tap B");
     for in_route in [in_a, in_b] {
-        po.send(
-            EventEnvelope::new()
-                .set_to("graph.command.singleton")
-                .set_raw_body(rmpv::Value::Map(vec![
-                    (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                    (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
-                ])),
-        )
-        .await
-        .expect("open dispatched");
+        open_session(&po, in_route).await;
     }
     for sid in [sid_a, sid_b] {
         for _ in 0..50 {
@@ -4401,16 +4345,7 @@ async fn companion_sync_instantiate_creates_model_cid(platform: &Platform) {
     let po = PostOffice::new(platform);
     let sid = "ws-770012-4";
     let in_route = "ws.770012.4.in";
-    po.send(
-        EventEnvelope::new()
-            .set_to("graph.command.singleton")
-            .set_raw_body(rmpv::Value::Map(vec![
-                (rmpv::Value::from("type"), rmpv::Value::from("open")),
-                (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
-            ])),
-    )
-    .await
-    .expect("open dispatched");
+    open_session(&po, in_route).await;
     for _ in 0..50 {
         if knowledge_graph::commands::has_session(sid) {
             break;

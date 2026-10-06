@@ -4464,3 +4464,31 @@ ADR-0027's third work package (WP3, the loader), in lock-step with the Java engi
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
 `check-doc-claims`, `check-llms-links`.
+
+## Increment 162 — Tests leave no temporary files behind (2026-10-06)
+
+Eric's rule: unit tests remove the temporary files they write when they complete, checked by measuring. In lock-step with the
+Java engine, whose shutdown hook now removes its emptied holding folder too (Eric's ruling).
+
+- **Measured first:** each test binary ran on its own, and everything newer than a marker in the system temp folder and `/tmp`
+  was listed. One workspace run left 36 entries in the system temp folder (the per-process folders the tests give
+  `transient.data.store` or `location.graph.temp`, and `rest-*-<pid>.yaml` files; 233 had built up) and one
+  `<app>-<uuid>/RUNNING` folder in `/tmp/reactive` for each of 33 binaries that keep the default store, because a test binary never
+  reaches the lifecycle's graceful exit, the only caller of `elastic_queue::shutdown_cleanup`. `graph_runtime` also left eight
+  Playground drafts in `/tmp/graph` and two suspend records, and `flow_runtime` the `/tmp/resilience` folder.
+- **`elastic_queue::shutdown_cleanup`** removes the per-instance folder once it has purged the segments and the marker
+  (`remove_holding_area`, unit-tested; not with `running.in.cloud`, and not a folder holding other files); CHANGELOG item 20. The
+  lifecycle test that called it moved to `tests/shutdown_cleanup.rs`, a process of its own, because the cleanup removes the holding
+  area that the other lifecycle tests share.
+- **`mercury-test-support`** (`crates/test-support`, dev-only, `publish = false`): `temp_root()` gives a test process one folder,
+  `<system temp>/mercury-test-<pid>`, and `run_at_exit(fn)` registers a cleanup; one `atexit` hook runs the cleanups and removes the
+  folder when the test harness exits, whether the tests passed or failed. The one `unsafe` call lives here, so platform-core stays
+  free of it (Eric chose the cleanup in test code over an exit hook in the engine).
+- **The tests:** 31 files point their per-process folders and `rest.yaml` files at `test_support::temp_path`; every test in the 33
+  default-store binaries registers `elastic_queue::shutdown_cleanup` with `run_at_exit` (and the two platform-core unit tests that
+  start a platform); `graph_runtime` closes the sessions it opens (the engine removes their drafts) and removes the two suspend
+  records; `flow_runtime` removes `/tmp/resilience` through a drop guard. The starter templates cannot depend on a workspace-only
+  crate, so their tests run the cleanup through a small drop guard.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`; and the per-binary measurement again, which lists nothing left behind.

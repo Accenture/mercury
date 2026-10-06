@@ -39,7 +39,7 @@ mod app;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn event_api_auth_accepts_shared_token_and_rejects_others() {
-    let holding = std::env::temp_dir().join(format!("hello-world-auth-{}", std::process::id()));
+    let holding = test_support::temp_path("hello-world-auth");
     overrides::set("transient.data.store", &holding.display().to_string());
     overrides::set("rest.server.port", "0");
     AutoStart::main(vec![]).await.expect("app lifecycle");

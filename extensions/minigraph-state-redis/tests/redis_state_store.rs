@@ -175,6 +175,7 @@ fn iteration_envelope(cid: &str, index: Option<&str>, node: &str) -> Value {
 // same runtime and the same test double.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn redis_state_store_contract() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let (port, raw_store, journal) = common::start_resp_double("7.4.1").await;
     platform_core::resources::prepend_resource_root("tests/resources");
     overrides::set("redis.host", "127.0.0.1");
