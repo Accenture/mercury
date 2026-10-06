@@ -81,8 +81,8 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    reader does. The claim `msgpack-hostile-header` states the rule in the envelope reference. Upgrade note: a `.pack` file
    holding `0xc1`, which no encoder writes, is now refused.
 
-7. **The engine packs and reads graph sets over REST (Increment 166, ADR-0027).** Two dev-mode endpoints, `POST /api/graph/pack`
-   (`pack.graph.set`, `rest::pack_graph_set`) and `POST /api/graph/unpack` (`unpack.graph.set`, `rest::unpack_graph_set`), listed in
+7. **The engine packs and reads graph sets over REST (Increment 166, ADR-0027).** Two dev-mode endpoints, `POST /api/graph-set/pack`
+   (`pack.graph.set`, `rest::pack_graph_set`) and `POST /api/graph-set/unpack` (`unpack.graph.set`, `rest::unpack_graph_set`), listed in
    the playground example's, the cache example's and the starter template's `rest.yaml` beside `import.graph.content`, so the
    Playground's coming "Package graphs" panel packs on the engine and never carries a packager of its own. `pack` takes
    `{"manifest": {"set": "<name>", ...}, "graphs": {"<graph-id>": <model>, ...}}` - `manifest.set` names the set and its file, every

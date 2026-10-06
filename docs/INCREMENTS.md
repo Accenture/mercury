@@ -4597,3 +4597,14 @@ can inspect a dropped package (D9).
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
 `check-doc-claims`, `check-llms-links`.
+
+## Increment 167 — The graph-set endpoints move to `/api/graph-set` (2026-10-06)
+
+Eric's review of WP4: `/api/graph/pack` and `/api/graph/unpack` collided with the graph executor's route `/api/graph/{graph_id}`, where a
+POST to `/api/graph/pack` is a run of a graph named `pack`. The two endpoints are now `POST /api/graph-set/pack` and
+`POST /api/graph-set/unpack` - the service names `pack.graph.set` and `unpack.graph.set` unchanged - in the three `rest.yaml` copies, the
+crate's test `rest.yaml` and `tests/graph_set_endpoints.rs`; the Java engine made the same move the same day. Nothing else changes:
+Increment 166's contract, messages and bytes stand.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+`check-doc-claims`, `check-llms-links`.

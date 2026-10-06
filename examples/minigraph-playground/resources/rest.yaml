@@ -73,13 +73,13 @@ rest:
 
   - service: 'pack.graph.set'
     methods: ['POST']
-    url: '/api/graph/pack'
+    url: '/api/graph-set/pack'
     timeout: 30s
     tracing: true
 
   - service: 'unpack.graph.set'
     methods: ['POST']
-    url: '/api/graph/unpack'
+    url: '/api/graph-set/unpack'
     timeout: 30s
     tracing: true
 

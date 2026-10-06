@@ -1,7 +1,7 @@
 //! The graph-set endpoints (ADR-0027 WP4), through the real HTTP edge, in lock-step with the Java
-//! `GraphSetEndpointTest`: `POST /api/graph/pack` answers the set as a download - the same bytes
+//! `GraphSetEndpointTest`: `POST /api/graph-set/pack` answers the set as a download - the same bytes
 //! `graph_set::pack` writes for the same graphs and fields - and refuses a graph that the import validation or
-//! the deployment gate refuses; `POST /api/graph/unpack` answers the manifest and the graphs of a package and
+//! the deployment gate refuses; `POST /api/graph-set/unpack` answers the manifest and the graphs of a package and
 //! refuses bytes that are not a canonical package or a set that breaks a rule.
 
 use std::collections::BTreeMap;
@@ -21,8 +21,8 @@ use rmpv::Value;
 
 const JSON: &str = "application/json";
 const OCTET_STREAM: &str = "application/octet-stream";
-const PACK: &str = "/api/graph/pack";
-const UNPACK: &str = "/api/graph/unpack";
+const PACK: &str = "/api/graph-set/pack";
+const UNPACK: &str = "/api/graph-set/unpack";
 const SET: &str = "unit-test-endpoint-set";
 const GRAPH_A: &str = "unit-test-endpoint-a";
 
