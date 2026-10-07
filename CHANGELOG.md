@@ -13,7 +13,23 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
-Each change merged to `main` after v4.12.20 is listed here; it moves under its release heading when the version is cut.
+Nothing yet. Each change merged to `main` after v4.12.21 is listed here; it moves under its release heading when the version is cut.
+
+---
+## Version 4.12.21, 10/7/2026
+
+The lock-step twin of Java 4.12.21 (Increments 148 to 169): graph sets, and a hardened MsgPack decoder. A graph set is one or
+more graph models packed as one deterministic `<set>.pack` (ADR-0027 in the Java repository): `tools/graph-packager` packs,
+unpacks and inspects it from the command line, the deployment manifest deploys it all or none through `sets` and an `unpack`
+folder, the Playground packs and reads one on the engine from its new **Graph set packaging** panel, and the lane is documented
+with five pinned claims. The decoders of both engines are pinned by shared, byte-identical vectors and read alike: at most 64
+nested levels, hostile headers refused, exactly one value per payload, empty input as an empty map. The Playground also imports
+and downloads graph files, runs in three explicit steps, has one webapp source (the Java repository, which deploys the bundle
+and the help pages here), and points its AI nodes at the LLM helper app. **Upgrade action: read items 1, 7, 11, 24 and 26.**
+A payload nested deeper than 64 levels, or followed by extra bytes, is refused with HTTP 400 at the Event API; empty input now
+decodes as an empty map; and an application that wants the new Playground features lists the `import.graph.content`,
+`pack.graph.set` and `unpack.graph.set` routes in its `rest.yaml`. Publication: the twelve crates at 4.12.21 on crates.io
+(`cargo publish --workspace` from the tag).
 
 ### Added
 
