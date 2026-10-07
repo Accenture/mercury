@@ -324,7 +324,8 @@ layers shipped; the two above have held through every re-verify.)*
   name as `manifest.set`;
   Increment 166, PR #364 merge `f89c0997`, MERGED 2026-10-06 23:03Z; Java twin #524), shipped; WP5, the Playground's "Graph set packaging" panel, shipped in PR #366 (merge `82aa3c86`, Increment 168; Java twin #526 squash
   `f84c40cb`), MERGED 2026-10-07 00:26Z - the bundle deployed from the Java repository, packing on the engine through
-  `/api/graph-set/pack`; WP6, the docs, remains. The one-graph rule is pinned by `tests/cli.rs`
+  `/api/graph-set/pack`; WP6, the docs, is OPEN as PR #367 (Increment 169, head `6bf21141`; Java twin #527) since 2026-10-07 - the
+  guide pages, `help package` with the mirrored help, five loader claims. The one-graph rule is pinned by `tests/cli.rs`
   `a_single_graph_is_packed_alone_so_it_can_be_signed` and its Java twin: one 327-byte set, SHA-256 `c500281a…` in both engines. A change
   that alters those bytes breaks the signatures made over the old ones. Java twin fact `graph-set-pack-and-deploy`; the sprint thread is the
   Java repository's `graph-set-packaging`. Relates [[graph-null-property-filtered-rust]].
