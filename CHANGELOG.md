@@ -159,12 +159,21 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    bundle was stale: it lacked the `graph.math` help of Increments 141, 143 and 145 (`CONDITION`, the expression dialect, `DECIMAL`),
    which now shows in the Playground.
 
+16. **The graph-set lane is documented (Increment 169, ADR-0027 WP6).** The configuration reference describes `sets`, `unpack`
+   and the loader's generated manifest under `graph.model.automation`; the canonical package format gains a *Graph sets* section
+   (the file, the entries, the manifest fields, the command line, the Playground panel, the deployment, the detached signature);
+   the AI agent guide's rapid-prototyping recipe gains the packaged path and the first-graph walkthrough points to it; the starter
+   template's manifest shows the keys in comments; the Playground's new `help package` topic (mirrored from the Java repository
+   with the regenerated bundle) explains the panel, the command line and the deployment; and five claims pin the loader's rules
+   on both engines - all or none, the ERROR for a duplicate that involves a set, the writable `unpack` folder of its own, a
+   crafted entry name refused before any file is written, and the next start's cleanup.
+
 ### Fixed
 
-16. **CI on Rust 1.99 (PR #344).** `Cargo.lock` moves `async-trait` from 0.1.89 to 0.1.92. Clippy 1.99's `double_must_use` flagged the
+17. **CI on Rust 1.99 (PR #344).** `Cargo.lock` moves `async-trait` from 0.1.89 to 0.1.92. Clippy 1.99's `double_must_use` flagged the
    `#[must_use]` that 0.1.89 puts on every async trait method, which failed the Clippy step on every branch of a workflow that floats on
    `stable`. Lockfile only: no crate changed, and nothing reaches the published crates.
-17. **Pasting a workspace-clipboard node into the MiniGraph Playground keeps scalar properties scalar (Increment 153).** The paste
+18. **Pasting a workspace-clipboard node into the MiniGraph Playground keeps scalar properties scalar (Increment 153).** The paste
    rebuilt the node with `key[]=value` for every property, and the engine appends on the `[]` signature, so a pasted node's `skill`
    and every other scalar arrived as a one-element list (`"skill": ["graph.math"]`). The paste now writes the node the way the
    engine's own `edit node` prints it: `key=value` for a scalar, one `key[]=element` line per list element, `path.key=value` for a
@@ -172,7 +181,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    node the grammar cannot carry is reported as "Paste failed" instead of being sent. The fix is in the Java repo's webapp
    (mercury-composable #497); this repo receives the regenerated bundle (`index-lxX8FQ68` became `index-CN-KsNrA`; the other chunks
    and the 42 help pages are unchanged).
-18. **A mock-data upload reaches every member of a collaborative MiniGraph Playground session, and the Playground's run controls
+19. **A mock-data upload reaches every member of a collaborative MiniGraph Playground session, and the Playground's run controls
    are three steps (Increment 154).** `POST /api/mock/{id}` loaded the payload into the uploader's instance only, so another member's
    replayed `run` executed without it and aborted. The upload now travels like a command (`commands::handle_upload`): the primary
    loads it and replays it into every subscriber's instance, a subscriber's upload goes through the primary, and every member's
@@ -181,7 +190,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    Upload (optional, opens the form for your own session only) and Run — drops the multi-select hint, and shows the console's
    connection rows with the local time as `HH:MM:SS`; `help upload` and `help session` describe the shared upload
    (mercury-composable #498).
-19. **A knowledge-graph mapping source inserts its `{namespace.key}` values verbatim (Increment 156).** A mapping source may embed a
+20. **A knowledge-graph mapping source inserts its `{namespace.key}` values verbatim (Increment 156).** A mapping source may embed a
    reference that resolves before the source is read: a key segment (`census-2020.{model.state}`, the read of a keyed table), a list
    index (`input.body.items[{model.i}]`), or text in a constant or a plugin argument. When the source text contained `!`, `<`, `>`,
    `==`, `&&` or `||`, every text value was quoted as if the source were a boolean expression: `text(Hello {input.body.name}!)` gave
@@ -190,7 +199,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    grammar's "Dynamic keys and values in a source", the skills reference's keyed table, the data-mapper help in the regenerated
    bundle) and the plugin table states that `int`, `long`, `float` and `double` give `-1` for a null or non-numeric value
    (mercury-composable #503). READ: a mapping that relied on the quotes now gets the bare value.
-20. **A `$.` JSONPath query takes Jayway's result shape, the Java engine's (Increment 157).** `MultiLevelMap::get_element`
+21. **A `$.` JSONPath query takes Jayway's result shape, the Java engine's (Increment 157).** `MultiLevelMap::get_element`
    shaped a JSONPath result by the number of matches: one match gave the bare value, none gave nothing. Jayway shapes it by the
    kind of path, and so does this engine now. A definite path (child member names and single indexes only) yields the value, or
    nothing when it is absent. An indefinite path (a filter, a wildcard, a deep scan `..`, a slice or a union) always yields a
@@ -202,7 +211,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    value, and one that matches nothing gives an empty list instead of no value; a mapping that expected the bare value reads the
    first element (`f:getFirst`, which takes a non-empty list).
 
-21. **A deployed graph is read as the Java engine reads it (Increment 158).** The Java configuration reader normalizes a graph by
+22. **A deployed graph is read as the Java engine reads it (Increment 158).** The Java configuration reader normalizes a graph by
     flattening and rebuilding it, so a null, an empty map and an empty list - and a map or list they leave empty - disappear, and
     inside a list such an element keeps its place as null when an element with a value follows it and is dropped at the end. This
     engine's reader kept them: a graph holding `"key": null` was refused with `value cannot be null`, a mapping list ending in null
@@ -212,13 +221,13 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
     Upgrade note: a graph rejected for a null property, or for a null at the end of a mapping list, now deploys; a mapping that
     read an empty `{}` or `[]` property now reads nothing, as on Java.
 
-22. **A graph imported into the MiniGraph Playground drops its null properties (Increment 158).** The draft import - the Import
+23. **A graph imported into the MiniGraph Playground drops its null properties (Increment 158).** The draft import - the Import
     Graph button and file drop (`POST /api/graph/import/{id}`), its replay to a shared session, and `import graph from` - filters a
     `"key": null` out before it imports the model, instead of refusing it with `value cannot be null`. It no longer depends on
     `serializer.null.transport`, which decides only whether the event transport keeps a null. An empty string is a value and is
     kept. Upgrade note: none.
 
-23. **A MsgPack payload nested deeper than 64 maps and lists is refused (Increment 160).** The envelope decoder and the Event
+24. **A MsgPack payload nested deeper than 64 maps and lists is refused (Increment 160).** The envelope decoder and the Event
     API's format check decoded with `rmp_serde::from_slice`, whose depth limit is 1,024 levels. A release build reached that limit at
     1,023, but a debug build's 2 MiB thread stack overflowed first, at about 550 nested arrays, and in Rust a stack overflow aborts
     the process. `platform_core::serializer::from_msgpack` now decodes with the nesting bounded at 64 levels (`serializer::MAX_DEPTH`,
@@ -226,7 +235,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
     deeper nesting with `Nesting deeper than 64 levels`, which the Event API answers with HTTP 400. The distributed-cache example's
     `unpack` decodes through it too. Upgrade note: an event body may nest at most 63 levels inside its envelope.
 
-24. **The elastic queue's holding folder is removed at a graceful exit (Increment 162).** `elastic_queue::shutdown_cleanup`, the
+25. **The elastic queue's holding folder is removed at a graceful exit (Increment 162).** `elastic_queue::shutdown_cleanup`, the
     twin of the Java engine's JVM shutdown hook that the lifecycle's graceful exit runs, purged the overflow segment files and the
     `RUNNING` marker but left the per-instance folder `<app>-<origin>` under `transient.data.store`. It now removes the folder once
     it is empty. With `running.in.cloud=true` the folder is the configured store itself, so it stays, as does a folder that holds
@@ -236,7 +245,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
 
 ---
 
-25. **Empty MsgPack input decodes as an empty map and an empty envelope, as the Java engine reads it (Increment 164).**
+26. **Empty MsgPack input decodes as an empty map and an empty envelope, as the Java engine reads it (Increment 164).**
     `serializer::from_msgpack` read empty bytes as a decoding error, while the Java engine's `MsgPack.unpack` returns an empty map
     and `new EventEnvelope(new byte[0])` an empty envelope; Java is the reference implementation, so this engine now reads empty
     input the same way - `EventEnvelope::from_bytes(&[])` is an empty envelope with a fresh id, and a standard envelope that omits a

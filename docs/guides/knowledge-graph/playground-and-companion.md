@@ -32,8 +32,9 @@ Open <http://127.0.0.1:8085>. The page is split into two panels:
 
 Around them: a **Save** button bookmarks the current graph under a name in your browser
 (with a menu to reload or delete saved graphs), the **Workspace** sidebar collects clipped
-nodes for reuse, the **Tools** menu switches between the MiniGraph and JSON-Path playgrounds,
-and the `?` button (or ``Ctrl+` ``) opens a help panel serving the same pages as the `help`
+nodes for reuse, the **Tools** menu switches between the MiniGraph and JSON-Path playgrounds and
+opens **Graph set packaging** (graph files and the current graph packed into `<set>.pack` on the
+engine, or a dropped `.pack` inspected - `help package`), and the `?` button (or ``Ctrl+` ``) opens a help panel serving the same pages as the `help`
 command — including the [thirteen tutorials](build-your-first-graph.md#where-to-go-next).
 
 ## Sessions

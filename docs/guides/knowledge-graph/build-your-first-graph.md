@@ -228,6 +228,12 @@ manifest wins. Only listed ids are executable, and a deployment is still a resta
 runs once at startup. The full recipe, with the log lines to verify and the session choreography for
 a hosted Playground, is in the [AI agent guide](ai-agent-guide.md#deploy-without-rebuild).
 
+**Packaged sets.** Graphs that belong together can travel as one file: the graph packager, or the
+Playground's **Graph set packaging** panel, packs them into `<set>.pack` — checked by the same gate as
+they are packed — and the manifest deploys the set all or none through `sets` and an `unpack` folder.
+See the [canonical package format](../canonical-package-format.md#graph-sets) and the
+[configuration reference](../configuration-reference.md).
+
 At startup, `CompileGraph` validates every manifest graph once — structure, the root node's
 `purpose`, data-mapping syntax, and the suspend/resume contract — and only graphs that pass
 become executable. A graph that fails the gate, or is not listed, answers **HTTP-404** as if
