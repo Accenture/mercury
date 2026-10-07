@@ -26,9 +26,10 @@
   Sweep: 13 manifests + the lock refresh (26 lines). Readiness: fmt and clippy clean, `cargo test --workspace --no-fail-fast` 134 suites /
   702 tests / 0 failed. **Lockstep:** Java v4.12.21 the same minute (composable #528 squash `b76db298`, tag → `87dd9e78`, release
   02:35:00Z, 1778 tests), and the packs catching up from 4.12.15 with the LLM helper app (mercury-nodejs #110, tag → `279e784`;
-  mercury-python #42, tag → `fe43380`). **crates.io publication pending (Eric preparing `cargo publish --workspace` from the tag)** —
-  recorded as pending, not verified. Next: verify the twelve crates (the sparse index, the API's created time, the published
-  platform-core tarball against the tag), then the field-acceptance wait. Origin 2026-10-07-013301.md.
+  mercury-python #42, tag → `fe43380`). **The twelve crates VERIFIED on crates.io at 4.12.21** (created 02:40:03Z–02:40:17Z by
+  Eric's `cargo publish --workspace` from the tag, none yanked, all in the sparse index; the published platform-core tarball at
+  version 4.12.21 with its 33 source files, `canonical_packager.rs`, `lib.rs` and `serializer.rs` SHA-256 identical to the tag's);
+  npm and PyPI verified the same way from the Java session. Next: the field-acceptance wait. Origin 2026-10-07-013301.md.
   Prior: v4.12.20 (2026-10-01 03:12:43Z — exact decimal arithmetic for money and the deterministic package format, lock-step with Java;
   mercury #340 → merge `b4783c5b`, tag → `d63e102a`; Increments 143–147; 123 suites / 655 tests / 0 failed; the twelve crates verified
   12/12 on crates.io at 4.12.20. Origin 2026-09-30-235931.md.)
