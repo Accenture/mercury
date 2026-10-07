@@ -14,18 +14,24 @@
 
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22). The current release is the `latest_release` field below (both engines release in lock-step, one number for the same content). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
-- **latest_release:** v4.12.20 (2026-10-01 03:12:43Z — **exact decimal arithmetic for money and a deterministic package format, lock-step
-  with the Java engine (v4.12.20, 03:11:27Z)**: release PR #340 → merge `b4783c5b`, tag `v4.12.20` → `d63e102a` (two memory-only commits past
-  the merge; the non-memory diff is empty), workspace version verified at the tag; the GitHub release is published (not a draft).
-  **Content:** Increments 143–147 — the dialect docs (143), the `f:decimal*` plugins on one shared `event_script::decimal` core (144), the
-  `DECIMAL` statement, the numeric-string comparison and `round` half-up (145), the bounce-test flake fix (146) and
-  `platform_core::canonical_packager` (147), with the money-loop and packager guides and a late `f32` widening. **READ:** a numeric-looking
-  string now compares as a number, and `round(-2.5)` is `-3`; both reach graphs that never say `DECIMAL`. Sweep BUILD FILES ONLY 13 Cargo.toml
-  plus the lock refresh (48 lock lines, the 4.12.19 shape). Gates: fmt, clippy `-D warnings`, `cargo test --workspace` 123 suites / 655 tests /
-  0 failed, claims, links. Java: #485 squash `9e515825`, tag → `fc940bea`. The Java–Rust byte-for-byte interop on 14 tutorials and 50
-  fixtures found 0 differences (report in both repos, mercury #341, docs only). `rust` main CI success on the tag commit. **The twelve crates are on crates.io at 4.12.20 (verified 12/12):** published 03:21:45Z to 03:21:58Z (Eric ran `cargo publish --workspace` from the
-  tag), in the sparse index and not yanked, and the published `mercury-platform-core` tarball's `canonical_packager.rs` is byte-identical to the tag's
-  (SHA-256 match, `f32` widening present). The python/node packs need no change. Origin 2026-09-30-235931.md.
+- **latest_release:** v4.12.21 (2026-10-07 02:36:06Z — **the lock-step twin of Java 4.12.21: graph sets end to end and a hardened MsgPack
+  decoder, Increments 148–169**: release PR #368 merge `28457ccf`, tag `v4.12.21` → `9f524fa3` (one memory-only commit past the merge;
+  the non-memory diff is empty), Cargo 4.12.21 verified at the tag; the GitHub release is published (not a draft); `rust` and `docs`
+  CI green on the tag commit. **Content:** graph sets (the packager, Increments 158–159; the loader 161; the endpoints 166–167; the
+  Playground panel 168; the docs with five claims 169 — [[graph-set-pack-and-deploy-rust]]), the decoder pinned by shared vectors (the
+  64-level limit 160, the hostile headers 163, empty input 164, exactly one value 165), the deploy-read normalization 158, the
+  Playground's file import and download 155, the three-step run controls 154, the single-source webapp 152, the LLM helper pointer 148,
+  the housekeeping 162. **READ:** a payload nested deeper than 64 levels, or followed by extra bytes, answers HTTP 400 at the Event API;
+  empty input decodes as an empty map; an app that wants the new Playground features lists the three dev routes in its `rest.yaml`.
+  Sweep: 13 manifests + the lock refresh (26 lines). Readiness: fmt and clippy clean, `cargo test --workspace --no-fail-fast` 134 suites /
+  702 tests / 0 failed. **Lockstep:** Java v4.12.21 the same minute (composable #528 squash `b76db298`, tag → `87dd9e78`, release
+  02:35:00Z, 1778 tests), and the packs catching up from 4.12.15 with the LLM helper app (mercury-nodejs #110, tag → `279e784`;
+  mercury-python #42, tag → `fe43380`). **crates.io publication pending (Eric preparing `cargo publish --workspace` from the tag)** —
+  recorded as pending, not verified. Next: verify the twelve crates (the sparse index, the API's created time, the published
+  platform-core tarball against the tag), then the field-acceptance wait. Origin 2026-10-07-013301.md.
+  Prior: v4.12.20 (2026-10-01 03:12:43Z — exact decimal arithmetic for money and the deterministic package format, lock-step with Java;
+  mercury #340 → merge `b4783c5b`, tag → `d63e102a`; Increments 143–147; 123 suites / 655 tests / 0 failed; the twelve crates verified
+  12/12 on crates.io at 4.12.20. Origin 2026-09-30-235931.md.)
   Prior: v4.12.19 (2026-09-25 23:59:10Z — the rapid-prototyping deploy lane, Increment 142; #333 → `ff6e269c`, tag → `e659c683`;
   `graph.model.automation` takes a comma-separated list of manifests and the later one wins ([[graph-manifest-list-later-wins-rust]]); 606 / 0;
   crates 12/12; Java v4.12.19 `a261ff18`. Origin 2026-09-25-232953.md.)
