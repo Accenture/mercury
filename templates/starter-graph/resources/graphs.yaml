@@ -6,3 +6,12 @@ graphs:
   - 'starter-quote'
 
 location: 'classpath:/graph'
+#
+# Packaged sets (ADR-0027): a graph set packed as <set>.pack - by the graph packager or the
+# Playground's "Graph set packaging" panel - deploys all of its graphs or none. List the set
+# names (read from 'location' as <set>.pack) and name a file:/ folder the application can
+# write, where each set is unpacked before the gate reads it:
+#
+# sets:
+#   - 'starter-set'
+# unpack: 'file:/tmp/graph/unpacked'

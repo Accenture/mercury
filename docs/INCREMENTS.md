@@ -4626,3 +4626,23 @@ pages under `webapp/docs/` live in the Java repository.
 
 Gates: `cargo test -p mercury-knowledge-graph -p minigraph-playground` (the home page serves the new bundle; the mirrored help
 answers), `check-doc-claims`, `check-llms-links`.
+
+## Increment 169 — The graph-set lane is documented (2026-10-07)
+
+WP6 of ADR-0027, the docs and the ledger, in lock-step with the Java repository. The configuration reference's
+`graph.model.automation` entry gains *Packaged sets*: `sets` beside `graphs`, the `unpack` folder (`file:/` only, writable, one
+manifest per folder, never the Playground's temp folder), the strict read and the name checks before any path is built, all or none,
+the precedence across sets with the ERROR for a duplicate that involves a set, the generated manifest as the implicit next entry of
+the automation list, `list graphs` with the set and version. The canonical package format gains a *Graph sets* section - the file
+and the set name, the `<graph-id>.json` entries and the root-name rule, the manifest fields, no clock, the one-graph rule, the three
+tools (`cargo run -p mercury-graph-packager -- …`, the Playground's **Graph set packaging** panel, the manifest's `sets`), the
+detached signature - and its deferred-items paragraph shrinks to what is still deferred. The AI agent guide's rapid-prototyping
+recipe gains *The packaged path* (pack, stage with `sets` and `unpack`, restart, verify `Deployed set …`), the first-graph
+walkthrough points to it, and the starter template's `graphs.yaml` shows the keys in comments. The Playground's `help package`
+topic, written in the Java repository and mirrored here with the regenerated bundle (`index-BzTSO1y8.js`), explains the panel, the command line and the
+deployment. Five claims pin the loader's rules on `tests/graph_set_loader.rs`: `graph-set-all-or-none`, `graph-set-duplicate-error`,
+`graph-set-unpack-folder`, `graph-set-crafted-entry-refused`, `graph-set-next-start-cleanup` - the same ids and sentences as the
+Java registry, pinned by the twin tests there. The sprint (WP1-WP6) is complete.
+
+Gates: `check-doc-claims`, `check-llms-links`, `cargo test -p mercury-knowledge-graph -p minigraph-playground` (the mirrored
+help answers `help package`).

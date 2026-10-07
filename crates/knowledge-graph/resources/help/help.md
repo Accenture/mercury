@@ -38,6 +38,7 @@ For graph model
 - help list (nodes, connections, graphs, flows)
 - help export (graph model as JSON for deployment)
 - help import (graph or node)
+- help package (graph sets: pack, inspect and deploy)
 - help describe (graph, node, connection or skill)
 - help data-dictionary
 - help session (display, subscribe or reset session)

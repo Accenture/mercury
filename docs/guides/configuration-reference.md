@@ -740,6 +740,41 @@ keeps the bundled graphs and deploys an exported graph from a `file:/` manifest 
 without a rebuild (the [rapid-prototyping path](knowledge-graph/ai-agent-guide.md#deploy-without-rebuild)).
 Read by `crates/knowledge-graph` (compiler).
 
+**Packaged sets (ADR-0027).** Beside its `graphs`, a manifest may list `sets` — graph sets packed as
+`<set>.pack` ([the canonical package](canonical-package-format.md#graph-sets)), read from the manifest's
+`location` — and must then name an `unpack` folder: a `file:/` location the application can write, where the
+loader writes every graph of a set as `<unpack>/<graph-id>.json` before the gate reads it. A `classpath:` value,
+the Playground's temp folder (`location.graph.temp`) and a folder another manifest already uses are refused:
+`sets` need a writable `unpack` folder of their own, and without one the manifest's sets are skipped with an ERROR
+while its loose graphs still compile.
+
+```yaml
+graphs:
+  - 'tutorial-1'
+location: 'classpath:/graph'          # where <graph-id>.json AND <set>.pack are read from
+
+sets:
+  - 'settlement'                      # <location>/settlement.pack
+unpack: 'file:/opt/graphs/unpacked'   # required with sets: file:/ only, read-write, one manifest per folder
+```
+
+At startup each set is read strictly and its names are checked before any path is built — every entry is
+`<graph-id>.json`, the root node is named after its id, an optional `graph_id` names one of the entries — so a set
+with a crafted entry name is rejected before any file is written. Its graphs are then unpacked and pass the gate
+like any deployed graph, and a set registers all of its graphs or none: one rejected graph leaves none of its set
+executable, and the ERROR names every failure. A manifest's sets compile right after its own graphs, in the order
+listed, and the precedence rule above holds across sets — a later copy in compile order owns a duplicate id, and
+a duplicate that involves a set is logged as an ERROR (between loose manifests it stays a warning). The loader
+writes a generated manifest, `<unpack>/graphs.yaml`, listing the graphs it deployed and every file it wrote, so
+the next start removes a graph a new version of the set no longer holds and touches no other file; the generated
+manifest is the implicit next entry of the automation list — logged at every start, never added to the property —
+which is why `list graphs` shows a set's graphs with their set and version (`tutorial-1 (set settlement, version
+1.0.0)`) and `import graph from <id>` finds the unpacked copy. The startup log reads `Deployed set settlement
+(version 1.0.0) from file:/... - 2 graphs into file:/opt/graphs/unpacked`; a set that cannot be read (a missing
+or non-canonical file) is skipped with an ERROR and the other sets still deploy. The graph packager and the
+Playground's **Graph set packaging** panel write the file; a deployment is still a restart. Read by
+`crates/knowledge-graph` (`graph_set_loader`).
+
 > The former `location.graph.deployed` key is **retired** — the manifest carries the
 > location of its own models. A leftover value logs an obsolete-key startup warning.
 

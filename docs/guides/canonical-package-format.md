@@ -3,7 +3,7 @@ title: Canonical Package Format
 summary: The language-neutral, deterministic MsgPack package — sorted keys, a manifest and maps, one canonical profile — that Java and Rust write byte for byte.
 layer: reference
 audience: [developer, reference, ai-agent]
-keywords: [canonical package, msgpack, deterministic, sorted keys, manifest, packager, interoperability, vectors, byte for byte]
+keywords: [canonical package, msgpack, deterministic, sorted keys, manifest, packager, interoperability, vectors, byte for byte, graph set, pack]
 ---
 
 # Canonical Package Format
@@ -133,11 +133,38 @@ dates as strings (the profile's rule), and an integer above 2^63-1 is rejected: 
 `mercury-nodejs` language packs do not carry it: they serve functions to a Java or Rust application over
 [Event over HTTP](event-over-http.md) and never read a graph package.
 
+## Graph sets {#graph-sets}
+
+The packager's first consumer (ADR-0027 in the `mercury-composable` repository): one or more graph models delivered together
+as one `<set>.pack`. The file name without the extension is the set name. Each graph is one entry named `<graph-id>.json` —
+the id follows the file-name rule (letters, digits, `_` and `-`) and the root node, when it carries a `name`, is named after
+it — and the manifest holds `format` and `format_version` from the packager, `set` from the set name, and the caller's text
+fields: `version`, `description`, `author`, the optional `graph_id` naming the set's entry-point graph, anything a pipeline
+wants recorded. Nothing comes from the clock or the environment: the same graphs and fields give the same bytes, a `${...}`
+reference stays unresolved for the environment the set is deployed to, and a `"key": null` property is filtered out as the
+engine's serializer does. Every graph passes the deployment gate's own checks as it is packed, so a set that breaks a rule is
+refused with every reason. A set of one graph is valid on purpose — packing a graph alone is how one graph is signed; only an
+empty set is refused.
+
+Three tools write and read it, all over the engine's packager, so the bytes are the same whichever one packs — and the same
+as the Java engine's for the same graphs and fields:
+
+- **the command line** — `tools/graph-packager`, a binary (`cargo run -p mercury-graph-packager -- …` from the workspace;
+  `helpers/graph-packager`, an executable jar, in the Java repository): `pack --set <name> [--manifest key=value]...
+  <graph.json>... | <folder>`, or `pack --set <name> --from-manifest graphs.yaml` for exactly the graphs a deployment manifest
+  lists; `unpack <file.pack> --out <dir>` writes readable JSON in canonical key order; `inspect <file.pack> [--json]` prints the
+  manifest, the graphs and the SHA-256 — a convenience for a signer, not integrity inside the package. Exit codes: 0, 1 for a
+  refused input, 2 for an I/O or format error;
+- **the Playground's Graph set packaging panel** (dev mode, in the Tools menu; `POST /api/graph-set/pack` and
+  `POST /api/graph-set/unpack`), which packs on the engine and reads a set back for inspection — `help package` in the
+  console describes it;
+- **the deployment manifest's `sets`**, which deploys a set all of its graphs or none through an `unpack` folder — the
+  `graph.model.automation` key in the [configuration reference](configuration-reference.md).
+
+A signature stays outside the package: a detached `<set>.pack.sig` beside the file is the convention a signing utility and a
+later verifying hook can share; the engine verifies nothing at startup in this version.
+
 ## Not part of the packager
 
 Trusted timestamps, per-entry hashes in the manifest, hot reload and compression are deferred until field use asks for them. The
 decision and its alternatives are recorded in ADR-0026 in the `mercury-composable` repository.
-
-Graph sets, the packager's first consumer, are decided in ADR-0027 there: one or more graphs in a `<set>.pack` file, which the
-graph packager (`tools/graph-packager`) packs, unpacks and inspects from the command line. A set may hold a single graph, so that
-one graph can be signed on its own. Deploying a set through the deployment manifest, all of its graphs or none, is the next step.
