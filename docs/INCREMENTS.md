@@ -4611,9 +4611,9 @@ Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D 
 
 ## Increment 168 — The Playground packs graph sets and reads them back (2026-10-06)
 
-WP5 of ADR-0027, a webapp change deployed from the Java repository, the Playground's one source: the bundle `index-DCHRB4rw.js` /
-`index-CF1KFGe-.css` and `template/playground.html` replace `index-Bz9k-ffR.js` / `index-C_YT0wRg.css`; the help mirror is unchanged.
-The Tools menu gains **Package graphs…**, a panel in the console's slot: several `<graph-id>.json` files dropped or browsed at once and
+WP5 of ADR-0027, a webapp change deployed from the Java repository, the Playground's one source: the bundle `index-8ny1Kyfm.js` /
+`index-BPFbHZo4.css` and `template/playground.html` replace `index-Bz9k-ffR.js` / `index-C_YT0wRg.css`; the help mirror is unchanged.
+The Tools menu gains **Graph set packaging**, a panel in the console's slot: several `<graph-id>.json` files dropped or browsed at once and
 the current graph become the entries of a set, with a manifest - the set name required and following the file-name rule, `version` and
 `description` suggested, free fields, `graph_id` checked against the entries - and **Pack and download** has this engine pack the set
 through `POST /api/graph-set/pack` (Increments 166 and 167; the gate runs there) and saves `<set>.pack` through the browser's "save as"

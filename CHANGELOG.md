@@ -84,7 +84,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
 7. **The engine packs and reads graph sets over REST (Increment 166, ADR-0027).** Two dev-mode endpoints, `POST /api/graph-set/pack`
    (`pack.graph.set`, `rest::pack_graph_set`) and `POST /api/graph-set/unpack` (`unpack.graph.set`, `rest::unpack_graph_set`), listed in
    the playground example's, the cache example's and the starter template's `rest.yaml` beside `import.graph.content`, so the
-   Playground's coming "Package graphs" panel packs on the engine and never carries a packager of its own. `pack` takes
+   Playground's "Graph set packaging" panel packs on the engine and never carries a packager of its own. `pack` takes
    `{"manifest": {"set": "<name>", ...}, "graphs": {"<graph-id>": <model>, ...}}` - `manifest.set` names the set and its file, every
    other manifest field is caller text, and `format` and `format_version` are the packager's - runs the import validation and then
    the deployment gate's checks on every model, as the graph packager's `pack` command does, and answers the package as a download
@@ -96,7 +96,7 @@ Each change merged to `main` after v4.12.20 is listed here; it moves under its r
    `rest.yaml`; nothing else changes.
 
 8. **The MiniGraph Playground packs graph sets and reads them back (Increment 168, ADR-0027).** The Tools menu gains
-   **Package graphs…**, a panel in the console's slot: drop several `<graph-id>.json` files at once (or browse for them), add
+   **Graph set packaging**, a panel in the console's slot: drop several `<graph-id>.json` files at once (or browse for them), add
    the current graph, and name the set; optional manifest fields such as `version` and `description` travel as text, and
    `graph_id` names the set's entry-point graph. **Pack and download** has the engine pack the set through
    `POST /api/graph-set/pack`, where the deployment gate checks every graph before anything is written, and saves `<set>.pack`

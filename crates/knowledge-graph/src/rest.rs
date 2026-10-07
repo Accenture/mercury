@@ -614,7 +614,7 @@ pub async fn inspect_state_machine(event: EventEnvelope) -> Result<EventEnvelope
 
 /// Java `PackGraphSet` (`pack.graph.set`): `POST /api/graph-set/pack` packs graph
 /// models into a graph set on the engine (ADR-0027), so the Playground's
-/// "Package graphs" panel never carries a packager of its own. The body is a
+/// "Graph set packaging" panel never carries a packager of its own. The body is a
 /// JSON object, `{"manifest": {"set": "<name>", ...}, "graphs": {"<graph-id>":
 /// <model>, ...}}`: the manifest field `set` names the set and its file, every
 /// other manifest field is caller text (`format` and `format_version` are
@@ -717,7 +717,7 @@ fn graph_models(graphs: Option<&Value>) -> Result<BTreeMap<String, Value>, Strin
 /// application/octet-stream, and the answer is `{"manifest": {...}, "graphs":
 /// {"<graph-id>": <model>, ...}}` - the manifest as the package holds it, the
 /// packager's `format` and `format_version` included, and each graph as a
-/// file holds it. The Playground's "Package graphs" panel inspects a dropped
+/// file holds it. The Playground's "Graph set packaging" panel inspects a dropped
 /// package with it and imports one of its graphs as the draft through
 /// `POST /api/graph/import/{id}`. Bytes that are not a canonical package, and
 /// a set that breaks a rule - an entry not named `<graph-id>.json`, a root
