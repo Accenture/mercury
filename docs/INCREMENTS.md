@@ -4608,3 +4608,21 @@ Increment 166's contract, messages and bytes stand.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
 `check-doc-claims`, `check-llms-links`.
+
+## Increment 168 — The Playground packs graph sets and reads them back (2026-10-06)
+
+WP5 of ADR-0027, a webapp change deployed from the Java repository, the Playground's one source: the bundle `index-DCHRB4rw.js` /
+`index-CF1KFGe-.css` and `template/playground.html` replace `index-Bz9k-ffR.js` / `index-C_YT0wRg.css`; the help mirror is unchanged.
+The Tools menu gains **Package graphs…**, a panel in the console's slot: several `<graph-id>.json` files dropped or browsed at once and
+the current graph become the entries of a set, with a manifest - the set name required and following the file-name rule, `version` and
+`description` suggested, free fields, `graph_id` checked against the entries - and **Pack and download** has this engine pack the set
+through `POST /api/graph-set/pack` (Increments 166 and 167; the gate runs there) and saves `<set>.pack` through the browser's "save as"
+dialog or into the download folder. What the engine would refuse is flagged in place before packing (an id that breaks the file-name
+rule, a root name that differs from its id, a duplicate id) and a refused set is shown as the engine states it. A `.pack` dropped on
+the panel is read back through `POST /api/graph-set/unpack` and shown - its manifest and its graphs - with **Import as draft** per
+graph (the import path of Increment 155, which asks before replacing a loaded graph) and **Edit as new set**, which loads the graphs
+and the caller fields into the editor to pack the set again. The webapp sources, their vitest suites (53 files, 416 tests) and the
+pages under `webapp/docs/` live in the Java repository.
+
+Gates: `cargo test -p mercury-knowledge-graph -p minigraph-playground` (the home page serves the new bundle; the mirrored help
+answers), `check-doc-claims`, `check-llms-links`.
