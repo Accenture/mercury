@@ -657,6 +657,7 @@ async fn graph_runtime_end_to_end() {
     companion_sync_pre_run_check_rejects_broken_suspend_contract(&platform).await;
     companion_sync_instantiate_creates_model_cid(&platform).await;
     mock_upload_loads_every_member_instance(&platform).await;
+    mock_header_upload_loads_every_member_instance(&platform).await;
     graph_import_loads_every_member_draft(&platform).await;
     companion_sync_inspect_error_shows_context(&platform).await;
     companion_sync_inspect_error_reports_recovery(&platform).await;
@@ -2355,7 +2356,7 @@ async fn mock_upload_loads_every_member_instance(platform: &Platform) {
         rmpv::Value::from(100),
     )]);
     assert!(
-        knowledge_graph::commands::upload_content(platform, sid_b, payload).await,
+        knowledge_graph::commands::upload_content(platform, sid_b, payload, "body").await,
         "the subscriber's upload is accepted"
     );
     assert!(
@@ -2385,7 +2386,7 @@ async fn mock_upload_loads_every_member_instance(platform: &Platform) {
         rmpv::Value::from("person_id"),
         rmpv::Value::from(200),
     )]);
-    assert!(knowledge_graph::commands::upload_content(platform, sid_a, payload).await);
+    assert!(knowledge_graph::commands::upload_content(platform, sid_a, payload, "body").await);
     assert!(
         wait_for(&tap_a, LOADED).await,
         "A loaded its own upload: {:?}",
@@ -2408,10 +2409,179 @@ async fn mock_upload_loads_every_member_instance(platform: &Platform) {
         !knowledge_graph::commands::upload_content(
             platform,
             "ws-000000-0",
-            rmpv::Value::Map(vec![])
+            rmpv::Value::Map(vec![]),
+            "body"
         )
         .await,
         "no session, no upload"
+    );
+}
+
+/// The header namespace of the mock upload (`POST /api/mock/{id}?namespace=header`,
+/// Java `mockHeaderUploadLoadsEveryMemberInstanceTest`): a JSON object of text values
+/// becomes every member's `input.header`, the names kept as given (the graph reads
+/// headers case-insensitively), the body untouched; the invitation names both endpoints.
+async fn mock_header_upload_loads_every_member_instance(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let (sid_a, in_a, out_a) = ("ws-770092-1", "ws.770092.1.in", "ws.770092.1.out");
+    let (sid_b, in_b, out_b) = ("ws-770093-1", "ws.770093.1.in", "ws.770093.1.out");
+    let tap_a = Arc::new(Mutex::new(Vec::<String>::new()));
+    let tap_b = Arc::new(Mutex::new(Vec::<String>::new()));
+    platform
+        .register(
+            out_a,
+            Arc::new(OutTap {
+                seen: tap_a.clone(),
+            }),
+            1,
+        )
+        .expect("register out tap A");
+    platform
+        .register(
+            out_b,
+            Arc::new(OutTap {
+                seen: tap_b.clone(),
+            }),
+            1,
+        )
+        .expect("register out tap B");
+    for in_route in [in_a, in_b] {
+        open_session(&po, in_route).await;
+    }
+    for sid in [sid_a, sid_b] {
+        for _ in 0..50 {
+            if knowledge_graph::commands::has_session(sid) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        assert!(
+            knowledge_graph::commands::has_session(sid),
+            "session {sid} open"
+        );
+    }
+    async fn ws(po: &PostOffice, in_route: &str, out_route: &str, command: &str) {
+        po.send(
+            EventEnvelope::new()
+                .set_to("graph.command.singleton")
+                .set_raw_body(rmpv::Value::Map(vec![
+                    (rmpv::Value::from("type"), rmpv::Value::from("command")),
+                    (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+                    (rmpv::Value::from("out"), rmpv::Value::from(out_route)),
+                    (rmpv::Value::from("message"), rmpv::Value::from(command)),
+                ])),
+        )
+        .await
+        .expect("command dispatched");
+    }
+    async fn wait_for(tap: &Arc<Mutex<Vec<String>>>, needle: &str) -> bool {
+        for _ in 0..150 {
+            if tap.lock().expect("tap").iter().any(|l| l.contains(needle)) {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        false
+    }
+    fn seen(tap: &Arc<Mutex<Vec<String>>>) -> Vec<String> {
+        tap.lock().expect("tap").clone()
+    }
+    const HEADERS_LOADED: &str = "Mock data loaded into 'input.header' namespace";
+    const BODY_LOADED: &str = "Mock data loaded into 'input.body' namespace";
+
+    ws(&po, in_b, out_b, &format!("session subscribe {sid_a}")).await;
+    assert!(
+        wait_for(&tap_b, &format!("Subscribed to {sid_a}")).await,
+        "B subscribed to A: {:?}",
+        seen(&tap_b)
+    );
+    for command in [
+        "create node root",
+        "create node end",
+        "connect root to end with relates",
+        "instantiate graph",
+    ] {
+        ws(&po, in_a, out_a, command).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert!(
+        wait_for(&tap_a, "Graph instance created").await,
+        "A: {:?}",
+        seen(&tap_a)
+    );
+    assert!(
+        wait_for(&tap_b, "Graph instance created").await,
+        "B: {:?}",
+        seen(&tap_b)
+    );
+
+    // the subscriber uploads mock headers: forwarded to the primary, loaded there, replayed into B
+    tap_a.lock().expect("tap").clear();
+    tap_b.lock().expect("tap").clear();
+    let headers = rmpv::Value::Map(vec![(
+        rmpv::Value::from("X-Request-Id"),
+        rmpv::Value::from("abc-123"),
+    )]);
+    assert!(
+        knowledge_graph::commands::upload_content(platform, sid_b, headers, "header").await,
+        "the subscriber's header upload is accepted"
+    );
+    assert!(
+        wait_for(&tap_a, HEADERS_LOADED).await,
+        "A loaded the headers: {:?}",
+        seen(&tap_a)
+    );
+    assert!(
+        wait_for(&tap_b, HEADERS_LOADED).await,
+        "B loaded the headers: {:?}",
+        seen(&tap_b)
+    );
+    for sid in [sid_a, sid_b] {
+        let header = knowledge_graph::commands::download_content(sid, "input.header")
+            .unwrap_or_else(|| panic!("{sid} holds input.header"));
+        assert_eq!(
+            event_script::conversions::to_json_string(&header),
+            r#"{"X-Request-Id":"abc-123"}"#,
+            "{sid} input.header after the subscriber's upload"
+        );
+    }
+    // a body upload leaves the headers in place
+    tap_a.lock().expect("tap").clear();
+    tap_b.lock().expect("tap").clear();
+    let payload = rmpv::Value::Map(vec![(
+        rmpv::Value::from("person_id"),
+        rmpv::Value::from(300),
+    )]);
+    assert!(knowledge_graph::commands::upload_content(platform, sid_a, payload, "body").await);
+    assert!(
+        wait_for(&tap_a, BODY_LOADED).await,
+        "A loaded the body: {:?}",
+        seen(&tap_a)
+    );
+    assert!(
+        wait_for(&tap_b, BODY_LOADED).await,
+        "B loaded the body: {:?}",
+        seen(&tap_b)
+    );
+    let header = knowledge_graph::commands::download_content(sid_b, "input.header")
+        .expect("B keeps input.header");
+    assert_eq!(
+        event_script::conversions::to_json_string(&header),
+        r#"{"X-Request-Id":"abc-123"}"#
+    );
+    let body = knowledge_graph::commands::download_content(sid_b, "input.body")
+        .expect("B holds input.body");
+    assert_eq!(
+        event_script::conversions::to_json_string(&body),
+        r#"{"person_id":300}"#
+    );
+    // the invitation names both endpoints
+    tap_a.lock().expect("tap").clear();
+    ws(&po, in_a, out_a, "upload mock data").await;
+    assert!(
+        wait_for(&tap_a, "?namespace=header").await,
+        "the invitation names the header endpoint: {:?}",
+        seen(&tap_a)
     );
 }
 

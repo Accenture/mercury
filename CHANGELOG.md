@@ -13,7 +13,18 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
-Nothing yet. Each change merged to `main` after v4.12.21 is listed here; it moves under its release heading when the version is cut.
+Each change merged to `main` after v4.12.21 is listed here; it moves under its release heading when the version is cut.
+
+### Added
+
+1. **The Playground's mock upload takes request headers (Increment 170).** `POST /api/mock/{id}?namespace=header` loads a JSON
+   object of text values as the instance's `input.header` (the names kept as given; the graph reads headers case-insensitively,
+   as a real request's), travelling like a command to every member of a collaborative session with the console line `Mock data
+   loaded into 'input.header' namespace`; the default `namespace=body` is the existing endpoint; another namespace, or a header
+   payload that is not an object of text values, answers HTTP 400. The Upload panel of the regenerated bundle gains an optional
+   **Headers** row editor and posts the rows after the body, its hints list the input header names the graph references, the
+   Upload tooltip counts both, and the `upload mock data` reply names both endpoints; `help upload` is mirrored from the Java
+   repository. Pinned by `mock_header_upload_loads_every_member_instance`, the twin of the Java test. No upgrade action.
 
 ---
 ## Version 4.12.21, 10/7/2026
