@@ -465,8 +465,43 @@ pub async fn post_companion_command_sync(
         ])))
 }
 
+/// A query parameter of the REST request (`parameters.query`), the first value
+/// when the parameter repeats.
+fn query_parameter(event: &EventEnvelope, name: &str) -> Option<String> {
+    let Value::Map(entries) = event.body() else {
+        return None;
+    };
+    let parameters = entries
+        .iter()
+        .find(|(k, _)| k.as_str() == Some("parameters"))
+        .map(|(_, v)| v)?;
+    let Value::Map(parameters) = parameters else {
+        return None;
+    };
+    let query = parameters
+        .iter()
+        .find(|(k, _)| k.as_str() == Some("query"))
+        .map(|(_, v)| v)?;
+    let Value::Map(query) = query else {
+        return None;
+    };
+    let value = query
+        .iter()
+        .find(|(k, _)| k.as_str() == Some(name))
+        .map(|(_, v)| v)?;
+    match value {
+        Value::Array(items) => items.first().map(display),
+        other => Some(display(other)),
+    }
+}
+
 /// Java `UploadMockContent` (`upload.mock.content`): mock data into a live
-/// graph instance's `input.body`.
+/// graph instance. The `namespace` query parameter selects the target: `body`
+/// (the default) takes a JSON map or list as `input.body`; `header` takes a JSON
+/// object of text values as `input.header` - the shape a real request delivers,
+/// read case-insensitively by the graph, so a dry run can supply the headers a
+/// graph reads. Either namespace travels like a command to every member of a
+/// collaborative session.
 pub async fn upload_mock_content(
     platform: &Platform,
     event: EventEnvelope,
@@ -475,13 +510,34 @@ pub async fn upload_mock_content(
     let Some(id) = path_parameters.get("id") else {
         return Err(invalid("Missing path parameter: id"));
     };
-    if !matches!(body, Value::Map(_) | Value::Array(_)) {
-        return Err(invalid(
-            "Input is not a valid JSON payload that represents a Map or List",
-        ));
+    let namespace = query_parameter(&event, "namespace")
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| "body".to_string());
+    match namespace.as_str() {
+        "header" => {
+            let text_map = matches!(&body, Value::Map(entries)
+                if entries.iter().all(|(_, v)| matches!(v, Value::String(_))));
+            if !text_map {
+                return Err(invalid(
+                    "Mock headers must be a JSON object with text values",
+                ));
+            }
+        }
+        "body" => {
+            if !matches!(body, Value::Map(_) | Value::Array(_)) {
+                return Err(invalid(
+                    "Input is not a valid JSON payload that represents a Map or List",
+                ));
+            }
+        }
+        other => {
+            return Err(invalid(format!(
+                "Unknown mock namespace '{other}' - use body or header"
+            )));
+        }
     }
-    if commands::upload_content(platform, id, body).await {
-        Ok(upload_ok())
+    if commands::upload_content(platform, id, body, &namespace).await {
+        Ok(mock_upload_ok(&namespace))
     } else {
         Err(invalid(format!("Session {id} is expired or invalid")))
     }
@@ -544,6 +600,17 @@ fn upload_ok() -> EventEnvelope {
         .set_raw_body(Value::Map(vec![
             (Value::from("message"), Value::from("Content uploaded")),
             (Value::from("type"), Value::from("upload")),
+        ]))
+}
+
+/// The mock upload's reply names the namespace it loaded (Java `UploadMockContent`).
+fn mock_upload_ok(namespace: &str) -> EventEnvelope {
+    EventEnvelope::new()
+        .set_header("Content-Type", "application/json")
+        .set_raw_body(Value::Map(vec![
+            (Value::from("message"), Value::from("Content uploaded")),
+            (Value::from("type"), Value::from("upload")),
+            (Value::from("namespace"), Value::from(namespace)),
         ]))
 }
 

@@ -4646,3 +4646,22 @@ Java registry, pinned by the twin tests there. The sprint (WP1-WP6) is complete.
 
 Gates: `check-doc-claims`, `check-llms-links`, `cargo test -p mercury-knowledge-graph -p minigraph-playground` (the mirrored
 help answers `help package`).
+
+## Increment 170 — The mock upload takes request headers (2026-10-08)
+
+The twin of the Java engine's change (mercury-composable, the same day). A graph may read `input.header.*` as it reads
+`input.body.*` - the executor copies the whole `input` of the invoking flow into the state machine - and the console's
+`instantiate graph` lines could seed a header, but the toolbar's Instantiate-Upload-Run step could not. `rest::upload_mock_content`
+reads a `namespace` query parameter (`parameters.query`, through a new `query_parameter` helper): `body`, the default, keeps the
+existing rule (a map or a list as `input.body`); `header` takes a JSON object of text values as `input.header`, the names kept as
+given (the graph reads headers case-insensitively, as a real request's); another namespace, or a header payload that is not an
+object of text values, answers HTTP 400 with the Java engine's messages. The namespace rides in the `upload` event
+(`commands::upload_body`), so `handle_upload` forwards and replays it unchanged to every member of a collaborative session, and
+`load_mock_content` sets the named namespace and says `Mock data loaded into 'input.header' namespace`. The `upload mock data`
+reply names both endpoints. The regenerated webapp bundle (one source, two targets) adds the Upload panel's optional **Headers**
+row editor, the header hints and the Upload tooltip's count; `help upload` is mirrored from the Java repository. Pinned by
+`mock_header_upload_loads_every_member_instance` in `tests/graph_runtime.rs`, the twin of the Java
+`mockHeaderUploadLoadsEveryMemberInstanceTest`; the existing body test names its namespace.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p mercury-knowledge-graph
+--test graph_runtime`.

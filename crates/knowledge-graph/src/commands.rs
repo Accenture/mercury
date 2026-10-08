@@ -212,6 +212,8 @@ pub async fn handle(
     let out_route = get("out").unwrap_or_default();
     let message = get("message").unwrap_or_default();
     let forwarded = get("forwarded").map(|v| v == "true").unwrap_or(false);
+    // the mock-data upload names its namespace (body, the default, or header)
+    let namespace = get("namespace").unwrap_or_else(|| "body".to_string());
     // the mock-data upload carries its payload as a raw value, not as text
     let content = entries
         .iter()
@@ -221,7 +223,8 @@ pub async fn handle(
     // WS client, so the identical-command dedup guard does not apply
     let direct = get("direct").map(|v| v == "true").unwrap_or(false);
     let outcome = handle_request(
-        platform, &po, &kind, &in_route, &out_route, &message, content, forwarded, direct,
+        platform, &po, &kind, &in_route, &out_route, &message, content, &namespace, forwarded,
+        direct,
     )
     .await;
     if let Err(e) = outcome {
@@ -241,6 +244,7 @@ async fn handle_request(
     out_route: &str,
     message: &str,
     content: Option<Value>,
+    namespace: &str,
     forwarded: bool,
     direct: bool,
 ) -> Result<(), AppError> {
@@ -277,7 +281,7 @@ async fn handle_request(
         }
         "upload" if !in_route.is_empty() && !out_route.is_empty() => {
             if let Some(content) = content {
-                handle_upload(po, in_route, out_route, content, forwarded).await;
+                handle_upload(po, in_route, out_route, content, namespace, forwarded).await;
             }
             Ok(())
         }
@@ -302,20 +306,21 @@ async fn handle_upload(
     in_route: &str,
     out_route: &str,
     content: Value,
+    namespace: &str,
     forwarded: bool,
 ) {
     if forwarded {
-        load_mock_content(po, in_route, out_route, content).await;
+        load_mock_content(po, in_route, out_route, content, namespace).await;
         return;
     }
     let Some(me) = session::get_session(in_route) else {
         return;
     };
     if me.is_primary() {
-        load_mock_content(po, in_route, out_route, content.clone()).await;
+        load_mock_content(po, in_route, out_route, content.clone(), namespace).await;
         for sub_out in me.subscribers() {
             let sub_in = GraphSession::in_route_of(&sub_out);
-            let forward = upload_body(&sub_in, &sub_out, content.clone(), true);
+            let forward = upload_body(&sub_in, &sub_out, content.clone(), namespace, true);
             let _ = po
                 .send(EventEnvelope::new().set_to(ROUTE).set_raw_body(forward))
                 .await;
@@ -323,19 +328,26 @@ async fn handle_upload(
     } else {
         let target_in = GraphSession::in_route_of(&me.target_id());
         let target_out = GraphSession::out_route_of(&me.target_id());
-        let forward = upload_body(&target_in, &target_out, content, false);
+        let forward = upload_body(&target_in, &target_out, content, namespace, false);
         let _ = po
             .send(EventEnvelope::new().set_to(ROUTE).set_raw_body(forward))
             .await;
     }
 }
 
-fn upload_body(in_route: &str, out_route: &str, content: Value, forwarded: bool) -> Value {
+fn upload_body(
+    in_route: &str,
+    out_route: &str,
+    content: Value,
+    namespace: &str,
+    forwarded: bool,
+) -> Value {
     let mut map = vec![
         (Value::from("type"), Value::from("upload")),
         (Value::from("in"), Value::from(in_route)),
         (Value::from("out"), Value::from(out_route)),
         (Value::from("content"), content),
+        (Value::from("namespace"), Value::from(namespace)),
     ];
     if forwarded {
         map.push((Value::from("forwarded"), Value::from(true)));
@@ -395,7 +407,16 @@ fn import_body(in_route: &str, out_route: &str, content: Value, forwarded: bool)
     Value::Map(map)
 }
 
-async fn load_mock_content(po: &PostOffice, in_route: &str, out_route: &str, content: Value) {
+/// Load the mock content into the instance's `input.body` or, for the `header`
+/// namespace, `input.header` - the names kept as given, since the graph reads
+/// headers case-insensitively, exactly as it reads a real request's.
+async fn load_mock_content(
+    po: &PostOffice,
+    in_route: &str,
+    out_route: &str,
+    content: Value,
+    namespace: &str,
+) {
     let Some(instance) = model::get_instance(in_route) else {
         say(
             po,
@@ -405,14 +426,19 @@ async fn load_mock_content(po: &PostOffice, in_route: &str, out_route: &str, con
         .await;
         return;
     };
+    let header = namespace == "header";
     {
         let mut state = instance.state.lock().expect("graph state machine");
-        let _ = state.set_element("input.body", content);
+        let _ = state.set_element(if header { "input.header" } else { "input.body" }, content);
     }
     say(
         po,
         out_route,
-        "Mock data loaded into 'input.body' namespace",
+        if header {
+            "Mock data loaded into 'input.header' namespace"
+        } else {
+            "Mock data loaded into 'input.body' namespace"
+        },
     )
     .await;
 }
@@ -629,7 +655,10 @@ async fn handle_part_three(
             say(
                 po,
                 out_route,
-                format!("You may upload JSON payload -> POST /api/mock/{name}"),
+                format!(
+                    "You may upload JSON payload -> POST /api/mock/{name} \
+                     (mock headers, a JSON object of text values -> POST /api/mock/{name}?namespace=header)"
+                ),
             )
             .await;
         }
@@ -2527,7 +2556,15 @@ pub fn has_session(id: &str) -> bool {
 /// session's graph instance. The payload is routed through the command service so
 /// that it propagates to every member of a collaborative session like a command
 /// (see `handle_upload`). Returns false when the session has no graph instance.
-pub async fn upload_content(platform: &Platform, id: &str, content: Value) -> bool {
+/// Load mock data into the session's graph instance under the given namespace:
+/// `body` (a map or a list as `input.body`) or `header` (a map of text values as
+/// `input.header`). The REST edge validates the payload shape for the namespace.
+pub async fn upload_content(
+    platform: &Platform,
+    id: &str,
+    content: Value,
+    namespace: &str,
+) -> bool {
     let in_route = GraphSession::in_route_of(id);
     let out_route = GraphSession::out_route_of(id);
     if session::get_session(&in_route).is_none() || model::get_instance(&in_route).is_none() {
@@ -2535,11 +2572,9 @@ pub async fn upload_content(platform: &Platform, id: &str, content: Value) -> bo
     }
     let po = PostOffice::new(platform);
     let _ = po
-        .send(
-            EventEnvelope::new()
-                .set_to(ROUTE)
-                .set_raw_body(upload_body(&in_route, &out_route, content, false)),
-        )
+        .send(EventEnvelope::new().set_to(ROUTE).set_raw_body(upload_body(
+            &in_route, &out_route, content, namespace, false,
+        )))
         .await;
     true
 }
