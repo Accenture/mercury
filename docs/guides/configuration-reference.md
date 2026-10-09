@@ -778,6 +778,24 @@ Playground's **Graph set packaging** panel write the file; a deployment is still
 > The former `location.graph.deployed` key is **retired** — the manifest carries the
 > location of its own models. A leftover value logs an obsolete-key startup warning.
 
+#### `graph.schema.validator` {#graph-schema-validator}
+
+| Type | Default |
+|---|---|
+| string (route name) | `graph.schema.validator` |
+
+The function both walkers call for the **assumed validation step** of [the graph
+contract](knowledge-graph/graph-contract.md#validation): when a root node carries a `schema`
+property, the executor and the Playground's traveler send `{body, header, schema}` to this route as
+the first thing at the root on every run, before the root's own skill, and stage a failure under the
+root as the standard task error path (HTTP 400 with every violation, or the root's `exception=`
+handler). The default is the built-in validator of the closed OpenAPI 3.0 subset
+(`schema::validate_request`); a substitute names another function with the same contract —
+`{valid: true}` on success, a 400 whose error is the violation message on failure — for an
+installation that wants a different vocabulary or an audit hook. Nothing is written into the graph
+for the step, so a substitute applies to every graph of the application at once; set it for one run
+with the `-D` program argument. Read by `crates/knowledge-graph`.
+
 #### `location.graph.temp`
 
 | Type | Default |

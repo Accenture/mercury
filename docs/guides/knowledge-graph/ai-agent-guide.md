@@ -305,6 +305,60 @@ The rules of a set — the entry names, the root-name agreement, the manifest fi
 and the panel's inspect mode — are in the [canonical package format](../canonical-package-format.md#graph-sets);
 `sets`, `unpack` and the generated manifest in the [configuration reference](../configuration-reference.md).
 
+### Declare the contract {#contract-schema}
+
+A graph that will be called by others deserves a declared contract: an optional `schema` property on
+the root node (the request) and on the end node (the response), in a closed subset of OpenAPI 3.0.
+With it the engine validates every request at the root before anything runs, and
+`GET /api/openapi/{graph-id}` answers an OpenAPI 3.0 document. The recipe confirms rather than types:
+
+1. **Read what the model already says.** `describe graph` (the draft) or
+   `GET /api/openapi/session/{sid}?view=contract` lists every `input.*` / `output.*` path the model
+   references with the type the engine can prove and the nodes that use it (`usedBy`); after a
+   dry run, `inspect input.body` and `inspect output.body` show the actual values, the only way to
+   type a task's or a fetcher's result.
+2. **Declare the request on the root.** Add the `schema.body` and `schema.header` lines to the root's
+   properties with `update node` — the node's other properties re-sent, since `update node` replaces
+   the definition:
+   ```
+   update node root
+   with type Root
+   with properties
+   name={graph-id}
+   purpose={one line}
+   schema.body.type=object
+   schema.body.required[]=amount
+   schema.body.properties.amount.type=number
+   schema.body.properties.amount.minimum=0
+   schema.body.properties.currency.type=string
+   schema.body.properties.currency.enum[]=USD
+   schema.body.properties.currency.enum[]=EUR
+   schema.header.required[]=X-Tenant
+   schema.header.properties.X-Tenant.type=string
+   ```
+   Strict JSON types: a numeric string is not a number, and money is `type: string` with a `pattern`.
+   The vocabulary is closed — an unknown keyword, a keyword that does not apply to the type or a
+   malformed value is refused by the pre-run check and by the gate, naming the location
+   (`node root - schema.body.properties.amount: unknown keyword 'min' - ...`).
+3. **Dry-run the refusal and the pass.** `instantiate graph`, then `run` with no input: the console
+   prints `Graph traversal aborted: Input validation failed - input.body.amount: required; ... (node
+   root)`. Upload a body and the headers that satisfy the contract and `run` again: `Input validated
+   by graph.schema.validator in N ms`, then the walk. A dry run validates exactly as a deployed run
+   does.
+4. **Describe the response on the end node** the same way (`schema.body`, `schema.header`); it is
+   documentary and shapes the document's `200` response.
+5. **Check and download.** `describe graph` now prints the types with `[declared]` where only the
+   declaration knows a path, a `Declared schema:` line, and the document's URL; the contract view's
+   `issues[]` names a declared path the model never reads or a read path the declaration lacks (a
+   WARN at deploy, never a refusal). `GET /api/openapi/session/{sid}` saves the draft's document;
+   after the deploy, `GET /api/openapi/{graph-id}` is the one to hand to a consumer or to paste into
+   Swagger UI's explore bar.
+
+A human does the same in the Playground's **Graph schema** panel (Tools menu), which fills the rows
+from the same discovery and the last run and saves through the same `update node`. The whole lane -
+the vocabulary, the gate messages, the 400 shape, the handler path and the API-playground round
+trip - is [the graph contract](graph-contract.md).
+
 ## Worked example {#example}
 
 Building the hello-world graph via the **synchronous** `/sync` endpoint, one command per request.
@@ -472,3 +526,4 @@ When in doubt, diff your trimmed `rest.yaml` against the example's.
 
 - [MiniGraph command grammar](command-reference.md) + [`minigraph-commands.json`](minigraph-commands.json) — the source of truth.
 - [Built-in skills reference](skills-reference.md) — per-skill properties and examples.
+- [The graph contract](graph-contract.md) — the `schema` declaration, validation at the root, the OpenAPI document on demand and the Schema panel.

@@ -458,6 +458,56 @@
       "quote": "Bytes after the top-level container, well-formed or not, are refused as a decoding error",
       "test": "crates/platform-core::msgpack_hostile_header_vectors::bytes_after_the_value_are_refused",
       "since": "4.12.21+"
+    },
+    {
+      "id": "graph-schema-closed-vocabulary",
+      "claim": "A root or end node's schema property declares the request or response in a closed subset of OpenAPI 3.0 keywords (type, properties, required, items, enum, minimum, maximum, exclusiveMinimum, exclusiveMaximum, minLength, maxLength, pattern, minItems, maxItems, nullable, additionalProperties; title, description, example and format documentary), and schema::compile refuses an unknown keyword, a keyword that does not apply to the declared type, a malformed value and a pattern outside the subset common to both engines, naming the location; the shared vector file graph-schema-vectors.json pins every accept and reject in both engines (Increment 172).",
+      "pages": [
+        "docs/guides/knowledge-graph/graph-contract.md"
+      ],
+      "quote": "The vocabulary is a closed subset of OpenAPI 3.0 keywords, and the gate refuses any other keyword",
+      "test": "crates/knowledge-graph::graph_schema::the_gate_accepts_the_vocabulary_and_refuses_the_rest",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-input-validation-at-root",
+      "claim": "When the root node carries a schema, the executor and the Playground's traveler validate input.body and input.header against it as the first thing at the root on every run through the built-in function graph.schema.validator (common::validate_input - an assumed step, nothing written into the node, never repeated by a resumed traversal); a failure takes the standard task error path - HTTP 400 with every violation in one message, or the root's exception= handler - and never reaches the root's own skill.",
+      "pages": [
+        "docs/guides/knowledge-graph/graph-contract.md"
+      ],
+      "quote": "validated against the root node's schema as the first thing at the root on every run, and a failed validation never reaches the root's own skill",
+      "test": "crates/knowledge-graph::graph_runtime::input_validation_at_the_root",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-openapi-on-demand",
+      "claim": "GET /api/openapi/{graph_id} (dev mode) answers a minimal OpenAPI 3.0 document of a deployed graph as a YAML attachment, ?format=json as JSON and ?view=contract as the derived contract with its evidence, and GET /api/openapi/session/{sessionId} the same for a session's draft; the document is derived from the model on every request and never stored (Increment 171).",
+      "pages": [
+        "docs/guides/knowledge-graph/graph-contract.md"
+      ],
+      "quote": "The document is derived from the model each time it is requested and never stored",
+      "test": "crates/knowledge-graph::graph_runtime::openapi_document_on_demand",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-contract-declaration-wins",
+      "claim": "The graph contract (contract.rs) merges the declared schema over the surface discovered in the model (the path scan, direct evidence, one hop through a typed variable or an extension target's declared output): the declaration wins, a discovered path the declaration lacks is appended untyped and flagged, and a declared path the model never references is kept and flagged; the shared fixture graph-contract-vectors.json pins the contract view, the document and the describe lines in both engines.",
+      "pages": [
+        "docs/guides/knowledge-graph/graph-contract.md"
+      ],
+      "quote": "The declaration wins: a discovered path the declaration lacks is appended untyped and flagged, and a declared path the model never references is kept and flagged",
+      "test": "crates/knowledge-graph::graph_contract::shared_vectors_pin_the_contract_and_the_document",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-schema-dry-run-parity",
+      "claim": "A Playground dry run validates the instance's input.body and input.header against the root's schema exactly as the deployed executor does - the same assumed step, the same message - and the pre-run check refuses a schema outside the vocabulary before the run starts.",
+      "pages": [
+        "docs/guides/knowledge-graph/graph-contract.md"
+      ],
+      "quote": "A dry run in the Playground validates the input exactly as a deployed run does",
+      "test": "crates/knowledge-graph::graph_runtime::dry_run_validates_the_input_at_the_root",
+      "since": "4.12.21+"
     }
   ]
 }

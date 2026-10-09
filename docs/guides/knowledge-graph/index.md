@@ -137,6 +137,10 @@ execution. [Composing the Layers](composing-the-layers.md) tells this story end 
   in a live session while humans watch in real time.
 - **[Composing the Layers](composing-the-layers.md)** — sub-graph and flow delegation,
   composable-function tasks, external data sources, discovery commands, and REST exposure.
+- **[The Graph Contract](graph-contract.md)** — declare the request and response as a `schema`
+  on the root and end nodes (a closed subset of OpenAPI 3.0); the engine validates every request
+  at the root, answers an OpenAPI 3.0 document on demand, and the Playground's Schema panel fills
+  the declaration in from discovery and the last run.
 - **The AI documentation set** — the [AI agent guide](ai-agent-guide.md), the
   [command grammar](command-reference.md) (with its machine-readable form,
   [`minigraph-commands.json`](minigraph-commands.json)), and the

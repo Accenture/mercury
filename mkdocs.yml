@@ -130,6 +130,7 @@ nav:
       - Workflow Suspension: guides/knowledge-graph/workflow-suspension.md
       - Playground & AI Companion: guides/knowledge-graph/playground-and-companion.md
       - Composing the Layers: guides/knowledge-graph/composing-the-layers.md
+      - The Graph Contract: guides/knowledge-graph/graph-contract.md
       - Graph AI Agent Guide: guides/knowledge-graph/ai-agent-guide.md
       - MiniGraph Command Grammar: guides/knowledge-graph/command-reference.md
       - Built-in Skills: guides/knowledge-graph/skills-reference.md

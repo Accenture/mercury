@@ -52,6 +52,13 @@ These are self-contained; you should not need the engine source or the tutorial 
   CompileGraph — compiled-or-404.
 - [Built-in skills reference](guides/knowledge-graph/skills-reference.md) — per-skill properties and
   examples.
+- [The graph contract](guides/knowledge-graph/graph-contract.md) — declare a graph's request and
+  response as a `schema` on the root and end nodes (a closed subset of OpenAPI 3.0, strict JSON
+  types, headers as text); the engine validates every request at the root as an assumed step (HTTP
+  400 with every violation, or the root's `exception=` handler), `GET /api/openapi/{graph-id}`
+  answers an OpenAPI 3.0 document on demand (`?view=contract` the derived surface with its
+  evidence), `describe graph` prints the typed surface, and the Playground's Schema panel fills the
+  declaration in from discovery and the last run; the Swagger UI round trip.
 
 **Port-specific notes (differ from the Java upstream):**
 - `graph.js` is **retired** (disabled for security) — use `graph.math` for inline compute/branch, or
