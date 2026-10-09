@@ -36,6 +36,28 @@ Each change merged to `main` after v4.12.21 is listed here; it moves under its r
    they are neither declared nor derived. Pinned by the shared vector file `graph-contract-vectors.json` (six cases,
    byte-identical with the Java repository). No upgrade action: a Layer 3 application that wants the endpoint adds the two
    `rest.yaml` entries.
+3. **Input validation by declaration at the root of a graph (RFC-0007, WP2; Increment 172).** The twin of the Java engine's
+   change: when a root node carries a `schema` property, the engine validates the request before anything runs - `input.body`
+   against `schema.body` and `input.header` against `schema.header`, header names case-insensitively - as the first step at the
+   root of every run, a step the engine assumes with nothing written into the node. It invokes the new built-in function
+   `graph.schema.validator` (`schema::validate_request`) with `{body, header, schema}` the way a task node invokes a function: a bad
+   request answers HTTP 400 with every violation in one message (`Input validation failed - input.body.amount: expected number, got
+   string; input.header.X-Api-Key: required`, ten violations and the rest counted), a root `exception=` handler takes over a failed
+   validation with the generic exception context, the root's own skill runs only after a successful validation, the traversal log
+   and the dry run's console say `Input validated by graph.schema.validator in N ms`, and the application property
+   `graph.schema.validator` names a substitute. The vocabulary is a closed OpenAPI 3.0 subset (`type`, `properties`, `required`,
+   `items`, `enum`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `minLength`, `maxLength`, `pattern`,
+   `minItems`, `maxItems`, `nullable`, `additionalProperties`; `title`, `description`, `example` and `format` documentary): the
+   gate refuses any other keyword, a keyword that cannot apply to the declared type and a malformed schema, naming the location,
+   on the end node too, and warns at deploy and pack time about a mismatch between the declaration and the model's data surface.
+   Types are strict JSON types (an integral float is an integer), a number or boolean header validates the parsed text, a
+   `pattern` is searched with the regex crate's Unicode-aware classes and must stay in the subset common to both engines (a
+   textual check refuses lookaround, atomic groups, backreferences and possessive quantifiers), and the values the Playground
+   grammar stores as text are read as the schema expects. Pinned by the shared vector file `graph-schema-vectors.json` (56 compile,
+   29 validate and 2 report cases, byte-identical with the Java repository; `tests/graph_schema.rs`) and the runtime scenarios
+   `input_validation_at_the_root` and `dry_run_validates_the_input_at_the_root`. **Upgrade note:** a deployed graph whose root
+   already carries a `schema` property is validated from this release on, and refused at the gate when the property is not the
+   contract's shape; `regex` joins the crate's dependencies.
 
 ---
 ## Version 4.12.21, 10/7/2026

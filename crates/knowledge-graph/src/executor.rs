@@ -248,7 +248,92 @@ async fn begin_traversal(
         .graph
         .get_root_node()
         .ok_or_else(|| invalid("Root node does not exist"))?;
+    // a root with a 'schema' property turns input validation on as the first step at the root
+    common::arm_input_validation(instance, &root);
     walk(platform, po, instance, root, None, parent_span.clone()).await
+}
+
+/// Run the assumed validation step at the root and apply its outcome the way
+/// a failing task node's is applied: no handler, the run aborts with the
+/// validator's status and its error map; a root `exception=` handler, the
+/// generic exception context is staged and the handler takes over (the root's
+/// own skill is skipped). The traveler keeps identical semantics. (Java
+/// `GraphExecutor.inputValidated`.)
+///
+/// Returns true when the input passed and the walk may continue.
+async fn input_validated(
+    platform: &Platform,
+    po: &PostOffice,
+    instance: &Arc<GraphInstance>,
+    root: &Arc<SimpleNode>,
+    parent_span: &Option<String>,
+) -> bool {
+    let started = std::time::Instant::now();
+    let Some(status) = common::validate_input(platform, po, instance, root, parent_span).await
+    else {
+        if traversal_log() {
+            log::info!(
+                "{}",
+                traversal_record(
+                    format!(
+                        "Input validated by {} in {} ms",
+                        common::schema_validator_route(),
+                        started.elapsed().as_millis()
+                    ),
+                    &instance.graph_id,
+                    instance.correlation_label()
+                )
+            );
+        }
+        return true;
+    };
+    let node_name = root.get_alias();
+    match root.get_property(EXCEPTION) {
+        None => {
+            let error_map = {
+                let state = instance.state.lock().expect("graph state machine");
+                get_error_map(
+                    state.get_element(&format!("{node_name}.{}", common::ERROR)),
+                    state.get_element(&format!("{node_name}.{}", common::TARGET)),
+                )
+            };
+            let message = match &error_map {
+                Value::Map(entries) => entries
+                    .iter()
+                    .find(|(k, _)| display(k) == "message")
+                    .map(|(_, v)| display(v))
+                    .unwrap_or_default(),
+                other => display(other),
+            };
+            let mut event = EventEnvelope::new()
+                .set_to(&instance.get_reply_to())
+                .set_correlation_id(&instance.get_correlation_id())
+                .set_raw_body(error_map)
+                .set_status(status);
+            if let Some(span) = parent_span {
+                event = event.set_span_id(span);
+            }
+            let _ = po.send(event).await;
+            instance.set_complete();
+            log_aborted(instance, &message);
+        }
+        Some(handler) => {
+            {
+                let mut state = instance.state.lock().expect("graph state machine");
+                common::stage_error_context(&mut state, node_name);
+            }
+            next_or_jump(
+                platform,
+                po,
+                instance,
+                root.clone(),
+                &display(&handler),
+                parent_span,
+            )
+            .await;
+        }
+    }
+    false
 }
 
 async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &EventEnvelope) {
@@ -483,6 +568,13 @@ async fn walk_to(
     from: Option<String>,
     parent_span: Option<String>,
 ) -> Result<(), AppError> {
+    // the assumed step of a graph with a contract (RFC-0007): validate the input at the
+    // root before the root's own skill, or anything else, runs - a failed validation ends here
+    if instance.take_pending_input_validation()
+        && !input_validated(platform, po, instance, &node, &parent_span).await
+    {
+        return Ok(());
+    }
     let is_end = instance
         .graph
         .get_end_node()

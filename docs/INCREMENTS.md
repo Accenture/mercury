@@ -4688,3 +4688,33 @@ the Java repository: the contract view, the document and the describe lines of e
 and by the runtime harness's `openapi_document_on_demand` scenario.
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p mercury-knowledge-graph`.
+
+## Increment 172 — Input validation at the root (RFC-0007, WP2) (2026-10-09)
+
+RFC-0007's second work package, the twin of the Java engine's change of the same day. `schema.rs` compiles the `schema` property
+of a root or end node - an object of a `body` part and/or a `header` part in the closed OpenAPI 3.0 subset (`type`, `properties`,
+`required`, `items`, `enum`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `minLength`, `maxLength`, `pattern`,
+`minItems`, `maxItems`, `nullable`, `additionalProperties`; `title`, `description`, `example` and `format` documentary) - and
+validates a value against it, every violation collected under its state-machine path (`input.body.items[2].sku`,
+`input.header.X-Api-Key`) and rendered as one message capped at ten (`report`). The compiler refuses an unknown keyword, a keyword
+that cannot apply to the declared type, a malformed value and a `pattern` outside the subset common to both engines (a textual
+check for lookaround, atomic groups, backreferences and possessive quantifiers, since the regex crate has none of them and the Java
+engine has them all); types are strict JSON types with an integral float counting as an integer; a header is text and a number or
+boolean header validates the parsed text; the values the Playground grammar stores as text are read as the schema expects.
+`schema::validate_request` is the built-in function `graph.schema.validator` (`{body, header, schema}` in, `{valid: true}` or 400
+with the message out). `common::validate_input` is the assumed step: the executor and the traveler arm it when a run begins at a
+root with a `schema` property (`GraphInstance::pending_input_validation`, never armed by a resumed traversal) and take it on the
+first visit to the root in `walk_to`, before the root's own skill or anything else runs - one request to the validator route (the
+application property `graph.schema.validator` names a substitute) with the run's deadline, trace and business correlation id,
+the failure staged under `root.status`, `root.error` and `root.target` so the standard error path applies: the run aborts with
+the validator's status and error map, or the root's `exception=` handler takes over with the generic exception context, and the
+traversal log or console reports `Input validated by graph.schema.validator in N ms` on success. `model_validator::validate_schemas`
+compiles the root's and the end's declaration at the gate and in the Playground's pre-run check, naming the node and the location;
+`model_gate::validate` warns about a declared path the model never reads or a read path the declaration lacks. `regex` joins the
+crate's dependencies. Pinned by `tests/graph_schema.rs` over the shared vector file `graph-schema-vectors.json` (56 compile, 29
+validate and 2 report cases, byte-identical with the Java repository; the port matched on its first run) and by the runtime
+harness's `input_validation_at_the_root` (the deployed graphs `unit-test-schema-1` and `-2`, the rejected `-err1` and `-err2`,
+the function's own contract) and `dry_run_validates_the_input_at_the_root` (the console lines, the mock upload satisfying the
+contract, the pre-run gate).
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p mercury-knowledge-graph`.

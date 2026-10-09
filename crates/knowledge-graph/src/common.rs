@@ -21,14 +21,15 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicI64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 
 use event_script::conversions::{display, to_json_string};
 use event_script::mapping::{get_constant_value, get_lhs_element, get_lhs_or_constant};
 use event_script::mlm::MultiLevelMap;
 use event_script::util::{split, str2long};
 use platform_core::graph::{MiniGraph, SimpleNode};
-use platform_core::{AppConfigReader, AppError};
+use platform_core::{AppConfigReader, AppError, EventEnvelope, Platform, PostOffice};
 use rmpv::Value;
 
 use crate::model::{self, GraphInstance};
@@ -56,6 +57,8 @@ pub const HEADER: &str = "header";
 pub const RESULT: &str = "result";
 pub const TARGET: &str = "target";
 pub const EXCEPTION: &str = "exception";
+/// The root or end node's contract declaration (RFC-0007).
+pub const SCHEMA: &str = "schema";
 pub const OUTPUT_BODY_NAMESPACE: &str = "output.body";
 pub const OUTPUT_HEADER_NAMESPACE: &str = "output.header";
 pub const NODE_NAME: &str = "node ";
@@ -601,6 +604,121 @@ pub fn reset_nodes(command: &str, instance: &GraphInstance, state: &mut MultiLev
             state.remove_element(name);
         }
     }
+}
+
+/// The route of the input validator: the built-in `graph.schema.validator`, or
+/// the substitute the application property of the same name points at (Java
+/// `GraphLambdaFunction.getSchemaValidatorRoute`).
+pub fn schema_validator_route() -> &'static str {
+    static ROUTE: OnceLock<String> = OnceLock::new();
+    ROUTE.get_or_init(|| {
+        let route = AppConfigReader::get_instance()
+            .get_property_or("graph.schema.validator", crate::schema::ROUTE)
+            .trim()
+            .to_string();
+        if route.is_empty() {
+            crate::schema::ROUTE.to_string()
+        } else {
+            route
+        }
+    })
+}
+
+/// Arm the assumed validation step of a run that begins at this root: the
+/// walker takes the flag on its first visit to the root and validates the
+/// input before the root's own skill, or anything else, runs. A root without
+/// a `schema` property arms nothing (Java `armInputValidation`).
+pub fn arm_input_validation(instance: &GraphInstance, root: &SimpleNode) {
+    let declared = matches!(root.get_property(SCHEMA), Some(Value::Map(_)));
+    instance
+        .pending_input_validation
+        .store(declared, Ordering::SeqCst);
+}
+
+/// The assumed step at the root of a graph with a contract (RFC-0007; Java
+/// `GraphLambdaFunction.validateInput`): validate the run's `input.body` and
+/// `input.header` against the root's `schema` by invoking the validator
+/// function the way a task node invokes a composable function - a request
+/// carrying `{body, header, schema}`, the run's deadline, its trace and its
+/// business correlation id. A failing response (400 with every violation in
+/// one message; 500 for a validator that does not exist or fails) is staged
+/// under the root's `status`, `error` and `target`, so the standard error path
+/// (the run's abort status, the root's `exception=` handler, the console line
+/// of a dry run) applies as it does to a failing task.
+///
+/// Returns None when the input passed, else the failing status.
+pub async fn validate_input(
+    platform: &Platform,
+    po: &PostOffice,
+    instance: &Arc<GraphInstance>,
+    root: &SimpleNode,
+    parent_span: &Option<String>,
+) -> Option<i32> {
+    let node_name = root.get_alias();
+    let route = schema_validator_route();
+    {
+        let mut state = instance.state.lock().expect("graph state machine");
+        // a re-run of the same instance must not carry the previous validation's outcome
+        for suffix in [STATUS, ERROR, STACK] {
+            state.remove_element(&format!("{node_name}.{suffix}"));
+        }
+        let _ = state.set_element(&format!("{node_name}.{TARGET}"), Value::from(route));
+    }
+    let reachable = platform.has_route(route)
+        || platform_core::automation::event_api::get_event_http_target(route).is_some();
+    let (status, error) = if !reachable {
+        (
+            500,
+            Value::from(format!("Schema validator '{route}' does not exist")),
+        )
+    } else {
+        let (body, header, ttl, business_cid) = {
+            let mut state = instance.state.lock().expect("graph state machine");
+            (
+                state.get_element("input.body"),
+                state.get_element("input.header"),
+                get_model_ttl(&mut state),
+                state.get_element("model.cid"),
+            )
+        };
+        let payload = Value::Map(vec![
+            (Value::from(crate::schema::BODY), body.unwrap_or(Value::Nil)),
+            (
+                Value::from(crate::schema::HEADER),
+                header.unwrap_or(Value::Nil),
+            ),
+            (
+                Value::from(SCHEMA),
+                root.get_property(SCHEMA).unwrap_or(Value::Nil),
+            ),
+        ]);
+        let mut request = EventEnvelope::new()
+            .set_to(route)
+            .set_correlation_id(&uuid::Uuid::new_v4().simple().to_string())
+            .set_raw_body(payload);
+        if let Some(span) = parent_span {
+            request = request.set_span_id(span);
+        }
+        if let Some(Value::String(text)) = business_cid {
+            let cid = java_trim(text.as_str().unwrap_or_default());
+            if !cid.trim().is_empty() {
+                request = request.add_tag(platform_core::post_office::BUSINESS_CID_TAG, cid);
+            }
+        }
+        // a timeout answers 408 as an error, never a hang
+        match po
+            .request(request, Duration::from_millis(ttl.max(0) as u64))
+            .await
+        {
+            Ok(response) if response.has_error() => (response.status(), response.body().clone()),
+            Ok(_) => return None,
+            Err(e) => (e.status(), Value::from(e.message())),
+        }
+    };
+    let mut state = instance.state.lock().expect("graph state machine");
+    let _ = state.set_element(&format!("{node_name}.{STATUS}"), Value::from(status));
+    let _ = state.set_element(&format!("{node_name}.{ERROR}"), error);
+    Some(status)
 }
 
 /// `model.ttl` with a 30s default and a 1s floor (Java `getModelTtl`).

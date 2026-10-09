@@ -62,6 +62,11 @@ pub struct GraphInstance {
     pub node_seen: Mutex<HashMap<String, bool>>,
     pub skill_run: Mutex<HashMap<String, bool>>,
     pub complete: AtomicBool,
+    /// Armed when a run begins at a root node that carries a `schema` property:
+    /// the walker takes it on its first visit to the root and validates the
+    /// input before anything else runs (RFC-0007). A resumed traversal never
+    /// arms it. (Java `GraphInstance.pendingInputValidation`.)
+    pub pending_input_validation: AtomicBool,
     metadata: Mutex<Metadata>,
     start_time_ms: std::sync::atomic::AtomicI64,
 }
@@ -76,6 +81,7 @@ impl GraphInstance {
             node_seen: Mutex::new(HashMap::new()),
             skill_run: Mutex::new(HashMap::new()),
             complete: AtomicBool::new(false),
+            pending_input_validation: AtomicBool::new(false),
             metadata: Mutex::new(Metadata::default()),
             start_time_ms: std::sync::atomic::AtomicI64::new(now_epoch_ms()),
         }
@@ -95,6 +101,12 @@ impl GraphInstance {
 
     pub fn set_complete(&self) {
         self.complete.store(true, Ordering::SeqCst);
+    }
+
+    /// Take the armed validation step: true exactly once per armed run, so the
+    /// walker validates the input on its first visit to the root and never again.
+    pub fn take_pending_input_validation(&self) -> bool {
+        self.pending_input_validation.swap(false, Ordering::SeqCst)
     }
 
     /// Exactly-one-terminal claim: flip `complete` false→true atomically —

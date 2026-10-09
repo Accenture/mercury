@@ -67,7 +67,28 @@ pub fn validate(graph: &MiniGraph) -> Result<(), String> {
     validate_working_node_has_skill(graph)?;
     validate_suspend_resume(graph)?;
     validate_node_ttl(graph)?;
-    validate_model_metadata_immutability(graph)
+    validate_model_metadata_immutability(graph)?;
+    validate_schemas(graph)
+}
+
+/// The graph contract's declarations compile (RFC-0007; Java
+/// `GraphModelValidator.validateSchemas`): a `schema` property on the root node
+/// (the request) or the end node (the response) must be an object of a `body`
+/// part and/or a `header` part written in the closed OpenAPI 3.0 subset of the
+/// `schema` module. A malformed schema or an unknown keyword fails the gate,
+/// because a constraint the validator would silently ignore teaches that
+/// unflagged means safe; the end node's schema is documentary but compiles by
+/// the same rule.
+fn validate_schemas(graph: &MiniGraph) -> Result<(), String> {
+    for alias in ["root", "end"] {
+        if let Ok(Some(node)) = graph.find_node_by_alias(alias) {
+            if let Some(schema) = node.get_property("schema") {
+                crate::schema::compile_contract(&schema)
+                    .map_err(|e| format!("{NODE_NAME}{alias} - {e}"))?;
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The skills that call a composable function named by `task` (Java
