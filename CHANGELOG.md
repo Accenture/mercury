@@ -25,6 +25,17 @@ Each change merged to `main` after v4.12.21 is listed here; it moves under its r
    **Headers** row editor and posts the rows after the body, its hints list the input header names the graph references, the
    Upload tooltip counts both, and the `upload mock data` reply names both endpoints; `help upload` is mirrored from the Java
    repository. Pinned by `mock_header_upload_loads_every_member_instance`, the twin of the Java test. No upgrade action.
+2. **A graph's OpenAPI 3.0 document on demand, and the contract behind it (RFC-0007, WP1; Increment 171).** The twin of the
+   Java engine's change: `GET /api/openapi/{graph_id}` answers a minimal OpenAPI 3.0 document of a deployed graph as a YAML
+   attachment (`?format=json` for JSON inline; `?view=contract` for the derived contract with its evidence), and
+   `GET /api/openapi/session/{sessionId}` the same for a session's draft; both dev-mode, in the `rest.yaml` copies. The contract
+   is derived by the new `contract` module in three tiers (the path scan, direct evidence, one hop through a typed variable or
+   an extension target's declared output) and merged with the optional `schema` property of the root node (`schema.body`,
+   `schema.header`) and of the end node, the declaration winning and the gaps flagged; `describe graph {id}` prints each path's
+   type, the staged status codes, what is declared and the document's URL. Query parameters are not part of the graph API, so
+   they are neither declared nor derived. Pinned by the shared vector file `graph-contract-vectors.json` (six cases,
+   byte-identical with the Java repository). No upgrade action: a Layer 3 application that wants the endpoint adds the two
+   `rest.yaml` entries.
 
 ---
 ## Version 4.12.21, 10/7/2026

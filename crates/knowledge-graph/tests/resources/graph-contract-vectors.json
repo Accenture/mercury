@@ -1,0 +1,1784 @@
+{
+  "description": "Shared vectors of the graph contract (RFC-0007): each case's graph (and the other deployed models an extension target needs) with the contract view and the OpenAPI 3.0 document both engines must derive (version 1.0.0, no servers). The expected values are the Java engine's, reviewed by hand; the Rust engine must match them value for value.",
+  "cases": [
+    {
+      "name": "typed-constants-and-math",
+      "graph": {
+        "nodes": [
+          {
+            "alias": "root",
+            "types": [
+              "Root"
+            ],
+            "properties": {
+              "purpose": "Decide with arithmetic and booleans",
+              "name": "math-demo"
+            }
+          },
+          {
+            "alias": "decision",
+            "types": [
+              "Decision"
+            ],
+            "properties": {
+              "skill": "graph.math",
+              "statement": [
+                "COMPUTE: c -> {input.body.a} + {input.body.b}",
+                "IF: {input.body.a} > {input.body.b}\nTHEN: next\nELSE: less-than",
+                "MAPPING: text(a >= b) -> output.body.message",
+                "MAPPING: boolean(false) -> output.body.less_than"
+              ]
+            }
+          },
+          {
+            "alias": "less-than",
+            "types": [
+              "Task"
+            ],
+            "properties": {
+              "skill": "graph.data.mapper",
+              "mapping": [
+                "text(a < b) -> output.body.message",
+                "boolean(true) -> output.body.less_than"
+              ]
+            }
+          },
+          {
+            "alias": "end",
+            "types": [
+              "End"
+            ],
+            "properties": {
+              "skill": "graph.data.mapper",
+              "mapping": [
+                "input.body.a -> output.body.a",
+                "input.body.b -> output.body.b",
+                "decision.result.c -> output.body.sum"
+              ]
+            }
+          }
+        ],
+        "connections": [
+          {
+            "from": "root",
+            "to": "decision",
+            "label": "contains"
+          },
+          {
+            "from": "decision",
+            "to": "end",
+            "label": "next"
+          },
+          {
+            "from": "decision",
+            "to": "less-than",
+            "label": "less-than"
+          },
+          {
+            "from": "less-than",
+            "to": "end",
+            "label": "next"
+          }
+        ]
+      },
+      "contract": {
+        "graph": "typed-constants-and-math",
+        "purpose": "Decide with arithmetic and booleans",
+        "input": {
+          "body": {
+            "declared": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "a": {
+                  "type": "number",
+                  "description": "Referenced by decision, end"
+                },
+                "b": {
+                  "type": "number",
+                  "description": "Referenced by decision, end"
+                }
+              }
+            },
+            "paths": [
+              {
+                "path": "input.body.a",
+                "type": "number",
+                "origin": "discovered",
+                "usedBy": [
+                  "decision",
+                  "end"
+                ]
+              },
+              {
+                "path": "input.body.b",
+                "type": "number",
+                "origin": "discovered",
+                "usedBy": [
+                  "decision",
+                  "end"
+                ]
+              }
+            ]
+          },
+          "header": {
+            "declared": false,
+            "paths": []
+          }
+        },
+        "output": {
+          "body": {
+            "declared": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "a": {
+                  "type": "number",
+                  "description": "Referenced by end"
+                },
+                "b": {
+                  "type": "number",
+                  "description": "Referenced by end"
+                },
+                "less_than": {
+                  "type": "boolean",
+                  "description": "Referenced by decision, less-than"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Referenced by decision, less-than"
+                },
+                "sum": {
+                  "type": "number",
+                  "description": "Referenced by end"
+                }
+              }
+            },
+            "paths": [
+              {
+                "path": "output.body.a",
+                "type": "number",
+                "origin": "discovered",
+                "usedBy": [
+                  "end"
+                ]
+              },
+              {
+                "path": "output.body.b",
+                "type": "number",
+                "origin": "discovered",
+                "usedBy": [
+                  "end"
+                ]
+              },
+              {
+                "path": "output.body.less_than",
+                "type": "boolean",
+                "origin": "discovered",
+                "usedBy": [
+                  "decision",
+                  "less-than"
+                ]
+              },
+              {
+                "path": "output.body.message",
+                "type": "string",
+                "origin": "discovered",
+                "usedBy": [
+                  "decision",
+                  "less-than"
+                ]
+              },
+              {
+                "path": "output.body.sum",
+                "type": "number",
+                "origin": "discovered",
+                "usedBy": [
+                  "end"
+                ]
+              }
+            ]
+          },
+          "header": {
+            "declared": false,
+            "paths": []
+          },
+          "status": []
+        },
+        "issues": []
+      },
+      "openapi": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "typed-constants-and-math",
+          "version": "1.0.0",
+          "description": "Decide with arithmetic and booleans"
+        },
+        "paths": {
+          "/api/graph/typed-constants-and-math": {
+            "post": {
+              "operationId": "typed-constants-and-math",
+              "summary": "Decide with arithmetic and booleans",
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "a": {
+                          "type": "number",
+                          "description": "Referenced by decision, end"
+                        },
+                        "b": {
+                          "type": "number",
+                          "description": "Referenced by decision, end"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "200": {
+                  "description": "The graph's output.body",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "object",
+                        "properties": {
+                          "a": {
+                            "type": "number",
+                            "description": "Referenced by end"
+                          },
+                          "b": {
+                            "type": "number",
+                            "description": "Referenced by end"
+                          },
+                          "less_than": {
+                            "type": "boolean",
+                            "description": "Referenced by decision, less-than"
+                          },
+                          "message": {
+                            "type": "string",
+                            "description": "Referenced by decision, less-than"
+                          },
+                          "sum": {
+                            "type": "number",
+                            "description": "Referenced by end"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "default": {
+                  "description": "Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/Error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "components": {
+          "schemas": {
+            "Error": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "status",
+                "message"
+              ]
+            }
+          }
+        }
+      },
+      "describe": "Input surface:\n  input.body.a (number)\n  input.body.b (number)\nOutput surface:\n  output.body.a (number)\n  output.body.b (number)\n  output.body.less_than (boolean)\n  output.body.message (string)\n  output.body.sum (number)\nDeclared schema: none\n"
+    },
+    {
+      "name": "nested-arrays-plugins-headers",
+      "graph": {
+        "nodes": [
+          {
+            "alias": "root",
+            "types": [
+              "Root"
+            ],
+            "properties": {
+              "purpose": "Shape evidence from mappings and plugins"
+            }
+          },
+          {
+            "alias": "prepare",
+            "types": [
+              "Task"
+            ],
+            "properties": {
+              "skill": "graph.data.mapper",
+              "mapping": [
+                "input.body.profile.name -> model.name",
+                "$.input.body.items[*].sku -> model.skus",
+                "int(input.body.count) -> model.count",
+                "input.header.Authorization -> model.auth",
+                "f:defaultValue(input.body.enabled, boolean(false)) -> model.enabled"
+              ]
+            }
+          },
+          {
+            "alias": "orders",
+            "types": [
+              "Task"
+            ],
+            "properties": {
+              "skill": "graph.task",
+              "task": "order.processor",
+              "for_each": [
+                "input.body.orders -> order"
+              ],
+              "output": [
+                "result -> model.processed"
+              ]
+            }
+          },
+          {
+            "alias": "end",
+            "types": [
+              "End"
+            ],
+            "properties": {
+              "skill": "graph.data.mapper",
+              "mapping": [
+                "input.body.profile.name -> output.body.name",
+                "model.count -> output.body.count",
+                "model.enabled -> output.body.enabled",
+                "f:listOfMap(model.rows) -> output.body.rows",
+                "f:now(text(local)) -> output.body.time",
+                "text(trace-1) -> output.header.x-trace",
+                "f:length(model.skus) -> output.body.sku_count"
+              ]
+            }
+          }
+        ],
+        "connections": [
+          {
+            "from": "root",
+            "to": "prepare",
+            "label": "contains"
+          },
+          {
+            "from": "prepare",
+            "to": "orders",
+            "label": "next"
+          },
+          {
+            "from": "orders",
+            "to": "end",
+            "label": "next"
+          }
+        ]
+      },
+      "contract": {
+        "graph": "nested-arrays-plugins-headers",
+        "purpose": "Shape evidence from mappings and plugins",
+        "input": {
+          "body": {
+            "declared": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "type": "integer",
+                  "description": "Referenced by prepare"
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Referenced by prepare"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "sku": {
+                        "description": "Referenced by prepare"
+                      }
+                    }
+                  }
+                },
+                "orders": {
+                  "type": "array",
+                  "items": {},
+                  "description": "Referenced by orders"
+                },
+                "profile": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "description": "Referenced by end, prepare"
+                    }
+                  }
+                }
+              }
+            },
+            "paths": [
+              {
+                "path": "input.body.count",
+                "type": "integer",
+                "origin": "discovered",
+                "usedBy": [
+                  "prepare"
+                ]
+              },
+              {
+                "path": "input.body.enabled",
+                "type": "boolean",
+                "origin": "discovered",
+                "usedBy": [
+                  "prepare"
+                ]
+              },
+              {
+                "path": "input.body.items[]",
+                "type": "array",
+                "origin": "discovered"
+              },
+              {
+                "path": "input.body.items[].sku",
+                "origin": "discovered",
+                "usedBy": [
+                  "prepare"
+                ]
+              },
+              {
+                "path": "input.body.orders[]",
+                "type": "array",
+                "origin": "discovered",
+                "usedBy": [
+                  "orders"
+                ]
+              },
+              {
+                "path": "input.body.profile",
+                "type": "object",
+                "origin": "discovered"
+              },
+              {
+                "path": "input.body.profile.name",
+                "origin": "discovered",
+                "usedBy": [
+                  "end",
+                  "prepare"
+                ]
+              }
+            ]
+          },
+          "header": {
+            "declared": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "Authorization": {
+                  "description": "Referenced by prepare"
+                }
+              }
+            },
+            "paths": [
+              {
+                "path": "input.header.Authorization",
+                "origin": "discovered",
+                "usedBy": [
+                  "prepare"
+                ]
+              }
+            ]
+          }
+        },
+        "output": {
+          "body": {
+            "declared": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "type": "integer",
+                  "description": "Referenced by end"
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Referenced by end"
+                },
+                "name": {
+                  "description": "Referenced by end"
+                },
+                "rows": {
+                  "type": "array",
+                  "items": {},
+                  "description": "Referenced by end"
+                },
+                "sku_count": {
+                  "type": "integer",
+                  "description": "Referenced by end"
+                },
+                "time": {
+                  "type": "string",
+                  "description": "Referenced by end"
+                }
+              }
+            },
+            "paths": [
+              {
+                "path": "output.body.count",
+                "type": "integer",
+                "origin": "discovered",
+                "usedBy": [
+                  "end"
+                ]
+              },
+              {
+                "path": "output.body.enabled",
+                "type": "boolean",
+                "origin": "discovered",
+                "usedBy": [
+                  "end"
+                ]
+              },
+              {
+                "path": "output.body.name",
+                "origin": "discovered",
+                "usedBy": [
+                  "end"
+                ]
+              },
+              {
+                "path": "output.body.rows[]",
+                "type": "array",
+                "origin": "discovered",
+                "usedBy": [
+                  "end"
+                ]
+              },
+              {
+                "path": "output.body.sku_count",
+                "type": "integer",
+                "origin": "discovered",
+                "usedBy": [
+                  "end"
+                ]
+              },
+              {
+                "path": "output.body.time",
+                "type": "string",
+                "origin": "discovered",
+                "usedBy": [
+                  "end"
+                ]
+              }
+            ]
+          },
+          "header": {
+            "declared": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "x-trace": {
+                  "type": "string",
+                  "description": "Referenced by end"
+                }
+              }
+            },
+            "paths": [
+              {
+                "path": "output.header.x-trace",
+                "type": "string",
+                "origin": "discovered",
+                "usedBy": [
+                  "end"
+                ]
+              }
+            ]
+          },
+          "status": []
+        },
+        "issues": []
+      },
+      "openapi": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "nested-arrays-plugins-headers",
+          "version": "1.0.0",
+          "description": "Shape evidence from mappings and plugins"
+        },
+        "paths": {
+          "/api/graph/nested-arrays-plugins-headers": {
+            "post": {
+              "operationId": "nested-arrays-plugins-headers",
+              "summary": "Shape evidence from mappings and plugins",
+              "parameters": [
+                {
+                  "name": "Authorization",
+                  "in": "header",
+                  "description": "Referenced by prepare",
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer",
+                          "description": "Referenced by prepare"
+                        },
+                        "enabled": {
+                          "type": "boolean",
+                          "description": "Referenced by prepare"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "sku": {
+                                "description": "Referenced by prepare"
+                              }
+                            }
+                          }
+                        },
+                        "orders": {
+                          "type": "array",
+                          "items": {},
+                          "description": "Referenced by orders"
+                        },
+                        "profile": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "description": "Referenced by end, prepare"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "200": {
+                  "description": "The graph's output.body",
+                  "headers": {
+                    "x-trace": {
+                      "description": "Referenced by end",
+                      "schema": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "object",
+                        "properties": {
+                          "count": {
+                            "type": "integer",
+                            "description": "Referenced by end"
+                          },
+                          "enabled": {
+                            "type": "boolean",
+                            "description": "Referenced by end"
+                          },
+                          "name": {
+                            "description": "Referenced by end"
+                          },
+                          "rows": {
+                            "type": "array",
+                            "items": {},
+                            "description": "Referenced by end"
+                          },
+                          "sku_count": {
+                            "type": "integer",
+                            "description": "Referenced by end"
+                          },
+                          "time": {
+                            "type": "string",
+                            "description": "Referenced by end"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "default": {
+                  "description": "Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/Error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "components": {
+          "schemas": {
+            "Error": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "status",
+                "message"
+              ]
+            }
+          }
+        }
+      },
+      "describe": "Input surface:\n  input.body.count (integer)\n  input.body.enabled (boolean)\n  input.body.items[].sku\n  input.body.orders[]\n  input.body.profile.name\n  input.header.Authorization\nOutput surface:\n  output.body.count (integer)\n  output.body.enabled (boolean)\n  output.body.name\n  output.body.rows[]\n  output.body.sku_count (integer)\n  output.body.time (string)\n  output.header.x-trace (string)\nDeclared schema: none\n"
+    },
+    {
+      "name": "whole-body-and-status",
+      "graph": {
+        "nodes": [
+          {
+            "alias": "root",
+            "types": [
+              "Root"
+            ],
+            "properties": {
+              "purpose": "Echo or reject"
+            }
+          },
+          {
+            "alias": "check",
+            "types": [
+              "Decision"
+            ],
+            "properties": {
+              "skill": "graph.math",
+              "statement": [
+                "CONDITION: ok -> {input.body} != null",
+                "IF: {check.result.ok}\nTHEN: end\nELSE: reject"
+              ]
+            }
+          },
+          {
+            "alias": "reject",
+            "types": [
+              "Task"
+            ],
+            "properties": {
+              "skill": "graph.data.mapper",
+              "mapping": [
+                "int(404) -> output.status",
+                "text(rejected) -> output.body.type",
+                "text(Not found) -> output.body.message"
+              ]
+            }
+          },
+          {
+            "alias": "end",
+            "types": [
+              "End"
+            ],
+            "properties": {
+              "skill": "graph.data.mapper",
+              "mapping": [
+                "input.body -> output.body"
+              ]
+            }
+          }
+        ],
+        "connections": [
+          {
+            "from": "root",
+            "to": "check",
+            "label": "contains"
+          },
+          {
+            "from": "check",
+            "to": "end",
+            "label": "next"
+          },
+          {
+            "from": "check",
+            "to": "reject",
+            "label": "reject"
+          },
+          {
+            "from": "reject",
+            "to": "end",
+            "label": "next"
+          }
+        ]
+      },
+      "contract": {
+        "graph": "whole-body-and-status",
+        "purpose": "Echo or reject",
+        "input": {
+          "body": {
+            "declared": false,
+            "schema": {
+              "description": "Referenced by check, end"
+            },
+            "paths": []
+          },
+          "header": {
+            "declared": false,
+            "paths": []
+          }
+        },
+        "output": {
+          "body": {
+            "declared": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "description": "Referenced by reject"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Referenced by reject"
+                }
+              }
+            },
+            "paths": [
+              {
+                "path": "output.body.message",
+                "type": "string",
+                "origin": "discovered",
+                "usedBy": [
+                  "reject"
+                ]
+              },
+              {
+                "path": "output.body.type",
+                "type": "string",
+                "origin": "discovered",
+                "usedBy": [
+                  "reject"
+                ]
+              }
+            ]
+          },
+          "header": {
+            "declared": false,
+            "paths": []
+          },
+          "status": [
+            404
+          ]
+        },
+        "issues": []
+      },
+      "openapi": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "whole-body-and-status",
+          "version": "1.0.0",
+          "description": "Echo or reject"
+        },
+        "paths": {
+          "/api/graph/whole-body-and-status": {
+            "post": {
+              "operationId": "whole-body-and-status",
+              "summary": "Echo or reject",
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "description": "Referenced by check, end"
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "200": {
+                  "description": "The graph's output.body",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "object",
+                        "properties": {
+                          "message": {
+                            "type": "string",
+                            "description": "Referenced by reject"
+                          },
+                          "type": {
+                            "type": "string",
+                            "description": "Referenced by reject"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "404": {
+                  "description": "Staged by the graph (int(404) -> output.status)",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                },
+                "default": {
+                  "description": "Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/Error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "components": {
+          "schemas": {
+            "Error": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "status",
+                "message"
+              ]
+            }
+          }
+        }
+      },
+      "describe": "Input surface:\n  input.body\nOutput surface:\n  output.body\n  output.body.message (string)\n  output.body.type (string)\n  output.status 404\nDeclared schema: none\n"
+    },
+    {
+      "name": "declared-schema",
+      "graph": {
+        "nodes": [
+          {
+            "alias": "root",
+            "types": [
+              "Root"
+            ],
+            "properties": {
+              "purpose": "A declared request contract",
+              "schema": {
+                "body": {
+                  "type": "object",
+                  "required": [
+                    "a",
+                    "b"
+                  ],
+                  "properties": {
+                    "a": {
+                      "type": "number",
+                      "description": "first operand"
+                    },
+                    "b": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "c": {
+                      "type": "string",
+                      "enum": [
+                        "x",
+                        "y"
+                      ]
+                    }
+                  }
+                },
+                "header": {
+                  "required": [
+                    "X-Api-Key"
+                  ],
+                  "properties": {
+                    "X-Api-Key": {
+                      "type": "string",
+                      "description": "the API key"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "alias": "compute",
+            "types": [
+              "Task"
+            ],
+            "properties": {
+              "skill": "graph.data.mapper",
+              "mapping": [
+                "input.body.a -> model.a",
+                "input.body.b -> model.b",
+                "input.body.d -> model.d",
+                "input.header.x-api-key -> model.key"
+              ]
+            }
+          },
+          {
+            "alias": "end",
+            "types": [
+              "End"
+            ],
+            "properties": {
+              "skill": "graph.data.mapper",
+              "schema": {
+                "body": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "header": {
+                  "properties": {
+                    "X-Request-Id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "mapping": [
+                "model.a -> output.body.total",
+                "text(ok) -> output.body.status",
+                "text(extra) -> output.body.extra",
+                "f:uuid() -> output.header.x-request-id"
+              ]
+            }
+          }
+        ],
+        "connections": [
+          {
+            "from": "root",
+            "to": "compute",
+            "label": "contains"
+          },
+          {
+            "from": "compute",
+            "to": "end",
+            "label": "next"
+          }
+        ]
+      },
+      "contract": {
+        "graph": "declared-schema",
+        "purpose": "A declared request contract",
+        "input": {
+          "body": {
+            "declared": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "a": {
+                  "type": "number",
+                  "description": "first operand"
+                },
+                "b": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "c": {
+                  "type": "string",
+                  "enum": [
+                    "x",
+                    "y"
+                  ]
+                },
+                "d": {
+                  "description": "Referenced by compute"
+                }
+              },
+              "required": [
+                "a",
+                "b"
+              ]
+            },
+            "paths": [
+              {
+                "path": "input.body.a",
+                "type": "number",
+                "origin": "both",
+                "required": true,
+                "usedBy": [
+                  "compute"
+                ]
+              },
+              {
+                "path": "input.body.b",
+                "type": "integer",
+                "origin": "both",
+                "required": true,
+                "usedBy": [
+                  "compute"
+                ]
+              },
+              {
+                "path": "input.body.c",
+                "type": "string",
+                "origin": "declared"
+              },
+              {
+                "path": "input.body.d",
+                "origin": "discovered",
+                "usedBy": [
+                  "compute"
+                ]
+              }
+            ]
+          },
+          "header": {
+            "declared": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "X-Api-Key": {
+                  "type": "string",
+                  "description": "the API key"
+                }
+              },
+              "required": [
+                "X-Api-Key"
+              ]
+            },
+            "paths": [
+              {
+                "path": "input.header.X-Api-Key",
+                "type": "string",
+                "origin": "both",
+                "required": true,
+                "usedBy": [
+                  "compute"
+                ]
+              }
+            ]
+          }
+        },
+        "output": {
+          "body": {
+            "declared": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "extra": {
+                  "type": "string",
+                  "description": "Referenced by end"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "total": {
+                  "type": "number"
+                }
+              }
+            },
+            "paths": [
+              {
+                "path": "output.body.extra",
+                "type": "string",
+                "origin": "discovered",
+                "usedBy": [
+                  "end"
+                ]
+              },
+              {
+                "path": "output.body.status",
+                "type": "string",
+                "origin": "both",
+                "usedBy": [
+                  "end"
+                ]
+              },
+              {
+                "path": "output.body.total",
+                "type": "number",
+                "origin": "both",
+                "usedBy": [
+                  "end"
+                ]
+              }
+            ]
+          },
+          "header": {
+            "declared": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "X-Request-Id": {
+                  "type": "string"
+                }
+              }
+            },
+            "paths": [
+              {
+                "path": "output.header.X-Request-Id",
+                "type": "string",
+                "origin": "both",
+                "usedBy": [
+                  "end"
+                ]
+              }
+            ]
+          },
+          "status": []
+        },
+        "issues": [
+          "input.body.c is declared but never referenced by the model",
+          "input.body.d is referenced by compute but not declared",
+          "output.body.extra is referenced by end but not declared"
+        ]
+      },
+      "openapi": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "declared-schema",
+          "version": "1.0.0",
+          "description": "A declared request contract"
+        },
+        "paths": {
+          "/api/graph/declared-schema": {
+            "post": {
+              "operationId": "declared-schema",
+              "summary": "A declared request contract",
+              "parameters": [
+                {
+                  "name": "X-Api-Key",
+                  "in": "header",
+                  "required": true,
+                  "description": "the API key",
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "a": {
+                          "type": "number",
+                          "description": "first operand"
+                        },
+                        "b": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "c": {
+                          "type": "string",
+                          "enum": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "d": {
+                          "description": "Referenced by compute"
+                        }
+                      },
+                      "required": [
+                        "a",
+                        "b"
+                      ]
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "200": {
+                  "description": "The graph's output.body",
+                  "headers": {
+                    "X-Request-Id": {
+                      "schema": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "object",
+                        "properties": {
+                          "extra": {
+                            "type": "string",
+                            "description": "Referenced by end"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "total": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "default": {
+                  "description": "Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/Error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "components": {
+          "schemas": {
+            "Error": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "status",
+                "message"
+              ]
+            }
+          }
+        }
+      },
+      "describe": "Input surface:\n  input.body.a (number)\n  input.body.b (integer)\n  input.body.c (string) [declared]\n  input.body.d\n  input.header.X-Api-Key (string)\nOutput surface:\n  output.body.extra (string)\n  output.body.status (string)\n  output.body.total (number)\n  output.header.X-Request-Id (string)\nDeclared schema: input, output\n"
+    },
+    {
+      "name": "extension-target",
+      "graph": {
+        "nodes": [
+          {
+            "alias": "root",
+            "types": [
+              "Root"
+            ],
+            "properties": {
+              "purpose": "Delegate to a declared graph"
+            }
+          },
+          {
+            "alias": "ext",
+            "types": [
+              "Task"
+            ],
+            "properties": {
+              "skill": "graph.extension",
+              "extension": "target-graph",
+              "input": [
+                "input.body.id -> id"
+              ],
+              "output": [
+                "result.total -> output.body.total",
+                "result -> model.all"
+              ]
+            }
+          },
+          {
+            "alias": "end",
+            "types": [
+              "End"
+            ],
+            "properties": {}
+          }
+        ],
+        "connections": [
+          {
+            "from": "root",
+            "to": "ext",
+            "label": "contains"
+          },
+          {
+            "from": "ext",
+            "to": "end",
+            "label": "next"
+          }
+        ]
+      },
+      "others": {
+        "target-graph": {
+          "nodes": [
+            {
+              "alias": "root",
+              "types": [
+                "Root"
+              ],
+              "properties": {
+                "purpose": "The target",
+                "schema": {
+                  "body": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "alias": "end",
+              "types": [
+                "End"
+              ],
+              "properties": {
+                "schema": {
+                  "body": {
+                    "type": "object",
+                    "properties": {
+                      "total": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "connections": [
+            {
+              "from": "root",
+              "to": "end",
+              "label": "contains"
+            }
+          ]
+        }
+      },
+      "contract": {
+        "graph": "extension-target",
+        "purpose": "Delegate to a declared graph",
+        "input": {
+          "body": {
+            "declared": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "description": "Referenced by ext"
+                }
+              }
+            },
+            "paths": [
+              {
+                "path": "input.body.id",
+                "origin": "discovered",
+                "usedBy": [
+                  "ext"
+                ]
+              }
+            ]
+          },
+          "header": {
+            "declared": false,
+            "paths": []
+          }
+        },
+        "output": {
+          "body": {
+            "declared": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "total": {
+                  "type": "number",
+                  "description": "Referenced by ext"
+                }
+              }
+            },
+            "paths": [
+              {
+                "path": "output.body.total",
+                "type": "number",
+                "origin": "discovered",
+                "usedBy": [
+                  "ext"
+                ]
+              }
+            ]
+          },
+          "header": {
+            "declared": false,
+            "paths": []
+          },
+          "status": []
+        },
+        "issues": []
+      },
+      "openapi": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "extension-target",
+          "version": "1.0.0",
+          "description": "Delegate to a declared graph"
+        },
+        "paths": {
+          "/api/graph/extension-target": {
+            "post": {
+              "operationId": "extension-target",
+              "summary": "Delegate to a declared graph",
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "description": "Referenced by ext"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "200": {
+                  "description": "The graph's output.body",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "object",
+                        "properties": {
+                          "total": {
+                            "type": "number",
+                            "description": "Referenced by ext"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "default": {
+                  "description": "Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/Error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "components": {
+          "schemas": {
+            "Error": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "status",
+                "message"
+              ]
+            }
+          }
+        }
+      },
+      "describe": "Input surface:\n  input.body.id\nOutput surface:\n  output.body.total (number)\nDeclared schema: none\n"
+    },
+    {
+      "name": "nothing-referenced",
+      "graph": {
+        "nodes": [
+          {
+            "alias": "root",
+            "types": [
+              "Root"
+            ],
+            "properties": {
+              "purpose": "A constant answer"
+            }
+          },
+          {
+            "alias": "end",
+            "types": [
+              "End"
+            ],
+            "properties": {
+              "skill": "graph.data.mapper",
+              "mapping": [
+                "text(hello world) -> output.body"
+              ]
+            }
+          }
+        ],
+        "connections": [
+          {
+            "from": "root",
+            "to": "end",
+            "label": "contains"
+          }
+        ]
+      },
+      "contract": {
+        "graph": "nothing-referenced",
+        "purpose": "A constant answer",
+        "input": {
+          "body": {
+            "declared": false,
+            "paths": []
+          },
+          "header": {
+            "declared": false,
+            "paths": []
+          }
+        },
+        "output": {
+          "body": {
+            "declared": false,
+            "schema": {
+              "type": "string",
+              "description": "Referenced by end"
+            },
+            "paths": []
+          },
+          "header": {
+            "declared": false,
+            "paths": []
+          },
+          "status": []
+        },
+        "issues": []
+      },
+      "openapi": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "nothing-referenced",
+          "version": "1.0.0",
+          "description": "A constant answer"
+        },
+        "paths": {
+          "/api/graph/nothing-referenced": {
+            "post": {
+              "operationId": "nothing-referenced",
+              "summary": "A constant answer",
+              "responses": {
+                "200": {
+                  "description": "The graph's output.body",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "string",
+                        "description": "Referenced by end"
+                      }
+                    }
+                  }
+                },
+                "default": {
+                  "description": "Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/Error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "components": {
+          "schemas": {
+            "Error": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "status",
+                "message"
+              ]
+            }
+          }
+        }
+      },
+      "describe": "Input surface:\n  (none referenced)\nOutput surface:\n  output.body (string)\nDeclared schema: none\n"
+    }
+  ]
+}

@@ -1142,89 +1142,22 @@ async fn describe_deployed_graph(
         sb.push_str(&format!("Purpose: {purpose}\n"));
     }
     sb.push_str(&format!("Nodes: {nodes}, connections: {connections}\n"));
-    let (inputs, outputs) = model_data_surface(&json);
-    sb.push_str("Input surface:\n");
-    if inputs.is_empty() {
-        sb.push_str("  (none referenced)\n");
-    }
-    for path in &inputs {
-        sb.push_str(&format!("  {path}\n"));
-    }
-    sb.push_str("Output surface:\n");
-    if outputs.is_empty() {
-        sb.push_str("  (none referenced)\n");
-    }
-    for path in &outputs {
-        sb.push_str(&format!("  {path}\n"));
-    }
-    sb.push_str("(derived from the model's data mappings)");
+    // the contract (RFC-0007): the surfaces with the types the model gives, then the declaration
+    let contract = crate::contract::GraphContract::derive(graph_id, &json, &|other| {
+        deployed_model_json(other)
+    });
+    sb.push_str(&contract.describe());
+    sb.push_str(&format!(
+        "(derived from the model's data mappings; the OpenAPI document: GET /api/openapi/{graph_id})"
+    ));
     say(po, out_route, sb).await;
     Ok(())
 }
 
-/// Scan every node-property string of a model for `input.*` / `output.*`
-/// path tokens — the model's externally visible data surface.
-fn model_data_surface(
-    json: &serde_json::Value,
-) -> (
-    std::collections::BTreeSet<String>,
-    std::collections::BTreeSet<String>,
-) {
-    let mut inputs = std::collections::BTreeSet::new();
-    let mut outputs = std::collections::BTreeSet::new();
-    let Some(nodes) = json.get("nodes").and_then(|n| n.as_array()) else {
-        return (inputs, outputs);
-    };
-    for node in nodes {
-        let Some(properties) = node.get("properties") else {
-            continue;
-        };
-        collect_path_tokens(&properties.to_string(), "input.", &mut inputs);
-        collect_path_tokens(&properties.to_string(), "output.", &mut outputs);
-    }
-    (inputs, outputs)
-}
-
-/// Collect dotted-path tokens starting with `prefix` from free text
-/// (mapping entries, plugin args, `{...}` substitutions in statements).
+/// Collect dotted-path tokens starting with `prefix` from free text (the contract's scanner).
+#[cfg(test)]
 fn collect_path_tokens(text: &str, prefix: &str, found: &mut std::collections::BTreeSet<String>) {
-    let bytes = text.as_bytes();
-    let mut start = 0;
-    while let Some(pos) = text[start..].find(prefix) {
-        let begin = start + pos;
-        // must not be part of a longer identifier (e.g. "xinput.")
-        if begin > 0 {
-            let prev = bytes[begin - 1] as char;
-            if prev.is_ascii_alphanumeric() || prev == '_' || prev == '.' {
-                start = begin + prefix.len();
-                continue;
-            }
-        }
-        let mut end = begin + prefix.len();
-        while end < bytes.len() {
-            let c = bytes[end] as char;
-            if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '[' | ']') {
-                end += 1;
-            } else {
-                break;
-            }
-        }
-        let mut token = text[begin..end]
-            .trim_end_matches(['.', '-', '['])
-            .to_string();
-        // a trailing `]` with no matching `[` is the enclosing list's closing
-        // bracket (e.g. Java-style `{mapping=[... -> output.body]}` text),
-        // not an array index — trim until the brackets balance
-        while token.ends_with(']') && token.matches('[').count() < token.matches(']').count() {
-            token.pop();
-            let trimmed = token.trim_end_matches(['.', '-', '[']).len();
-            token.truncate(trimmed);
-        }
-        if token.len() > prefix.len() {
-            found.insert(token);
-        }
-        start = end;
-    }
+    found.extend(crate::contract::collect_path_tokens(text, prefix));
 }
 
 /// The root node's `purpose` property of a deployed/compiled graph model.

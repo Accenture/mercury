@@ -645,6 +645,7 @@ async fn graph_runtime_end_to_end() {
     json_path_source_takes_the_jayway_shape(&platform).await;
     successful_retry_resolves_the_error_context(&platform).await;
     suspend_resume_x_run_over_the_real_http_stack(&platform).await;
+    openapi_document_on_demand(&platform).await;
     suspend_resume_store_calls_chain_to_their_skill_spans(&platform).await;
     rejected_deployed_graph_is_not_executable(&platform).await;
     // Run in this single test so the whole file shares one runtime + one booted
@@ -4196,6 +4197,132 @@ async fn suspend_resume_x_run_over_the_real_http_stack(platform: &Platform) {
         Some("resume"),
         second.header("x-run"),
         "the x-run header must reach the HTTP response (Java parity)"
+    );
+}
+
+/// Java parity (`GraphOpenApiEndpointTest`): the OpenAPI document on demand (RFC-0007, WP1).
+/// `GET /api/openapi/{graph_id}` answers a YAML attachment named after the graph,
+/// `?format=json` the document inline, `?view=contract` the derived contract; an unknown
+/// graph answers 404 and an unknown format 400.
+async fn openapi_document_on_demand(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let port = platform_core::automation::server_address()
+        .expect("rest server started by lifecycle")
+        .port();
+    let target = format!("http://127.0.0.1:{port}");
+    async fn get(
+        po: &PostOffice,
+        target: &str,
+        url: &str,
+        query: Option<(&str, &str)>,
+    ) -> EventEnvelope {
+        let mut request = platform_core::automation::AsyncHttpRequest::new()
+            .set_method("GET")
+            .set_target_host(target)
+            .set_url(url)
+            .set_header("accept", "*/*");
+        if let Some((key, value)) = query {
+            request = request.set_query_parameter(key, value);
+        }
+        po.request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(request.to_value()),
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("http reply")
+    }
+    // the YAML attachment
+    let yaml = get(&po, &target, "/api/openapi/tutorial-4", None).await;
+    assert_eq!(200, yaml.status(), "yaml: {:?}", yaml.body());
+    assert!(
+        yaml.header("content-type")
+            .map(|t| t.starts_with("application/yaml"))
+            .unwrap_or(false),
+        "content-type: {:?}",
+        yaml.header("content-type")
+    );
+    assert_eq!(
+        Some("attachment; filename=\"tutorial-4.yaml\""),
+        yaml.header("content-disposition")
+    );
+    let text = match yaml.body() {
+        rmpv::Value::String(s) => s.as_str().unwrap_or("").to_string(),
+        rmpv::Value::Binary(b) => String::from_utf8_lossy(b).to_string(),
+        other => other.to_string(),
+    };
+    assert!(text.starts_with("openapi: "), "yaml body: {text}");
+    assert!(text.contains("/api/graph/tutorial-4"), "yaml body: {text}");
+    // JSON inline
+    let json = get(
+        &po,
+        &target,
+        "/api/openapi/tutorial-4",
+        Some(("format", "json")),
+    )
+    .await;
+    assert_eq!(200, json.status(), "json: {:?}", json.body());
+    let document = event_script::conversions::to_json(json.body()).expect("json document");
+    assert_eq!(document["openapi"], "3.0.3");
+    assert_eq!(document["info"]["title"], "tutorial-4");
+    assert_eq!(document["servers"][0]["url"], target);
+    let request_schema = &document["paths"]["/api/graph/tutorial-4"]["post"]["requestBody"]
+        ["content"]["application/json"]["schema"];
+    assert_eq!(
+        request_schema["properties"]["a"]["type"], "number",
+        "a is an arithmetic operand: {request_schema}"
+    );
+    // the contract view
+    let contract = get(
+        &po,
+        &target,
+        "/api/openapi/tutorial-4",
+        Some(("view", "contract")),
+    )
+    .await;
+    assert_eq!(200, contract.status(), "contract: {:?}", contract.body());
+    let view = event_script::conversions::to_json(contract.body()).expect("contract view");
+    assert_eq!(view["graph"], "tutorial-4");
+    assert_eq!(view["input"]["body"]["declared"], false);
+    assert!(
+        view["input"]["body"]["paths"]
+            .as_array()
+            .map(|paths| paths
+                .iter()
+                .any(|p| p["path"] == "input.body.a" && p["type"] == "number"))
+            .unwrap_or(false),
+        "paths: {}",
+        view["input"]["body"]["paths"]
+    );
+    // the unknowns
+    assert_eq!(
+        404,
+        get(&po, &target, "/api/openapi/no-such-graph", None)
+            .await
+            .status()
+    );
+    assert_eq!(
+        400,
+        get(
+            &po,
+            &target,
+            "/api/openapi/tutorial-4",
+            Some(("format", "xml"))
+        )
+        .await
+        .status()
+    );
+    assert_eq!(
+        400,
+        get(
+            &po,
+            &target,
+            "/api/openapi/tutorial-4",
+            Some(("view", "nonsense"))
+        )
+        .await
+        .status()
     );
 }
 

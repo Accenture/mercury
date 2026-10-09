@@ -32,6 +32,7 @@
 pub mod commands;
 pub mod common;
 pub mod compiler;
+pub mod contract;
 pub mod executor;
 pub mod extension;
 pub mod features;
@@ -44,6 +45,7 @@ pub mod mock;
 pub mod model;
 pub mod model_gate;
 pub mod model_validator;
+pub mod openapi;
 pub mod rest;
 pub mod services;
 pub mod session;
@@ -553,6 +555,24 @@ impl ComposableFunction for ShowGraphModel {
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
         rest::show_graph_model(input).await
+    }
+}
+
+/// Java `GetGraphOpenApi` (`get.graph.openapi`): the OpenAPI 3.0 document of a deployed
+/// graph or of a session's draft (RFC-0007).
+#[preload(route = "get.graph.openapi", instances = 10)]
+#[optional_service("app.env=dev")]
+pub struct GetGraphOpenApi;
+
+#[async_trait]
+impl ComposableFunction for GetGraphOpenApi {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::get_graph_openapi(input).await
     }
 }
 
