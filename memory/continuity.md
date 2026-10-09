@@ -57,14 +57,14 @@
   (2026-09-21 — the catch-up release 4.12.7 → 4.12.12 in one step, PR #296 → `983e7550`, tag → `1ef183cb`; Increments 118–124.)
 - **last_enabled:** 2026-07-15
 - **last_review:** 2026-10-09 | through 2026-10-09-032244.md (CADENCE — 17 sessions since the 2026-10-06 review: `refresh-metadata` refreshed 9
-  footers, tier changes 8 (3 → active, 5 → archive-candidate); archived 9 faded facts after step 6 found no reliance - the window's 82
+  footers, tier changes 8 (3 → active, 5 → archive-candidate); archived 10 faded facts after step 6 found no reliance - the window's 82
   commits on their paths were RFC-0007's and ADR-0027's work, not the rules (`redis-restart-aware-retry` 28, `static-decision-table-is-
   graph-data-rust` 29, `graph-math-typed-arithmetic-rust` 28, `graph-manifest-list-later-wins-rust` 23, `example-and-template-carry-their-
   flows` 34, `mapping-source-verbatim-substitution` 29, `jsonpath-jayway-result-shape` 29, `ci-floats-on-stable-toolchain` 37,
-  `worktree-build-bakes-resource-root` 31); swept 3 closed threads (`hello-task-doc-references`, `reverify-invariants-20261004`,
+  `worktree-build-bakes-resource-root` 31, and `graph-null-property-filtered-rust` 21, which crossed the window with this review's own log); swept 3 closed threads (`hello-task-doc-references`, `reverify-invariants-20261004`,
   `rust-jsonpath-indefinite-list`); reactivated 0, superseded 0, archive-verify pass; invariants not due (28 of 40 since
   2026-10-04-160854); stalled threads none (no open thread remains); contradictions none; Doc Gaps none in the window. Live facts
-  27 → 15, lint 0 errors. Smoke test not run.)
+  27 → 14, lint 0 errors. Smoke test not run.)
   Prior: 2026-10-06 | through 2026-10-06-013022.md (CADENCE — 10 sessions since the 2026-10-04 review: `refresh-metadata`
   refreshed 16 footers, 16 tier changes (13 → archive-candidate, 3 → active); archived 4 faded facts, `graph-math-dialect-closed-set-rust`
   (sslu 22), `conv-template-version-sweep-rust` (sslu 23), and `connected-edge-spans` and `llm-helper-certification-rust`, which crossed the
@@ -194,18 +194,6 @@ layers shipped; the two above have held through every re-verify.)*
   (`<graph-id>.json`, the root node named after the id as `export graph as` does) and the Raw tab. A dev-route addition touches the example, the starter template and the cache example
   `rest.yaml`. Extends [[mock-upload-loads-every-member]]. Pinned by `graph_import_loads_every_member_draft` in `tests/graph_runtime.rs`.
   <!-- id: graph-import-travels-like-command | created: 2026-10-03 | last_used: 2026-10-09 | uses: 3 | tier: active | origin: 2026-10-03-153752 -->
-
-- **A graph holds no null property: `"key": null` is filtered out on deploy, pack and read, `"key": ""` is a value, and `serializer.null.transport` does not
-  apply (Eric's rulings, 2026-10-05; Increment 158, PR #356 merge `779cffe1`, MERGED 2026-10-06 00:31Z; Java twin `graph-null-property-filtered` in mercury-composable #508).** The Java
-  configuration reader drops a null-valued key when it loads a graph; this reader kept it and `MiniGraph::import_graph` refused it, so a graph deployed on Java
-  only. `model_gate::without_null_properties` (= `serializer::strip_nulls_always`, the transport strip without its switch: map values only, list elements and
-  empty collections kept) runs in `graph_set::pack`/`read` and in the Playground's draft import (`import_graph_model` + `validate_graph_model`: the REST
-  import, its replay and `import graph from`, which reads a file as text). **The deploy read reproduces Java's (Eric approved options A and E, 2026-10-05):**
-  Java's flatten-and-rebuild also drops an empty map or list (and one left empty), turns such an element inside a list into null and drops it at the end;
-  `model_gate::normalize_graph` does the same in `compiler::load_raw_graph` (startup and `instantiate graph`) and the packager's check copy, pinned by
-  `tests/resources/graph-read-normalization-vectors.json`, byte-identical with the Java engine's. READ: a graph refused for a null property or a mapping list
-  ending in null now deploys; an empty `{}`/`[]` property is no longer deployed. The switch governs only what the event transport keeps.
-  <!-- id: graph-null-property-filtered-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 3 | tier: archive-candidate | origin: 2026-10-06-000759 -->
 
 - **Graph sets follow ADR-0027 in the Java repository's ledger (RFC-0005, promoted 2026-10-06): one or more graphs in a canonical
   `<set>.pack`, checked by the gate when packed and deployed all or none through a generated manifest; a set of one graph is how one graph

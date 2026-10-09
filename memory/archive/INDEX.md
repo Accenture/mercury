@@ -131,3 +131,4 @@
 - hello-task-doc-references — (drift) CLOSED 2026-10-02 00:59Z — the Playground's `help update` example runs `no.op`, an… — completed thread swept (older than archive_window) — 2026-Q4.md
 - reverify-invariants-20261004 — (re-verify) CLOSED 2026-10-04 — the never-decay facts and the Vision re-verified (45 sessi… — completed thread swept (older than archive_window) — 2026-Q4.md
 - rust-jsonpath-indefinite-list — (parity) CLOSED 2026-10-04 06:08Z — a `$.` JSONPath result takes Jayway's shape on both en… — completed thread swept (older than archive_window) — 2026-Q4.md
+- graph-null-property-filtered-rust — A graph holds no null property: `"key": null` is filtered out on deploy, pack and read, `"… — faded — 2026-Q4.md
