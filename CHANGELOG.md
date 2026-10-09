@@ -13,7 +13,24 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
-Each change merged to `main` after v4.12.21 is listed here; it moves under its release heading when the version is cut.
+Nothing yet. Each change merged to `main` after v4.12.22 is listed here; it moves under its release heading when the version is cut.
+
+---
+## Version 4.12.22, 10/9/2026
+
+The lock-step twin of Java 4.12.22 (Increments 170 to 174): the graph contract. A graph model may carry its contract as a `schema`
+property on the root node (the request: `schema.body` and `schema.header`) and on the end node (the response), in a closed OpenAPI
+3.0 vocabulary the gate enforces (ADR-0029 in the Java repository's ledger): the `contract` module discovers the data surface the
+model reads and writes, the declaration wins, a dev-mode `GET /api/openapi/{graph_id}` answers the OpenAPI 3.0 document on demand,
+a root `schema` turns on input validation at the root as a step the engine assumes (`graph.schema.validator`, HTTP 400 with every
+violation), the Playground's new **Schema panel** edits the contract as rows and its Upload step takes mock request headers, and the
+lane is documented with five claims pinned on this engine's own tests. Both engines are pinned by the shared, byte-identical vector
+files `graph-contract-vectors.json` and `graph-schema-vectors.json`. The Java engine's mini-scheduler change of the same release has
+no twin here (this port has no scheduler). **Upgrade action: read item 3.** A deployed graph whose root already carries a `schema`
+property is validated from this release on and refused at the gate when the property is not the contract's shape, and `regex`
+joins the knowledge-graph crate's dependencies; everything else is opt-in - a graph without `schema` runs as before, and an
+application that wants the OpenAPI endpoint adds its two `rest.yaml` entries. Publication: the twelve crates at 4.12.22 on crates.io
+(`cargo publish --workspace` from the tag).
 
 ### Added
 
@@ -58,23 +75,6 @@ Each change merged to `main` after v4.12.21 is listed here; it moves under its r
    `input_validation_at_the_root` and `dry_run_validates_the_input_at_the_root`. **Upgrade note:** a deployed graph whose root
    already carries a `schema` property is validated from this release on, and refused at the gate when the property is not the
    contract's shape; `regex` joins the crate's dependencies.
-
----
-## Version 4.12.21, 10/7/2026
-
-The lock-step twin of Java 4.12.21 (Increments 148 to 169): graph sets, and a hardened MsgPack decoder. A graph set is one or
-more graph models packed as one deterministic `<set>.pack` (ADR-0027 in the Java repository): `tools/graph-packager` packs,
-unpacks and inspects it from the command line, the deployment manifest deploys it all or none through `sets` and an `unpack`
-folder, the Playground packs and reads one on the engine from its new **Graph set packaging** panel, and the lane is documented
-with five pinned claims. The decoders of both engines are pinned by shared, byte-identical vectors and read alike: at most 64
-nested levels, hostile headers refused, exactly one value per payload, empty input as an empty map. The Playground also imports
-and downloads graph files, runs in three explicit steps, has one webapp source (the Java repository, which deploys the bundle
-and the help pages here), and points its AI nodes at the LLM helper app. **Upgrade action: read items 1, 7, 11, 24 and 26.**
-A payload nested deeper than 64 levels, or followed by extra bytes, is refused with HTTP 400 at the Event API; empty input now
-decodes as an empty map; and an application that wants the new Playground features lists the `import.graph.content`,
-`pack.graph.set` and `unpack.graph.set` routes in its `rest.yaml`. Publication: the twelve crates at 4.12.21 on crates.io
-(`cargo publish --workspace` from the tag).
-
 4. **The Playground's Schema panel: the graph contract as rows (RFC-0007, WP3; Increment 173).** A webapp change deployed from
    the Java repository, the Playground's one source: the Tools menu gains **Graph schema**, and the root and end node editors a
    link to it - a panel in the console's slot with an **Input** tab (the root node's `schema`, the request) and an **Output** tab
@@ -100,6 +100,23 @@ decodes as an empty map; and an application that wants the new Playground featur
    configuration reference; the page in the docs nav and `llms.txt`. Five claims pin the prose on this engine's tests:
    `graph-schema-closed-vocabulary`, `graph-input-validation-at-root`, `graph-openapi-on-demand`,
    `graph-contract-declaration-wins` and `graph-schema-dry-run-parity`. No upgrade action.
+
+---
+## Version 4.12.21, 10/7/2026
+
+The lock-step twin of Java 4.12.21 (Increments 148 to 169): graph sets, and a hardened MsgPack decoder. A graph set is one or
+more graph models packed as one deterministic `<set>.pack` (ADR-0027 in the Java repository): `tools/graph-packager` packs,
+unpacks and inspects it from the command line, the deployment manifest deploys it all or none through `sets` and an `unpack`
+folder, the Playground packs and reads one on the engine from its new **Graph set packaging** panel, and the lane is documented
+with five pinned claims. The decoders of both engines are pinned by shared, byte-identical vectors and read alike: at most 64
+nested levels, hostile headers refused, exactly one value per payload, empty input as an empty map. The Playground also imports
+and downloads graph files, runs in three explicit steps, has one webapp source (the Java repository, which deploys the bundle
+and the help pages here), and points its AI nodes at the LLM helper app. **Upgrade action: read items 1, 7, 11, 24 and 26.**
+A payload nested deeper than 64 levels, or followed by extra bytes, is refused with HTTP 400 at the Event API; empty input now
+decodes as an empty map; and an application that wants the new Playground features lists the `import.graph.content`,
+`pack.graph.set` and `unpack.graph.set` routes in its `rest.yaml`. Publication: the twelve crates at 4.12.21 on crates.io
+(`cargo publish --workspace` from the tag).
+
 
 ### Added
 

@@ -16,18 +16,18 @@ categories = ["asynchronous"]
 name = "knowledge_graph"
 
 [dependencies]
-mercury-platform-core = { version = "4.12.21", path = "../platform-core" }
+mercury-platform-core = { version = "4.12.22", path = "../platform-core" }
 # layer 3 rides layer 2: the data-mapping mini-language (converter, rmpv
 # MultiLevelMap) is shared with event-script, and deployed graphs are
 # exposed through event-script flows
-mercury-event-script = { version = "4.12.21", path = "../event-script" }
+mercury-event-script = { version = "4.12.22", path = "../event-script" }
 # RFC-0001 / ADR-0025: the DECIMAL statement reads and computes exact decimals
 bigdecimal = "0.4"
 # RFC-0007: the graph contract's 'pattern' keyword (searched, Unicode-aware - the Java engine's
 # UNICODE_CHARACTER_CLASS flag matches this crate's default; constructs this crate lacks are
 # refused on both engines by the schema compiler's textual check)
 regex = "1"
-mercury-knowledge-graph-macros = { version = "4.12.21", path = "../knowledge-graph-macros" }
+mercury-knowledge-graph-macros = { version = "4.12.22", path = "../knowledge-graph-macros" }
 async-trait = "0.1"
 log = "0.4"
 rmpv = { version = "1", features = ["with-serde"] }
