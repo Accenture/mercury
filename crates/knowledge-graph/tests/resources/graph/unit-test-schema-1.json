@@ -1,0 +1,103 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "unit-test-schema-1",
+        "purpose": "A root schema validates the request before anything runs",
+        "schema": {
+          "body": {
+            "type": "object",
+            "required": [
+              "amount",
+              "currency"
+            ],
+            "properties": {
+              "amount": {
+                "type": "number",
+                "minimum": 0,
+                "exclusiveMinimum": true,
+                "description": "the amount to charge"
+              },
+              "currency": {
+                "type": "string",
+                "enum": [
+                  "USD",
+                  "EUR"
+                ]
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 40,
+                "nullable": true
+              }
+            }
+          },
+          "header": {
+            "required": [
+              "X-Tenant"
+            ],
+            "properties": {
+              "X-Tenant": {
+                "type": "string",
+                "minLength": 4,
+                "description": "the caller's tenant"
+              },
+              "X-Retry": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "alias": "charge",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "input.body.amount -> output.body.charged",
+          "input.body.currency -> output.body.currency",
+          "input.header.x-tenant -> model.tenant",
+          "text(ok) -> output.body.status"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "charge"
+    },
+    {
+      "source": "charge",
+      "relations": [
+        {
+          "type": "next",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

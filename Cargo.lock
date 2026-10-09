@@ -1241,6 +1241,7 @@ dependencies = [
  "mercury-knowledge-graph-macros",
  "mercury-platform-core",
  "mercury-test-support",
+ "regex",
  "rmpv",
  "serde",
  "serde_json",

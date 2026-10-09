@@ -61,6 +61,14 @@ pub fn validate(graph_id: &str, model: &mut Value) -> Result<MiniGraph, String> 
         return Err("graph must have an 'end' node".to_string());
     }
     model_validator::validate(&graph)?;
+    // a mismatch between the declared contract and the model's data surface warns
+    // (RFC-0007): a declared path the model never reads, or a path the model reads
+    // that the declaration lacks (Java `GraphModelGate.validate`)
+    if let Some(json) = event_script::conversions::to_json(model) {
+        for issue in crate::contract::GraphContract::derive(graph_id, &json, &|_| None).issues() {
+            log::warn!("Graph {graph_id} - {issue}");
+        }
+    }
     Ok(graph)
 }
 

@@ -1,0 +1,43 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "unit-test-schema-err2",
+        "purpose": "A header schema with an inapplicable keyword fails the gate",
+        "schema": {
+          "header": {
+            "properties": {
+              "X-Count": {
+                "type": "integer",
+                "pattern": "[0-9]+"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "next",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

@@ -242,7 +242,77 @@ async fn begin(
         .get_end_node()
         .ok_or_else(|| invalid("End node does not exist"))?;
     arm_run_watcher(po, &instance, in_route);
+    // a root with a 'schema' property turns input validation on as the first step at the root
+    common::arm_input_validation(&instance, &root);
     walk(platform, po, &instance, root, None).await
+}
+
+/// Run the assumed validation step at the root and apply its outcome the way
+/// a failing task node's is applied: no handler, the run aborts with the
+/// validator's status and the reason on the console; a root `exception=`
+/// handler, the generic exception context is staged and the handler takes
+/// over (the root's own skill is skipped). The executor keeps identical
+/// semantics. (Java `GraphTraveler.inputValidated`.)
+///
+/// Returns true when the input passed and the walk may continue.
+async fn input_validated(
+    platform: &Platform,
+    po: &PostOffice,
+    instance: &Arc<GraphInstance>,
+    root: &Arc<SimpleNode>,
+) -> bool {
+    let started = std::time::Instant::now();
+    let Some(status) = common::validate_input(platform, po, instance, root, &None).await else {
+        let _ = po
+            .send(
+                EventEnvelope::new()
+                    .set_to(&instance.get_reply_to())
+                    .set_raw_body(Value::from(format!(
+                        "Input validated by {} in {} ms",
+                        common::schema_validator_route(),
+                        started.elapsed().as_millis()
+                    ))),
+            )
+            .await;
+        return true;
+    };
+    let node_name = root.get_alias();
+    match root.get_property(EXCEPTION) {
+        None => {
+            if claim_terminal(po, instance) {
+                let error_map = {
+                    let state = instance.state.lock().expect("graph state machine");
+                    get_error_map(
+                        state.get_element(&format!("{node_name}.error")),
+                        state.get_element(&format!("{node_name}.target")),
+                    )
+                };
+                let message = match &error_map {
+                    Value::Map(entries) => entries
+                        .iter()
+                        .find(|(k, _)| display(k) == "message")
+                        .map(|(_, v)| display(v))
+                        .unwrap_or_default(),
+                    other => display(other),
+                };
+                emit_aborted(
+                    po,
+                    instance,
+                    status,
+                    &format!("{message} (node {node_name})"),
+                )
+                .await;
+            }
+        }
+        Some(handler) => {
+            {
+                let mut state = instance.state.lock().expect("graph state machine");
+                common::stage_error_context(&mut state, node_name);
+            }
+            decide_next(platform, po, instance, root.clone(), &display(&handler)).await;
+        }
+    }
+    false
 }
 
 async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &EventEnvelope) {
@@ -612,6 +682,13 @@ async fn walk_to(
     node: Arc<SimpleNode>,
     from: Option<String>,
 ) -> Result<(), AppError> {
+    // the assumed step of a graph with a contract (RFC-0007): validate the input at the
+    // root before the root's own skill, or anything else, runs - a failed validation ends here
+    if instance.take_pending_input_validation()
+        && !input_validated(platform, po, instance, &node).await
+    {
+        return Ok(());
+    }
     let is_end = instance
         .graph
         .get_end_node()

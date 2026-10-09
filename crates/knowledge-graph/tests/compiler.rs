@@ -67,17 +67,21 @@ fn manifest_listed_graphs_are_compiled() {
     // + the decimal-loop fixture (the documented money loop: an exact running sum over for_each)
     // + the mapping-1 fixture (a {namespace.key} reference in a mapping source, inserted verbatim)
     // + the jsonpath-1 fixture (a $. mapping source in Jayway's result shape)
+    // + the 2 graph-contract fixtures (schema-1: a root schema validated as the
+    // assumed first step; schema-2: a failed validation routed to the root's
+    // exception handler - RFC-0007)
     // + the 2 manifest-precedence fixtures compiled through the SECOND manifest
     // (graphs-extra.yaml: manifest-extra, and manifest-dup whose later copy wins;
     // manifest-reject's later copy is rejected and the id stays out);
-    // the 14 deliberately-invalid fixtures
-    // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias) are rejected
+    // the 16 deliberately-invalid fixtures
+    // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias, schema-err1 with
+    // an unknown schema keyword, schema-err2 with an inapplicable one) are rejected
     // by the mandatory quality gate. Every graph a runtime test executes MUST
     // be listed here - deployed execution is compiled-or-404 (no lazy load)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        61,
+        63,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );

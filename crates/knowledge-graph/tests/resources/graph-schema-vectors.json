@@ -1,0 +1,1606 @@
+{
+  "title": "RFC-0007 WP2 - the graph contract's schema vocabulary: what the gate accepts and refuses, what the validator reports",
+  "description": "One file, byte-identical in the Java and Rust repositories. 'compile' cases run the schema compiler on one part (body, header) or on a node's whole 'schema' property (contract): 'ok' or the exact refusal. 'validate' cases run a compiled contract against an input.body and input.header and pin every violation in order. 'report' cases pin the one-line message with its cap.",
+  "cap": 10,
+  "compile": [
+    {
+      "name": "full-vocabulary",
+      "part": "body",
+      "ok": true,
+      "schema": {
+        "type": "object",
+        "title": "An order",
+        "description": "every keyword in its place",
+        "required": [
+          "id",
+          "amount"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 7
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0,
+            "exclusiveMinimum": true,
+            "maximum": 1000000,
+            "exclusiveMaximum": false,
+            "format": "double"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "pattern": "^[A-Za-z ]+$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "paid"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "items": {
+              "type": "string"
+            }
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "sku"
+              ],
+              "properties": {
+                "sku": {
+                  "type": "string"
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "flag": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "textual-scalars-from-the-grammar",
+      "part": "body",
+      "ok": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "number",
+            "minimum": "0",
+            "maximum": "10.5",
+            "exclusiveMinimum": "true"
+          },
+          "b": {
+            "type": "string",
+            "minLength": "1",
+            "maxLength": "3",
+            "nullable": "true"
+          },
+          "c": {
+            "type": "integer",
+            "enum": [
+              "1",
+              "2"
+            ]
+          },
+          "d": {
+            "type": "boolean",
+            "enum": [
+              "true"
+            ]
+          },
+          "e": {
+            "type": "array",
+            "minItems": "0",
+            "maxItems": "2"
+          }
+        },
+        "additionalProperties": "false"
+      }
+    },
+    {
+      "name": "no-type-with-constraints",
+      "part": "body",
+      "ok": true,
+      "schema": {
+        "minimum": 1,
+        "minLength": 2,
+        "enum": [
+          "a",
+          1,
+          true
+        ]
+      }
+    },
+    {
+      "name": "additional-properties-schema",
+      "part": "body",
+      "ok": true,
+      "schema": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "integer"
+        }
+      }
+    },
+    {
+      "name": "pattern-escaped-plus-is-fine",
+      "part": "body",
+      "ok": true,
+      "schema": {
+        "type": "string",
+        "pattern": "\\++"
+      }
+    },
+    {
+      "name": "pattern-class-is-fine",
+      "part": "body",
+      "ok": true,
+      "schema": {
+        "type": "string",
+        "pattern": "[(?=]+"
+      }
+    },
+    {
+      "name": "header-part-full",
+      "part": "header",
+      "ok": true,
+      "schema": {
+        "type": "object",
+        "description": "the headers",
+        "required": [
+          "X-Api-Key"
+        ],
+        "properties": {
+          "X-Api-Key": {
+            "type": "string",
+            "minLength": 8,
+            "pattern": "^[a-z0-9]+$",
+            "description": "the key"
+          },
+          "X-Count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "X-Ratio": {
+            "type": "number",
+            "minimum": "0",
+            "exclusiveMinimum": "true"
+          },
+          "X-Dry-Run": {
+            "type": "boolean"
+          },
+          "X-Mode": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "slow"
+            ]
+          },
+          "X-Trace": {}
+        }
+      }
+    },
+    {
+      "name": "contract-with-both-parts",
+      "part": "contract",
+      "ok": true,
+      "schema": {
+        "body": {
+          "type": "object",
+          "required": [
+            "a"
+          ],
+          "properties": {
+            "a": {
+              "type": "number"
+            }
+          }
+        },
+        "header": {
+          "required": [
+            "X-Api-Key"
+          ],
+          "properties": {
+            "X-Api-Key": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "contract-empty",
+      "part": "contract",
+      "ok": true,
+      "schema": {}
+    },
+    {
+      "name": "not-an-object",
+      "part": "body",
+      "schema": "text",
+      "error": "schema.body: must be an object"
+    },
+    {
+      "name": "unknown-keyword",
+      "part": "body",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "number",
+            "min": 1
+          }
+        }
+      },
+      "error": "schema.body.properties.a: unknown keyword 'min' - the vocabulary is type, properties, required, items, enum, minimum, maximum, exclusiveMinimum, exclusiveMaximum, minLength, maxLength, pattern, minItems, maxItems, nullable and additionalProperties (title, description, example and format are documentary)"
+    },
+    {
+      "name": "unknown-keyword-extension",
+      "part": "body",
+      "schema": {
+        "type": "object",
+        "x-internal": true
+      },
+      "error": "schema.body: unknown keyword 'x-internal' - the vocabulary is type, properties, required, items, enum, minimum, maximum, exclusiveMinimum, exclusiveMaximum, minLength, maxLength, pattern, minItems, maxItems, nullable and additionalProperties (title, description, example and format are documentary)"
+    },
+    {
+      "name": "unknown-type",
+      "part": "body",
+      "schema": {
+        "type": "decimal"
+      },
+      "error": "schema.body.type: unknown type 'decimal' - use object, array, string, number, integer or boolean"
+    },
+    {
+      "name": "type-not-a-name",
+      "part": "body",
+      "schema": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "error": "schema.body.type: must be a type name - object, array, string, number, integer or boolean"
+    },
+    {
+      "name": "keyword-not-for-type",
+      "part": "body",
+      "schema": {
+        "type": "string",
+        "minimum": 1
+      },
+      "error": "schema.body: 'minimum' does not apply to type string"
+    },
+    {
+      "name": "properties-not-object",
+      "part": "body",
+      "schema": {
+        "type": "object",
+        "properties": [
+          "a"
+        ]
+      },
+      "error": "schema.body.properties: must be an object of schemas"
+    },
+    {
+      "name": "required-not-list",
+      "part": "body",
+      "schema": {
+        "type": "object",
+        "required": "a"
+      },
+      "error": "schema.body.required: must be a list of property names"
+    },
+    {
+      "name": "required-entry-not-text",
+      "part": "body",
+      "schema": {
+        "required": [
+          1
+        ]
+      },
+      "error": "schema.body.required: must be a list of property names"
+    },
+    {
+      "name": "items-not-object",
+      "part": "body",
+      "schema": {
+        "type": "array",
+        "items": "string"
+      },
+      "error": "schema.body.items: must be an object"
+    },
+    {
+      "name": "enum-empty",
+      "part": "body",
+      "schema": {
+        "enum": []
+      },
+      "error": "schema.body.enum: must be a non-empty list"
+    },
+    {
+      "name": "enum-not-a-list",
+      "part": "body",
+      "schema": {
+        "enum": "a"
+      },
+      "error": "schema.body.enum: must be a non-empty list"
+    },
+    {
+      "name": "enum-not-a-number",
+      "part": "body",
+      "schema": {
+        "type": "number",
+        "enum": [
+          "x"
+        ]
+      },
+      "error": "schema.body.enum: 'x' is not a number"
+    },
+    {
+      "name": "enum-not-an-integer",
+      "part": "body",
+      "schema": {
+        "type": "integer",
+        "enum": [
+          1.5
+        ]
+      },
+      "error": "schema.body.enum: '1.5' is not an integer"
+    },
+    {
+      "name": "enum-not-a-boolean",
+      "part": "body",
+      "schema": {
+        "type": "boolean",
+        "enum": [
+          "yes"
+        ]
+      },
+      "error": "schema.body.enum: 'yes' is not a boolean"
+    },
+    {
+      "name": "minimum-not-a-number",
+      "part": "body",
+      "schema": {
+        "minimum": "low"
+      },
+      "error": "schema.body.minimum: must be a number"
+    },
+    {
+      "name": "maximum-is-a-boolean",
+      "part": "body",
+      "schema": {
+        "maximum": true
+      },
+      "error": "schema.body.maximum: must be a number"
+    },
+    {
+      "name": "exclusive-minimum-not-a-flag",
+      "part": "body",
+      "schema": {
+        "minimum": 0,
+        "exclusiveMinimum": 5
+      },
+      "error": "schema.body.exclusiveMinimum: must be true or false"
+    },
+    {
+      "name": "exclusive-maximum-needs-maximum",
+      "part": "body",
+      "schema": {
+        "exclusiveMaximum": true
+      },
+      "error": "schema.body.exclusiveMaximum: needs maximum"
+    },
+    {
+      "name": "minimum-above-maximum",
+      "part": "body",
+      "schema": {
+        "minimum": 5,
+        "maximum": 3
+      },
+      "error": "schema.body: minimum is greater than maximum"
+    },
+    {
+      "name": "min-length-negative",
+      "part": "body",
+      "schema": {
+        "minLength": -1
+      },
+      "error": "schema.body.minLength: must be a non-negative integer"
+    },
+    {
+      "name": "max-items-not-integer",
+      "part": "body",
+      "schema": {
+        "maxItems": 1.5
+      },
+      "error": "schema.body.maxItems: must be a non-negative integer"
+    },
+    {
+      "name": "min-length-above-max-length",
+      "part": "body",
+      "schema": {
+        "minLength": 3,
+        "maxLength": 2
+      },
+      "error": "schema.body: minLength is greater than maxLength"
+    },
+    {
+      "name": "min-items-above-max-items",
+      "part": "body",
+      "schema": {
+        "minItems": 3,
+        "maxItems": 2
+      },
+      "error": "schema.body: minItems is greater than maxItems"
+    },
+    {
+      "name": "pattern-not-text",
+      "part": "body",
+      "schema": {
+        "pattern": 1
+      },
+      "error": "schema.body.pattern: must be text"
+    },
+    {
+      "name": "pattern-invalid",
+      "part": "body",
+      "schema": {
+        "pattern": "["
+      },
+      "error": "schema.body.pattern: '[' is not a valid regular expression"
+    },
+    {
+      "name": "pattern-lookaround",
+      "part": "body",
+      "schema": {
+        "pattern": "^(?=.*\\d).+$"
+      },
+      "error": "schema.body.pattern: '^(?=.*\\d).+$' uses lookaround, an atomic group, a backreference or a possessive quantifier - outside the regex subset common to both engines"
+    },
+    {
+      "name": "pattern-lookbehind",
+      "part": "body",
+      "schema": {
+        "pattern": "(?<!a)b"
+      },
+      "error": "schema.body.pattern: '(?<!a)b' uses lookaround, an atomic group, a backreference or a possessive quantifier - outside the regex subset common to both engines"
+    },
+    {
+      "name": "pattern-atomic-group",
+      "part": "body",
+      "schema": {
+        "pattern": "(?>a+)b"
+      },
+      "error": "schema.body.pattern: '(?>a+)b' uses lookaround, an atomic group, a backreference or a possessive quantifier - outside the regex subset common to both engines"
+    },
+    {
+      "name": "pattern-backreference",
+      "part": "body",
+      "schema": {
+        "pattern": "(a)\\1"
+      },
+      "error": "schema.body.pattern: '(a)\\1' uses lookaround, an atomic group, a backreference or a possessive quantifier - outside the regex subset common to both engines"
+    },
+    {
+      "name": "pattern-named-backreference",
+      "part": "body",
+      "schema": {
+        "pattern": "(?<x>a)\\k<x>"
+      },
+      "error": "schema.body.pattern: '(?<x>a)\\k<x>' uses lookaround, an atomic group, a backreference or a possessive quantifier - outside the regex subset common to both engines"
+    },
+    {
+      "name": "pattern-possessive",
+      "part": "body",
+      "schema": {
+        "pattern": "a++"
+      },
+      "error": "schema.body.pattern: 'a++' uses lookaround, an atomic group, a backreference or a possessive quantifier - outside the regex subset common to both engines"
+    },
+    {
+      "name": "pattern-possessive-brace",
+      "part": "body",
+      "schema": {
+        "pattern": "a{2}+"
+      },
+      "error": "schema.body.pattern: 'a{2}+' uses lookaround, an atomic group, a backreference or a possessive quantifier - outside the regex subset common to both engines"
+    },
+    {
+      "name": "nullable-not-a-flag",
+      "part": "body",
+      "schema": {
+        "nullable": "maybe"
+      },
+      "error": "schema.body.nullable: must be true or false"
+    },
+    {
+      "name": "additional-properties-invalid",
+      "part": "body",
+      "schema": {
+        "type": "object",
+        "additionalProperties": "no"
+      },
+      "error": "schema.body.additionalProperties: must be true, false or a schema"
+    },
+    {
+      "name": "nested-location",
+      "part": "body",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sku": {
+              "type": "string",
+              "minItems": 1
+            }
+          }
+        }
+      },
+      "error": "schema.body.items.properties.sku: 'minItems' does not apply to type string"
+    },
+    {
+      "name": "contract-not-object",
+      "part": "contract",
+      "schema": "x",
+      "error": "schema: must be an object with body and/or header"
+    },
+    {
+      "name": "contract-unknown-part",
+      "part": "contract",
+      "schema": {
+        "query": {}
+      },
+      "error": "schema: unknown part 'query' - use body or header"
+    },
+    {
+      "name": "contract-part-error-location",
+      "part": "contract",
+      "schema": {
+        "header": {
+          "properties": {
+            "X-Api-Key": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "error": "schema.header.properties.X-Api-Key.type: unknown type 'object' - a header is text: use string, number, integer or boolean"
+    },
+    {
+      "name": "header-not-an-object",
+      "part": "header",
+      "schema": [
+        "X-Api-Key"
+      ],
+      "error": "schema.header: must be an object"
+    },
+    {
+      "name": "header-type-not-object",
+      "part": "header",
+      "schema": {
+        "type": "string"
+      },
+      "error": "schema.header.type: must be object"
+    },
+    {
+      "name": "header-part-keyword",
+      "part": "header",
+      "schema": {
+        "additionalProperties": false
+      },
+      "error": "schema.header: 'additionalProperties' does not apply to the header part"
+    },
+    {
+      "name": "header-part-unknown-keyword",
+      "part": "header",
+      "schema": {
+        "default": {}
+      },
+      "error": "schema.header: unknown keyword 'default' - the vocabulary is type, properties, required, items, enum, minimum, maximum, exclusiveMinimum, exclusiveMaximum, minLength, maxLength, pattern, minItems, maxItems, nullable and additionalProperties (title, description, example and format are documentary)"
+    },
+    {
+      "name": "header-property-keyword",
+      "part": "header",
+      "schema": {
+        "properties": {
+          "X-Count": {
+            "type": "integer",
+            "nullable": true
+          }
+        }
+      },
+      "error": "schema.header.properties.X-Count: 'nullable' does not apply to a header"
+    },
+    {
+      "name": "header-property-unknown-keyword",
+      "part": "header",
+      "schema": {
+        "properties": {
+          "X-Count": {
+            "type": "integer",
+            "default": 1
+          }
+        }
+      },
+      "error": "schema.header.properties.X-Count: unknown keyword 'default' - the vocabulary is type, properties, required, items, enum, minimum, maximum, exclusiveMinimum, exclusiveMaximum, minLength, maxLength, pattern, minItems, maxItems, nullable and additionalProperties (title, description, example and format are documentary)"
+    },
+    {
+      "name": "header-property-not-for-type",
+      "part": "header",
+      "schema": {
+        "properties": {
+          "X-Count": {
+            "type": "integer",
+            "pattern": "x"
+          }
+        }
+      },
+      "error": "schema.header.properties.X-Count: 'pattern' does not apply to type integer"
+    },
+    {
+      "name": "header-property-type-not-a-name",
+      "part": "header",
+      "schema": {
+        "properties": {
+          "X-Count": {
+            "type": 1
+          }
+        }
+      },
+      "error": "schema.header.properties.X-Count.type: must be a type name - string, number, integer or boolean"
+    }
+  ],
+  "validate": [
+    {
+      "name": "passes-everything",
+      "schema": {
+        "body": {
+          "type": "object",
+          "required": [
+            "id",
+            "amount",
+            "tags"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "amount": {
+              "type": "number",
+              "minimum": 0,
+              "exclusiveMinimum": true
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20,
+              "pattern": "^[A-Za-z ]+$"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "new",
+                "paid"
+              ]
+            },
+            "note": {
+              "type": "string",
+              "nullable": true
+            },
+            "tags": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              }
+            },
+            "lines": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "sku"
+                ],
+                "properties": {
+                  "sku": {
+                    "type": "string"
+                  },
+                  "qty": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "header": {
+          "required": [
+            "X-Tenant",
+            "X-Region"
+          ],
+          "properties": {
+            "X-Tenant": {
+              "type": "string",
+              "minLength": 8
+            },
+            "X-Count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "X-Ratio": {
+              "type": "number"
+            },
+            "X-Dry-Run": {
+              "type": "boolean"
+            },
+            "X-Mode": {
+              "type": "string",
+              "enum": [
+                "fast",
+                "slow"
+              ]
+            },
+            "X-Level": {
+              "type": "integer",
+              "enum": [
+                "1",
+                "2"
+              ]
+            }
+          }
+        }
+      },
+      "body": {
+        "id": 7,
+        "amount": 12.5,
+        "name": "Acme Widget",
+        "status": "paid",
+        "note": null,
+        "tags": [
+          "a"
+        ],
+        "lines": [
+          {
+            "sku": "S1",
+            "qty": 2
+          }
+        ]
+      },
+      "header": {
+        "X-TENANT": "acme-west-1",
+        "x-region": "r1",
+        "X-COUNT": "3",
+        "x-ratio": "0.5",
+        "x-dry-run": "TRUE",
+        "x-mode": "fast",
+        "x-level": "2"
+      },
+      "violations": []
+    },
+    {
+      "name": "type-mismatches",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "n": {
+              "type": "number"
+            },
+            "i": {
+              "type": "integer"
+            },
+            "s": {
+              "type": "string"
+            },
+            "b": {
+              "type": "boolean"
+            },
+            "o": {
+              "type": "object"
+            },
+            "a": {
+              "type": "array"
+            },
+            "any": {}
+          }
+        }
+      },
+      "body": {
+        "n": "12.5",
+        "i": 1.5,
+        "s": 7,
+        "b": "true",
+        "o": [
+          1
+        ],
+        "a": {},
+        "any": "x"
+      },
+      "violations": [
+        "input.body.a: expected array, got object",
+        "input.body.b: expected boolean, got string",
+        "input.body.i: expected integer, got number",
+        "input.body.n: expected number, got string",
+        "input.body.o: expected object, got array",
+        "input.body.s: expected string, got number"
+      ]
+    },
+    {
+      "name": "integral-float-is-an-integer",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "i": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "body": {
+        "i": 1.0
+      },
+      "violations": []
+    },
+    {
+      "name": "big-integer",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "i": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "body": {
+        "i": 9007199254740993
+      },
+      "violations": []
+    },
+    {
+      "name": "boolean-is-not-a-number",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "n": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "body": {
+        "n": true
+      },
+      "violations": [
+        "input.body.n: expected number, got boolean"
+      ]
+    },
+    {
+      "name": "null-handling",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "string"
+            },
+            "b": {
+              "type": "string",
+              "nullable": true
+            },
+            "c": {}
+          }
+        }
+      },
+      "body": {
+        "a": null,
+        "b": null,
+        "c": null
+      },
+      "violations": [
+        "input.body.a: expected string, got null"
+      ]
+    },
+    {
+      "name": "required-then-properties",
+      "schema": {
+        "body": {
+          "type": "object",
+          "required": [
+            "b",
+            "a"
+          ],
+          "properties": {
+            "a": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "body": {
+        "a": 1
+      },
+      "violations": [
+        "input.body.b: required",
+        "input.body.a: expected string, got number"
+      ]
+    },
+    {
+      "name": "enum-by-declared-type",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "s": {
+              "type": "string",
+              "enum": [
+                "x",
+                "y"
+              ]
+            },
+            "i": {
+              "type": "integer",
+              "enum": [
+                "1",
+                "2"
+              ]
+            },
+            "b": {
+              "type": "boolean",
+              "enum": [
+                "true"
+              ]
+            },
+            "u": {
+              "enum": [
+                1,
+                "1"
+              ]
+            }
+          }
+        }
+      },
+      "body": {
+        "s": "z",
+        "i": 2,
+        "b": false,
+        "u": 1
+      },
+      "violations": [
+        "input.body.b: must be one of true",
+        "input.body.s: must be one of x, y"
+      ]
+    },
+    {
+      "name": "enum-strict-without-type",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "u": {
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        }
+      },
+      "body": {
+        "u": 1
+      },
+      "violations": [
+        "input.body.u: must be one of 1"
+      ]
+    },
+    {
+      "name": "bounds",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "number",
+              "minimum": 0
+            },
+            "b": {
+              "type": "number",
+              "maximum": 10
+            },
+            "c": {
+              "type": "number",
+              "minimum": 0,
+              "exclusiveMinimum": true
+            },
+            "d": {
+              "type": "integer",
+              "maximum": 10,
+              "exclusiveMaximum": true
+            },
+            "e": {
+              "type": "number",
+              "minimum": "0.5"
+            },
+            "f": {
+              "type": "number",
+              "minimum": 1.25,
+              "maximum": 1.25
+            }
+          }
+        }
+      },
+      "body": {
+        "a": -1,
+        "b": 11,
+        "c": 0,
+        "d": 10,
+        "e": 0.25,
+        "f": 1.25
+      },
+      "violations": [
+        "input.body.a: must be at least 0",
+        "input.body.b: must be at most 10",
+        "input.body.c: must be more than 0",
+        "input.body.d: must be less than 10",
+        "input.body.e: must be at least 0.5"
+      ]
+    },
+    {
+      "name": "text-rules",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "string",
+              "minLength": 3
+            },
+            "b": {
+              "type": "string",
+              "maxLength": 2
+            },
+            "c": {
+              "type": "string",
+              "pattern": "^[a-z]+$"
+            },
+            "d": {
+              "type": "string",
+              "pattern": "[0-9]"
+            },
+            "e": {
+              "type": "string",
+              "minLength": 1
+            },
+            "u": {
+              "type": "string",
+              "minLength": 5,
+              "maxLength": 5
+            }
+          }
+        }
+      },
+      "body": {
+        "a": "ab",
+        "b": "abc",
+        "c": "ab1",
+        "d": "a1",
+        "e": "",
+        "u": "héllo"
+      },
+      "violations": [
+        "input.body.a: must be at least 3 characters",
+        "input.body.b: must be at most 2 characters",
+        "input.body.c: does not match pattern ^[a-z]+$",
+        "input.body.e: must be at least 1 character"
+      ]
+    },
+    {
+      "name": "array-rules",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "array",
+              "minItems": 1
+            },
+            "b": {
+              "type": "array",
+              "maxItems": 1
+            },
+            "lines": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "sku"
+                ],
+                "properties": {
+                  "sku": {
+                    "type": "string"
+                  },
+                  "qty": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "body": {
+        "a": [],
+        "b": [
+          1,
+          2
+        ],
+        "lines": [
+          {
+            "sku": "S1",
+            "qty": "2"
+          },
+          {
+            "qty": 1
+          }
+        ]
+      },
+      "violations": [
+        "input.body.a: must have at least 1 item",
+        "input.body.b: must have at most 1 item",
+        "input.body.lines[0].qty: expected integer, got string",
+        "input.body.lines[1].sku: required"
+      ]
+    },
+    {
+      "name": "additional-properties-false",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "body": {
+        "a": "x",
+        "zeta": 1,
+        "beta": 2
+      },
+      "violations": [
+        "input.body.beta: not allowed",
+        "input.body.zeta: not allowed"
+      ]
+    },
+    {
+      "name": "additional-properties-schema",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": {
+            "type": "integer"
+          }
+        }
+      },
+      "body": {
+        "a": "x",
+        "k": "v",
+        "n": 1
+      },
+      "violations": [
+        "input.body.k: expected integer, got string"
+      ]
+    },
+    {
+      "name": "extras-pass-by-default",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "body": {
+        "a": "x",
+        "extra": [
+          1,
+          2,
+          3
+        ]
+      },
+      "violations": []
+    },
+    {
+      "name": "whole-body-type",
+      "schema": {
+        "body": {
+          "type": "array"
+        }
+      },
+      "body": {},
+      "violations": [
+        "input.body: expected array, got object"
+      ]
+    },
+    {
+      "name": "body-absent",
+      "schema": {
+        "body": {
+          "type": "object"
+        }
+      },
+      "body": null,
+      "violations": [
+        "input.body: expected object, got null"
+      ]
+    },
+    {
+      "name": "body-absent-nullable",
+      "schema": {
+        "body": {
+          "type": "object",
+          "nullable": true
+        }
+      },
+      "body": null,
+      "violations": []
+    },
+    {
+      "name": "nested-object-path",
+      "schema": {
+        "body": {
+          "type": "object",
+          "properties": {
+            "order": {
+              "type": "object",
+              "required": [
+                "id"
+              ],
+              "properties": {
+                "customer": {
+                  "type": "object",
+                  "properties": {
+                    "email": {
+                      "type": "string",
+                      "pattern": "@"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "body": {
+        "order": {
+          "customer": {
+            "email": "nope"
+          }
+        }
+      },
+      "violations": [
+        "input.body.order.id: required",
+        "input.body.order.customer.email: does not match pattern @"
+      ]
+    },
+    {
+      "name": "no-type-constraints-by-kind-text",
+      "schema": {
+        "body": {
+          "minimum": 1,
+          "minLength": 2
+        }
+      },
+      "body": "a",
+      "violations": [
+        "input.body: must be at least 2 characters"
+      ]
+    },
+    {
+      "name": "no-type-constraints-by-kind-number",
+      "schema": {
+        "body": {
+          "minimum": 1,
+          "minLength": 2
+        }
+      },
+      "body": 0,
+      "violations": [
+        "input.body: must be at least 1"
+      ]
+    },
+    {
+      "name": "no-type-constraints-by-kind-boolean",
+      "schema": {
+        "body": {
+          "minimum": 1,
+          "minLength": 2
+        }
+      },
+      "body": true,
+      "violations": []
+    },
+    {
+      "name": "headers",
+      "schema": {
+        "header": {
+          "required": [
+            "X-Tenant",
+            "X-Region"
+          ],
+          "properties": {
+            "X-Tenant": {
+              "type": "string",
+              "minLength": 8
+            },
+            "X-Count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "X-Ratio": {
+              "type": "number"
+            },
+            "X-Dry-Run": {
+              "type": "boolean"
+            },
+            "X-Mode": {
+              "type": "string",
+              "enum": [
+                "fast",
+                "slow"
+              ]
+            },
+            "X-Level": {
+              "type": "integer",
+              "enum": [
+                "1",
+                "2"
+              ]
+            }
+          }
+        }
+      },
+      "header": {
+        "X-TENANT": "short",
+        "x-count": "1.5",
+        "x-ratio": "abc",
+        "x-dry-run": "yes",
+        "x-mode": "medium",
+        "x-level": "3"
+      },
+      "violations": [
+        "input.header.X-Region: required",
+        "input.header.X-Count: expected integer",
+        "input.header.X-Dry-Run: expected boolean",
+        "input.header.X-Level: must be one of 1, 2",
+        "input.header.X-Mode: must be one of fast, slow",
+        "input.header.X-Ratio: expected number",
+        "input.header.X-Tenant: must be at least 8 characters"
+      ]
+    },
+    {
+      "name": "headers-absent-and-optional",
+      "schema": {
+        "header": {
+          "properties": {
+            "X-Count": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "header": null,
+      "violations": []
+    },
+    {
+      "name": "header-case-insensitive",
+      "schema": {
+        "header": {
+          "required": [
+            "X-Tenant"
+          ],
+          "properties": {
+            "X-Tenant": {
+              "type": "string",
+              "minLength": 3
+            }
+          }
+        }
+      },
+      "header": {
+        "x-tenant": "abc"
+      },
+      "violations": []
+    },
+    {
+      "name": "header-number-bounds",
+      "schema": {
+        "header": {
+          "properties": {
+            "X-Count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "X-Ratio": {
+              "type": "number",
+              "maximum": 1
+            }
+          }
+        }
+      },
+      "header": {
+        "x-count": "9",
+        "x-ratio": "0.5"
+      },
+      "violations": [
+        "input.header.X-Count: must be at most 5"
+      ]
+    },
+    {
+      "name": "header-text-rules",
+      "schema": {
+        "header": {
+          "properties": {
+            "X-Id": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "X-Name": {
+              "minLength": 2
+            }
+          }
+        }
+      },
+      "header": {
+        "x-id": "12a",
+        "x-name": "a"
+      },
+      "violations": [
+        "input.header.X-Id: does not match pattern ^[0-9]+$",
+        "input.header.X-Name: must be at least 2 characters"
+      ]
+    },
+    {
+      "name": "both-parts",
+      "schema": {
+        "body": {
+          "type": "object",
+          "required": [
+            "a"
+          ],
+          "properties": {
+            "a": {
+              "type": "number"
+            }
+          }
+        },
+        "header": {
+          "required": [
+            "X-Tenant"
+          ]
+        }
+      },
+      "body": {
+        "a": "1"
+      },
+      "header": {},
+      "violations": [
+        "input.body.a: expected number, got string",
+        "input.header.X-Tenant: required"
+      ]
+    },
+    {
+      "name": "many-violations",
+      "schema": {
+        "body": {
+          "type": "object",
+          "required": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h",
+            "i",
+            "j",
+            "k",
+            "l"
+          ]
+        }
+      },
+      "body": {},
+      "violations": [
+        "input.body.a: required",
+        "input.body.b: required",
+        "input.body.c: required",
+        "input.body.d: required",
+        "input.body.e: required",
+        "input.body.f: required",
+        "input.body.g: required",
+        "input.body.h: required",
+        "input.body.i: required",
+        "input.body.j: required",
+        "input.body.k: required",
+        "input.body.l: required"
+      ]
+    }
+  ],
+  "report": [
+    {
+      "name": "three",
+      "violations": [
+        "input.body.a: expected number, got string",
+        "input.body.b: required",
+        "input.header.x-tenant: required"
+      ],
+      "message": "Input validation failed - input.body.a: expected number, got string; input.body.b: required; input.header.x-tenant: required"
+    },
+    {
+      "name": "capped",
+      "violations": [
+        "input.body.a: required",
+        "input.body.b: required",
+        "input.body.c: required",
+        "input.body.d: required",
+        "input.body.e: required",
+        "input.body.f: required",
+        "input.body.g: required",
+        "input.body.h: required",
+        "input.body.i: required",
+        "input.body.j: required",
+        "input.body.k: required",
+        "input.body.l: required"
+      ],
+      "message": "Input validation failed - input.body.a: required; input.body.b: required; input.body.c: required; input.body.d: required; input.body.e: required; input.body.f: required; input.body.g: required; input.body.h: required; input.body.i: required; input.body.j: required; and 2 more"
+    }
+  ]
+}

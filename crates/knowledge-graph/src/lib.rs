@@ -47,6 +47,7 @@ pub mod model_gate;
 pub mod model_validator;
 pub mod openapi;
 pub mod rest;
+pub mod schema;
 pub mod services;
 pub mod session;
 pub mod skills;
@@ -218,6 +219,26 @@ impl ComposableFunction for GraphTask {
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
         skills::task(&Platform::get_instance(), headers, input).await
+    }
+}
+
+/// Java `GraphSchemaValidator` (`graph.schema.validator`) — the built-in input
+/// validator of a graph with a contract (RFC-0007): the engine assumes this step
+/// at the root of every run whose root carries a `schema` property and invokes
+/// it with `{body, header, schema}` the way a task node invokes a function; the
+/// application property `graph.schema.validator` names a substitute.
+#[preload(route = "graph.schema.validator", instances = 100)]
+pub struct GraphSchemaValidator;
+
+#[async_trait]
+impl ComposableFunction for GraphSchemaValidator {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        schema::validate_request(headers, input).await
     }
 }
 

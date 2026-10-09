@@ -646,6 +646,8 @@ async fn graph_runtime_end_to_end() {
     successful_retry_resolves_the_error_context(&platform).await;
     suspend_resume_x_run_over_the_real_http_stack(&platform).await;
     openapi_document_on_demand(&platform).await;
+    input_validation_at_the_root(&platform).await;
+    dry_run_validates_the_input_at_the_root(&platform).await;
     suspend_resume_store_calls_chain_to_their_skill_spans(&platform).await;
     rejected_deployed_graph_is_not_executable(&platform).await;
     // Run in this single test so the whole file shares one runtime + one booted
@@ -4323,6 +4325,326 @@ async fn openapi_document_on_demand(platform: &Platform) {
         )
         .await
         .status()
+    );
+}
+
+/// Java parity (`GraphSchemaValidationTest`): input validation at the root of a deployed graph
+/// (RFC-0007, WP2) - a root `schema` turns the assumed validation step on, a bad request is refused
+/// with every violation in one message before anything runs, the root's `exception=` handler takes
+/// over a failed validation when declared, the gate refuses a schema outside the vocabulary (so the
+/// graph answers 404), and the validator function's own contract holds for a direct caller.
+async fn input_validation_at_the_root(platform: &Platform) {
+    let tenant = serde_json::json!({"X-Tenant": "acme-west-1"});
+    let ok = run_graph(
+        platform,
+        "unit-test-schema-1",
+        serde_json::json!({"amount": 12.5, "currency": "USD"}),
+        tenant.clone(),
+    )
+    .await;
+    assert_eq!(200, ok.status(), "{:?}", ok.body());
+    let body = body_map(&ok);
+    assert_eq!(Some(Value::F64(12.5)), body.get_element("charged"));
+    assert_eq!(Some(Value::from("USD")), body.get_element("currency"));
+    assert_eq!(Some(Value::from("ok")), body.get_element("status"));
+    // every violation in one message, before anything runs
+    let bad = run_graph(
+        platform,
+        "unit-test-schema-1",
+        serde_json::json!({"amount": "12.5", "currency": "GBP", "note": "x".repeat(41)}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(400, bad.status(), "{:?}", bad.body());
+    let body = body_map(&bad);
+    assert_eq!(Some(Value::from("error")), body.get_element("type"));
+    assert_eq!(
+        Some(Value::from(
+            "Input validation failed - input.body.amount: expected number, got string; \
+             input.body.currency: must be one of USD, EUR; input.body.note: must be at most 40 \
+             characters; input.header.X-Tenant: required"
+        )),
+        body.get_element("message")
+    );
+    // a header is text: the parsed value is validated, and the name matches case-insensitively
+    let header = run_graph(
+        platform,
+        "unit-test-schema-1",
+        serde_json::json!({"amount": 1, "currency": "EUR"}),
+        serde_json::json!({"x-tenant": "acme-west-1", "X-RETRY": "many"}),
+    )
+    .await;
+    assert_eq!(400, header.status(), "{:?}", header.body());
+    assert_eq!(
+        Some(Value::from(
+            "Input validation failed - input.header.X-Retry: expected integer"
+        )),
+        body_map(&header).get_element("message")
+    );
+    // the root's exception handler takes over a failed validation
+    let handled = run_graph(
+        platform,
+        "unit-test-schema-2",
+        serde_json::json!({"amount": -1, "currency": "USD"}),
+        tenant.clone(),
+    )
+    .await;
+    assert_eq!(422, handled.status(), "{:?}", handled.body());
+    let body = body_map(&handled);
+    assert_eq!(
+        Some(Value::from(
+            "Input validation failed - input.body.amount: must be more than 0"
+        )),
+        body.get_element("reason")
+    );
+    assert_eq!(Some(Value::from("root")), body.get_element("source"));
+    assert_eq!(Some(Value::from(400)), body.get_element("code"));
+    let passed = run_graph(
+        platform,
+        "unit-test-schema-2",
+        serde_json::json!({"amount": 5, "currency": "USD"}),
+        tenant,
+    )
+    .await;
+    assert_eq!(200, passed.status(), "{:?}", passed.body());
+    assert_eq!(
+        Some(Value::from("ok")),
+        body_map(&passed).get_element("status")
+    );
+    // the gate refused the graphs outside the vocabulary: they answer 404
+    for id in ["unit-test-schema-err1", "unit-test-schema-err2"] {
+        let cid = uuid::Uuid::new_v4().simple().to_string();
+        let response = run_graph_cid(platform, id, &cid, serde_json::json!({"amount": 1})).await;
+        assert_eq!(404, response.status(), "{id}: {:?}", response.body());
+    }
+    // the validator function's contract for a direct caller
+    let po = PostOffice::new(platform);
+    async fn call(po: &PostOffice, payload: serde_json::Value) -> (i32, String) {
+        match po
+            .request(
+                EventEnvelope::new()
+                    .set_to("graph.schema.validator")
+                    .set_raw_body(event_script::conversions::from_json(&payload)),
+                Duration::from_secs(5),
+            )
+            .await
+        {
+            // an error reply carries its message as text; a success reply its JSON body
+            Ok(reply) => (
+                reply.status(),
+                match reply.body() {
+                    Value::String(text) => text.as_str().unwrap_or_default().to_string(),
+                    other => event_script::conversions::to_json_string(other),
+                },
+            ),
+            Err(e) => (e.status(), e.message().to_string()),
+        }
+    }
+    let schema = serde_json::json!({"body": {"type": "object", "required": ["a"],
+        "properties": {"a": {"type": "integer"}}}});
+    assert_eq!(
+        (200, r#"{"valid":true}"#.to_string()),
+        call(
+            &po,
+            serde_json::json!({"schema": schema, "body": {"a": 1}, "header": {}})
+        )
+        .await
+    );
+    assert_eq!(
+        (
+            400,
+            "Input validation failed - input.body.a: expected integer, got string".to_string()
+        ),
+        call(
+            &po,
+            serde_json::json!({"schema": schema, "body": {"a": "1"}})
+        )
+        .await
+    );
+    let (status, message) = call(
+        &po,
+        serde_json::json!({"schema": {"body": {"type": "object", "min": 1}}, "body": {}}),
+    )
+    .await;
+    assert_eq!(400, status);
+    assert!(
+        message.starts_with("Invalid schema - schema.body: unknown keyword 'min' - "),
+        "{message}"
+    );
+    assert_eq!(
+        (
+            400,
+            "Invalid schema - schema: must be an object with body and/or header".to_string()
+        ),
+        call(&po, serde_json::json!({"body": {}})).await
+    );
+}
+
+/// Java parity (`SessionManagementTest.dryRunValidatesTheInputAtTheRootTest`): input validation in a
+/// dry run - a root `schema` turns the assumed step on, the traveler validates whatever the instance
+/// holds as input.body and input.header before anything runs, names every violation on the console,
+/// reports the step when the input passes, and the pre-run gate refuses a schema outside the
+/// vocabulary before the traveler starts.
+async fn dry_run_validates_the_input_at_the_root(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let (sid, in_route, out_route) = ("ws-770094-1", "ws.770094.1.in", "ws.770094.1.out");
+    let tap = Arc::new(Mutex::new(Vec::<String>::new()));
+    platform
+        .register(out_route, Arc::new(OutTap { seen: tap.clone() }), 1)
+        .expect("register out tap");
+    open_session(&po, in_route).await;
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(
+        knowledge_graph::commands::has_session(sid),
+        "session {sid} open"
+    );
+    async fn ws(po: &PostOffice, in_route: &str, out_route: &str, command: &str) {
+        po.send(
+            EventEnvelope::new()
+                .set_to("graph.command.singleton")
+                .set_raw_body(rmpv::Value::Map(vec![
+                    (rmpv::Value::from("type"), rmpv::Value::from("command")),
+                    (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+                    (rmpv::Value::from("out"), rmpv::Value::from(out_route)),
+                    (rmpv::Value::from("message"), rmpv::Value::from(command)),
+                ])),
+        )
+        .await
+        .expect("command dispatched");
+    }
+    async fn wait_for(tap: &Arc<Mutex<Vec<String>>>, needle: &str) -> bool {
+        for _ in 0..150 {
+            if tap.lock().expect("tap").iter().any(|l| l.contains(needle)) {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        false
+    }
+    fn seen(tap: &Arc<Mutex<Vec<String>>>) -> Vec<String> {
+        tap.lock().expect("tap").clone()
+    }
+    const ROOT: &str = "create node root\n\
+with type Root\n\
+with properties\n\
+name=schema-draft\n\
+purpose=A root schema in a dry run\n\
+schema.body.type=object\n\
+schema.body.required[]=amount\n\
+schema.body.properties.amount.type=number\n\
+schema.body.properties.amount.minimum=0\n\
+schema.header.required[]=X-Tenant\n\
+schema.header.properties.X-Tenant.type=string";
+    for (command, echo) in [
+        (ROOT, "node root created"),
+        ("create node end", "node end created"),
+        (
+            "connect root to end with next",
+            "node root connected to end",
+        ),
+        ("instantiate graph", "Graph instance created"),
+    ] {
+        ws(&po, in_route, out_route, command).await;
+        assert!(wait_for(&tap, echo).await, "{echo}: {:?}", seen(&tap));
+    }
+    // without mock data the request is empty (an instance starts with an empty input.body and no
+    // headers): the run is refused at the root with every violation
+    tap.lock().expect("tap").clear();
+    ws(&po, in_route, out_route, "run").await;
+    assert!(
+        wait_for(
+            &tap,
+            "Graph traversal aborted: Input validation failed - input.body.amount: required; \
+             input.header.X-Tenant: required (node root)"
+        )
+        .await,
+        "refused at the root: {:?}",
+        seen(&tap)
+    );
+    // mock body and headers satisfy the contract: the step reports itself and the run completes
+    let body = rmpv::Value::Map(vec![(rmpv::Value::from("amount"), rmpv::Value::from(5))]);
+    assert!(knowledge_graph::commands::upload_content(platform, sid, body, "body").await);
+    assert!(wait_for(&tap, "Mock data loaded into 'input.body' namespace").await);
+    let headers = rmpv::Value::Map(vec![(
+        rmpv::Value::from("x-tenant"),
+        rmpv::Value::from("k"),
+    )]);
+    assert!(knowledge_graph::commands::upload_content(platform, sid, headers, "header").await);
+    assert!(wait_for(&tap, "Mock data loaded into 'input.header' namespace").await);
+    // (the console drops a command identical to the previous one as a double-submit, so each
+    // run is preceded by a look at the input)
+    ws(&po, in_route, out_route, "inspect input.body").await;
+    assert!(
+        wait_for(&tap, "> inspect input.body").await,
+        "{:?}",
+        seen(&tap)
+    );
+    tap.lock().expect("tap").clear();
+    ws(&po, in_route, out_route, "run").await;
+    assert!(
+        wait_for(&tap, "Input validated by graph.schema.validator in ").await,
+        "the step reports itself: {:?}",
+        seen(&tap)
+    );
+    assert!(
+        wait_for(&tap, "Graph traversal completed in ").await,
+        "the run completes: {:?}",
+        seen(&tap)
+    );
+    // a bad value is refused with the reason
+    let body = rmpv::Value::Map(vec![(rmpv::Value::from("amount"), rmpv::Value::from(-1))]);
+    assert!(knowledge_graph::commands::upload_content(platform, sid, body, "body").await);
+    assert!(wait_for(&tap, "Mock data loaded into 'input.body' namespace").await);
+    ws(&po, in_route, out_route, "inspect input.header").await;
+    assert!(
+        wait_for(&tap, "> inspect input.header").await,
+        "{:?}",
+        seen(&tap)
+    );
+    tap.lock().expect("tap").clear();
+    ws(&po, in_route, out_route, "run").await;
+    assert!(
+        wait_for(
+            &tap,
+            "Graph traversal aborted: Input validation failed - input.body.amount: must be at least 0 \
+             (node root)"
+        )
+        .await,
+        "the reason on the console: {:?}",
+        seen(&tap)
+    );
+    // the pre-run gate refuses a schema outside the vocabulary before the traveler starts
+    const BAD: &str = "update node root\n\
+with type Root\n\
+with properties\n\
+name=schema-draft\n\
+purpose=A root schema in a dry run\n\
+schema.body.type=object\n\
+schema.body.properties.amount.min=0";
+    ws(&po, in_route, out_route, BAD).await;
+    assert!(
+        wait_for(&tap, "node root updated").await,
+        "{:?}",
+        seen(&tap)
+    );
+    ws(&po, in_route, out_route, "instantiate graph").await;
+    assert!(wait_for(&tap, "Graph instance created").await);
+    tap.lock().expect("tap").clear();
+    ws(&po, in_route, out_route, "run").await;
+    assert!(
+        wait_for(
+            &tap,
+            "Graph traversal aborted: Unable to run - node root - schema.body.properties.amount: \
+             unknown keyword 'min'"
+        )
+        .await,
+        "the pre-run gate: {:?}",
+        seen(&tap)
     );
 }
 

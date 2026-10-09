@@ -1,0 +1,66 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "unit-test-schema-err1",
+        "purpose": "An unknown schema keyword fails the gate",
+        "schema": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "number",
+                "min": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "alias": "charge",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "input.body.amount -> output.body.charged"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "charge"
+    },
+    {
+      "source": "charge",
+      "relations": [
+        {
+          "type": "next",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

@@ -102,3 +102,11 @@ graphs:
   # both ids are listed there too - dup's later copy wins, reject's later copy fails the gate
   - 'unit-test-manifest-dup'
   - 'unit-test-manifest-reject'
+  # the graph contract (RFC-0007): a root 'schema' turns input validation on as the engine's assumed
+  # first step at the root - schema-1 aborts a bad request with 400, schema-2 routes it to the root's
+  # exception handler; the err graphs are deliberately invalid (an unknown keyword, an inapplicable one)
+  # and the gate must reject them, so requests answer 404
+  - 'unit-test-schema-1'
+  - 'unit-test-schema-2'
+  - 'unit-test-schema-err1'
+  - 'unit-test-schema-err2'
