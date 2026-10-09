@@ -119,3 +119,15 @@
 - conv-template-version-sweep-rust — Release version bumps must include the starter templates (2026-09-11). Each — faded — 2026-Q4.md
 - connected-edge-spans — A traced HTTP request is ONE connected span tree whose root is the edge's round-trip span;… — faded — 2026-Q4.md
 - llm-helper-certification-rust — The Rust engine certified the LLM helper without changing: the playground's AI nodes point… — faded — 2026-Q4.md
+- redis-restart-aware-retry — The Redis foundation retries intelligently — a heartbeat monitor plus one retry per lost c… — faded — 2026-Q4.md
+- static-decision-table-is-graph-data-rust — A static decision table is GRAPH DATA — a skill-less node's properties, handed whole to a… — faded — 2026-Q4.md
+- graph-math-typed-arithmetic-rust — graph.math is typed and finite — a boolean is never a number, an unknown function and an o… — faded — 2026-Q4.md
+- graph-manifest-list-later-wins-rust — `graph.model.automation` accepts a comma-separated list of manifests, and the later manife… — faded — 2026-Q4.md
+- example-and-template-carry-their-flows — The starter template and the playground example carry their own flows config, mimicking th… — faded — 2026-Q4.md
+- mapping-source-verbatim-substitution — A mapping source inserts its `{namespace.key}` values verbatim, never quoted; a JSONPath f… — faded — 2026-Q4.md
+- jsonpath-jayway-result-shape — A `$.` JSONPath result takes Jayway's shape - by the kind of path, not the number of match… — faded — 2026-Q4.md
+- ci-floats-on-stable-toolchain — CI floats on `stable`, so a Rust release can turn `main` red with no change: diagnose by t… — faded — 2026-Q4.md
+- worktree-build-bakes-resource-root — A build from this checkout can reuse an engine artifact compiled in a worktree, and the en… — faded — 2026-Q4.md
+- hello-task-doc-references — (drift) CLOSED 2026-10-02 00:59Z — the Playground's `help update` example runs `no.op`, an… — completed thread swept (older than archive_window) — 2026-Q4.md
+- reverify-invariants-20261004 — (re-verify) CLOSED 2026-10-04 — the never-decay facts and the Vision re-verified (45 sessi… — completed thread swept (older than archive_window) — 2026-Q4.md
+- rust-jsonpath-indefinite-list — (parity) CLOSED 2026-10-04 06:08Z — a `$.` JSONPath result takes Jayway's shape on both en… — completed thread swept (older than archive_window) — 2026-Q4.md
