@@ -4665,3 +4665,26 @@ row editor, the header hints and the Upload tooltip's count; `help upload` is mi
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p mercury-knowledge-graph
 --test graph_runtime`.
+
+## Increment 171 — The graph contract and the OpenAPI document on demand (2026-10-09)
+
+RFC-0007's first work package, the twin of the Java engine's change of the same day. `contract.rs` derives a graph model's
+contract in three tiers: the `describe graph` path scan (nesting, the `[]`, `[*]` and `[0]` array markers, now reading a JSONPath
+`$.input.body...` reference too), direct evidence (typed constants and wrappers, plugins with a known result, `for_each` sources,
+`graph.math` results, arithmetic and ordered-comparison operands) and one hop through a typed variable or a `graph.extension`
+target's declared output; it merges the result with the optional `schema` property of the root node (`schema.body` for
+`input.body`, `schema.header` for `input.header`) and of the end node (`output.body`, `output.header`), each part an OpenAPI 3.0
+schema object - the declaration wins, a discovered path it lacks is kept untyped and flagged, a declared path the model never
+references is kept and flagged, header names are case-insensitive - and renders the contract view, the describe lines and, through
+`openapi.rs`, a minimal OpenAPI 3.0 document (the one endpoint `POST /api/graph/{graph-id}`, the request body and header
+parameters, the `200` response with its body and headers, every staged `int(N) -> output.status`, the error shape, `info` from
+the root's `purpose` and the deployed set's version, `servers` from the Host header). `rest::get_graph_openapi` serves
+`GET /api/openapi/{graph_id}` and `GET /api/openapi/session/{sessionId}` (dev-mode, in the four `rest.yaml` copies): a YAML
+attachment by default through `yaml_serde`, `?format=json`, `?view=contract`. `describe graph {id}` prints each path's type,
+marks a declared-only path, lists the staged codes, says what is declared and points at the document; `collect_path_tokens` now
+lives in the contract module. Query parameters are not part of the graph API, so they are neither declared nor derived (Eric).
+Pinned by `tests/graph_contract.rs` over the shared vector file `graph-contract-vectors.json` (six cases, byte-identical with
+the Java repository: the contract view, the document and the describe lines of each, compared through the canonical packager)
+and by the runtime harness's `openapi_document_on_demand` scenario.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p mercury-knowledge-graph`.

@@ -444,6 +444,20 @@ rest:
     timeout: 30s
     tracing: true
 
+  # The OpenAPI 3.0 document of a deployed graph (RFC-0007): a YAML attachment, ?format=json,
+  # ?view=contract for the derived contract; the second entry documents a session's draft
+  - service: 'get.graph.openapi'
+    methods: ['GET']
+    url: '/api/openapi/{graph_id}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'get.graph.openapi'
+    methods: ['GET']
+    url: '/api/openapi/session/{sessionId}'
+    timeout: 30s
+    tracing: true
+
   # The UI's state-machine inspector
   - service: 'inspect.state.machine'
     methods: ['GET']

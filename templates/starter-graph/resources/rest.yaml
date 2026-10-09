@@ -58,6 +58,21 @@ rest:
     timeout: 30s
     tracing: true
 
+  # The OpenAPI 3.0 document of a deployed graph model (RFC-0007): a YAML attachment by default,
+  # ?format=json for JSON inline, ?view=contract for the derived contract with its evidence
+  - service: 'get.graph.openapi'
+    methods: ['GET']
+    url: '/api/openapi/{graph_id}'
+    timeout: 30s
+    tracing: true
+
+  # The same document for the session's draft graph
+  - service: 'get.graph.openapi'
+    methods: ['GET']
+    url: '/api/openapi/session/{sessionId}'
+    timeout: 30s
+    tracing: true
+
   - service: 'unpack.graph.set'
     methods: ['POST']
     url: '/api/graph-set/unpack'

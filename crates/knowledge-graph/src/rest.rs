@@ -26,13 +26,14 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use event_script::conversions::{display, from_json, to_json_string};
+use event_script::conversions::{display, from_json, to_json, to_json_string};
 use platform_core::{
     AppConfigReader, AppError, ComposableFunction, EventEnvelope, Platform, PostOffice,
 };
 use rmpv::Value;
 
-use crate::{commands, graph_set};
+use crate::contract::GraphContract;
+use crate::{commands, graph_set, openapi};
 
 fn invalid(message: impl Into<String>) -> AppError {
     AppError::new(400, message)
@@ -465,6 +466,40 @@ pub async fn post_companion_command_sync(
         ])))
 }
 
+/// A request header of the REST request (`headers`), by case-insensitive name.
+fn request_header(event: &EventEnvelope, name: &str) -> Option<String> {
+    let Value::Map(entries) = event.body() else {
+        return None;
+    };
+    let headers = entries
+        .iter()
+        .find(|(k, _)| k.as_str() == Some("headers"))
+        .map(|(_, v)| v)?;
+    let Value::Map(headers) = headers else {
+        return None;
+    };
+    headers
+        .iter()
+        .find(|(k, _)| {
+            k.as_str()
+                .map(|s| s.eq_ignore_ascii_case(name))
+                .unwrap_or(false)
+        })
+        .map(|(_, v)| display(v))
+}
+
+/// True when the REST request arrived over HTTPS (`https`).
+fn request_https(event: &EventEnvelope) -> bool {
+    let Value::Map(entries) = event.body() else {
+        return false;
+    };
+    entries
+        .iter()
+        .find(|(k, _)| k.as_str() == Some("https"))
+        .map(|(_, v)| matches!(v, Value::Boolean(true)))
+        .unwrap_or(false)
+}
+
 /// A query parameter of the REST request (`parameters.query`), the first value
 /// when the parameter repeats.
 fn query_parameter(event: &EventEnvelope, name: &str) -> Option<String> {
@@ -612,6 +647,125 @@ fn mock_upload_ok(namespace: &str) -> EventEnvelope {
             (Value::from("type"), Value::from("upload")),
             (Value::from("namespace"), Value::from(namespace)),
         ]))
+}
+
+/// Java `GetGraphOpenApi` (`get.graph.openapi`): the OpenAPI 3.0 document of a graph on
+/// demand (RFC-0007, WP1), dev-mode like the other Playground services:
+/// `GET /api/openapi/{graph_id}` for a deployed graph and
+/// `GET /api/openapi/session/{sessionId}` for a session's draft. A YAML attachment by
+/// default; `?format=json` answers JSON inline; `?view=contract` answers the derived
+/// contract - the merged schemas with their evidence - as JSON. Derived from the model each
+/// time and never stored.
+pub async fn get_graph_openapi(event: EventEnvelope) -> Result<EventEnvelope, AppError> {
+    let (path_parameters, _, _) = request_view(&event);
+    let (id, model, version) = if let Some(graph_id) = path_parameters.get("graph_id") {
+        let Some(model) = crate::graphs::get_graph(graph_id) else {
+            return Err(AppError::new(
+                404,
+                format!("Graph model '{graph_id}' not found"),
+            ));
+        };
+        let json = to_json(&model).ok_or_else(|| invalid("Graph model is not JSON"))?;
+        let version = crate::graphs::graph_set(graph_id)
+            .filter(|set| !set.version.is_empty())
+            .map(|set| set.version)
+            .unwrap_or_else(app_version);
+        (graph_id.clone(), json, version)
+    } else if let Some(session_id) = path_parameters.get("sessionId") {
+        let Some(draft) = commands::download_graph(session_id) else {
+            return Err(AppError::new(
+                404,
+                format!("Session '{session_id}' does not exist"),
+            ));
+        };
+        let json = to_json(&draft).ok_or_else(|| invalid("Draft graph is not JSON"))?;
+        (draft_name(&json), json, app_version())
+    } else {
+        return Err(invalid("Missing path parameter: graph_id or sessionId"));
+    };
+    let contract = GraphContract::derive(&id, &model, &|other| {
+        crate::graphs::get_graph(other).and_then(|m| to_json(&m))
+    });
+    let view = query_parameter(&event, "view")
+        .filter(|v| !v.trim().is_empty())
+        .map(|v| v.trim().to_lowercase())
+        .unwrap_or_else(|| "document".to_string());
+    if view == "contract" {
+        return Ok(json_reply(contract.to_view()));
+    }
+    if view != "document" {
+        return Err(invalid(format!(
+            "Unknown view '{view}' - use document or contract"
+        )));
+    }
+    let server = server_url(&event);
+    let document = openapi::document(&contract, &version, server.as_deref());
+    let format = query_parameter(&event, "format")
+        .filter(|v| !v.trim().is_empty())
+        .map(|v| v.trim().to_lowercase())
+        .unwrap_or_else(|| "yaml".to_string());
+    if format == "json" {
+        return Ok(json_reply(document));
+    }
+    if format != "yaml" {
+        return Err(invalid(format!(
+            "Unknown format '{format}' - use yaml or json"
+        )));
+    }
+    let yaml = openapi::to_yaml(&document).map_err(invalid)?;
+    Ok(EventEnvelope::new()
+        .set_header("Content-Type", "application/yaml; charset=utf-8")
+        .set_header(
+            "Content-Disposition",
+            &format!("attachment; filename=\"{id}.yaml\""),
+        )
+        .set_raw_body(Value::from(yaml.as_str())))
+}
+
+fn json_reply(value: Value) -> EventEnvelope {
+    EventEnvelope::new()
+        .set_header("Content-Type", "application/json")
+        .set_raw_body(value)
+}
+
+fn app_version() -> String {
+    AppConfigReader::get_instance()
+        .get_property("info.app.version")
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| "1.0.0".to_string())
+}
+
+/// The server that answers, so a downloaded document points back at the engine that generated it.
+fn server_url(event: &EventEnvelope) -> Option<String> {
+    let host = request_header(event, "host")?;
+    if host.trim().is_empty() {
+        return None;
+    }
+    let scheme = if request_https(event) {
+        "https"
+    } else {
+        "http"
+    };
+    Some(format!("{scheme}://{}", host.trim()))
+}
+
+/// A draft is named after its root node's name, as the download and the export are; else "draft".
+fn draft_name(model: &serde_json::Value) -> String {
+    model
+        .get("nodes")
+        .and_then(|n| n.as_array())
+        .and_then(|nodes| {
+            nodes
+                .iter()
+                .find(|n| n.get("alias").and_then(|a| a.as_str()) == Some("root"))
+        })
+        .and_then(|root| root.get("properties"))
+        .and_then(|p| p.get("name"))
+        .and_then(|n| n.as_str())
+        .map(str::trim)
+        .filter(|n| !n.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| "draft".to_string())
 }
 
 /// Java `DescribeGraph` (`show.graph.model`): read a draft graph from the
