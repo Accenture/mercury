@@ -179,6 +179,9 @@ with properties
 - A node has **zero or one** skill, set with `skill={route}`.
 - `{name}` is lowercase letters, digits and hyphen (`root`/`end` reserved); `{type}` is a descriptive label,
   conventionally **Capitalized** (`Root`, `Fetcher`, `Module` — see [lexical](#lexical)).
+- The root node's optional `schema` property declares the **request contract** and the end node's the
+  response — `schema.body.properties.amount.type=number`, `schema.header.required[]=X-Tenant` — in a
+  closed subset of OpenAPI 3.0 that the gate checks; see [the graph contract](graph-contract.md#declare).
 
 ### connect {#connect}
 
@@ -290,7 +293,11 @@ reads as living documentation. `list flows` enumerates the Event Script flows fo
 `extension=flow://{flow-id}`. **`describe graph {graph-id}`** then shows a deployed model's
 **contract view** — its purpose, size, and the `input.*` / `output.*` data surface derived
 from the model's own mappings — so an agent can wire the delegation's `input[]`/`output[]`
-without out-of-band knowledge or trial execution.
+without out-of-band knowledge or trial execution. Since RFC-0007 (Increment 171) the view carries
+**types** where the model or the declaration gives them (`input.body.amount (number)`), `[declared]`
+on a path only the root's or end's `schema` knows, every staged `output.status`, a `Declared schema:`
+line and the URL of the graph's OpenAPI document (`GET /api/openapi/{graph-id}`; `?view=contract`
+answers the same derivation as JSON) — see [the graph contract](graph-contract.md#discovery).
 
 ### export / import {#export}
 
@@ -898,6 +905,10 @@ exception: an authoring convention, marked below):
 5. A node is **executed once** per run (loop guard); a `graph.math` `RESET` statement is the only
    escape, for advanced re-execution.
 6. `instantiate graph` must precede `run` / `execute` / `inspect`.
+7. When the root node carries a `schema`, every run validates `input.body` and `input.header` against
+   it **first** — before the root's own skill — and a failed validation aborts the run with every
+   violation (HTTP 400 when deployed); the gate refuses a `schema` outside the
+   [closed vocabulary](graph-contract.md#vocabulary).
 
 ## See also {#see-also}
 

@@ -34,7 +34,9 @@ Around them: a **Save** button bookmarks the current graph under a name in your 
 (with a menu to reload or delete saved graphs), the **Workspace** sidebar collects clipped
 nodes for reuse, the **Tools** menu switches between the MiniGraph and JSON-Path playgrounds and
 opens **Graph set packaging** (graph files and the current graph packed into `<set>.pack` on the
-engine, or a dropped `.pack` inspected - `help package`), and the `?` button (or ``Ctrl+` ``) opens a help panel serving the same pages as the `help`
+engine, or a dropped `.pack` inspected - `help package`) and **Graph schema** (the request and
+response contract as rows, pre-filled from the engine's contract view of the draft and the last run,
+saved through `update node` - `help schema`, [the graph contract](graph-contract.md#panel)), and the `?` button (or ``Ctrl+` ``) opens a help panel serving the same pages as the `help`
 command — including the [thirteen tutorials](build-your-first-graph.md#where-to-go-next).
 
 ## Sessions

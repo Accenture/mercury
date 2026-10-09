@@ -4743,3 +4743,27 @@ the pages under `webapp/docs/` live in the Java repository.
 
 Gates: `cargo test -p mercury-knowledge-graph -p minigraph-playground` (the home page serves the new bundle; the mirrored help
 answers).
+
+## Increment 174 — The graph contract documented (RFC-0007, WP4) (2026-10-09)
+
+WP4 of RFC-0007, the twin of the Java repository's docs change. A new guide page, *The graph contract*
+(`docs/guides/knowledge-graph/graph-contract.md`, adapted from the Java repository's): the `schema` declaration on the root and end
+nodes and its `body` and `header` parts written through the node grammar's composite keys; the closed OpenAPI 3.0 vocabulary with
+the rules that follow (strict JSON types, headers as text matched case-insensitively, the `pattern` subset common to both engines,
+`additionalProperties` by OpenAPI's default, ten violations per message) and the gate's messages; discovery in three tiers and
+the typed `describe graph` output; the OpenAPI document on demand (`GET /api/openapi/{graph-id}`, `?format=json`, `?view=contract`,
+the session draft route; what the document holds; `servers` from the Host header); input validation at the root (the assumed
+step, the success line, the 400 shape, the `exception=` handler path, the `graph.schema.validator` property); the Schema panel of
+Increment 173; the round trip through Swagger UI; the design rules. `help schema` is mirrored from the Java repository and
+compiled into the regenerated bundle (`index-JgM0hGON.js` replaces `index-l_GIA_Pq.js`; the stylesheet `index-CwsEO400.css` is
+unchanged; 44 help pages mirrored). The command grammar gains the typed `describe graph` paragraph, the `schema` bullet under
+`create node` and a seventh invariant; the AI agent guide the recipe *Declare the contract* and a see-also line; the Playground
+guide names the panel; the overview lists the page; the configuration reference gains `graph.schema.validator`; the page is in
+the docs nav and `llms.txt`. Five claims pin the prose on this engine's own tests: `graph-schema-closed-vocabulary`
+(`graph_schema::the_gate_accepts_the_vocabulary_and_refuses_the_rest`), `graph-input-validation-at-root`
+(`graph_runtime::input_validation_at_the_root`), `graph-openapi-on-demand` (`graph_runtime::openapi_document_on_demand`),
+`graph-contract-declaration-wins` (`graph_contract::shared_vectors_pin_the_contract_and_the_document`) and
+`graph-schema-dry-run-parity` (`graph_runtime::dry_run_validates_the_input_at_the_root`).
+
+Gates: `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`, `cargo test -p minigraph-playground`
+(the home page serves the new bundle; `help schema` answers from the mirror).

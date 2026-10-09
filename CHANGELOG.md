@@ -89,6 +89,18 @@ decodes as an empty map; and an application that wants the new Playground featur
    `index-l_GIA_Pq.js` / `index-CwsEO400.css` and `template/playground.html` replace `index-0Gyz0OwM.js` / `index-CgeA9_-N.css`;
    the help mirror is unchanged. No upgrade action: no engine change, no new route.
 
+5. **The graph contract is documented (RFC-0007, WP4; Increment 174).** A new guide page, *The graph contract*
+   (`docs/guides/knowledge-graph/graph-contract.md`, adapted from the Java repository's): the `schema` declaration on the root and
+   end nodes and its two parts, the closed vocabulary with the gate's messages, discovery and `describe graph`, the OpenAPI
+   document on demand and its routes, input validation at the root (the assumed step, the 400 shape, the handler path, the
+   `graph.schema.validator` property), the Schema panel, the round trip through Swagger UI, and the design rules. `help schema`
+   mirrored from the Java repository and compiled into the regenerated bundle (`index-JgM0hGON.js` replaces `index-l_GIA_Pq.js`,
+   the stylesheet unchanged); the command grammar's `describe graph` section and a seventh invariant; the AI agent guide's recipe
+   *Declare the contract*; the Playground guide's Tools sentence; the overview's section list; `graph.schema.validator` in the
+   configuration reference; the page in the docs nav and `llms.txt`. Five claims pin the prose on this engine's tests:
+   `graph-schema-closed-vocabulary`, `graph-input-validation-at-root`, `graph-openapi-on-demand`,
+   `graph-contract-declaration-wins` and `graph-schema-dry-run-parity`. No upgrade action.
+
 ### Added
 
 1. **The MiniGraph Playground imports a graph model from a file, downloads one as `<graph-id>.json`, and names its raw tab "Raw"
