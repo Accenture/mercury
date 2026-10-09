@@ -4718,3 +4718,28 @@ the function's own contract) and `dry_run_validates_the_input_at_the_root` (the 
 contract, the pre-run gate).
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p mercury-knowledge-graph`.
+
+## Increment 173 — The Playground's Schema panel (RFC-0007, WP3) (2026-10-09)
+
+WP3 of RFC-0007, a webapp change deployed from the Java repository, the Playground's one source: the bundle `index-l_GIA_Pq.js` /
+`index-CwsEO400.css` and `template/playground.html` replace `index-0Gyz0OwM.js` / `index-CgeA9_-N.css`; the help mirror is unchanged
+(43 pages). The Tools menu gains **Graph schema**, and the root and end node editors a link to it: a panel in the console's slot with
+an **Input** tab (the root node's `schema` property, the request) and an **Output** tab (the end node's, the response), each a body
+section with one row per path and a header section with one row per header name - path or name (the node grammar's rule, `[]` after
+an array), type (strict JSON types; an array also has an item type), required, description, example, and a chip saying where the row
+came from: `declared`, `discovered` (the tooltip names the referencing nodes), `from last run` or `new`. The rows are pre-filled from
+this engine's contract view of the draft (`GET /api/openapi/session/{sessionId}?view=contract`, Increment 171, discovery merged with
+the declaration; the description, the example and the carried constraints come from the node's own declaration only), **Fill from
+last run** reads `input.body`, `input.header`, `output.body` and `output.header` through `GET /api/inspect/{sessionId}/{key}` and fills
+the gaps (an untyped row gains the run's type, a row without an example the value, an unseen path is appended), **Save** builds the two
+parts back (nested `properties` and `items`, `required` per level, each row's other keywords carried unchanged) and sends one
+`update node <alias>` with the node's other properties re-sent as the node editor sends them - the engine clears the property set on
+update - so every member of a collaborative session sees the result and an agent does the same by command; the reply `node <alias>
+updated` closes the save, a rejection or no reply within 10 s is reported. **Download YAML** saves the draft's OpenAPI document under
+the engine's file name. What the gate or the grammar would refuse is flagged in place (a blank or malformed path, a duplicate, a `[]`
+path that is not an array, a scalar with nested paths, a header with an object type); the engine's declaration-versus-model issues
+are listed above the rows; a missing `root` or `end` node is said. The webapp sources, their vitest suites (57 files, 453 tests) and
+the pages under `webapp/docs/` live in the Java repository.
+
+Gates: `cargo test -p mercury-knowledge-graph -p minigraph-playground` (the home page serves the new bundle; the mirrored help
+answers).

@@ -75,6 +75,20 @@ decodes as an empty map; and an application that wants the new Playground featur
 `pack.graph.set` and `unpack.graph.set` routes in its `rest.yaml`. Publication: the twelve crates at 4.12.21 on crates.io
 (`cargo publish --workspace` from the tag).
 
+4. **The Playground's Schema panel: the graph contract as rows (RFC-0007, WP3; Increment 173).** A webapp change deployed from
+   the Java repository, the Playground's one source: the Tools menu gains **Graph schema**, and the root and end node editors a
+   link to it - a panel in the console's slot with an **Input** tab (the root node's `schema`, the request) and an **Output** tab
+   (the end node's, the response), each a body section with one row per path and a header section with one row per header name:
+   path or name, type, required, description, example, and a chip saying where the row came from (`declared`, `discovered`,
+   `from last run`, `new`). The rows are pre-filled from this engine's contract view of the draft
+   (`GET /api/openapi/session/{sessionId}?view=contract`, Increment 171), **Fill from last run** types them from the instance's
+   actual values through the inspect endpoint, **Save** writes the declaration through one `update node` command (the node's
+   other properties re-sent, the `schema.*` rows replaced) so every member of a collaborative session sees it, and **Download
+   YAML** saves the draft's OpenAPI document. What the gate or the node grammar would refuse is flagged in place; the keywords
+   the panel does not edit (`enum`, `minimum`, `pattern`, …) are shown as a chip and carried through Save unchanged. The bundle
+   `index-l_GIA_Pq.js` / `index-CwsEO400.css` and `template/playground.html` replace `index-0Gyz0OwM.js` / `index-CgeA9_-N.css`;
+   the help mirror is unchanged. No upgrade action: no engine change, no new route.
+
 ### Added
 
 1. **The MiniGraph Playground imports a graph model from a file, downloads one as `<graph-id>.json`, and names its raw tab "Raw"
