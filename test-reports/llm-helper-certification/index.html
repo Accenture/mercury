@@ -1,0 +1,3630 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The official Rust implementation of Mercury Composable — Accenture's event-driven, composable application platform: platform-core, Event Script, and the active knowledge graph.">
+      
+      
+        <meta name="author" content="Eric Law">
+      
+      
+        <link rel="canonical" href="https://accenture.github.io/mercury/test-reports/llm-helper-certification/">
+      
+      
+        <link rel="prev" href="../otel-dynatrace-certification/">
+      
+      
+        <link rel="next" href="../AI-companion-test/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Test Report — The LLM helper, certified end to end through both engines - Composable for Rust</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../css/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#test-report-the-llm-helper-certified-end-to-end-through-both-engines" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Composable for Rust" class="md-header__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Composable for Rust
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Test Report — The LLM helper, certified end to end through both engines
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="cyan"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/getting-started/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Orientation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Foundations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/event-driven/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 1 — Event-Driven
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/event-script/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 2 — Event Script
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/knowledge-graph/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Layer 3 — Knowledge Graph
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/observability/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Operate & integrate
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../guides/configuration-reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Composable for Rust" class="md-nav__button md-logo" aria-label="Composable for Rust" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 11a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1M4.22 4.22C5.65 2.79 8.75 3.43 12 5.56c3.25-2.13 6.35-2.77 7.78-1.34s.79 4.53-1.34 7.78c2.13 3.25 2.77 6.35 1.34 7.78s-4.53.79-7.78-1.34c-3.25 2.13-6.35 2.77-7.78 1.34S3.43 15.25 5.56 12C3.43 8.75 2.79 5.65 4.22 4.22m11.32 4.24c.61.62 1.17 1.25 1.69 1.88 1.38-2.13 1.88-3.96 1.13-4.7-.74-.75-2.57-.25-4.7 1.13.63.52 1.26 1.08 1.88 1.69m-7.08 7.08c-.61-.62-1.17-1.25-1.69-1.88-1.38 2.13-1.88 3.96-1.13 4.7.74.75 2.57.25 4.7-1.13-.63-.52-1.26-1.08-1.88-1.69m-2.82-9.9c-.75.74-.25 2.57 1.13 4.7.52-.63 1.08-1.26 1.69-1.88.62-.61 1.25-1.17 1.88-1.69-2.13-1.38-3.96-1.88-4.7-1.13m4.24 8.48c.7.7 1.42 1.34 2.12 1.91.7-.57 1.42-1.21 2.12-1.91s1.34-1.42 1.91-2.12c-.57-.7-1.21-1.42-1.91-2.12S12.7 8.54 12 7.97c-.7.57-1.42 1.21-2.12 1.91S8.54 11.3 7.97 12c.57.7 1.21 1.42 1.91 2.12m8.48 4.24c.75-.74.25-2.57-1.13-4.7-.52.63-1.08 1.26-1.69 1.88-.62.61-1.25 1.17-1.88 1.69 2.13 1.38 3.96 1.88 4.7 1.13"/></svg>
+
+    </a>
+    Composable for Rust
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Accenture/mercury" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Accenture/mercury
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orientation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Orientation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mercury-story/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    White Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mercury-family/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Mercury Family
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Foundations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Foundations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/ai-developer-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/event-driven/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 1 — Event-Driven
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 1 — Event-Driven
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/write-your-first-function/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Write Your First Function
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/function-execution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/rest-automation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST Automation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-driven/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/event-script/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 2 — Event Script
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 2 — Event Script
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/syntax/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Script Syntax
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/flow-grammar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/flow-schema-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Schema Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-script/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/knowledge-graph/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer 3 — Knowledge Graph
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layer 3 — Knowledge Graph
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/build-your-first-graph/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Your First Graph
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/workflow-suspension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow Suspension
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/playground-and-companion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playground & AI Companion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/composing-the-layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composing the Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/graph-contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Graph Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/ai-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph AI Agent Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/command-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MiniGraph Command Grammar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/knowledge-graph/skills-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate & integrate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate & integrate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-over-http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event over HTTP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/http-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Response Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/distributed-cache/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/minimalist-kafka/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Minimalist Kafka
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/canonical-package-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Canonical Package Format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/polyglot-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Polyglot Functions (Python & Node.js)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/macros-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Macros
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/registration-metadata-contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Registration Metadata Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/event-envelope-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EventEnvelope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/api-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform & PostOffice API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/reserved-names-and-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reserved Names & Headers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/actuators-and-http-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Actuators & HTTP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-over-http-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report (Java ⇄ Rust)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../progressive-rendering-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Progressive Rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suspend-resume-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Suspend/Resume
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../distributed-cache-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Distributed Cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../minimalist-kafka-interop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interop Test Report — Minimalist Kafka
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming-return-route-cross-pod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — Streaming Return Route (cross-pod)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming-return-route-polyglot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — Streaming Return Route (polyglot)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../otel-dynatrace-certification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — OpenTelemetry Forwarder (Dynatrace)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — The LLM helper (Claude)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Report — The LLM helper (Claude)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#result-in-brief" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result in brief
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-was-under-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What was under test
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-1-layer-3-the-shipped-support-triage-graph-real-verdicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 1 — Layer 3: the shipped support-triage graph, real verdicts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-2-layer-3-every-outcome-of-the-contract-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 2 — Layer 3: every outcome of the contract, live
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-3-layer-2-an-event-script-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 3 — Layer 2: an Event Script flow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-4-layer-1-progressive-rendering-never-buffered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 4 — Layer 1: progressive rendering, never buffered
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-5-concurrency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 5 — Concurrency
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-6-failure-paths-on-the-real-sdks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 6 — Failure paths on the real SDKs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-7-one-connected-tree-per-request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 7 — One connected tree per request
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#defects-found-and-fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defects found and fixed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reproduce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproduce
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-a-the-deploy-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix A — the deploy folder
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../AI-companion-test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Companion Test Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../background/port-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Port Scope & Fidelity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arch-decisions/ADR/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../arch-decisions/RFC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requests for Comments (RFC)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CHANGELOG.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CONTRIBUTING.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/CODE_OF_CONDUCT.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code of Conduct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/Accenture/mercury/blob/main/INCLUSIVITY.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inclusivity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#result-in-brief" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result in brief
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-was-under-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What was under test
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-1-layer-3-the-shipped-support-triage-graph-real-verdicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 1 — Layer 3: the shipped support-triage graph, real verdicts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-2-layer-3-every-outcome-of-the-contract-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 2 — Layer 3: every outcome of the contract, live
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-3-layer-2-an-event-script-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 3 — Layer 2: an Event Script flow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-4-layer-1-progressive-rendering-never-buffered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 4 — Layer 1: progressive rendering, never buffered
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-5-concurrency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 5 — Concurrency
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-6-failure-paths-on-the-real-sdks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 6 — Failure paths on the real SDKs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenario-7-one-connected-tree-per-request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 7 — One connected tree per request
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#defects-found-and-fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defects found and fixed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reproduce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproduce
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appendix-a-the-deploy-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Appendix A — the deploy folder
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="test-report-the-llm-helper-certified-end-to-end-through-both-engines">Test Report — The LLM helper, certified end to end through both engines<a class="headerlink" href="#test-report-the-llm-helper-certified-end-to-end-through-both-engines" title="Permanent link">&para;</a></h1>
+<p><em>Live validation of the LLM helper app — <code>llm.chat</code>, <code>llm.stream</code> and <code>llm.health</code>, on the official Anthropic SDK —
+hosted by the Python (<a href="https://github.com/Accenture/mercury-python">mercury-python</a>) and Node.js
+(<a href="https://github.com/Accenture/mercury-nodejs">mercury-nodejs</a>) packs and driven by the Java
+(<a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>) and Rust
+(<a href="https://github.com/Accenture/mercury">mercury</a>) engines through Event-over-HTTP, conducted 2026-10-01 (UTC) with
+real Claude calls. It closes the item the OpenTelemetry certification left open in
+<a href="../otel-dynatrace-certification/#scenario-9-one-connected-tree-per-request-the-round-trip-span-the-parented-client-leg-head-and-tail-stream-tracing-2026-09-22">Scenario 9</a>:
+"a real-provider token stream of the same shape follows whenever quota returns". The earlier drives ran on Gemini, whose
+quota and availability decided which calls succeeded, and their token-bearing runs used a mock. This one ran on a paid
+Claude key with nothing throttled.</em></p>
+<h2 id="result-in-brief">Result in brief<a class="headerlink" href="#result-in-brief" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Four pairs, three layers, no failed check.</strong> Java and Rust, each in front of the Python and the Node.js helper, were driven
+  through a direct service wired to a streaming REST entry (Layer 1), an Event Script flow (Layer 2), and the shipped
+  <code>support-triage</code> graph plus a generic chat graph (Layer 3). 40 results per pair, 124 model calls, 22,596 input and 7,248
+  output tokens: <strong>$0.22</strong> at list prices.</li>
+<li><strong>Progressive rendering is never buffered.</strong> Across 8 streams (two models, four pairs), every batch the helper forwarded
+  reached the engine's HTTP edge as its own frame — 50 to 101 per stream, none merged, none dropped, the text identical —
+  within a few milliseconds and without drift. <a href="#scenario-4-layer-1-progressive-rendering-never-buffered">Scenario 4</a>.</li>
+<li><strong>The cadence a viewer sees is the API's, and it depends on the model.</strong> Measured against the API with no SDK in the path,
+  Haiku 4.5 streams continuously (a batch every 25 ms); Opus 5.5 delivers bursts about every 600 ms. The helper and the
+  engines add nothing to either.</li>
+<li><strong>The error contract holds on the real SDKs</strong>, with the same status and the same message from both helpers, from both
+  engines, on every layer: no credential, an invalid key, an unknown model, a model that rejects a parameter, a deadline, a
+  malformed request. <a href="#scenario-6-failure-paths-on-the-real-sdks">Scenario 6</a>.</li>
+<li><strong>One connected trace tree per request.</strong> All 32 traces that touched a helper rebuild as one tree from the six processes'
+  own logs; none is broken. <a href="#scenario-7-one-connected-tree-per-request">Scenario 7</a>.</li>
+<li><strong>The engines held no credential.</strong> The credential reached the two helpers only; each engine process was started without
+  one (verified by counting the variable in each process's environment: 1 for each helper, 0 for each engine).</li>
+</ul>
+<h2 id="what-was-under-test">What was under test<a class="headerlink" href="#what-was-under-test" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Build under test</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java engine</td>
+<td>MiniGraph Playground 4.12.20, built 2026-10-01 from <code>main</code> at <code>a52ac747</code> plus this branch's wording updates; OpenJDK 27 (the project builds for 21)</td>
+</tr>
+<tr>
+<td>Rust engine</td>
+<td><code>minigraph-playground</code> 4.12.20, debug build of 2026-10-01 from <code>main</code> at <code>7201c95d</code> plus the same updates; rustc 1.98.1</td>
+</tr>
+<tr>
+<td>Python helper</td>
+<td>mercury-python <code>examples/llm-helper</code> on package 4.12.15 (<code>main</code> at <code>e084fd3</code> plus the helper change); Python 3.14.5, <code>anthropic</code> 1.11.0</td>
+</tr>
+<tr>
+<td>Node.js helper</td>
+<td>mercury-nodejs <code>examples/llm-helper</code> on package 4.12.15 (<code>main</code> at <code>da2bb12</code> plus the helper change); Node v22.12.0, <code>@anthropic-ai/sdk</code> 0.131.0</td>
+</tr>
+<tr>
+<td>Model</td>
+<td><code>claude-opus-5-5</code> (the helpers' default); <code>claude-haiku-4-5</code> where a request names it</td>
+</tr>
+</tbody>
+</table>
+<p>Ports: the helpers on 8086 (Python) and 8087 (Node.js); Java on 8085 (peer Python) and 8095 (peer Node.js); Rust on 8090
+(peer Python) and 8091 (peer Node.js). The peer is chosen with <code>-Dllm.peer.port</code>; the engines read the map once per process,
+so each pair is its own process. Every application ran with <code>-Dlog.format=compact</code>, and the helpers with
+<code>-Dllm.log.batches=true</code>.</p>
+<p><strong>The three layers, as reached.</strong> The playground's REST automation serves a streaming entry with a direct service — the
+relay <code>llm.stream.relay</code> on <code>POST /api/llm/stream</code>, a Layer 1 function on a <code>stream: true</code> entry that forwards its reply
+lane into the Event-over-HTTP mapped <code>llm.stream</code>. The same hop is taken by a flow task and by a graph task that simply name
+the mapped route. <code>support-triage</code> and the engine's <code>POST /api/graph/{graph_id}</code> were already in the playground; the generic
+chat graph (<code>llm-chat-probe</code>, Layer 3) and the chat flow (<code>llm-chat</code>, Layer 2) were deployed beside them, with no rebuild,
+through the extra-manifest lane (<code>graph.model.automation</code> and <code>yaml.flow.automation</code> take a list; the later manifest wins).
+They are in <a href="#appendix-a-the-deploy-folder">Appendix A</a>. The Rust engine reads one REST location, not Java's merged list, so
+its REST entry for the flow went into a single combined <code>rest.yaml</code>.</p>
+<p><strong>The method.</strong> A small harness drove the stack: it launched the processes, posted every scenario and checked each outcome
+(a failed check was listed and set the exit code), read each Server-Sent Events response line by line and stamped every
+frame on arrival, and two analysers rebuilt the traces and attributed edge frames to helper batches from the processes'
+own logs. It is a scratch tool of the drive and ships in no repository; every request in it is reproducible with the <code>curl</code>
+commands in <a href="#reproduce">Reproduce</a>.</p>
+<h2 id="scenario-1-layer-3-the-shipped-support-triage-graph-real-verdicts">Scenario 1 — Layer 3: the shipped <code>support-triage</code> graph, real verdicts<a class="headerlink" href="#scenario-1-layer-3-the-shipped-support-triage-graph-real-verdicts" title="Permanent link">&para;</a></h2>
+<p>The E0 graph, byte-identical in the two engines, ran against Claude for the first time on this key: its <code>classify</code> node is a
+<code>graph.task</code> calling <code>llm.chat</code> with a JSON schema built in mapping lines, and the graph — not the model — routes on the
+verdict. Each of the three requests below was sent to every pair; every verdict was the expected one and every route followed it.</p>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Verdict</th>
+<th>The graph's route</th>
+<th>Java → Python</th>
+<th>Java → Node.js</th>
+<th>Rust → Python</th>
+<th>Rust → Node.js</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"The app crashes with an error dialog every time I upload a file larger than 5 MB."</td>
+<td><code>bug</code></td>
+<td><code>bug-filed</code></td>
+<td>3896 ms</td>
+<td>3191 ms</td>
+<td>1637 ms</td>
+<td>1490 ms</td>
+</tr>
+<tr>
+<td>"How do I export my monthly report as a PDF file?"</td>
+<td><code>question</code></td>
+<td><code>answered</code></td>
+<td>4808 ms</td>
+<td>2345 ms</td>
+<td>3223 ms</td>
+<td>2346 ms</td>
+</tr>
+<tr>
+<td>"Please add a dark mode to the dashboard, my eyes hurt at night."</td>
+<td><code>feature</code></td>
+<td><code>feature-routed</code></td>
+<td>1533 ms</td>
+<td>1498 ms</td>
+<td>1416 ms</td>
+<td>1282 ms</td>
+</tr>
+<tr>
+<td>no text (rejected before any model call)</td>
+<td>—</td>
+<td><code>rejected</code>, HTTP 400</td>
+<td>8 ms</td>
+<td>8 ms</td>
+<td>3 ms</td>
+<td>3 ms</td>
+</tr>
+</tbody>
+</table>
+<p>Usage surfaced through <code>model.*</code> into the response (for the bug request: 320 input and 51 output tokens), and the model
+reported itself as <code>claude-opus-5-5</code>. The rejected request spent no tokens: the graph's own check ran first.</p>
+<h2 id="scenario-2-layer-3-every-outcome-of-the-contract-live">Scenario 2 — Layer 3: every outcome of the contract, live<a class="headerlink" href="#scenario-2-layer-3-every-outcome-of-the-contract-live" title="Permanent link">&para;</a></h2>
+<p>The generic chat graph passes the request body to <code>llm.chat</code> and returns the helper's reply, or — through one shared failure
+handler anchored from an island — the provider's status and message. Twelve probes, each run on every pair; the outcome was the
+same on all four, and the error bodies were identical to the character (the request id aside).</p>
+<table>
+<thead>
+<tr>
+<th>Probe</th>
+<th>Outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>plain prompt</td>
+<td>200 — <code>text: OK</code>, <code>stop_reason: end_turn</code>, 20 input and 4 output tokens, a <code>request_id</code></td>
+</tr>
+<tr>
+<td>conversation with a system prompt</td>
+<td>200 — the reply uses the earlier turn</td>
+</tr>
+<tr>
+<td>structured output (a schema)</td>
+<td>200 — <code>data</code> is the parsed object, <code>label: bug</code></td>
+</tr>
+<tr>
+<td><code>params.effort: low</code></td>
+<td>200</td>
+</tr>
+<tr>
+<td><code>params.stop_sequences: ["5"]</code> on a counting prompt</td>
+<td>200 — <code>stop_reason: stop_sequence</code>, text <code>1 2 3 4</code></td>
+</tr>
+<tr>
+<td><code>max_tokens: 1</code></td>
+<td>200 — text <code>O</code>, <code>stop_reason: max_tokens</code>: partial text is returned with its reason</td>
+</tr>
+<tr>
+<td>structured output with <code>max_tokens: 1</code></td>
+<td><strong>422</strong> — <code>LLM reply is not valid JSON for the requested schema - stop_reason=max_tokens (the reply was cut off - raise params.max_tokens)</code></td>
+</tr>
+<tr>
+<td><code>params.model: claude-haiku-4-5</code></td>
+<td>200 — <code>model: claude-haiku-4-5-20251001</code>: the override works with no thinking, effort or fallbacks parameter sent</td>
+</tr>
+<tr>
+<td><code>effort</code> on Haiku 4.5</td>
+<td><strong>400</strong> — <code>LLM provider error - 400 invalid_request_error: This model does not support the effort parameter. (request_id …)</code></td>
+</tr>
+<tr>
+<td>an unknown model</td>
+<td><strong>404</strong> — <code>LLM provider error - 404 not_found_error: model: claude-no-such-model-9 (request_id …)</code></td>
+</tr>
+<tr>
+<td><code>params.timeout_ms: 50</code></td>
+<td><strong>408</strong> — <code>LLM request timed out after 50 ms</code> (about 60 ms at the caller)</td>
+</tr>
+<tr>
+<td><code>params.temperature</code></td>
+<td><strong>400</strong> — <code>unsupported params: temperature - supported: provider, model, max_tokens, timeout_ms, effort, stop_sequences</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="scenario-3-layer-2-an-event-script-flow">Scenario 3 — Layer 2: an Event Script flow<a class="headerlink" href="#scenario-3-layer-2-an-event-script-flow" title="Permanent link">&para;</a></h2>
+<p><code>POST /api/llm/chat</code> runs the flow <code>llm-chat</code>, whose one task is <code>process: 'llm.chat'</code> with <code>input.body -&gt; *</code>: the route is
+not local and resolves through <code>event-over-http.yaml</code>, exactly like the declarative demo in the
+<a href="../../guides/event-over-http/">Event over HTTP guide</a>. On all four pairs a plain prompt answered <code>OK</code> (2172 to 4478 ms),
+a structured request returned <code>data.label: feature</code> (2553 to 3965 ms), and an unknown model returned the provider's 404 as
+the HTTP status with its message, the error body the flow adapter renders.</p>
+<h2 id="scenario-4-layer-1-progressive-rendering-never-buffered">Scenario 4 — Layer 1: progressive rendering, never buffered<a class="headerlink" href="#scenario-4-layer-1-progressive-rendering-never-buffered" title="Permanent link">&para;</a></h2>
+<p>The requirement is that a token batch reaches the caller as it is produced, never gathered and sent as one message. Four
+things were checked, because each hop could break it.</p>
+<p><strong>The helper's own code path.</strong> A unit test in each pack makes the fake model refuse to produce batch <em>k</em> until the caller
+already holds batches 0 to <em>k</em>-1. A mutation that gathers the batches and sends them at the end fails that test, and the
+vector for tokens delivered before a mid-stream error, in both packs; the correct code passes all of them.</p>
+<p><strong>Live: every batch the helper forwarded reached the edge as its own frame.</strong> Each stream carried its own trace id; the
+helper logged each batch's number, size and arrival time for that trace (<code>llm.log.batches</code>), and the harness stamped each frame
+at the edge. The offset is the edge's arrival time minus the helper's forward time for the same batch.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>Model</th>
+<th>Helper batches</th>
+<th>Edge frames</th>
+<th>Text identical</th>
+<th>Offset, median</th>
+<th>Offset, spread</th>
+<th>Longest gap, helper / edge</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java → Python</td>
+<td>Opus 5.5</td>
+<td>67</td>
+<td>67</td>
+<td>yes</td>
+<td>12 ms</td>
+<td>10 ms</td>
+<td>1201 / 1206 ms</td>
+</tr>
+<tr>
+<td>Java → Python</td>
+<td>Haiku 4.5</td>
+<td>101</td>
+<td>101</td>
+<td>yes</td>
+<td>7 ms</td>
+<td>4 ms</td>
+<td>191 / 191 ms</td>
+</tr>
+<tr>
+<td>Rust → Python</td>
+<td>Opus 5.5</td>
+<td>50</td>
+<td>50</td>
+<td>yes</td>
+<td>4 ms</td>
+<td>9 ms</td>
+<td>922 / 922 ms</td>
+</tr>
+<tr>
+<td>Rust → Python</td>
+<td>Haiku 4.5</td>
+<td>82</td>
+<td>82</td>
+<td>yes</td>
+<td>3 ms</td>
+<td>5 ms</td>
+<td>228 / 227 ms</td>
+</tr>
+<tr>
+<td>Java → Node.js</td>
+<td>Opus 5.5</td>
+<td>51</td>
+<td>51</td>
+<td>yes</td>
+<td>11 ms</td>
+<td>5 ms</td>
+<td>924 / 925 ms</td>
+</tr>
+<tr>
+<td>Java → Node.js</td>
+<td>Haiku 4.5</td>
+<td>81</td>
+<td>81</td>
+<td>yes</td>
+<td>10 ms</td>
+<td>6 ms</td>
+<td>181 / 178 ms</td>
+</tr>
+<tr>
+<td>Rust → Node.js</td>
+<td>Opus 5.5</td>
+<td>55</td>
+<td>55</td>
+<td>yes</td>
+<td>5 ms</td>
+<td>5 ms</td>
+<td>1125 / 1124 ms</td>
+</tr>
+<tr>
+<td>Rust → Node.js</td>
+<td>Haiku 4.5</td>
+<td>96</td>
+<td>96</td>
+<td>yes</td>
+<td>3 ms</td>
+<td>4 ms</td>
+<td>303 / 302 ms</td>
+</tr>
+</tbody>
+</table>
+<p>The counts match, the characters match, and the offset stays inside a band of 4 to 10 ms for the whole stream; a hop that
+held batches back would show fewer frames than batches, or an offset that grows. The engine's own count agrees as a third
+witness: the terminal record's <code>frames</code> annotation, counted by the reply lane, is 67 on the Java → Python Opus stream, the same
+67 (the terminal records are in <a href="#scenario-7-one-connected-tree-per-request">Scenario 7</a>). The long gaps are the same at both ends: they are not the
+edge's.</p>
+<p><strong>Where the cadence comes from.</strong> The first Opus stream arrived in bursts: groups of several frames with 0 ms between them,
+then a pause of about 600 ms. The same prompt was measured with the SDK straight to the API (no helper, no engine) and then on
+a raw TLS socket with no SDK and no HTTP library, with no proxy variable in the environment. The raw socket shows the API itself
+delivering the batches that way, so it is neither the SDK, nor the helper, nor an engine. The pace depends on the model:</p>
+<table>
+<thead>
+<tr>
+<th>Model, measured on the raw API (2 runs each)</th>
+<th>Tokens per batch</th>
+<th>Distinct arrival times, of the batches</th>
+<th>Typical pacing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Haiku 4.5</td>
+<td>2.2 to 2.4</td>
+<td>73 and 76, of 85 and 88</td>
+<td>median gap 25 ms, 0 or 1 gap over 150 ms</td>
+</tr>
+<tr>
+<td>Sonnet 5.5, effort low</td>
+<td>3.8 to 4.1</td>
+<td>26 and 33, of 65 and 67</td>
+<td>bursts about every 350 ms</td>
+</tr>
+<tr>
+<td>Opus 5.5, effort low</td>
+<td>5.3 to 5.4</td>
+<td>7 and 8, of 45 and 49</td>
+<td>bursts of about a dozen batches, every 510 to 1490 ms</td>
+</tr>
+<tr>
+<td>Opus 5.5, model default effort</td>
+<td>5.0 to 5.6</td>
+<td>7 and 8, of 46 and 53</td>
+<td>the same</td>
+</tr>
+</tbody>
+</table>
+<p>So the certification drives both ends. <strong>Haiku 4.5</strong> is the continuous case, and its check is strict: at least 30 frames,
+distinct arrival times for at least 60% of them, a median gap of 60 ms or less and no gap over 600 ms. On all four pairs the
+median gap was 24 to 25 ms and the longest 178 to 302 ms, with 69 to 88 distinct arrival times for 81 to 101 frames.
+<strong>Opus 5.5</strong>, the helpers' default, is the case that inherits the API's bursts: 7 to 19 distinct arrival times for 50 to 67
+frames, spread over 3.4 to 4.4 seconds (Haiku's streams spanned 2.0 to 2.5). If smooth rendering matters more than the model,
+set <code>llm.model</code> (or <code>params.model</code>).</p>
+<p><strong>The terminal event</strong> carried everything it should on every stream: <code>model</code>, <code>stop_reason: end_turn</code>, <code>usage</code>, a
+<code>request_id</code>, the helper's <code>language</code> (<code>python</code> or <code>node.js</code>), the caller's business correlation id (<code>X-Correlation-Id</code>)
+and the trace id the caller supplied (<code>X-Trace-Id</code>), both echoed unchanged. A stream cut at one token delivered exactly one
+frame and a terminal with <code>stop_reason: max_tokens</code>; a stream for an unknown model failed before any head with the provider's
+404 as the HTTP status.</p>
+<h2 id="scenario-5-concurrency">Scenario 5 — Concurrency<a class="headerlink" href="#scenario-5-concurrency" title="Permanent link">&para;</a></h2>
+<p>Twelve <code>support-triage</code> requests and four streams were sent at once to each pair. Every chat answered with the expected
+verdict and route, and every stream delivered frames and a terminal.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>Wall time</th>
+<th>Median</th>
+<th>Slowest</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java → Python</td>
+<td>5226 ms</td>
+<td>2502 ms</td>
+<td>5215 ms</td>
+</tr>
+<tr>
+<td>Java → Node.js</td>
+<td>4432 ms</td>
+<td>2593 ms</td>
+<td>4425 ms</td>
+</tr>
+<tr>
+<td>Rust → Python</td>
+<td>4404 ms</td>
+<td>2294 ms</td>
+<td>4393 ms</td>
+</tr>
+<tr>
+<td>Rust → Node.js</td>
+<td>3413 ms</td>
+<td>2392 ms</td>
+<td>3403 ms</td>
+</tr>
+</tbody>
+</table>
+<p>The paid key was never throttled: no 429 appeared in any drive.</p>
+<h2 id="scenario-6-failure-paths-on-the-real-sdks">Scenario 6 — Failure paths on the real SDKs<a class="headerlink" href="#scenario-6-failure-paths-on-the-real-sdks" title="Permanent link">&para;</a></h2>
+<p>The vectors pin the error contract against a fake of each SDK; this scenario proves it against the real ones, without a valid
+credential and so without spend. Four helper variants ran beside the real ones — each language with no credential, and each
+with a deliberately invalid placeholder — and were called both through engines and directly from a pack's own client.</p>
+<table>
+<thead>
+<tr>
+<th>Helper</th>
+<th>Called through</th>
+<th>Layer 3 graph</th>
+<th>Layer 2 flow</th>
+<th>Layer 1 relay</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Python, <strong>no credential</strong></td>
+<td>Java</td>
+<td>503</td>
+<td>503</td>
+<td>503</td>
+</tr>
+<tr>
+<td>Python, no credential</td>
+<td>Rust</td>
+<td>503</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Node.js, <strong>invalid key</strong></td>
+<td>Rust</td>
+<td>401</td>
+<td>401</td>
+<td>401</td>
+</tr>
+<tr>
+<td>Node.js, invalid key</td>
+<td>Java</td>
+<td>401</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Called directly with the Python pack's client (no engine), all four variants answered <code>llm.chat</code> with the same text as above:
+<strong>503</strong> <code>LLM provider credential missing - set ANTHROPIC_API_KEY in the environment</code> for each language with no credential,
+<strong>401</strong> <code>LLM provider error - 401 authentication_error: invalid x-api-key (request_id …)</code> for each with an invalid key, and
+<strong>400</strong> <code>unsupported params: temperature - …</code> for a malformed request. The 401 carries Anthropic's own request id. A malformed
+request answered 400 through every layer too: an unsupported param through the graph, a missing prompt through the flow, a
+<code>schema</code> on the streaming route through the relay, a bad <code>effort</code> through the Rust graph, and an unknown provider through the
+Rust relay.</p>
+<p><code>/health</code> tells the credential states apart without a call: a helper with a credential reports <code>UP</code> and names its backend and
+model; one without reports <code>400</code> (its <code>llm.health</code> dependency answered 503). A helper with an invalid key reads as healthy,
+because telling it apart takes a network call and a health probe must never spend a token.</p>
+<h2 id="scenario-7-one-connected-tree-per-request">Scenario 7 — One connected tree per request<a class="headerlink" href="#scenario-7-one-connected-tree-per-request" title="Permanent link">&para;</a></h2>
+<p>The traces were rebuilt from the six processes' own compact logs by the Scenario 9 method: group every distributed-trace
+record by trace id, take the records whose parent is absent as roots, and require exactly one root — the edge's <code>http.request</code>
+round-trip span — and no record whose parent was never exported. The logs held 156 traces; <strong>32 touched a helper, and all 32
+form one connected tree</strong>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Java → Python   eaf5e393…  (the caller supplied X-Trace-Id and no traceparent)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>http.request [java-py]  5600.5 ms, status 200                                   ← the root, the edge's round trip
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>└── llm.stream.relay [java-py]  0.2 ms
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    ├── async.http.request [java-py]  3.0 ms
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    └── llm.stream [py]  5590.6 ms  (model=claude-opus-5-5, stop_reason=end_turn, output_tokens=302)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        ├── async.http.response.stream.0 [java-py]  the head
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        └── async.http.response.stream.0 [java-py]  the terminal  (frames=67)
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>Rust → Node.js  a979c78b…
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>http.request [rust-node]  4804.1 ms, status 200
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>└── llm.stream.relay [rust-node]  0.1 ms
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    ├── async.http.request [rust-node]  1222.3 ms
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    └── llm.stream [node]  4802.1 ms  (model=claude-opus-5-5, stop_reason=end_turn, output_tokens=261)
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        ├── async.http.response.stream.0 [rust-node]  the head
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>        └── async.http.response.stream.0 [rust-node]  the terminal  (frames=55)
+</code></pre></div>
+<p>The helper's usage rides its span as annotations (<code>llm_model</code>, <code>llm_stop_reason</code>, <code>llm_input_tokens</code>, <code>llm_output_tokens</code>,
+<code>llm_request_id</code>), so a backend shows what a call cost. Failed requests are trees too: a stream the helper failed before its
+first token (no credential, an unknown model) is a root <code>http.request</code> carrying the provider's status and message over the
+relay, the client leg, the helper's span and a terminal with <code>frames=0</code>. A helper's application log lines carry the caller's
+business correlation id and the trace id in their <code>context</code> block, and the completed-call line holds the model, the
+<code>stop_reason</code>, the token counts, the request id and the elapsed time — never a prompt or a completion.</p>
+<h2 id="findings">Findings<a class="headerlink" href="#findings" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>The cadence of progressive rendering belongs to the API and the model, not to the pipeline.</strong> Opus 5.5's batches arrive in
+   bursts about every 600 ms and Haiku 4.5's in a continuous trickle. Neither the helper nor either engine changes the pattern:
+   the batches and the frames are in one-to-one correspondence, with a constant offset. A product that wants smooth rendering
+   chooses the model for it; the helper README says so, and <code>llm.log.batches</code> is the tool for telling a bursty source from a
+   hop that holds batches back.</li>
+<li><strong>Thinking tokens count against <code>max_tokens</code>, and the helper's rule caught it live.</strong> Opus 5.5 thinks before it answers.
+   Twice, unprovoked, in the first Rust drives, a stream with a 120-token budget spent all of it on thinking and produced no
+   text; both helpers answered <code>422 LLM reply is empty - stop_reason=max_tokens, output_tokens=120 (raise params.max_tokens
+   or lower params.effort)</code> instead of an empty 200 stream — the same trap the Gemini drives hit with a 200-token budget, now an
+   explicit error with its remedy. It is stochastic, so it is pinned deterministically by the vectors, not scripted live; the
+   concurrency scenario's budget was raised to 400 tokens afterwards and the final drives ran clean. The demos now ship
+   generous budgets for the same reason: the <code>support-triage</code> graph and the Layer 1 stream example ask for 2000 tokens (they
+   asked for 512 and 300). A probe of 48 live Opus 5.5 calls with those prompts found no empty result at the old or the new
+   budget: the two-sentence stream used 100 to 127 output tokens, thinking included, and the triage call 40 to 49, so the old
+   caps held a margin of between two and ten times, and only a tight budget (the 120 above) or a heavier prompt uses it up.
+   Opus 5.5 stays the default model, deliberately: it is the most capable, and a project that wants the smooth token trickle
+   of Haiku 4.5 sets <code>llm.model: claude-haiku-4-5</code> on the helper.</li>
+<li><strong>Real SDK facts the helpers had to meet.</strong> A missing credential is not an API error: the Python SDK raises a bare
+   <code>TypeError</code> and the Node SDK a plain <code>Error</code> (an <code>AnthropicError</code> on a stream), before anything is sent; both helpers map
+   it to a 503 by its text. Python SDK 1.x takes no <code>temperature</code>, <code>top_p</code> or <code>top_k</code> at all, and the current models reject
+   them, so the contract excludes sampling parameters. The API accepts the server-side refusal fallback (<code>fallbacks: "default"</code>
+   with its beta header) on Opus 5.5.</li>
+<li><strong>The Rust REST automation is a single location.</strong> The Java engine merges a comma-separated list of REST files; the Rust
+   engine reads one. It only mattered for adding a flow's REST entry without a rebuild, solved with one combined file per engine.</li>
+<li><strong>A helper's own span says <code>status 200</code> for a stream that failed in-band.</strong> The function returned normally; the failure is
+   the terminal. The edge's <code>http.request</code> span carries the failure's status and message, so a backend should read failures
+   from the edge span.</li>
+<li><strong>Engine parity held without adjustment.</strong> The same graph JSON, byte for byte, ran on both engines; the relay's contract
+   and error shapes were identical; the only visible difference is cosmetic, the order in which each engine serializes a
+   response map's keys.</li>
+</ol>
+<h2 id="defects-found-and-fixed">Defects found and fixed<a class="headerlink" href="#defects-found-and-fixed" title="Permanent link">&para;</a></h2>
+<p>The round surfaced one product defect, found while building the second helper from the first: in the Python helper a body
+<code>{"messages": "hello"}</code> (not a list) passed the first check and then raised a <code>KeyError</code> on the missing <code>prompt</code>, a 500; only a
+non-empty list now counts as turns, in both helpers, with two vectors for it. The harness had two faults of its own, fixed
+before the final drives: its SSE reader stripped every leading space after <code>data:</code> instead of one, as the specification says,
+and its concurrency scenario used a budget small enough to meet Finding 2.</p>
+<h2 id="reproduce">Reproduce<a class="headerlink" href="#reproduce" title="Permanent link">&para;</a></h2>
+<p>Start a helper with the credential exported in its environment, and each engine without one:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Python helper (8086) and Node.js helper (8087), from their repositories</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>mercury-serve<span class="w"> </span>examples/llm-helper/llm_helper.py<span class="w"> </span>-Dlog.format<span class="o">=</span>compact<span class="w"> </span>-Dllm.log.batches<span class="o">=</span><span class="nb">true</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>node<span class="w"> </span>dist/src/cli.js<span class="w"> </span>examples/llm-helper/llm-helper.mjs<span class="w"> </span>-Dlog.format<span class="o">=</span>compact<span class="w"> </span>-Dllm.log.batches<span class="o">=</span><span class="nb">true</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># the engines, with the deploy folder of Appendix A (replace $DEPLOY; Rust takes one REST location)</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>java<span class="w"> </span>-Drest.server.port<span class="o">=</span><span class="m">8085</span><span class="w"> </span>-Dllm.peer.port<span class="o">=</span><span class="m">8086</span><span class="w"> </span>-Dlog.format<span class="o">=</span>compact<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span>-Dgraph.model.automation<span class="o">=</span><span class="s2">"classpath:/graphs.yaml, file:</span><span class="nv">$DEPLOY</span><span class="s2">/graphs.yaml"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span>-Dyaml.flow.automation<span class="o">=</span><span class="s2">"classpath:/flows.yaml, file:</span><span class="nv">$DEPLOY</span><span class="s2">/flows.yaml"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span>-Dyaml.rest.automation<span class="o">=</span><span class="s2">"file:</span><span class="nv">$DEPLOY</span><span class="s2">/rest-java.yaml"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span>-jar<span class="w"> </span>examples/minigraph-playground/target/minigraph-playground-4.12.20.jar
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>minigraph-playground<span class="w"> </span>--<span class="w"> </span>-Drest.server.port<span class="o">=</span><span class="m">8090</span><span class="w"> </span>-Dllm.peer.port<span class="o">=</span><span class="m">8086</span><span class="w"> </span>-Dlog.format<span class="o">=</span>compact<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">  </span>-Dgraph.model.automation<span class="o">=</span><span class="s2">"classpath:/graphs.yaml, file:</span><span class="nv">$DEPLOY</span><span class="s2">/graphs.yaml"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">  </span>-Dyaml.flow.automation<span class="o">=</span><span class="s2">"classpath:/flows.yaml, file:</span><span class="nv">$DEPLOY</span><span class="s2">/flows.yaml"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">  </span>-Dyaml.rest.automation<span class="o">=</span><span class="s2">"file:</span><span class="nv">$DEPLOY</span><span class="s2">/rest-rust.yaml"</span>
+</code></pre></div>
+<p>Then, against either engine's port:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Layer 3 - the shipped graph, then the generic chat graph</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'content-type: application/json'</span><span class="w"> </span>-d<span class="w"> </span><span class="s1">'{"text":"The app crashes when I upload a file."}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>http://127.0.0.1:8085/api/graph/support-triage
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'content-type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">'{"prompt":"Reply with exactly one word: OK","params":{"model":"claude-haiku-4-5"}}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span>http://127.0.0.1:8085/api/graph/llm-chat-probe
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="c1"># Layer 2 - the flow</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'content-type: application/json'</span><span class="w"> </span>-d<span class="w"> </span><span class="s1">'{"prompt":"Reply with exactly one word: OK"}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span>http://127.0.0.1:8085/api/llm/chat
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="c1"># Layer 1 - the relay, progressive rendering (a smooth stream: Haiku)</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>curl<span class="w"> </span>-N<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'accept: text/event-stream'</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'content-type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">  </span>-H<span class="w"> </span><span class="s1">'X-Correlation-Id: biz-demo-1'</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'X-Trace-Id: 0123456789abcdef0123456789abcdef'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">'{"prompt":"Write about 120 words on why event-driven systems decouple producers from consumers.","params":{"model":"claude-haiku-4-5","max_tokens":400}}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">  </span>http://127.0.0.1:8085/api/llm/stream
+</code></pre></div>
+<p>Without a credential the same commands return the 503 of Scenario 6, which is the quickest check that the wiring is right.</p>
+<h2 id="appendix-a-the-deploy-folder">Appendix A — the deploy folder<a class="headerlink" href="#appendix-a-the-deploy-folder" title="Permanent link">&para;</a></h2>
+<p>The two assets deployed beside the playground, and the REST entry that serves the flow. No engine code changed.</p>
+<p><strong><code>graphs.yaml</code></strong> and <strong><code>flows.yaml</code></strong> each list one id and carry their own <code>location</code> (a <code>file:</code> folder). <strong><code>llm-chat-probe</code></strong>
+is six nodes: <code>root</code> → <code>ask</code> (a <code>graph.task</code> on <code>llm.chat</code> with <code>exception=failed</code>; <code>input[]</code> maps <code>input.body.prompt</code>,
+<code>messages</code>, <code>system</code>, <code>schema</code> and <code>params</code> to the same names, and a null source is simply not supplied, so one graph serves a
+prompt, a conversation and a structured request; <code>output[]</code> is <code>result -&gt; model.reply</code>) → <code>answer</code> (<code>model.reply -&gt;
+output.body</code>) → <code>end</code>; and <code>root</code> → <code>island</code> (<code>graph.island</code>) → <code>failed</code> (a mapper: <code>error.code -&gt; output.status</code>,
+<code>error.source</code>, <code>error.code</code> and <code>error.message</code> into <code>output.body</code>) → <code>end</code>.</p>
+<p><strong><code>flows/llm-chat.yml</code></strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">flow</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="s">'llm-chat'</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">'Ask</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">LLM</span><span class="nv"> </span><span class="s">helper</span><span class="nv"> </span><span class="s">from</span><span class="nv"> </span><span class="s">an</span><span class="nv"> </span><span class="s">Event</span><span class="nv"> </span><span class="s">Script</span><span class="nv"> </span><span class="s">task</span><span class="nv"> </span><span class="s">(Layer</span><span class="nv"> </span><span class="s">2),</span><span class="nv"> </span><span class="s">reached</span><span class="nv"> </span><span class="s">through</span><span class="nv"> </span><span class="s">Event-over-HTTP'</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">ttl</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">45s</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="nt">first.task</span><span class="p">:</span><span class="w"> </span><span class="s">'llm.chat'</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="nt">tasks</span><span class="p">:</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">input</span><span class="p">:</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'input.body</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">*'</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="nt">process</span><span class="p">:</span><span class="w"> </span><span class="s">'llm.chat'</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="nt">output</span><span class="p">:</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'text(application/json)</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">output.header.content-type'</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">'result</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">output.body'</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">'Single-shot</span><span class="nv"> </span><span class="s">completion</span><span class="nv"> </span><span class="s">on</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">LLM</span><span class="nv"> </span><span class="s">helper,</span><span class="nv"> </span><span class="s">resolved</span><span class="nv"> </span><span class="s">through</span><span class="nv"> </span><span class="s">event-over-http.yaml'</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="nt">execution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">end</span>
+</code></pre></div>
+<p><strong>The REST entry</strong>, appended to each engine's own <code>rest.yaml</code> in a combined copy:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="s">'http.flow.adapter'</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="nt">methods</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">'POST'</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="s">'/api/llm/chat'</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">flow</span><span class="p">:</span><span class="w"> </span><span class="s">'llm-chat'</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50s</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="nt">tracing</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../otel-dynatrace-certification/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Test Report — OpenTelemetry Forwarder (Dynatrace)">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Test Report — OpenTelemetry Forwarder (Dynatrace)
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../AI-companion-test/" class="md-footer__link md-footer__link--next" aria-label="Next: AI Companion Test Report">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                AI Companion Test Report
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache-2.0 &middot; mercury is the Rust port of <a href="https://github.com/Accenture/mercury-composable">mercury-composable</a>.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
