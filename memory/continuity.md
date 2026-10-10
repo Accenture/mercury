@@ -14,23 +14,26 @@
 
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22). The current release is the `latest_release` field below (both engines release in lock-step, one number for the same content). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
-- **latest_release:** v4.12.21 (2026-10-07 02:36:06Z — **the lock-step twin of Java 4.12.21: graph sets end to end and a hardened MsgPack
-  decoder, Increments 148–169**: release PR #368 merge `28457ccf`, tag `v4.12.21` → `9f524fa3` (one memory-only commit past the merge;
-  the non-memory diff is empty), Cargo 4.12.21 verified at the tag; the GitHub release is published (not a draft); `rust` and `docs`
-  CI green on the tag commit. **Content:** graph sets (the packager, Increments 158–159; the loader 161; the endpoints 166–167; the
-  Playground panel 168; the docs with five claims 169 — [[graph-set-pack-and-deploy-rust]]), the decoder pinned by shared vectors (the
-  64-level limit 160, the hostile headers 163, empty input 164, exactly one value 165), the deploy-read normalization 158, the
-  Playground's file import and download 155, the three-step run controls 154, the single-source webapp 152, the LLM helper pointer 148,
-  the housekeeping 162. **READ:** a payload nested deeper than 64 levels, or followed by extra bytes, answers HTTP 400 at the Event API;
-  empty input decodes as an empty map; an app that wants the new Playground features lists the three dev routes in its `rest.yaml`.
-  Sweep: 13 manifests + the lock refresh (26 lines). Readiness: fmt and clippy clean, `cargo test --workspace --no-fail-fast` 134 suites /
-  702 tests / 0 failed. **Lockstep:** Java v4.12.21 the same minute (composable #528 squash `b76db298`, tag → `87dd9e78`, release
-  02:35:00Z, 1778 tests), and the packs catching up from 4.12.15 with the LLM helper app (mercury-nodejs #110, tag → `279e784`;
-  mercury-python #42, tag → `fe43380`). **The twelve crates VERIFIED on crates.io at 4.12.21** (created 02:40:03Z–02:40:17Z by
-  Eric's `cargo publish --workspace` from the tag, none yanked, all in the sparse index; the published platform-core tarball at
-  version 4.12.21 with its 33 source files, `canonical_packager.rs`, `lib.rs` and `serializer.rs` SHA-256 identical to the tag's);
-  npm and PyPI verified the same way from the Java session. **FIELD-ACCEPTED 2026-10-08 (Eric):** the field's CI pipeline
-  passed with the Snyk and Sonar scans clean, and 4.12.21 is deployed to the field. Origin 2026-10-07-013301.md.
+- **latest_release:** v4.12.22 (2026-10-10 01:25:48Z — **the lock-step twin of Java 4.12.22: the graph contract, Increments 170–174**:
+  release PR #374 merge `e39b5597`, tag `v4.12.22` → the same commit (the branch head `aa5ecd49` merged; the non-memory diff is empty),
+  Cargo 4.12.22 verified at the tag; the GitHub release is published (not a draft); `rust`, `docs` and agent-memory CI green on the tag
+  commit. **Content:** the graph contract (ADR-0029 in the Java repository's ledger: the Upload step's mock request headers 170; the
+  `contract` module and the OpenAPI 3.0 document on demand 171; input validation at the root — the `schema` module, the assumed step
+  `graph.schema.validator`, the gate rules — 172; the Schema panel bundle 173; the guide page, the mirrored help and five claims 174; the
+  skill-inventory fix `525437a7` that the snapshot's link check demanded). The Java mini-scheduler change of the same release has no
+  twin here (no scheduler in this port). **READ:** a deployed graph whose root already carries a `schema` property is validated from this
+  release on and refused at the gate when the property is not the contract's shape; `regex` joins the knowledge-graph crate's
+  dependencies; an app that wants the OpenAPI endpoint adds its two `rest.yaml` entries. Sweep: 13 manifests + the lock refresh (26
+  lines). Readiness: fmt and clippy clean, `cargo test --workspace --no-fail-fast` 136 suites / 707 passed / 0 failed / 9 ignored.
+  **Lockstep:** Java v4.12.22 one minute earlier (composable #542 squash `67e573e8` = tag, release 01:24:53Z, 1801 tests); the language
+  packs have no change since v4.12.21 and stay at it. **The twelve crates VERIFIED on crates.io at 4.12.22** (created 01:30:03Z–01:30:16Z
+  by Eric's `cargo publish --workspace` from the tag, none yanked, in the sparse index; the published platform-core tarball at 4.12.22
+  carries the tag's 33 source files, with `lib.rs`, `serializer.rs` and `canonical_packager.rs` SHA-256 identical). Field acceptance not
+  yet reported. Origin 2026-10-10-021241.md.
+  Prior: v4.12.21 (2026-10-07 02:36:06Z — graph sets end to end and a hardened MsgPack decoder, Increments 148–169; #368 → `28457ccf`,
+  tag → `9f524fa3`; [[graph-set-pack-and-deploy-rust]], the decoder pinned by shared vectors (160, 163–165); READ: HTTP 400 for a payload
+  nested deeper than 64 levels or followed by extra bytes, empty input decodes as an empty map; 134 suites / 702 tests; crates 12/12;
+  Java #528 `b76db298` → `87dd9e78`, the packs caught up from 4.12.15; FIELD-ACCEPTED 2026-10-08. Origin 2026-10-07-013301.md.)
   Prior: v4.12.20 (2026-10-01 03:12:43Z — exact decimal arithmetic for money and the deterministic package format, lock-step with Java;
   mercury #340 → merge `b4783c5b`, tag → `d63e102a`; Increments 143–147; 123 suites / 655 tests / 0 failed; the twelve crates verified
   12/12 on crates.io at 4.12.20. Origin 2026-09-30-235931.md.)
