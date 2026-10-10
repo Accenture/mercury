@@ -1,7 +1,7 @@
 ---
 title: The graph contract
-summary: Declare a graph's request and response as a `schema` on the root and end nodes - a
-  closed subset of OpenAPI 3.0 - and put it to three uses: the engine validates every request at
+summary: Declare a graph's request and response as a `schema` on the root and end nodes, a
+  closed subset of OpenAPI 3.0, and put it to three uses - the engine validates every request at
   the root, answers an OpenAPI 3.0 document on demand, and the Playground's Schema panel fills the
   declaration in from discovery and from the last run.
 layer: knowledge-graph
