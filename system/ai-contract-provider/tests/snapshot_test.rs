@@ -164,3 +164,64 @@ fn reference_reader_honors_the_contract() {
         assert!(denied.is_err(), "expected 404 for {missing:?}");
     }
 }
+
+/// Every documentation page's YAML front matter must parse. MkDocs renders a page whose front
+/// matter fails to parse WITH the metadata as body text, and `mkdocs build --strict` says nothing
+/// about it - the graph-contract page shipped so in 4.12.22, over one colon-space inside an
+/// unquoted summary. The rule: a page that opens with `---` closes the block with `---` or `...`
+/// and the block is a YAML map. A page without a block, or a block that only hides the nav, is
+/// fine here - this tree never adopted page metadata throughout, unlike the Java tree, whose twin
+/// `SkillSnapshotTest.everyDocumentationPageFrontMatterParses` also requires a block with a
+/// title under docs/guides.
+#[test]
+fn every_documentation_page_front_matter_parses() {
+    let docs = manifest_dir().join("../../docs");
+    let mut pages = BTreeSet::new();
+    walk(&docs, "", &mut pages);
+    let mut problems = Vec::new();
+    let mut parsed = 0;
+    for rel in pages.iter().filter(|p| p.ends_with(".md")) {
+        match front_matter_problem(&docs.join(rel)) {
+            None => parsed += 1,
+            Some(problem) => problems.push(format!("{rel}: {problem}")),
+        }
+    }
+    assert!(
+        problems.is_empty(),
+        "front matter must parse as YAML (see the test's doc comment):\n{}",
+        problems.join("\n")
+    );
+    assert!(
+        parsed >= 20,
+        "the walk must have seen the documentation tree, saw {parsed}"
+    );
+}
+
+/// None when the page is fine or has no front matter; otherwise one line naming what is wrong.
+fn front_matter_problem(page: &Path) -> Option<String> {
+    let text = fs::read_to_string(page).expect("read page");
+    let mut lines = text.lines();
+    if lines.next().map(str::trim) != Some("---") {
+        return None;
+    }
+    let mut block = Vec::new();
+    let mut closed = false;
+    for line in lines {
+        if matches!(line.trim(), "---" | "...") {
+            closed = true;
+            break;
+        }
+        block.push(line);
+    }
+    if !closed {
+        return Some("the front matter never closes".to_string());
+    }
+    let meta: serde_yaml::Value = match serde_yaml::from_str(&block.join("\n")) {
+        Ok(value) => value,
+        Err(e) => {
+            let first = e.to_string().lines().next().unwrap_or_default().to_string();
+            return Some(format!("invalid YAML - {first}"));
+        }
+    };
+    (!meta.is_mapping()).then(|| "the front matter is not a map".to_string())
+}
