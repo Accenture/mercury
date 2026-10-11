@@ -63,7 +63,13 @@
   facade, `Platform::keep_running`, `group.protocol=auto`; 12 crates. Origin 2026-09-22-010413.md.) Prior: v4.12.12
   (2026-09-21 — the catch-up release 4.12.7 → 4.12.12 in one step, PR #296 → `983e7550`, tag → `1ef183cb`; Increments 118–124.)
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-10-09 | through 2026-10-09-032244.md (CADENCE — 17 sessions since the 2026-10-06 review: `refresh-metadata` refreshed 9
+- **last_review:** 2026-10-11 | through 2026-10-11-034408.md (ON COMMAND — 8 sessions since the 2026-10-09 review and 14 live facts against a
+  cap of 30, neither trigger due: `refresh-metadata` refreshed 4 footers, tier changes 3 (→ archive-candidate:
+  `mock-upload-loads-every-member`, `graph-import-travels-like-command`, `graph-set-pack-and-deploy-rust`); no fact past the archive
+  window, archived 0; no open-thread files, swept 0; reactivated 0, superseded 0; archive-verify pass (lint clean before and after);
+  invariants not due (36 of 40); stalled threads none; contradictions none; Doc Gaps: no window log carries the section; live facts 14,
+  lines 389. Smoke test not run.)
+  Prior: 2026-10-09 | through 2026-10-09-032244.md (CADENCE — 17 sessions since the 2026-10-06 review: `refresh-metadata` refreshed 9
   footers, tier changes 8 (3 → active, 5 → archive-candidate); archived 10 faded facts after step 6 found no reliance - the window's 82
   commits on their paths were RFC-0007's and ADR-0027's work, not the rules (`redis-restart-aware-retry` 28, `static-decision-table-is-
   graph-data-rust` 29, `graph-math-typed-arithmetic-rust` 28, `graph-manifest-list-later-wins-rust` 23, `example-and-template-carry-their-
@@ -189,7 +195,7 @@ layers shipped; the two above have held through every re-verify.)*
   controls became three steps in the same round - Instantiate, Upload (optional; the form opens for the clicking session only, no console command) and Run - and the
   multi-select hint left the canvas; the UI lives in the Java repo and arrives here as the bundle `index-Bg13jQpc` ([[webapp-single-source-java-repo]]). Pinned by
   `mock_upload_loads_every_member_instance` in `tests/graph_runtime.rs`.
-  <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-09 | uses: 5 | tier: active | origin: 2026-10-02-232252 -->
+  <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-09 | uses: 5 | tier: archive-candidate | origin: 2026-10-02-232252 -->
 
 - **A graph model imported from a file travels like a command: `POST /api/graph/import/{id}` makes it every member's draft (Eric's Playground usability sprint, 2026-10-03; PR #350 merge `dae6377d`, Increment 155; lock-step with mercury-composable #500 squash `856e084b`; both MERGED 2026-10-03 16:03Z).**
   `commands::import_content` validates first (`validate_graph_model`: a JSON object whose only top-level sections are `nodes`, a mandatory list, and `connections`, an optional list; then
@@ -200,7 +206,7 @@ layers shipped; the two above have held through every re-verify.)*
   bundle `index-Cv2pdvxg` ([[webapp-single-source-java-repo]]): the Import Graph button, the `.json` file drop (a confirmation before replacing a loaded graph), the Download button
   (`<graph-id>.json`, the root node named after the id as `export graph as` does) and the Raw tab. A dev-route addition touches the example, the starter template and the cache example
   `rest.yaml`. Extends [[mock-upload-loads-every-member]]. Pinned by `graph_import_loads_every_member_draft` in `tests/graph_runtime.rs`.
-  <!-- id: graph-import-travels-like-command | created: 2026-10-03 | last_used: 2026-10-09 | uses: 3 | tier: active | origin: 2026-10-03-153752 -->
+  <!-- id: graph-import-travels-like-command | created: 2026-10-03 | last_used: 2026-10-09 | uses: 3 | tier: archive-candidate | origin: 2026-10-03-153752 -->
 
 - **Graph sets follow ADR-0027 in the Java repository's ledger (RFC-0005, promoted 2026-10-06): one or more graphs in a canonical
   `<set>.pack`, checked by the gate when packed and deployed all or none through a generated manifest; a set of one graph is how one graph
@@ -219,7 +225,7 @@ layers shipped; the two above have held through every re-verify.)*
   `a_single_graph_is_packed_alone_so_it_can_be_signed` and its Java twin: one 327-byte set, SHA-256 `c500281a…` in both engines. A change
   that alters those bytes breaks the signatures made over the old ones. Java twin fact `graph-set-pack-and-deploy`; the sprint thread is the
   Java repository's `graph-set-packaging`. Relates [[graph-null-property-filtered-rust]].
-  <!-- id: graph-set-pack-and-deploy-rust | created: 2026-10-06 | last_used: 2026-10-07 | uses: 8 | tier: active | origin: 2026-10-06-012631 -->
+  <!-- id: graph-set-pack-and-deploy-rust | created: 2026-10-06 | last_used: 2026-10-07 | uses: 8 | tier: archive-candidate | origin: 2026-10-06-012631 -->
 
 - **A MsgPack payload may nest at most 64 maps and lists, the outermost container being level 1, the same rule as the Java engine (Eric,
   2026-10-06; Increment 160, PR #358 merge `49d599a0`, MERGED 2026-10-06 02:59Z; Java twin mercury-composable #514, fact
@@ -335,7 +341,7 @@ layers shipped; the two above have held through every re-verify.)*
   of a Java webapp fix). `Cargo.toml` has no `exclude` any more; `cargo package --list` carries 214 files, the 42 help pages, the bundle and the entry page, no
   webapp path and no source map. The source maps stay gitignored here. Supersedes [[webapp-bundle-follows-help-edits]] (the rule that a help edit needs the rebuilt bundle still holds, now from the
   Java repo). Relates [[example-and-template-carry-their-flows]].
-  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-09 | uses: 10 | tier: active | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
+  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-11 | uses: 13 | tier: active | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
 
 - **Tests remove the temporary files they write when they complete, verified by measuring (Eric, 2026-10-06; Increment 162, PR
   #360 merge `acf767d7`, MERGED 2026-10-06 05:35Z).** A test binary runs its tests in parallel and has no after-all hook. Per-process files go under `test_support::temp_path`
