@@ -1,0 +1,650 @@
+{
+ "format": "mercury-range-lookup-vectors",
+ "version": 1,
+ "note": "Shared conformance vectors for the rangeLookup simple plugin: every engine that executes flows runs these. 'args' are the call's arguments (a JSON object is the range table - a decision-table shape whose bands are ranges written as text; a JSON number is a Double or Long/Integer, a string is text, null is a null value), 'expect' the band name or null, 'error' an engine-neutral code matched by each engine against its own message. A range min..max runs from min inclusive up to but excluding max; an omitted end is open. The table decides the comparison: numeric bounds compare the value as a decimal, text bounds compare as text without case.",
+ "vectors": [
+  {
+   "id": "tier-open-upper-at-bound",
+   "args": [
+    {
+     "keys": [
+      "platinum",
+      "gold",
+      "silver",
+      "standard"
+     ],
+     "platinum": "25000..",
+     "gold": "10000..25000",
+     "silver": "2500..10000",
+     "standard": "..2500"
+    },
+    25000
+   ],
+   "expect": "platinum",
+   "note": "the lower bound belongs to the band"
+  },
+  {
+   "id": "tier-just-below-upper",
+   "args": [
+    {
+     "keys": [
+      "platinum",
+      "gold",
+      "silver",
+      "standard"
+     ],
+     "platinum": "25000..",
+     "gold": "10000..25000",
+     "silver": "2500..10000",
+     "standard": "..2500"
+    },
+    "24999.99"
+   ],
+   "expect": "gold",
+   "note": "a numeric string compares exactly as a decimal"
+  },
+  {
+   "id": "tier-lower-inclusive",
+   "args": [
+    {
+     "keys": [
+      "platinum",
+      "gold",
+      "silver",
+      "standard"
+     ],
+     "platinum": "25000..",
+     "gold": "10000..25000",
+     "silver": "2500..10000",
+     "standard": "..2500"
+    },
+    10000
+   ],
+   "expect": "gold"
+  },
+  {
+   "id": "tier-upper-excluded",
+   "args": [
+    {
+     "keys": [
+      "platinum",
+      "gold",
+      "silver",
+      "standard"
+     ],
+     "platinum": "25000..",
+     "gold": "10000..25000",
+     "silver": "2500..10000",
+     "standard": "..2500"
+    },
+    9999.99
+   ],
+   "expect": "silver",
+   "note": "a JSON number with a fraction is a Double; 10000 itself belongs to the next band"
+  },
+  {
+   "id": "tier-open-lower",
+   "args": [
+    {
+     "keys": [
+      "platinum",
+      "gold",
+      "silver",
+      "standard"
+     ],
+     "platinum": "25000..",
+     "gold": "10000..25000",
+     "silver": "2500..10000",
+     "standard": "..2500"
+    },
+    0
+   ],
+   "expect": "standard"
+  },
+  {
+   "id": "tier-negative",
+   "args": [
+    {
+     "keys": [
+      "platinum",
+      "gold",
+      "silver",
+      "standard"
+     ],
+     "platinum": "25000..",
+     "gold": "10000..25000",
+     "silver": "2500..10000",
+     "standard": "..2500"
+    },
+    "-50"
+   ],
+   "expect": "standard"
+  },
+  {
+   "id": "tier-authored-keys-as-json-text",
+   "args": [
+    {
+     "purpose": "a property the plugin ignores",
+     "keys": "[ \"platinum\", \"gold\", \"silver\", \"standard\" ]",
+     "platinum": "25000..",
+     "gold": "10000..25000",
+     "silver": "2500..10000",
+     "standard": "..2500"
+    },
+    12000
+   ],
+   "expect": "gold",
+   "note": "the shape of a node authored as keys=[ ... ] with an extra property"
+  },
+  {
+   "id": "score-top-band-open",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    },
+    850
+   ],
+   "expect": "excellent"
+  },
+  {
+   "id": "score-lower-bound",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    },
+    800
+   ],
+   "expect": "excellent"
+  },
+  {
+   "id": "score-upper-bound-goes-to-next-band",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    },
+    799
+   ],
+   "expect": "very_good"
+  },
+  {
+   "id": "score-fraction",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    },
+    739.5
+   ],
+   "expect": "good"
+  },
+  {
+   "id": "score-string",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    },
+    "300"
+   ],
+   "expect": "poor"
+  },
+  {
+   "id": "miss-no-default",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    },
+    299
+   ],
+   "expect": null,
+   "note": "a miss without a default is null"
+  },
+  {
+   "id": "miss-with-default",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    },
+    "299.99",
+    "unknown"
+   ],
+   "expect": "unknown"
+  },
+  {
+   "id": "null-value-with-default",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    },
+    null,
+    "unknown"
+   ],
+   "expect": "unknown",
+   "note": "a null value takes the default, never an error"
+  },
+  {
+   "id": "null-value-no-default",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    },
+    null
+   ],
+   "expect": null
+  },
+  {
+   "id": "hit-ignores-default",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    },
+    700,
+    "unknown"
+   ],
+   "expect": "good"
+  },
+  {
+   "id": "time-same-day",
+   "args": [
+    {
+     "keys": [
+      "same_day",
+      "next_day"
+     ],
+     "same_day": "00:00..16:00",
+     "next_day": "16:00.."
+    },
+    "15:59:59"
+   ],
+   "expect": "same_day",
+   "note": "ISO-8601 times compare as text"
+  },
+  {
+   "id": "time-at-cut-off",
+   "args": [
+    {
+     "keys": [
+      "same_day",
+      "next_day"
+     ],
+     "same_day": "00:00..16:00",
+     "next_day": "16:00.."
+    },
+    "16:00"
+   ],
+   "expect": "next_day",
+   "note": "the upper bound is the next band's lower bound"
+  },
+  {
+   "id": "time-late",
+   "args": [
+    {
+     "keys": [
+      "same_day",
+      "next_day"
+     ],
+     "same_day": "00:00..16:00",
+     "next_day": "16:00.."
+    },
+    "23:59"
+   ],
+   "expect": "next_day"
+  },
+  {
+   "id": "date-window-inside",
+   "args": [
+    {
+     "keys": [
+      "holiday_bonus"
+     ],
+     "holiday_bonus": "2026-11-15..2027-01-01"
+    },
+    "2026-12-31T23:59:59Z"
+   ],
+   "expect": "holiday_bonus",
+   "note": "an ISO-8601 date-time inside a date window"
+  },
+  {
+   "id": "date-window-at-end",
+   "args": [
+    {
+     "keys": [
+      "holiday_bonus"
+     ],
+     "holiday_bonus": "2026-11-15..2027-01-01"
+    },
+    "2027-01-01",
+    "regular"
+   ],
+   "expect": "regular",
+   "note": "the end date is excluded"
+  },
+  {
+   "id": "initial-lower-case",
+   "args": [
+    {
+     "keys": [
+      "branch-a",
+      "branch-b"
+     ],
+     "branch-a": "a..h",
+     "branch-b": "h.."
+    },
+    "Garcia"
+   ],
+   "expect": "branch-a",
+   "note": "text bands compare without case"
+  },
+  {
+   "id": "initial-upper-case",
+   "args": [
+    {
+     "keys": [
+      "branch-a",
+      "branch-b"
+     ],
+     "branch-a": "a..h",
+     "branch-b": "h.."
+    },
+    "HARRIS"
+   ],
+   "expect": "branch-b"
+  },
+  {
+   "id": "json-text-table-low",
+   "args": [
+    "{\"keys\": [\"low\", \"high\"], \"low\": \"..100\", \"high\": \"100..\"}",
+    99.5
+   ],
+   "expect": "low",
+   "note": "the whole table as JSON text"
+  },
+  {
+   "id": "json-text-table-high",
+   "args": [
+    "{\"keys\": [\"low\", \"high\"], \"low\": \"..100\", \"high\": \"100..\"}",
+    "100"
+   ],
+   "expect": "high"
+  },
+  {
+   "id": "error-arity",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    }
+   ],
+   "error": "arity",
+   "note": "one argument - carried as a single-element args list by each engine's harness"
+  },
+  {
+   "id": "error-missing-keys",
+   "args": [
+    {
+     "a": "1..2"
+    },
+    1
+   ],
+   "error": "missing-keys"
+  },
+  {
+   "id": "error-missing-key",
+   "args": [
+    {
+     "keys": [
+      "a",
+      "b"
+     ],
+     "a": "1..2"
+    },
+    1
+   ],
+   "error": "missing-key"
+  },
+  {
+   "id": "error-dash-not-a-range",
+   "args": [
+    {
+     "keys": [
+      "a"
+     ],
+     "a": "1-2"
+    },
+    1
+   ],
+   "error": "bad-range",
+   "note": "the dash form is not a range"
+  },
+  {
+   "id": "error-both-ends-open",
+   "args": [
+    {
+     "keys": [
+      "a"
+     ],
+     "a": ".."
+    },
+    1
+   ],
+   "error": "bad-range"
+  },
+  {
+   "id": "error-exclusive-marker",
+   "args": [
+    {
+     "keys": [
+      "a"
+     ],
+     "a": "1..<2"
+    },
+    1
+   ],
+   "error": "bad-range",
+   "note": "there is one notation: the upper bound is always excluded"
+  },
+  {
+   "id": "error-empty-range",
+   "args": [
+    {
+     "keys": [
+      "a"
+     ],
+     "a": "5..1"
+    },
+    3
+   ],
+   "error": "empty-range"
+  },
+  {
+   "id": "error-equal-bounds",
+   "args": [
+    {
+     "keys": [
+      "a"
+     ],
+     "a": "2..2"
+    },
+    2
+   ],
+   "error": "empty-range",
+   "note": "equal bounds hold nothing, since the upper bound is excluded"
+  },
+  {
+   "id": "error-mixed-table",
+   "args": [
+    {
+     "keys": [
+      "a",
+      "b"
+     ],
+     "a": "1..2",
+     "b": "x..y"
+    },
+    1
+   ],
+   "error": "mixed-table"
+  },
+  {
+   "id": "error-not-a-number",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    },
+    "abc"
+   ],
+   "error": "not-a-number",
+   "note": "numeric bands refuse a non-numeric value by name, as graph.math does"
+  },
+  {
+   "id": "error-boolean",
+   "args": [
+    {
+     "keys": [
+      "excellent",
+      "very_good",
+      "good",
+      "fair",
+      "poor"
+     ],
+     "excellent": "800..",
+     "very_good": "740..800",
+     "good": "670..740",
+     "fair": "580..670",
+     "poor": "300..580"
+    },
+    true
+   ],
+   "error": "boolean-operand"
+  }
+ ]
+}

@@ -4790,3 +4790,25 @@ describes the dialog instead of the explore bar; the README's repository layout 
 Gates: `cargo fmt --all --check`, `cargo clippy -p api-playground --all-targets -- -D warnings`, `cargo test -p api-playground`; the
 binary run against the fetched assets - the page at `/`, the assets under `/swagger-ui/`, the three endpoints, the refusal without
 the assets.
+
+## Increment 176 — `f:rangeLookup`, a decision table of bands (2026-10-11)
+
+The twin of the Java `SimpleRangeLookup`, from a field request: eligibility thresholds, tiers by amount and time windows are bands,
+not lists of values, and `f:lookup` could not express them. `f:rangeLookup(table, value[, default])` in `plugins.rs` reuses the
+decision-table helpers (`decision_table`, `decision_table_entry`, `map_entry`): `keys` names the bands in priority order and each
+band field is ONE range written as text - `min..max` runs from `min` inclusive up to but excluding `max`, an omitted end is open
+(the maintainer's ruling: one notation, the upper bound always excluded, so adjacent bands tile a scale with no gap and no
+overlap and the rule reads the same for numbers, dates and text; a first draft's `min..<max` marker is refused by name). The
+table decides how values compare: every bound numeric (`decimal::parse_canonical`) → the value through `decimal::operand`,
+compared as a `BigDecimal` (a non-number fails by name, as `graph.math` does); every bound text → values compared as lowercased
+text (ISO-8601 dates and times, alphabetic bands); a mix → refused. A Nil value, or a miss, answers the optional default. Errors by
+name: arity, missing `keys`, a missing band, a malformed range, an empty range (lower not below upper), a mixed table. The
+contract (`contract.rs`) types the plugin's result as a string. Pinned by `range_lookup_vectors.rs` over the shared
+`range-lookup-vectors.json` (37 vectors, byte-identical in the Java repository), `range_lookup_matches_java_semantics` in
+`plugins.rs`, and the graph fixture `unit-test-range-lookup-1` (a money band table and a time window table on skill-less nodes,
+resolved by a `graph.data.mapper` node) in `graph_runtime`. Docs: the Event Script syntax guide's plugin table and *Range table
+lookup* section, the skills reference's *Range tables*, the AI agent guide's checklist, the command reference's default sentence,
+and the mirrored `help graph-data-mapper` with the redeployed bundle (`index-DW5BLW8Y.js` replaces `index-JgM0hGON.js`).
+
+Gates: `cargo test -p mercury-event-script --lib lookup --test range_lookup_vectors`, `cargo test -p mercury-knowledge-graph --test
+graph_runtime`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all --check`.

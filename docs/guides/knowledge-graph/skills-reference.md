@@ -76,6 +76,50 @@ A source may compose its key or its text from the state machine — `census-2020
 `input.body.items[{model.i}]`, `text(Hello {model.name}!)` — and the value goes in verbatim, never
 quoted ([dynamic keys](command-reference.md#dynamic-keys)).
 
+### Range tables — a band per rule {#range-table}
+
+When a rule is a **band** rather than a list of values — a loyalty tier by annual spend, an eligibility
+threshold, a processing cut-off by time — the table node holds one range per band and a mapper resolves
+it with `f:rangeLookup(table, value, default)`, the first band in `keys` order whose range contains the
+value. A range is written as text: `min..max` runs from `min` inclusive up to but excluding `max`, and an
+omitted end is open, so adjacent bands tile a scale with no gap and no overlap. The table decides the
+comparison: numeric bounds compare the value exactly as a decimal (a non-numeric value fails by name, as
+`graph.math` does); text bounds compare as text without case, which is how ISO-8601 dates and times and
+alphabetic bands work; a table that mixes the two is refused.
+
+```
+create node loyalty-tiers
+with type DecisionTable
+with properties
+purpose=Credit card loyalty tier by annual spend
+keys=[ "platinum", "gold", "silver", "standard" ]
+platinum=25000..
+gold=10000..25000
+silver=2500..10000
+standard=..2500
+
+create node cut-off
+with type DecisionTable
+with properties
+purpose=Same-day processing cut-off by the time of the instruction
+keys=[ "same_day", "next_day" ]
+same_day=00:00..16:00
+next_day=16:00..
+
+create node classify
+with type Decision
+with properties
+skill=graph.data.mapper
+mapping[]=f:rangeLookup(loyalty-tiers, input.body.annual_spend, text(unknown)) -> output.body.tier
+mapping[]=f:rangeLookup(cut-off, input.body.instructed_at) -> output.body.processing
+```
+
+`9999.99` is silver and `10000` is gold; `16:00` itself is next day. A band that ends at a value is
+written with the next value as its upper bound (`poor=300..580`, `fair=580..670`) and the top band is left
+open (`excellent=800..`). A null value or a miss takes the default, so an absent request field never
+aborts the run. The product owner reads the bands on the graph, and a new threshold is a graph change,
+never code.
+
 ### Keyed tables — a value per key {#keyed-table}
 
 `f:lookup` answers **which rule** lists a value. When the answer is **a value per key** instead — a

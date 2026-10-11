@@ -1,0 +1,123 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Island"
+      ],
+      "alias": "knowledge",
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "reference data certified with the graph"
+      }
+    },
+    {
+      "types": [
+        "DecisionTable"
+      ],
+      "alias": "loyalty-tiers",
+      "properties": {
+        "purpose": "credit card loyalty tier by annual spend - the bands tile the number line (a band runs from its lower bound up to but excluding its upper bound); the table is graph data, not function code",
+        "keys": "[ \"platinum\", \"gold\", \"silver\", \"standard\" ]",
+        "platinum": "25000..",
+        "gold": "10000..25000",
+        "silver": "2500..10000",
+        "standard": "..2500"
+      }
+    },
+    {
+      "types": [
+        "DecisionTable"
+      ],
+      "alias": "cut-off",
+      "properties": {
+        "purpose": "same-day processing cut-off by the time of the instruction - ISO-8601 times compare as text",
+        "keys": "[ \"same_day\", \"next_day\" ]",
+        "same_day": "00:00..16:00",
+        "next_day": "16:00.."
+      }
+    },
+    {
+      "types": [
+        "Decision"
+      ],
+      "alias": "classify",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "f:rangeLookup(loyalty-tiers, input.body.annual_spend, text(unknown)) -> output.body.tier",
+          "f:rangeLookup(cut-off, input.body.instructed_at) -> output.body.processing",
+          "input.body.annual_spend -> output.body.annual_spend"
+        ]
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "the range lookup simple plugin in a data mapper decision node: a money band table and a time window table, no composable function",
+        "name": "unit-test-range-lookup-1"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "knowledge"
+    },
+    {
+      "source": "knowledge",
+      "relations": [
+        {
+          "type": "table",
+          "properties": {}
+        }
+      ],
+      "target": "loyalty-tiers"
+    },
+    {
+      "source": "knowledge",
+      "relations": [
+        {
+          "type": "table",
+          "properties": {}
+        }
+      ],
+      "target": "cut-off"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "decide",
+          "properties": {}
+        }
+      ],
+      "target": "classify"
+    },
+    {
+      "source": "classify",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}
