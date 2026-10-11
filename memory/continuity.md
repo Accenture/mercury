@@ -66,7 +66,9 @@
 - **last_review:** 2026-10-11 | through 2026-10-11-034408.md (ON COMMAND — 8 sessions since the 2026-10-09 review and 14 live facts against a
   cap of 30, neither trigger due: `refresh-metadata` refreshed 4 footers, tier changes 3 (→ archive-candidate:
   `mock-upload-loads-every-member`, `graph-import-travels-like-command`, `graph-set-pack-and-deploy-rust`); no fact past the archive
-  window, archived 0; no open-thread files, swept 0; reactivated 0, superseded 0; archive-verify pass (lint clean before and after);
+  window at the first lint, archived 0; the review's own log then pushed `conv-tests-remove-temp-files-rust` past the window and
+  step 6 KEPT it as a declaration gap (applied by the api-playground port's tests, 2026-10-11-003637, undeclared; re-affirmed in the
+  review's log); no open-thread files, swept 0; reactivated 0, superseded 0; archive-verify pass (lint clean before and after);
   invariants not due (36 of 40); stalled threads none; contradictions none; Doc Gaps: no window log carries the section; live facts 14,
   lines 389. Smoke test not run.)
   Prior: 2026-10-09 | through 2026-10-09-032244.md (CADENCE — 17 sessions since the 2026-10-06 review: `refresh-metadata` refreshed 9
@@ -352,7 +354,7 @@ layers shipped; the two above have held through every re-verify.)*
   of its own, because the cleanup removes the holding area. Verify per test binary: a marker file, each binary run from its package
   folder, then `find -newer` over the system temp folder and `/tmp`. Java twin fact `conv-tests-remove-temp-files`; the thread is the
   Java repository's `test-temp-file-housekeeping`.
-  <!-- id: conv-tests-remove-temp-files-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 2 | tier: archive-candidate | origin: 2026-10-06-053150 -->
+  <!-- id: conv-tests-remove-temp-files-rust | created: 2026-10-06 | last_used: 2026-10-11 | uses: 3 | tier: active | origin: 2026-10-06-053150 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 
