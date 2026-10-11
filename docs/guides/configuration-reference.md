@@ -918,14 +918,14 @@ round trip.
 |---|---|
 | string (folder path) | `/tmp/api-playground` |
 
-The specs folder: the OpenAPI documents (yaml, yml or json) the playground serves itself.
-`GET /api/specs` lists the folder's files beside the bundled example `demo.yaml`, the page's
+The specs folder: the specs documents (yaml, yml or json) the playground serves itself.
+`GET /api/specs` lists the folder's files beside the sample document `demo.yaml`, the page's
 **Specs** list offers them, `GET /api/specs/{filename}` serves one as `application/yaml` or
 `application/json`, and the page's **Deploy** button writes the loaded document into the folder
 through `PUT /api/specs/{filename}` (an existing name answers 409 unless `?overwrite=true`, so the
 page asks first). The folder is created on the first Deploy; a `demo.yaml` in it replaces the
-bundled example. A file name must be a plain name - letters, digits, dot, dash and underscore.
-When the property is unset, the example is the only document and Deploy answers 503. Read by
+sample document. A file name must be a plain name - letters, digits, dot, dash and underscore.
+When the property is unset, the sample document is the only one and Deploy answers 503. Read by
 `extensions/api-playground`.
 
 ## Application-defined keys

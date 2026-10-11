@@ -18,10 +18,10 @@
 //! `extensions/api-playground`. REST automation serves the page as static content from
 //! `resources/public` and the three endpoints of `rest.yaml` on one port:
 //!
-//! - `GET /api/specs` - the documents this application offers: the files of the specs folder
-//!   (`api.playground.specs`) and the bundled example `resources/sample/yaml/demo.yaml`;
+//! - `GET /api/specs` - the specs documents this application offers: the files of the specs folder
+//!   (`api.playground.specs`) and the sample document `resources/sample/yaml/demo.yaml`;
 //! - `GET /api/specs/{filename}` - one document as `application/yaml` or `application/json`
-//!   (a folder file wins over the example of the same name);
+//!   (a folder file wins over the sample document of the same name);
 //! - `PUT /api/specs/{filename}` - the page's Deploy: write the document into the specs folder;
 //!   an existing name answers 409 unless `?overwrite=true`, so the page asks before replacing it.
 //!
@@ -43,7 +43,7 @@ use rmpv::Value;
 
 /// The property naming the specs folder.
 const SPECS_FOLDER: &str = "api.playground.specs";
-/// The bundled example and its resource path.
+/// The sample document and its resource path.
 const EXAMPLE: &str = "demo.yaml";
 const EXAMPLE_RESOURCE: &str = "sample/yaml/demo.yaml";
 /// The Swagger UI asset the page cannot do without - the fetch scripts' marker file.
@@ -52,7 +52,7 @@ const CONTENT_TYPE: &str = "Content-Type";
 
 // ---- the documents this application offers ------------------------------------------------
 
-/// The OpenAPI documents by name: the specs folder's files and the bundled example. A folder
+/// The OpenAPI documents by name: the specs folder's files and the sample document. A folder
 /// file wins over the example of the same name. Only YAML and JSON files are offered (`.yaml`,
 /// `.yml` or `.json`), and a name must be a plain file name (letters, digits, dot, dash,
 /// underscore).
@@ -76,7 +76,7 @@ impl Specs {
         Specs { folder }
     }
 
-    /// The document names, sorted: the folder's files and the example.
+    /// The specs document names, sorted: the folder's files and the sample document.
     fn list(&self) -> Vec<String> {
         let mut names = BTreeSet::new();
         names.insert(EXAMPLE.to_string());
@@ -91,7 +91,7 @@ impl Specs {
         names.into_iter().collect()
     }
 
-    /// The document's text, or None when no such document is offered.
+    /// The specs document's text, or None when no such document is offered.
     fn read(&self, filename: &str) -> Option<String> {
         if !offered(filename) {
             return None;
@@ -340,18 +340,18 @@ mod tests {
         fs::write(folder.join("notes.txt"), "not offered").unwrap();
         fs::write(folder.join(".hidden.yaml"), "not offered").unwrap();
         assert_eq!(specs.list(), vec!["alpha.yaml", "demo.yaml", "zeta.json"]);
-        // no folder at all: the example alone
+        // no folder at all: the sample document alone
         assert_eq!(Specs::with_folder(None).list(), vec!["demo.yaml"]);
     }
 
     #[test]
-    fn a_folder_file_wins_over_the_example_and_bad_names_are_refused() {
+    fn a_folder_file_wins_over_the_sample_document_and_bad_names_are_refused() {
         platform_core::resources::prepend_resource_root(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/resources"
         ));
         let (specs, folder) = temp_specs("read");
-        let example = specs.read("demo.yaml").expect("the bundled example");
+        let example = specs.read("demo.yaml").expect("the sample document");
         assert!(example.contains("openapi"));
         fs::create_dir_all(&folder).unwrap();
         fs::write(

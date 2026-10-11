@@ -46,7 +46,7 @@ instruction when the folder has not been fetched. A release tarball carries the 
 cargo run -p api-playground
 ```
 
-Then visit http://127.0.0.1:8200 - the page opens on the bundled example `demo.yaml`. The binary
+Then visit http://127.0.0.1:8200 - the page opens on the sample document `demo.yaml`. The binary
 resolves `resources/` against its crate folder and the working directory, so `cargo run` from the
 workspace root works as is.
 
@@ -63,8 +63,8 @@ The header offers four sources; the status line under it says what is loaded.
    the last values in this browser. The engine's dev routes carry the wildcard CORS entry, so the
    browser may read the document, and its `servers` entry points at the engine, so **Try it out**
    posts to the graph.
-3. **Specs** - the documents this application serves itself: the files of the specs folder below
-   and the bundled example `demo.yaml`.
+3. **Specs** - the specs documents this application serves itself: the files of the specs folder below
+   and the sample document `demo.yaml`.
 4. **Browse**, or **drag and drop** a `.yaml`, `.yml` or `.json` file anywhere on the page. A
    file is a point-in-time copy; a URL is always current.
 
@@ -78,18 +78,18 @@ replaced only after you confirm.
 `api.playground.specs` in `resources/application.yml` names the folder (default `/tmp/api-playground`;
 created on the first Deploy). Its yaml, yml and json files appear in the **Specs** list and at
 `GET /api/specs/{filename}`, and you may copy files into it by hand as well. A `demo.yaml` in the
-folder replaces the bundled example. A file name must be a plain name - letters, digits, dot, dash
+folder replaces the sample document. A file name must be a plain name - letters, digits, dot, dash
 and underscore.
 
 ## Sample REST endpoints
 
-The example `demo.yaml` documents the application's own endpoints, declared in `resources/rest.yaml`
+The sample document `demo.yaml` documents the application's own endpoints, declared in `resources/rest.yaml`
 and served by the three functions in `src/main.rs`:
 
 ```text
 GET http://127.0.0.1:8200/api/specs
 
-# the documents this application offers: the specs folder's files and the example
+# the specs documents this application offers: the specs folder's files and the sample document
 
 GET http://127.0.0.1:8200/api/specs/demo.yaml
 
@@ -101,7 +101,7 @@ Content-Type: text/plain
 # deploy a document into the specs folder; 409 when the name exists, unless ?overwrite=true
 ```
 
-Because the page and the endpoints share one origin, **Try it out** on the example works as is.
+Because the page and the endpoints share one origin, **Try it out** on the sample document works as is.
 
 ## Acknowledgements
 

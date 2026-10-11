@@ -19,8 +19,8 @@ Each change merged to `main` after v4.12.22 is listed here; it moves under its r
 
 1. **The API playground, the twin of the Java `extensions/api-playground` (Increment 175).** A new application crate
    `extensions/api-playground` (`cargo run -p api-playground`, port 8200): Swagger UI in a Mercury-branded page, served by REST
-   automation as static content from `resources/public` beside three endpoints - `GET /api/specs` lists the documents the application
-   offers (the specs folder `api.playground.specs` and the bundled example `demo.yaml`; a folder file wins over the example),
+   automation as static content from `resources/public` beside three endpoints - `GET /api/specs` lists the specs documents the application
+   offers (the files of the specs folder `api.playground.specs` and the sample document `demo.yaml`; a folder file wins over the sample document),
    `GET /api/specs/{filename}` serves one as `application/yaml` or `application/json`, and `PUT /api/specs/{filename}` deploys a document
    into the folder (409 for an existing name unless `?overwrite=true`). The page - `index.html`, stylesheet and script mirrored
    byte-for-byte from the Java repository, the reference - offers a **URL** field (and `?url=`), a **MiniGraph** dialog (host, port 8085,

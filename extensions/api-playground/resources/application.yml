@@ -11,8 +11,8 @@ rest.automation: true
 rest.server.port: 8200
 #
 # The specs folder: your own OpenAPI documents (yaml, yml or json). GET /api/specs lists them
-# beside the bundled example demo.yaml, the page's "Specs" list offers them, and the page's
+# beside the sample document demo.yaml, the page's "Specs" list offers them, and the page's
 # Deploy button writes the current document here (PUT /api/specs/{filename}). A demo.yaml in
-# this folder replaces the bundled example.
+# this folder replaces the sample document.
 #
 api.playground.specs: /tmp/api-playground
