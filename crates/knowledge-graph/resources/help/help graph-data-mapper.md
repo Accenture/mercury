@@ -77,6 +77,23 @@ standard=..2500
 mapping[]=f:rangeLookup(loyalty-tiers, input.body.annual_spend, text(unknown)) -> output.body.tier
 ```
 
+The bounds of a band are data too: f:minRange(range, default) and f:maxRange(range, default) read one
+range in the same notation and return its lower or upper bound, typed by the notation - a numeric bound
+is a number (a whole number is a long, any other number a double), a text bound is text as written - and
+an open end answers the optional default, or null when there is none. A dynamic key reads the band the
+lookup chose:
+
+```
+mapping[]=f:rangeLookup(loyalty-tiers, input.body.annual_spend, text(unknown)) -> model.tier
+mapping[]=f:minRange(loyalty-tiers.{model.tier}, int(0)) -> output.body.tier_from
+mapping[]=f:maxRange(loyalty-tiers.{model.tier}) -> output.body.tier_to
+```
+
+tier_from is 10000 for gold and the default 0 for standard (the lower end of ..2500 is open); tier_to is
+25000 for gold and stays unset for platinum (25000.. has no upper bound). A range is refused exactly when
+rangeLookup would refuse the band - malformed, mixing a number and text, or empty (3..3 holds nothing,
+the upper bound being excluded) - and the lookup checks every band when it reads a table.
+
 Dynamic keys
 ------------
 A {namespace.key} reference inside a source resolves before the source is read, and its value is

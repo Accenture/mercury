@@ -48,7 +48,7 @@ use crate::plugins_e8::value_type_name;
 /// The number of built-in `#[simple_plugin]` declarations the engine itself
 /// ships (this module + `plugins_e8`) — the startup floor the
 /// `SimplePluginLoader` asserts against linker elision.
-pub const BUILTIN_PLUGIN_COUNT: usize = 58;
+pub const BUILTIN_PLUGIN_COUNT: usize = 60;
 
 /// A plugin body (Java `PluginFunction.calculate`): evaluated argument values
 /// in, one value out; a descriptive error is the Java
@@ -284,52 +284,113 @@ fn plugin_range_lookup(args: &[Value]) -> Result<Value, String> {
     };
     let table = decision_table(table)?;
     let keys = map_entry(&table, "keys").ok_or_else(|| "Missing keys in input".to_string())?;
+    // every band is parsed and checked before any value is placed, so a bad band is refused whatever the value
     let mut bands = Vec::new();
     for key in decision_table_entry(keys)? {
         let entry =
             map_entry(&table, &key).ok_or_else(|| format!("Missing key in input: {key}"))?;
-        bands.push(Band::parse(&key, display(entry).trim())?);
+        bands.push(Band::parse(&key, &display(entry))?);
     }
+    let numeric = Band::numeric_table(&bands)?;
     if matches!(value, Value::Nil) {
         return Ok(default.clone());
     }
-    let numeric = Band::numeric_table(&bands)?;
     let hit = if numeric {
         let v = crate::decimal::operand(value, NAME)?;
-        bands
-            .iter()
-            .map(|band| band.contains_number(&v))
-            .collect::<Result<Vec<bool>, String>>()?
-            .into_iter()
-            .position(|hit| hit)
+        bands.iter().position(|band| band.contains_number(&v))
     } else {
         let v = display(value).to_lowercase();
-        bands
-            .iter()
-            .map(|band| band.contains_text(&v))
-            .collect::<Result<Vec<bool>, String>>()?
-            .into_iter()
-            .position(|hit| hit)
+        bands.iter().position(|band| band.contains_text(&v))
     };
     Ok(hit.map_or_else(|| default.clone(), |i| Value::from(bands[i].key.as_str())))
 }
 
-/// One band of a range table: a lower bound (inclusive) and an upper bound
-/// (exclusive), each optional.
-struct Band {
-    key: String,
-    text: String,
-    lower: Option<String>,
-    upper: Option<String>,
+/// `f:minRange(range[, default])` - the lower bound of one range written as
+/// `rangeLookup`'s bands are (`min..max` from `min` inclusive up to but
+/// excluding `max`; `min..` or `..max` leaves an end open), typed by the
+/// notation: a numeric bound is a number (a whole number within the 64-bit
+/// range an integer, any other number a float), a text bound is text as
+/// written, and an open end answers the optional default, or Nil when there is
+/// none - the null-source rule then leaves a mapping target unset. A malformed
+/// range, one mixing a numeric and a text bound, and an empty one are refused
+/// by name, exactly as `rangeLookup` refuses such a band (Java `SimpleMinRange`).
+#[simple_plugin("minRange")]
+fn plugin_min_range(args: &[Value]) -> Result<Value, String> {
+    range_bound(args, true)
 }
 
-impl Band {
-    fn parse(key: &str, text: &str) -> Result<Band, String> {
-        let bad = || {
-            format!(
-                "Range of '{key}' must be written as min..max, min.. or ..max (the upper bound is excluded) - got '{text}'"
-            )
-        };
+/// `f:maxRange(range[, default])` - the upper bound of one range, the first
+/// value the range leaves out; otherwise as `minRange` (Java `SimpleMaxRange`).
+#[simple_plugin("maxRange")]
+fn plugin_max_range(args: &[Value]) -> Result<Value, String> {
+    range_bound(args, false)
+}
+
+/// The body of `minRange` and `maxRange`.
+fn range_bound(args: &[Value], lower_end: bool) -> Result<Value, String> {
+    let (range, default) = match args {
+        [range] => (range, &Value::Nil),
+        [range, default] => (range, default),
+        _ => {
+            return Err(format!(
+                "Expected one or two input values - actual={}",
+                args.len()
+            ));
+        }
+    };
+    if matches!(range, Value::Nil) {
+        return Err(format!("Range{NOTATION}null"));
+    }
+    let range = Range::parse(&display(range), "Range")?;
+    let bound = if lower_end {
+        &range.lower
+    } else {
+        &range.upper
+    };
+    Ok(match bound {
+        None => default.clone(),
+        Some(bound) if range.numeric => typed_number(bound),
+        Some(bound) => Value::from(bound.as_str()),
+    })
+}
+
+/// A whole number within the 64-bit range is an integer; any other number is a float.
+fn typed_number(bound: &str) -> Value {
+    if !bound.contains('.') {
+        if let Ok(whole) = bound.parse::<i64>() {
+            return Value::from(whole);
+        }
+    }
+    // a canonical number always parses as a float; one beyond the 64-bit range lands here too
+    Value::from(bound.parse::<f64>().unwrap_or(f64::NAN))
+}
+
+const NOTATION: &str =
+    " must be written as min..max, min.. or ..max (the upper bound is excluded) - got ";
+
+/// One range written as text - the notation shared by `rangeLookup`, `minRange`
+/// and `maxRange` (Java `RangeNotation`): `min..max` runs from `min` inclusive
+/// up to but EXCLUDING `max`, and `min..` or `..max` leaves an end open. A bound
+/// is numeric when it is a canonical number and text otherwise; a range never
+/// mixes the two, and a range whose lower bound is not below its upper bound
+/// (`3..3`, `5..1`) holds nothing - no value could ever match it - and is
+/// refused. The three plugins read the notation here, so a range is refused by
+/// one of them exactly when the others refuse it.
+struct Range {
+    /// the lower bound as written, or None when the lower end is open
+    lower: Option<String>,
+    /// the upper bound as written, or None when the upper end is open
+    upper: Option<String>,
+    /// true when the bounds are numbers, false when they are text
+    numeric: bool,
+}
+
+impl Range {
+    /// `subject` starts every refusal: "Range of 'gold'" for a band of a
+    /// table, "Range" for a single range.
+    fn parse(text: &str, subject: &str) -> Result<Range, String> {
+        let text = text.trim();
+        let bad = || format!("{subject}{NOTATION}'{text}'");
         let Some((lower, upper)) = text.split_once("..") else {
             return Err(bad());
         };
@@ -343,30 +404,54 @@ impl Band {
         {
             return Err(bad());
         }
-        Ok(Band {
-            key: key.to_string(),
-            text: text.to_string(),
+        let is_numeric = |bound: &str| crate::decimal::parse_canonical(bound).is_some();
+        let lower_numeric = !lower.is_empty() && is_numeric(lower);
+        let upper_numeric = !upper.is_empty() && is_numeric(upper);
+        if !lower.is_empty() && !upper.is_empty() {
+            if lower_numeric != upper_numeric {
+                return Err(format!(
+                    "{subject} mixes a numeric and a text bound - got '{text}'"
+                ));
+            }
+            let empty = if lower_numeric {
+                crate::decimal::parse_canonical(lower) >= crate::decimal::parse_canonical(upper)
+            } else {
+                lower.to_lowercase() >= upper.to_lowercase()
+            };
+            if empty {
+                return Err(format!(
+                    "{subject} is empty - its lower bound is not below its upper bound: '{text}'"
+                ));
+            }
+        }
+        Ok(Range {
             lower: (!lower.is_empty()).then(|| lower.to_string()),
             upper: (!upper.is_empty()).then(|| upper.to_string()),
+            numeric: lower_numeric || upper_numeric,
+        })
+    }
+}
+
+/// One band of a range table: its name and its range, checked when parsed.
+struct Band {
+    key: String,
+    range: Range,
+}
+
+impl Band {
+    fn parse(key: &str, text: &str) -> Result<Band, String> {
+        let range = Range::parse(text, &format!("Range of '{key}'"))?;
+        Ok(Band {
+            key: key.to_string(),
+            range,
         })
     }
 
-    /// True when every bound is a number; false when every bound is text; an
+    /// True when every band is numeric; false when every band is text; an
     /// error for a table that mixes the two.
     fn numeric_table(bands: &[Band]) -> Result<bool, String> {
-        let (mut numeric, mut text) = (0, 0);
-        for bound in bands
-            .iter()
-            .flat_map(|b| [b.lower.as_deref(), b.upper.as_deref()])
-            .flatten()
-        {
-            if crate::decimal::parse_canonical(bound).is_some() {
-                numeric += 1;
-            } else {
-                text += 1;
-            }
-        }
-        if numeric > 0 && text > 0 {
+        let numeric = bands.iter().filter(|b| b.range.numeric).count();
+        if numeric > 0 && numeric < bands.len() {
             return Err(
                 "Range table mixes numeric and text bounds - a table is one or the other"
                     .to_string(),
@@ -375,43 +460,28 @@ impl Band {
         Ok(numeric > 0)
     }
 
-    fn empty(&self) -> String {
-        format!(
-            "Range of '{}' is empty - its lower bound is not below its upper bound: '{}'",
-            self.key, self.text
-        )
-    }
-
-    fn contains_number(&self, value: &bigdecimal::BigDecimal) -> Result<bool, String> {
+    fn contains_number(&self, value: &bigdecimal::BigDecimal) -> bool {
         let lower = self
+            .range
             .lower
             .as_deref()
             .and_then(crate::decimal::parse_canonical);
         let upper = self
+            .range
             .upper
             .as_deref()
             .and_then(crate::decimal::parse_canonical);
-        if let (Some(lo), Some(hi)) = (&lower, &upper) {
-            if lo >= hi {
-                return Err(self.empty());
-            }
-        }
         let at_or_above_lower = lower.as_ref().is_none_or(|lo| lo <= value);
         let below_upper = upper.as_ref().is_none_or(|hi| value < hi);
-        Ok(at_or_above_lower && below_upper)
+        at_or_above_lower && below_upper
     }
 
-    fn contains_text(&self, value: &str) -> Result<bool, String> {
-        let lower = self.lower.as_deref().map(str::to_lowercase);
-        let upper = self.upper.as_deref().map(str::to_lowercase);
-        if let (Some(lo), Some(hi)) = (&lower, &upper) {
-            if lo >= hi {
-                return Err(self.empty());
-            }
-        }
+    fn contains_text(&self, value: &str) -> bool {
+        let lower = self.range.lower.as_deref().map(str::to_lowercase);
+        let upper = self.range.upper.as_deref().map(str::to_lowercase);
         let at_or_above_lower = lower.as_deref().is_none_or(|lo| lo <= value);
         let below_upper = upper.as_deref().is_none_or(|hi| value < hi);
-        Ok(at_or_above_lower && below_upper)
+        at_or_above_lower && below_upper
     }
 }
 
@@ -2032,5 +2102,126 @@ mod tests {
         assert!(calculate("rangeLookup", &[scores, Value::from(true)])
             .unwrap_err()
             .starts_with("Boolean operand in rangeLookup"));
+    }
+
+    /// Java `SimpleRangeLookupTest.shouldCheckEveryBandWhenTheTableIsRead`: a band
+    /// that could never match, or one mixing a number and text, is refused
+    /// whatever the value - even when an earlier band answers, even for Nil.
+    #[test]
+    fn range_lookup_checks_every_band_when_the_table_is_read() {
+        let table = Value::Map(vec![
+            (
+                Value::from("keys"),
+                Value::Array(vec![Value::from("a"), Value::from("b")]),
+            ),
+            (Value::from("a"), Value::from("1..2")),
+            (Value::from("b"), Value::from("3 .. 3")),
+        ]);
+        assert_eq!(
+            Err(
+                "Range of 'b' is empty - its lower bound is not below its upper bound: '3 .. 3'"
+                    .to_string()
+            ),
+            calculate("rangeLookup", &[table.clone(), Value::from(1)])
+        );
+        assert!(calculate("rangeLookup", &[table, Value::Nil])
+            .unwrap_err()
+            .starts_with("Range of 'b' is empty"));
+        let mixed_band = Value::Map(vec![
+            (Value::from("keys"), Value::Array(vec![Value::from("a")])),
+            (Value::from("a"), Value::from("1..x")),
+        ]);
+        assert_eq!(
+            Err("Range of 'a' mixes a numeric and a text bound - got '1..x'".to_string()),
+            calculate("rangeLookup", &[mixed_band, Value::from(1)])
+        );
+    }
+
+    /// Java `RangeBoundsPluginTest`: a numeric bound is a number (a whole number
+    /// an integer, any other a float), a text bound is text as written, an open
+    /// end the default or Nil, and the refusals are rangeLookup's.
+    #[test]
+    fn range_bounds_match_java_semantics() {
+        assert!(contains_simple_plugin("minRange"));
+        assert!(contains_simple_plugin("maxRange"));
+        let min = |args: &[Value]| calculate("minRange", args);
+        let max = |args: &[Value]| calculate("maxRange", args);
+        assert_eq!(
+            Ok(Value::from(10000i64)),
+            min(&[Value::from("10000..25000")])
+        );
+        assert_eq!(
+            Ok(Value::from(25000i64)),
+            max(&[Value::from("10000..25000")])
+        );
+        assert_eq!(Ok(Value::from(-5i64)), min(&[Value::from("-5..5")]));
+        assert_eq!(
+            Ok(Value::from(2500.5)),
+            min(&[Value::from("2500.50..10000")])
+        );
+        assert_eq!(Ok(Value::from(0.1)), max(&[Value::from("..0.1")]));
+        assert_eq!(Ok(Value::from(2.0)), max(&[Value::from("1.0..2.0")]));
+        assert_eq!(
+            Ok(Value::from(1.0e20)),
+            min(&[Value::from("100000000000000000000..")])
+        );
+        assert_eq!(Ok(Value::from(10i64)), min(&[Value::from(" 10 .. 20 ")]));
+        assert_eq!(
+            Ok(Value::from("00:00")),
+            min(&[Value::from("00:00..16:00")])
+        );
+        assert_eq!(
+            Ok(Value::from("16:00")),
+            max(&[Value::from("00:00..16:00")])
+        );
+        assert_eq!(Ok(Value::from("H")), max(&[Value::from("A..H")]));
+        // an open end: the default, or Nil
+        assert_eq!(Ok(Value::Nil), min(&[Value::from("..2500")]));
+        assert_eq!(Ok(Value::Nil), max(&[Value::from("25000..")]));
+        assert_eq!(
+            Ok(Value::from(0)),
+            min(&[Value::from("..2500"), Value::from(0)])
+        );
+        assert_eq!(
+            Ok(Value::from("none")),
+            max(&[Value::from("25000.."), Value::from("none")])
+        );
+        assert_eq!(Ok(Value::from(2500i64)), max(&[Value::from("..2500")]));
+        assert_eq!(
+            Ok(Value::from(1i64)),
+            min(&[Value::from("1..2"), Value::from(9)])
+        );
+        // the refusals
+        assert!(min(&[])
+            .unwrap_err()
+            .starts_with("Expected one or two input values - actual=0"));
+        assert_eq!(
+            Err("Range must be written as min..max, min.. or ..max (the upper bound is excluded) - got null".to_string()),
+            min(&[Value::Nil])
+        );
+        assert_eq!(
+            Err("Range must be written as min..max, min.. or ..max (the upper bound is excluded) - got '1-2'".to_string()),
+            max(&[Value::from("1-2")])
+        );
+        assert!(min(&[Value::from("1..<2")])
+            .unwrap_err()
+            .starts_with("Range must be written as"));
+        assert!(min(&[Value::from(5)])
+            .unwrap_err()
+            .starts_with("Range must be written as"));
+        assert_eq!(
+            Err("Range mixes a numeric and a text bound - got '1..x'".to_string()),
+            min(&[Value::from("1..x")])
+        );
+        assert_eq!(
+            Err(
+                "Range is empty - its lower bound is not below its upper bound: '3 .. 3'"
+                    .to_string()
+            ),
+            max(&[Value::from("3 .. 3")])
+        );
+        assert!(max(&[Value::from("h..a")])
+            .unwrap_err()
+            .starts_with("Range is empty"));
     }
 }
