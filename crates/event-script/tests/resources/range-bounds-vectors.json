@@ -1,7 +1,7 @@
 {
  "format": "mercury-range-bounds-vectors",
  "version": 1,
- "note": "Shared conformance vectors for the minRange and maxRange simple plugins: every engine that executes flows runs these. 'plugin' names the plugin, 'args' are the call's arguments (a string is the range written as text, a number a default or a non-range, null a null range), 'expect' the bound typed by the notation (a JSON integer is a 64-bit integer, a JSON number with a fraction or beyond the 64-bit range a double, a string text, null an open end without a default), 'error' an engine-neutral code matched by each engine against its own message. A range min..max runs from min inclusive up to but excluding max; an omitted end is open; a malformed, mixed or empty range is refused exactly as rangeLookup refuses such a band.",
+ "note": "Shared conformance vectors for the minRange and maxRange simple plugins: every engine that executes flows runs these. 'plugin' names the plugin, 'args' are the call's arguments (a string is the range written as text, a number a default or a non-range, a list or an object a band that is not a range, null a null range), 'expect' the bound typed by the notation (a JSON integer is a 64-bit whole number; any other numeric bound is its exact decimal text, the DECIMAL convention; a string is text - a quoted bound without its quotes; null an open end without a default), 'error' an engine-neutral code matched by each engine against its own message. A range min..max runs from min inclusive up to but excluding max; an omitted end is open; a bound is a canonical number, quoted text (single or double quotes, compared as written) or unquoted text; a malformed, list, mixed or empty range is refused exactly as rangeLookup refuses such a band.",
  "vectors": [
   {
    "id": "min-whole-number",
@@ -43,8 +43,8 @@
    "args": [
     "2500.50..10000"
    ],
-   "expect": 2500.5,
-   "note": "a fractional bound is a double"
+   "expect": "2500.50",
+   "note": "a decimal bound is its exact text, the DECIMAL convention - f:double converts it"
   },
   {
    "id": "max-fraction-open-lower",
@@ -52,7 +52,7 @@
    "args": [
     "..0.1"
    ],
-   "expect": 0.1
+   "expect": "0.1"
   },
   {
    "id": "max-integral-fraction",
@@ -60,8 +60,8 @@
    "args": [
     "1.0..2.0"
    ],
-   "expect": 2.0,
-   "note": "written with a fraction part, it is a double"
+   "expect": "2.0",
+   "note": "written with a fraction part, it is decimal text, never rounded to a whole number"
   },
   {
    "id": "min-beyond-64-bits",
@@ -69,8 +69,8 @@
    "args": [
     "100000000000000000000.."
    ],
-   "expect": 1e+20,
-   "note": "a whole number beyond the 64-bit range is a double"
+   "expect": "100000000000000000000",
+   "note": "a whole number beyond the 64-bit range is its exact text too"
   },
   {
    "id": "min-spaces-around-bounds",
@@ -138,6 +138,68 @@
     "A..H"
    ],
    "expect": "H"
+  },
+  {
+   "id": "min-quoted-zero-padded",
+   "plugin": "minRange",
+   "args": [
+    "'0020'..'0030'"
+   ],
+   "expect": "0020",
+   "note": "quotes keep a zero-padded code as text"
+  },
+  {
+   "id": "max-quoted-zero-padded",
+   "plugin": "maxRange",
+   "args": [
+    "'0020'..'0030'"
+   ],
+   "expect": "0030"
+  },
+  {
+   "id": "min-double-quoted-date",
+   "plugin": "minRange",
+   "args": [
+    "\"2026-11-15\"..\"2027-01-01\""
+   ],
+   "expect": "2026-11-15",
+   "note": "double quotes work the same"
+  },
+  {
+   "id": "max-quoted-mixed-case",
+   "plugin": "maxRange",
+   "args": [
+    "'A'..'h'"
+   ],
+   "expect": "h",
+   "note": "quoted bounds compare as written, so 'A' is below 'h'"
+  },
+  {
+   "id": "min-quoted-with-separator",
+   "plugin": "minRange",
+   "args": [
+    "'a..b'..'c'"
+   ],
+   "expect": "a..b",
+   "note": "a quoted bound may contain the separator"
+  },
+  {
+   "id": "min-quoted-open-upper",
+   "plugin": "minRange",
+   "args": [
+    "'1000'.."
+   ],
+   "expect": "1000",
+   "note": "a quoted number is text"
+  },
+  {
+   "id": "max-quoted-open-lower-default",
+   "plugin": "maxRange",
+   "args": [
+    "..'m'",
+    "none"
+   ],
+   "expect": "m"
   },
   {
    "id": "min-open-lower-null",
@@ -295,6 +357,105 @@
    ],
    "error": "empty-range",
    "note": "text bounds compare without case"
+  },
+  {
+   "id": "error-quoted-case-order",
+   "plugin": "maxRange",
+   "args": [
+    "'a'..'B'"
+   ],
+   "error": "empty-range",
+   "note": "quoted bounds compare as written: 'a' is above 'B'"
+  },
+  {
+   "id": "error-list-band",
+   "plugin": "minRange",
+   "args": [
+    [
+     "10000..25000"
+    ]
+   ],
+   "error": "list-band",
+   "note": "a band is one range, never a list"
+  },
+  {
+   "id": "error-map-band",
+   "plugin": "maxRange",
+   "args": [
+    {
+     "a": "1..2"
+    }
+   ],
+   "error": "list-band"
+  },
+  {
+   "id": "error-list-text",
+   "plugin": "minRange",
+   "args": [
+    "[a..h]"
+   ],
+   "error": "list-band",
+   "note": "the text of a list is refused the same way"
+  },
+  {
+   "id": "error-second-separator",
+   "plugin": "minRange",
+   "args": [
+    "a..b..c"
+   ],
+   "error": "bad-range",
+   "note": "an unquoted bound never contains the separator"
+  },
+  {
+   "id": "error-three-dots",
+   "plugin": "maxRange",
+   "args": [
+    "1...2"
+   ],
+   "error": "bad-range"
+  },
+  {
+   "id": "error-unmatched-quote",
+   "plugin": "minRange",
+   "args": [
+    "'a..b"
+   ],
+   "error": "bad-range"
+  },
+  {
+   "id": "error-text-after-quote",
+   "plugin": "maxRange",
+   "args": [
+    "'a' x..'b'"
+   ],
+   "error": "bad-range"
+  },
+  {
+   "id": "error-empty-quoted-bound",
+   "plugin": "minRange",
+   "args": [
+    "''..'m'"
+   ],
+   "error": "empty-quoted",
+   "note": "an open end is written by omission"
+  },
+  {
+   "id": "error-mixed-quoting",
+   "plugin": "minRange",
+   "args": [
+    "'a'..b"
+   ],
+   "error": "mixed-quoting",
+   "note": "quote both bounds or neither"
+  },
+  {
+   "id": "error-leading-zero-is-text",
+   "plugin": "maxRange",
+   "args": [
+    "00501..10000"
+   ],
+   "error": "mixed-range",
+   "note": "a bound with a leading zero is text; quote both bounds to compare them as text"
   }
  ]
 }

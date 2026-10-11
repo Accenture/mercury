@@ -4841,3 +4841,29 @@ help edit).
 Gates: `cargo test -p mercury-event-script --lib range --test range_bounds_vectors --test range_lookup_vectors`,
 `cargo test -p mercury-knowledge-graph`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all --check`,
 `scripts/check-doc-claims.py`, `scripts/check-llms-links.py`.
+
+## Increment 178 — Quoted text bounds, exact decimal bounds, and the lookup's list and separator checks (2026-10-11)
+
+The maintainer's rulings on an independent review of `f:rangeLookup`, `f:minRange` and `f:maxRange` (Increments 176–177), the twin of
+the Java refinement. A bound is now one of three kinds (`Kind` in `plugins.rs`): a canonical number, compared exactly as a decimal;
+text in single or double quotes (`'0020'`, `"2026-11-15"`), compared as written and case-sensitively - the quotes keep a zero-padded
+code or a case-sensitive band as text, and a quoted bound may contain the separator; and unquoted text, compared without case as
+before, so every table of v4.12.23 behaves the same. `Range::parse` reads the lower bound up to its closing quote or the first `..`
+(`Range::lower_bound`) and the upper bound to the end (`Range::upper_bound`), refuses a band given as a list or a map (`a band is one
+range`), a second `..` outside quotes (`a..b..c`, `1...2`), an unmatched quote, an empty quoted bound (an open end is written by
+omission) and a mix of kinds (the numeric-and-text message now says that a bound with a leading zero is text and that quoting both
+bounds compares them as text), and caches a numeric bound as a `BigDecimal` so the lookup parses it once (`Band::table_kind` gives the
+table's kind; `contains_number`/`contains_text`). `typed_number` answers a whole number within the 64-bit range as an integer and any
+other number as its exact decimal TEXT - the DECIMAL convention, where a float would round it; `f:double` converts it when a
+floating-point output value is wanted, as the guides now say. Pinned by the shared `range-bounds-vectors.json` (52 vectors) and
+`range-lookup-vectors.json` (48; the error codes `list-band`, `mixed-quoting`, `mixed-band-quoting`, `empty-quoted` join the maps), both
+byte-identical with the Java repository and green on the first run, `range_lookup_reads_quoted_bounds_as_written`, the extended
+fixture `unit-test-range-bounds-1` (a fee band table with decimal bounds read back as text and converted with `f:double`; a quoted
+zero-padded product-code table) in `graph_runtime`. Docs: the syntax guide's plugin table, *Range table lookup* and *The bounds of a
+band* (the three kinds; dates and times in ISO-8601 order and zero-padded, the value shaped like the bounds; the decimal text and the
+conversion recipe), the skills reference's *Range tables*, the AI agent guide, the mirrored help page and the redeployed bundle
+(`index-DPKAiH17.js` replaces `index-DgBUB6YY.js`); CHANGELOG Unreleased item 1 rewritten to the final semantics.
+
+Gates: `cargo test -p mercury-event-script --lib range --test range_bounds_vectors --test range_lookup_vectors`,
+`cargo test -p mercury-knowledge-graph`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all --check`,
+`scripts/check-doc-claims.py`, `scripts/check-llms-links.py`.

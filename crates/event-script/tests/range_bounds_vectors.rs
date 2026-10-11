@@ -51,6 +51,9 @@ fn fragments(code: &str) -> &'static [&'static str] {
         "arity" => &["Expected one or two input values"],
         "bad-range" => &["must be written as min..max, min.. or ..max"],
         "mixed-range" => &["mixes a numeric and a text bound"],
+        "mixed-quoting" => &["mixes a quoted and an unquoted bound"],
+        "list-band" => &["not a list or a map"],
+        "empty-quoted" => &["empty quoted bound"],
         "empty-range" => &["is empty"],
         other => panic!("unknown error code {other}"),
     }

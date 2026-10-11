@@ -82,10 +82,15 @@ When a rule is a **band** rather than a list of values — a loyalty tier by ann
 threshold, a processing cut-off by time — the table node holds one range per band and a mapper resolves
 it with `f:rangeLookup(table, value, default)`, the first band in `keys` order whose range contains the
 value. A range is written as text: `min..max` runs from `min` inclusive up to but excluding `max`, and an
-omitted end is open, so adjacent bands tile a scale with no gap and no overlap. The table decides the
-comparison: numeric bounds compare the value exactly as a decimal (a non-numeric value fails by name, as
-`graph.math` does); text bounds compare as text without case, which is how ISO-8601 dates and times and
-alphabetic bands work; a table that mixes the two is refused.
+omitted end is open, so adjacent bands tile a scale with no gap and no overlap. A bound is one of three kinds, and the table
+decides the comparison: a canonical number makes a numeric band — the value is compared exactly as a decimal, and
+a non-numeric value fails by name, as `graph.math` does; text in single or double quotes (`'0020'`,
+`"2026-11-15"`) makes a quoted band, compared as written and case-sensitively — the quotes keep a zero-padded
+code as text; unquoted text (`16:00`, `h`) compares without case, which is how alphabetic bands work. A table
+that mixes kinds is refused, and so is a band given as a list. Text compares as written, so **a value must be
+shaped like the bounds**: dates and times in ISO-8601 order and zero-padded (`2026-10-11T15:00:00Z` or
+`2026-10-11 15:00:00`), the value carrying the same parts — `9:30` is not `09:30`, and a time-only band does not
+place a full timestamp.
 
 ```
 create node loyalty-tiers
@@ -121,8 +126,9 @@ aborts the run. The product owner reads the bands on the graph, and a new thresh
 never code.
 
 The bounds of a band are data too. `f:minRange(range, default)` and `f:maxRange(range, default)` read one
-range in the same notation and return its lower or upper bound, **typed by the notation** — a numeric bound
-is a number (a whole number is an integer, any other number a float), a text bound is text as written — and an
+range in the same notation and return its lower or upper bound, **typed by the notation** — a whole number
+is an integer, any other number is its exact decimal as text (the high-precision rule of `DECIMAL`), a text bound is
+text as written, a quoted one without its quotes — and an
 open end answers the optional default, or null when there is none, so the null-source rule leaves the target
 unset. A dynamic key reads the band the lookup chose:
 
@@ -141,9 +147,29 @@ mapping[]=f:maxRange(cut-off.same_day) -> output.body.same_day_until
 `tier_to` is `25000` for gold and stays unset for platinum (`25000..` has no upper bound); `same_day_until`
 is the text `16:00`. A `graph.math` node reads a bound the same way (`MAPPING: f:maxRange(loyalty-tiers.{model.tier})
 -> model.tier_to`) and computes with it (`DECIMAL: to_next_tier -> {model.tier_to} - {input.body.annual_spend}`).
-A range is refused exactly when `rangeLookup` would refuse the band — malformed, mixing a numeric and a
-text bound, or empty: `3..3` holds nothing, since the upper bound is excluded — and the lookup checks every
+A range is refused exactly when `rangeLookup` would refuse the band — malformed, a list, mixing kinds,
+or empty: `3..3` holds nothing, since the upper bound is excluded — and the lookup checks every
 band when it reads a table, whatever the value.
+
+A decimal bound stays text so that nothing is rounded. When a floating-point number is wanted in the output,
+convert it in a second mapping, since a plugin argument is never another plugin:
+
+```
+create node fee-bands
+with type DecisionTable
+with properties
+keys=[ "low", "mid", "high" ]
+low=0..2.5
+mid=2.5..7.5
+high=7.5..
+
+mapping[]=f:maxRange(fee-bands.mid) -> model.mid_to
+mapping[]=f:double(model.mid_to) -> output.body.mid_to
+```
+
+`model.mid_to` is the text `7.5` and `output.body.mid_to` the number `7.5`. A zero-padded code table is written
+with quotes — `legacy='0000'..'1000'`, `current='1000'..` — so `0450` is placed as text and
+`f:minRange(product-codes.current)` is the text `1000`, never the number.
 
 ### Keyed tables — a value per key {#keyed-table}
 

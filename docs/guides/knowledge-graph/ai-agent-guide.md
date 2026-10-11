@@ -147,7 +147,7 @@ engines):
 > - [ ] **Static reference data is a node, not code.** A decision table (a rule by state, a rate by
 >       band) is a skill-less node; a `graph.data.mapper` decision node resolves it with
 >       `f:lookup({table-node}, {value}, text({default}))` (the common case), `f:rangeLookup` when the rules are bands
->       (`platinum=25000..`, `gold=10000..25000` - the upper bound excluded; ISO-8601 time windows as text - the [range table](skills-reference.md#range-table); `f:minRange`/`f:maxRange` read a band's bounds, typed by the notation),
+>       (`platinum=25000..`, `gold=10000..25000` - the upper bound excluded; ISO-8601 time windows as text - the [range table](skills-reference.md#range-table); `f:minRange`/`f:maxRange` read a band's bounds, typed by the notation; quote text bounds, `'0000'..'1000'`, for zero-padded codes or case-sensitive text),
 >       or a `graph.task` hands the whole table to
 >       a generic function (`input[]={table-node} -> table`). A value per key (a population by state)
 >       is a [keyed table](skills-reference.md#keyed-table) read with a dynamic key,

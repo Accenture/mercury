@@ -1922,7 +1922,7 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
         let reply = run_graph(
             &platform,
             "unit-test-range-bounds-1",
-            serde_json::json!({"annual_spend": spend}),
+            serde_json::json!({"annual_spend": spend, "product_code": "0450"}),
             serde_json::json!({}),
         )
         .await;
@@ -1933,6 +1933,13 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
             mm.get_element("tier"),
             "spend {spend}"
         );
+        // a quoted zero-padded code table compares as written and its bound stays
+        // text; a decimal bound is its exact text, and f:double converts it for a
+        // floating-point output value
+        assert_eq!(Some(Value::from("legacy")), mm.get_element("product_line"));
+        assert_eq!(Some(Value::from("1000")), mm.get_element("current_from"));
+        assert_eq!(Some(Value::from("7.5")), mm.get_element("mid_to_text"));
+        assert_eq!(Some(Value::from(7.5)), mm.get_element("mid_to"));
         assert_eq!(
             Some(Value::from(from)),
             mm.get_element("tier_from"),
