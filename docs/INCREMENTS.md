@@ -4812,3 +4812,32 @@ and the mirrored `help graph-data-mapper` with the redeployed bundle (`index-DW5
 
 Gates: `cargo test -p mercury-event-script --lib lookup --test range_lookup_vectors`, `cargo test -p mercury-knowledge-graph --test
 graph_runtime`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all --check`.
+
+## Increment 177 — `f:minRange` and `f:maxRange`, the bounds of a range (2026-10-11)
+
+The twin of the Java `SimpleMinRange` and `SimpleMaxRange`, the maintainer's follow-up to `f:rangeLookup`: a flow or a graph could
+place a value in a band but not read the band's bounds back. `f:minRange(range[, default])` and `f:maxRange(range[, default])` in
+`plugins.rs` (`range_bound`) return the lower or upper bound of one range written in the band notation, **typed by the notation**:
+a numeric bound is a number - a whole number within the 64-bit range an integer (`typed_number`), any other number a float - and a
+text bound is text as written; an open end (`..2500`, `25000..`) answers the optional default, or Nil when there is none, so the
+null-source rule leaves a mapping target unset. The notation now has one parser, `Range::parse(text, subject)`, that the three
+plugins share (`Band` holds a `Range`), so a range is refused by one of them exactly when the others refuse it: malformed, mixing
+a numeric and a text bound (a new per-band check, named by the band), or empty - `3..3` holds nothing, because the upper bound is
+excluded (the maintainer's ask). The lookup checks every band when it reads the table, whatever the value - a Nil value included -
+where it used to check a band only when the walk reached it, so a table holding a band that could never match is refused by name
+on its first use; the mixed-table check moved ahead of the Nil shortcut for the same reason. `BUILTIN_PLUGIN_COUNT` is 60 (58
+before). Pinned by `range_bounds_vectors.rs` over the shared `range-bounds-vectors.json` (34 vectors, byte-identical in the Java
+repository; a JSON integer literal is an integer, any other number a float, as serde_json and the Java test's literal reading both
+decide), three new entries of `range-lookup-vectors.json` (40; the error code `mixed-band` joins the map), the unit tests
+`range_bounds_match_java_semantics` and `range_lookup_checks_every_band_when_the_table_is_read`, and the graph fixture
+`unit-test-range-bounds-1` in `graph_runtime` (the band the lookup chose read back through a dynamic key,
+`f:maxRange(loyalty-tiers.{model.tier})`, its bounds typed by the notation, and a `graph.math` IF/THEN/ELSE that computes the
+distance to the next tier with `DECIMAL` only when the band has an upper bound; the manifest compiles 65 graphs). Docs: the Event
+Script syntax guide's plugin table and *The bounds of a band*, the skills reference's *Range tables*, the command reference's
+default sentence, the AI agent guide's checklist, and the mirrored `help graph-data-mapper` with the redeployed bundle
+(`index-DgBUB6YY.js` replaces `index-DW5BLW8Y.js`; the Java webapp build reproduced the committed bundle byte for byte before the
+help edit).
+
+Gates: `cargo test -p mercury-event-script --lib range --test range_bounds_vectors --test range_lookup_vectors`,
+`cargo test -p mercury-knowledge-graph`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all --check`,
+`scripts/check-doc-claims.py`, `scripts/check-llms-links.py`.

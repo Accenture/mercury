@@ -1477,6 +1477,8 @@ For example:
 | **Collection**      | getLast         | A single non-empty List — returns its last element.                                                                   |
 | **Decision**        | lookup          | A decision table, a value and an optional default — returns the name of the first rule whose list contains the value (compared as text, case-insensitively), or the default on a miss (null when omitted). The table is a map: `keys` lists the rule names in priority order and each rule field lists its values; `keys` and each rule may be a list or a JSON array written as text, and the table itself may be JSON text. Syntax: `f:lookup(table, value, text(default))` — see the worked example below. |
 | **Decision**        | rangeLookup     | A range table, a value and an optional default — returns the name of the first band whose range contains the value, or the default on a miss (null when omitted; a null value takes the default). The table has the decision-table shape, but each band field is ONE range written as text: `min..max` runs from `min` inclusive up to but excluding `max`, an omitted end is open, so adjacent bands tile a scale with no gap and no overlap. The table decides the comparison: numeric bounds compare the value exactly as a decimal (a number or a numeric string; anything else fails by name), text bounds compare as text without case — ISO-8601 dates and times, alphabetic bands. A table mixing numeric and text bounds is refused. Syntax: `f:rangeLookup(table, value, text(default))` — see the worked example below. |
+| **Decision**        | minRange        | One range written as text and an optional default — returns the range's lower bound, typed by the notation: a numeric bound is a number (a whole number within the 64-bit range is an integer, any other number a float), a text bound is text as written; an open end (`..max`) returns the default, null when omitted. The notation is `rangeLookup`'s (`min..max`, `min..`, `..max`) and so are the refusals: a malformed range, a range mixing a numeric and a text bound, an empty range (`3..3` holds nothing, the upper bound being excluded). Syntax: `f:minRange(range, default)` — see *The bounds of a band* below. |
+| **Decision**        | maxRange        | The upper bound of one range — the first value the range leaves out — otherwise as `minRange`: an open end (`min..`) returns the default, null when omitted. Syntax: `f:maxRange(range, default)`. |
 | **Type Conversion** | b64             | Either a base64 encoded String, OR a byte array.                                                                      |
 | **Type Conversion** | binary          | Either a byte[], Map or String                                                                                        |
 | **Type Conversion** | length          | Either a byte[], List or String                                                                                       |
@@ -1657,6 +1659,28 @@ is gold — and `cut-off.json` as `{"keys": ["same_day", "next_day"], "same_day"
 A credit score band reads `"poor": "300..580", "fair": "580..670", ..., "excellent": "800.."`. A null
 value, or a miss, takes the default, so an absent request field never aborts the flow; a non-numeric
 value against numeric bands does, by name.
+
+*The bounds of a band*
+
+`f:minRange(range, default)` and `f:maxRange(range, default)` read one range in the same notation and
+return its lower or upper bound, **typed by the notation**: a numeric bound is a number — a whole number
+within the 64-bit range is an integer, any other number a float — and a text bound is text as written. An
+open end has no bound, so it returns the optional default, or null when there is none (the null-source
+rule then leaves a `model.*` target unset). A range is refused exactly when `rangeLookup` would refuse
+the band: malformed, mixing a numeric and a text bound, or empty — `3..3` holds nothing, since the upper
+bound is excluded — and the lookup checks every band when it reads a table, whatever the value.
+
+```yaml
+- 'f:minRange(model.tiers.gold) -> model.gold_from'
+- 'f:maxRange(model.tiers.gold) -> model.gold_to'
+- 'f:minRange(model.tiers.standard, int(0)) -> model.standard_from'
+- 'f:maxRange(model.cut_off.same_day) -> model.same_day_until'
+```
+
+With the tables above, `model.gold_from` is `10000` and `model.gold_to` is `25000` (whole numbers),
+`model.standard_from` is the default `0` because the lower end of `..2500` is open, and
+`model.same_day_until` is the text `16:00`. The bounds of the band a lookup chose are one dynamic key
+away: `f:maxRange(model.tiers.{model.tier})` reads the band that `model.tier` names.
 
 This makes simple dataset creation a one-liner — e.g. seeding an empty list before
 building it up with append-mode (`[]`) mapping rules — without writing a composable

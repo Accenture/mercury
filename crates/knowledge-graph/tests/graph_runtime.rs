@@ -1892,6 +1892,69 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
         assert_eq!(processing, mm.get_element("processing"), "at {at}");
     }
 
+    // --- unit-test-range-bounds-1 (the Java GraphTaskTest twin): the band the
+    // lookup chose is read back through a dynamic key -
+    // 'f:minRange(loyalty-tiers.{model.tier}, int(0))' and
+    // 'f:maxRange(loyalty-tiers.{model.tier})' - and its bounds are typed by
+    // the notation: whole numbers for a money band, text for a time; a
+    // graph.math node computes the distance to the next tier from the upper
+    // bound when there is one
+    for (spend, tier, from, to, distance) in [
+        (
+            serde_json::json!("12500.75"),
+            "gold",
+            10000i64,
+            Some(25000i64),
+            Some("12499.25"),
+        ),
+        // the lower end of the standard band is open: the default 0 answers
+        (
+            serde_json::json!(100),
+            "standard",
+            0,
+            Some(2500),
+            Some("2400"),
+        ),
+        // the upper end of the platinum band is open: no bound, no distance -
+        // the math node took its ELSE path
+        (serde_json::json!(30000), "platinum", 25000, None, None),
+    ] {
+        let reply = run_graph(
+            &platform,
+            "unit-test-range-bounds-1",
+            serde_json::json!({"annual_spend": spend}),
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(200, reply.status(), "spend {spend}");
+        let mm = body_map(&reply);
+        assert_eq!(
+            Some(Value::from(tier)),
+            mm.get_element("tier"),
+            "spend {spend}"
+        );
+        assert_eq!(
+            Some(Value::from(from)),
+            mm.get_element("tier_from"),
+            "spend {spend}"
+        );
+        assert_eq!(
+            to.map(Value::from),
+            mm.get_element("tier_to"),
+            "spend {spend}"
+        );
+        assert_eq!(
+            Some(Value::from("16:00")),
+            mm.get_element("same_day_until"),
+            "spend {spend}"
+        );
+        assert_eq!(
+            distance.map(Value::from),
+            mm.get_element("to_next_tier"),
+            "spend {spend}"
+        );
+    }
+
     // --- unit-test-math-1 (Java #453): the seed's overlay
     // 'input.body.threshold -> model.threshold' clears the model variable when
     // the input is absent and 'model.factor' is never set, so the COMPUTE over

@@ -1,0 +1,300 @@
+{
+ "format": "mercury-range-bounds-vectors",
+ "version": 1,
+ "note": "Shared conformance vectors for the minRange and maxRange simple plugins: every engine that executes flows runs these. 'plugin' names the plugin, 'args' are the call's arguments (a string is the range written as text, a number a default or a non-range, null a null range), 'expect' the bound typed by the notation (a JSON integer is a 64-bit integer, a JSON number with a fraction or beyond the 64-bit range a double, a string text, null an open end without a default), 'error' an engine-neutral code matched by each engine against its own message. A range min..max runs from min inclusive up to but excluding max; an omitted end is open; a malformed, mixed or empty range is refused exactly as rangeLookup refuses such a band.",
+ "vectors": [
+  {
+   "id": "min-whole-number",
+   "plugin": "minRange",
+   "args": [
+    "10000..25000"
+   ],
+   "expect": 10000,
+   "note": "a whole number is a 64-bit integer"
+  },
+  {
+   "id": "max-whole-number",
+   "plugin": "maxRange",
+   "args": [
+    "10000..25000"
+   ],
+   "expect": 25000,
+   "note": "the upper bound is the first value the band leaves out"
+  },
+  {
+   "id": "min-negative",
+   "plugin": "minRange",
+   "args": [
+    "-5..5"
+   ],
+   "expect": -5
+  },
+  {
+   "id": "max-zero",
+   "plugin": "maxRange",
+   "args": [
+    "-1..0"
+   ],
+   "expect": 0
+  },
+  {
+   "id": "min-fraction",
+   "plugin": "minRange",
+   "args": [
+    "2500.50..10000"
+   ],
+   "expect": 2500.5,
+   "note": "a fractional bound is a double"
+  },
+  {
+   "id": "max-fraction-open-lower",
+   "plugin": "maxRange",
+   "args": [
+    "..0.1"
+   ],
+   "expect": 0.1
+  },
+  {
+   "id": "max-integral-fraction",
+   "plugin": "maxRange",
+   "args": [
+    "1.0..2.0"
+   ],
+   "expect": 2.0,
+   "note": "written with a fraction part, it is a double"
+  },
+  {
+   "id": "min-beyond-64-bits",
+   "plugin": "minRange",
+   "args": [
+    "100000000000000000000.."
+   ],
+   "expect": 1e+20,
+   "note": "a whole number beyond the 64-bit range is a double"
+  },
+  {
+   "id": "min-spaces-around-bounds",
+   "plugin": "minRange",
+   "args": [
+    " 10 .. 20 "
+   ],
+   "expect": 10,
+   "note": "spaces around a bound are not part of it"
+  },
+  {
+   "id": "max-spaces-around-bounds",
+   "plugin": "maxRange",
+   "args": [
+    " 10 .. 20 "
+   ],
+   "expect": 20
+  },
+  {
+   "id": "min-time",
+   "plugin": "minRange",
+   "args": [
+    "00:00..16:00"
+   ],
+   "expect": "00:00",
+   "note": "a text bound is returned as written"
+  },
+  {
+   "id": "max-time",
+   "plugin": "maxRange",
+   "args": [
+    "00:00..16:00"
+   ],
+   "expect": "16:00"
+  },
+  {
+   "id": "min-date",
+   "plugin": "minRange",
+   "args": [
+    "2026-11-15..2027-01-01"
+   ],
+   "expect": "2026-11-15"
+  },
+  {
+   "id": "max-date",
+   "plugin": "maxRange",
+   "args": [
+    "2026-11-15..2027-01-01"
+   ],
+   "expect": "2027-01-01"
+  },
+  {
+   "id": "min-letters-case-kept",
+   "plugin": "minRange",
+   "args": [
+    "A..H"
+   ],
+   "expect": "A",
+   "note": "only the lookup's comparison ignores case"
+  },
+  {
+   "id": "max-letters-case-kept",
+   "plugin": "maxRange",
+   "args": [
+    "A..H"
+   ],
+   "expect": "H"
+  },
+  {
+   "id": "min-open-lower-null",
+   "plugin": "minRange",
+   "args": [
+    "..2500"
+   ],
+   "expect": null,
+   "note": "an open end has no bound"
+  },
+  {
+   "id": "max-open-upper-null",
+   "plugin": "maxRange",
+   "args": [
+    "25000.."
+   ],
+   "expect": null
+  },
+  {
+   "id": "min-open-lower-default",
+   "plugin": "minRange",
+   "args": [
+    "..2500",
+    0
+   ],
+   "expect": 0,
+   "note": "the optional second argument answers an open end"
+  },
+  {
+   "id": "max-open-upper-default-text",
+   "plugin": "maxRange",
+   "args": [
+    "25000..",
+    "none"
+   ],
+   "expect": "none"
+  },
+  {
+   "id": "max-of-open-lower",
+   "plugin": "maxRange",
+   "args": [
+    "..2500"
+   ],
+   "expect": 2500,
+   "note": "the other end is still a bound"
+  },
+  {
+   "id": "min-of-open-upper-ignores-default",
+   "plugin": "minRange",
+   "args": [
+    "25000..",
+    0
+   ],
+   "expect": 25000,
+   "note": "the default is ignored when the bound is written"
+  },
+  {
+   "id": "max-text-ignores-default",
+   "plugin": "maxRange",
+   "args": [
+    "a..h",
+    "none"
+   ],
+   "expect": "h"
+  },
+  {
+   "id": "error-no-arguments",
+   "plugin": "minRange",
+   "args": [],
+   "error": "arity"
+  },
+  {
+   "id": "error-three-arguments",
+   "plugin": "maxRange",
+   "args": [
+    "10000..25000",
+    0,
+    0
+   ],
+   "error": "arity"
+  },
+  {
+   "id": "error-null-range",
+   "plugin": "minRange",
+   "args": [
+    null
+   ],
+   "error": "bad-range",
+   "note": "a null range is not a range"
+  },
+  {
+   "id": "error-dash-separator",
+   "plugin": "maxRange",
+   "args": [
+    "1-2"
+   ],
+   "error": "bad-range"
+  },
+  {
+   "id": "error-both-ends-open",
+   "plugin": "minRange",
+   "args": [
+    ".."
+   ],
+   "error": "bad-range"
+  },
+  {
+   "id": "error-exclusive-marker",
+   "plugin": "minRange",
+   "args": [
+    "1..<2"
+   ],
+   "error": "bad-range",
+   "note": "the marker of a first draft is refused rather than read"
+  },
+  {
+   "id": "error-number-is-not-a-range",
+   "plugin": "minRange",
+   "args": [
+    5
+   ],
+   "error": "bad-range"
+  },
+  {
+   "id": "error-mixed-bounds",
+   "plugin": "minRange",
+   "args": [
+    "1..x"
+   ],
+   "error": "mixed-range",
+   "note": "a range never mixes a number and text"
+  },
+  {
+   "id": "error-equal-bounds",
+   "plugin": "maxRange",
+   "args": [
+    "3 .. 3"
+   ],
+   "error": "empty-range",
+   "note": "the upper bound is excluded, so the range holds nothing"
+  },
+  {
+   "id": "error-reversed-bounds",
+   "plugin": "minRange",
+   "args": [
+    "5..1"
+   ],
+   "error": "empty-range"
+  },
+  {
+   "id": "error-reversed-text-bounds",
+   "plugin": "maxRange",
+   "args": [
+    "h..a"
+   ],
+   "error": "empty-range",
+   "note": "text bounds compare without case"
+  }
+ ]
+}

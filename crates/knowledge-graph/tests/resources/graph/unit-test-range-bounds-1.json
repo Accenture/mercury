@@ -1,0 +1,153 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Island"
+      ],
+      "alias": "knowledge",
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "reference data certified with the graph"
+      }
+    },
+    {
+      "types": [
+        "DecisionTable"
+      ],
+      "alias": "loyalty-tiers",
+      "properties": {
+        "purpose": "credit card loyalty tier by annual spend - the bands tile the number line (a band runs from its lower bound up to but excluding its upper bound); the table is graph data, not function code",
+        "keys": "[ \"platinum\", \"gold\", \"silver\", \"standard\" ]",
+        "platinum": "25000..",
+        "gold": "10000..25000",
+        "silver": "2500..10000",
+        "standard": "..2500"
+      }
+    },
+    {
+      "types": [
+        "DecisionTable"
+      ],
+      "alias": "cut-off",
+      "properties": {
+        "purpose": "same-day processing cut-off by the time of the instruction - ISO-8601 times compare as text",
+        "keys": "[ \"same_day\", \"next_day\" ]",
+        "same_day": "00:00..16:00",
+        "next_day": "16:00.."
+      }
+    },
+    {
+      "types": [
+        "Decision"
+      ],
+      "alias": "locate",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "purpose": "the band the lookup chose, read back through a dynamic key: its bounds typed by the notation (a whole number for a money band, text for a time), an open end answering the default or nothing",
+        "mapping": [
+          "f:rangeLookup(loyalty-tiers, input.body.annual_spend, text(unknown)) -> model.tier",
+          "model.tier -> output.body.tier",
+          "f:minRange(loyalty-tiers.{model.tier}, int(0)) -> output.body.tier_from",
+          "f:maxRange(loyalty-tiers.{model.tier}) -> model.tier_to",
+          "model.tier_to -> output.body.tier_to",
+          "f:notNull(model.tier_to) -> model.capped",
+          "f:maxRange(cut-off.same_day) -> output.body.same_day_until"
+        ]
+      }
+    },
+    {
+      "types": [
+        "Computation"
+      ],
+      "alias": "distance",
+      "properties": {
+        "skill": "graph.math",
+        "purpose": "how far the spend is from the next tier - only when the band has an upper bound",
+        "statement": [
+          "IF: {model.capped} == true\nTHEN: next\nELSE: end",
+          "DECIMAL: to_next_tier -> {model.tier_to} - {input.body.annual_spend}",
+          "MAPPING: distance.result.to_next_tier -> output.body.to_next_tier"
+        ]
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "the minRange and maxRange simple plugins in a data mapper and a graph.math node: a band's bounds typed by the notation, an open end answering the default or nothing",
+        "name": "unit-test-range-bounds-1"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ],
+      "target": "knowledge"
+    },
+    {
+      "source": "knowledge",
+      "relations": [
+        {
+          "type": "table",
+          "properties": {}
+        }
+      ],
+      "target": "loyalty-tiers"
+    },
+    {
+      "source": "knowledge",
+      "relations": [
+        {
+          "type": "table",
+          "properties": {}
+        }
+      ],
+      "target": "cut-off"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "decide",
+          "properties": {}
+        }
+      ],
+      "target": "locate"
+    },
+    {
+      "source": "locate",
+      "relations": [
+        {
+          "type": "compute",
+          "properties": {}
+        }
+      ],
+      "target": "distance"
+    },
+    {
+      "source": "distance",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

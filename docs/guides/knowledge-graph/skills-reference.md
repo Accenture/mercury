@@ -120,6 +120,31 @@ open (`excellent=800..`). A null value or a miss takes the default, so an absent
 aborts the run. The product owner reads the bands on the graph, and a new threshold is a graph change,
 never code.
 
+The bounds of a band are data too. `f:minRange(range, default)` and `f:maxRange(range, default)` read one
+range in the same notation and return its lower or upper bound, **typed by the notation** — a numeric bound
+is a number (a whole number is an integer, any other number a float), a text bound is text as written — and an
+open end answers the optional default, or null when there is none, so the null-source rule leaves the target
+unset. A dynamic key reads the band the lookup chose:
+
+```
+create node locate
+with type Decision
+with properties
+skill=graph.data.mapper
+mapping[]=f:rangeLookup(loyalty-tiers, input.body.annual_spend, text(unknown)) -> model.tier
+mapping[]=f:minRange(loyalty-tiers.{model.tier}, int(0)) -> output.body.tier_from
+mapping[]=f:maxRange(loyalty-tiers.{model.tier}) -> output.body.tier_to
+mapping[]=f:maxRange(cut-off.same_day) -> output.body.same_day_until
+```
+
+`tier_from` is `10000` for gold and the default `0` for standard (the lower end of `..2500` is open);
+`tier_to` is `25000` for gold and stays unset for platinum (`25000..` has no upper bound); `same_day_until`
+is the text `16:00`. A `graph.math` node reads a bound the same way (`MAPPING: f:maxRange(loyalty-tiers.{model.tier})
+-> model.tier_to`) and computes with it (`DECIMAL: to_next_tier -> {model.tier_to} - {input.body.annual_spend}`).
+A range is refused exactly when `rangeLookup` would refuse the band — malformed, mixing a numeric and a
+text bound, or empty: `3..3` holds nothing, since the upper bound is excluded — and the lookup checks every
+band when it reads a table, whatever the value.
+
 ### Keyed tables — a value per key {#keyed-table}
 
 `f:lookup` answers **which rule** lists a value. When the answer is **a value per key** instead — a

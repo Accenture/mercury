@@ -113,3 +113,6 @@ graphs:
   - 'unit-test-schema-2'
   - 'unit-test-schema-err1'
   - 'unit-test-schema-err2'
+  # the bounds of a range (RFC-free follow-up of rangeLookup): minRange and maxRange in a data mapper
+  # and a graph.math node, the band read back through a dynamic key, an open end answering the default
+  - 'unit-test-range-bounds-1'

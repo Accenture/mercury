@@ -1,7 +1,7 @@
 {
  "format": "mercury-range-lookup-vectors",
  "version": 1,
- "note": "Shared conformance vectors for the rangeLookup simple plugin: every engine that executes flows runs these. 'args' are the call's arguments (a JSON object is the range table - a decision-table shape whose bands are ranges written as text; a JSON number is a Double or Long/Integer, a string is text, null is a null value), 'expect' the band name or null, 'error' an engine-neutral code matched by each engine against its own message. A range min..max runs from min inclusive up to but excluding max; an omitted end is open. The table decides the comparison: numeric bounds compare the value as a decimal, text bounds compare as text without case.",
+ "note": "Shared conformance vectors for the rangeLookup simple plugin: every engine that executes flows runs these. 'args' are the call's arguments (a JSON object is the range table - a decision-table shape whose bands are ranges written as text; a JSON number is a Double or Long/Integer, a string is text, null is a null value), 'expect' the band name or null, 'error' an engine-neutral code matched by each engine against its own message. A range min..max runs from min inclusive up to but excluding max; an omitted end is open. The table decides the comparison: numeric bounds compare the value as a decimal, text bounds compare as text without case. Every band is checked when the table is read, whatever the value: a malformed, mixed or empty band is refused by name.",
  "vectors": [
   {
    "id": "tier-open-upper-at-bound",
@@ -645,6 +645,52 @@
     true
    ],
    "error": "boolean-operand"
+  },
+  {
+   "id": "error-empty-band-beyond-hit",
+   "args": [
+    {
+     "keys": [
+      "a",
+      "b"
+     ],
+     "a": "1..2",
+     "b": "3 .. 3"
+    },
+    1
+   ],
+   "error": "empty-range",
+   "note": "every band is checked when the table is read: a band that could never match is refused even when an earlier band answers"
+  },
+  {
+   "id": "error-empty-band-null-value",
+   "args": [
+    {
+     "keys": [
+      "a",
+      "b"
+     ],
+     "a": "1..2",
+     "b": "3 .. 3"
+    },
+    null
+   ],
+   "error": "empty-range",
+   "note": "a null value takes the default only from a table whose bands are all valid"
+  },
+  {
+   "id": "error-mixed-band",
+   "args": [
+    {
+     "keys": [
+      "a"
+     ],
+     "a": "1..x"
+    },
+    1
+   ],
+   "error": "mixed-band",
+   "note": "a single band never mixes a number and text"
   }
  ]
 }
