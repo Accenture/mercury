@@ -13,7 +13,17 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
-Each change merged to `main` after v4.12.22 is listed here; it moves under its release heading when the version is cut.
+Nothing yet. Each change merged to `main` after v4.12.23 is listed here; it moves under its release heading when the version is cut.
+
+---
+## Version 4.12.23, 10/11/2026
+
+The lock-step twin of Java 4.12.23 (Increment 175): the API playground. The graph contract of 4.12.22 gave every graph an OpenAPI 3.0
+document on demand; this release adds the tool that makes it useful - a Mercury-branded Swagger UI page, `extensions/api-playground`,
+that loads a graph's document from a MiniGraph application in one dialog, from a URL, from a dropped file or from its own specs
+folder, and deploys the loaded document into that folder. The guide page that documents the contract renders its front matter
+correctly again, and a test now guards every documentation page's front matter. **No upgrade action** for applications; a developer
+who runs the playground fetches the Swagger UI assets once with the script in its README.
 
 ### Added
 
@@ -30,6 +40,16 @@ Each change merged to `main` after v4.12.22 is listed here; it moves under its r
    `scripts/fetch-swagger-ui.py` or `.js` (the latest GitHub release; `--version` pins one; the target is emptied first), never
    committed; the application refuses to start without them, with the instruction in its message. The configuration reference gains
    `api.playground.specs`; the graph contract guide's round trip describes the dialog. No upgrade action.
+
+### Fixed
+
+2. **The graph contract guide page's front matter renders again, and a test guards every page's.** The published page
+   `guides/knowledge-graph/graph-contract/` showed its title, summary, audience and keywords as body text: one colon-space inside the
+   unquoted YAML `summary` scalar made the front matter unparseable, and MkDocs keeps unparseable front matter in the document while
+   `mkdocs build --strict` says nothing. The summary is rephrased, and the contract provider's snapshot tests gain
+   `every_documentation_page_front_matter_parses`: a page that opens with `---` must close the block and the block must parse as a
+   YAML map (the Java twin also requires a block with a title under `docs/guides`; this tree never adopted metadata throughout). No
+   upgrade action.
 
 ---
 ## Version 4.12.22, 10/9/2026

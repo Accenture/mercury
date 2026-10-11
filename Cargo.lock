@@ -33,7 +33,7 @@ dependencies = [
 
 [[package]]
 name = "ai-contract-provider"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -95,7 +95,7 @@ dependencies = [
 
 [[package]]
 name = "api-playground"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -183,7 +183,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "benchmark-reporter"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -533,7 +533,7 @@ dependencies = [
 
 [[package]]
 name = "distributed-cache-example"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -769,7 +769,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hello-flow"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -784,7 +784,7 @@ dependencies = [
 
 [[package]]
 name = "hello-world"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -1109,7 +1109,7 @@ dependencies = [
 
 [[package]]
 name = "kafka-demo"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -1180,7 +1180,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "mercury-distributed-cache"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -1197,7 +1197,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-event-script"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "base64",
@@ -1219,7 +1219,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-event-script-macros"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1228,7 +1228,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-graph-packager"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "log",
  "mercury-event-script",
@@ -1241,7 +1241,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-knowledge-graph"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "bigdecimal",
@@ -1267,7 +1267,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-knowledge-graph-macros"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1276,7 +1276,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-minigraph-state-redis"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -1291,7 +1291,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-minimalist-kafka"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "apache-avro",
  "async-trait",
@@ -1314,7 +1314,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-opentelemetry-forwarder"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "http-body-util",
@@ -1330,7 +1330,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-platform-core"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -1364,7 +1364,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-platform-macros"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1373,7 +1373,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-redis-connection"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -1386,14 +1386,14 @@ dependencies = [
 
 [[package]]
 name = "mercury-redis-test-double"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "tokio",
 ]
 
 [[package]]
 name = "mercury-sync-over-async"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "futures-util",
@@ -1415,7 +1415,7 @@ dependencies = [
 
 [[package]]
 name = "mercury-test-support"
-version = "4.12.22"
+version = "4.12.23"
 
 [[package]]
 name = "micromap"
@@ -1425,7 +1425,7 @@ checksum = "c2a86d3146ed3995b5913c414f6664344b9617457320782e64f0bb44afd49d74"
 
 [[package]]
 name = "minigraph-playground"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -2374,7 +2374,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "starter-flow"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -2386,7 +2386,7 @@ dependencies = [
 
 [[package]]
 name = "starter-function"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -2397,7 +2397,7 @@ dependencies = [
 
 [[package]]
 name = "starter-graph"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
@@ -2470,7 +2470,7 @@ dependencies = [
 
 [[package]]
 name = "sync-over-async-demo"
-version = "4.12.22"
+version = "4.12.23"
 dependencies = [
  "async-trait",
  "log",
