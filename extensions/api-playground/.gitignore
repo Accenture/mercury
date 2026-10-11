@@ -1,0 +1,2 @@
+# Swagger UI assets are third-party code fetched by scripts/fetch-swagger-ui.py or .js - never committed
+/resources/public/swagger-ui/

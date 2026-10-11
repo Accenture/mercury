@@ -25,6 +25,9 @@ members = [
     # the ready-made OpenTelemetry OTLP/HTTP trace forwarder (distributed.trace.forwarder),
     # opt-in by otel.forwarding=true
     "extensions/opentelemetry-forwarder",
+    # the API playground: Swagger UI in a Mercury page, loading a graph's OpenAPI document from a
+    # MiniGraph application - the twin of the Java extensions/api-playground (publish = false)
+    "extensions/api-playground",
     "benchmark/benchmark-reporter",
     "system/ai-contract-provider",
     # the graph packager (RFC-0005): pack, unpack and inspect graph sets from the

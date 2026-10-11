@@ -76,6 +76,7 @@ cargo audit            # RustSec advisories against Cargo.lock (cargo install ca
 | `crates/knowledge-graph` | layer 3 — MiniGraph engine; serves the Playground bundle and help pages deployed from the Java repo's webapp (`npm run release:rust` there) |
 | `crates/*-macros` | annotation macros (`#[preload]`, `#[websocket_service]`, …) |
 | `examples/` | runnable example apps, one per layer |
+| `extensions/api-playground` | the API playground - Swagger UI in a Mercury page that loads a graph's OpenAPI document from a MiniGraph application (twin of the Java module) |
 | `docs/INCREMENTS.md` | the increment-by-increment port ledger |
 | `draft-design-specs/` | per-layer design docs (the *why* behind the port) |
 | `docs/arch-decisions/ADR.md` | the durable architecture decisions |

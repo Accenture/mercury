@@ -4767,3 +4767,26 @@ the docs nav and `llms.txt`. Five claims pin the prose on this engine's own test
 
 Gates: `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`, `cargo test -p minigraph-playground`
 (the home page serves the new bundle; `help schema` answers from the mirror).
+
+## Increment 175 — The API playground, twin of the Java module (2026-10-11)
+
+A new application crate, `extensions/api-playground` (publish = false; `cargo run -p api-playground`, port 8200): Swagger UI in a
+Mercury-branded page, the twin of the Java `extensions/api-playground` after its four October rounds (the fetch scripts, the
+Reactive HTTP server instead of Spring Boot, the branded page, Deploy). REST automation serves the page as static content from
+`resources/public` and three endpoints from `rest.yaml`: `GET /api/specs` (the specs documents offered - the specs folder named by
+`api.playground.specs` and the sample document `resources/sample/yaml/demo.yaml`; a folder file wins over the sample document; sorted),
+`GET /api/specs/{filename}` (`application/yaml` or `application/json`) and `PUT /api/specs/{filename}` (the page's Deploy: a plain
+yaml/yml/json name, a non-empty text body, 409 for an existing name unless `?overwrite=true`, 503 without a folder; the folder is
+created on first use). The three functions are untyped `ComposableFunction`s reading the request through `AsyncHttpRequest::from_value`;
+the list's `time` is an ISO-8601 stamp computed without a date-time dependency. The page (`index.html`, `mercury-playground.css`,
+`mercury-playground.js`) and the sample document are byte-identical to the Java repository's, the reference; the fetch scripts differ only in
+their default target (`resources/public/swagger-ui`) and the next-step message. The binary refuses to start when
+`public/swagger-ui/swagger-ui-bundle.js` is absent, with the fetch instruction - the analog of the Java module's enforcer rule,
+chosen over a build-time check so `cargo test --workspace` in CI needs no network. Four unit tests on the `Specs` type cover the list,
+the folder-over-sample rule and the bad names, the deploy states (create, 409, overwrite, 400, 503) and the body conversion.
+The configuration reference gains an *API playground* section with `api.playground.specs`; the graph contract guide's round trip
+describes the dialog instead of the explore bar; the README's repository layout lists the crate.
+
+Gates: `cargo fmt --all --check`, `cargo clippy -p api-playground --all-targets -- -D warnings`, `cargo test -p api-playground`; the
+binary run against the fetched assets - the page at `/`, the assets under `/swagger-ui/`, the three endpoints, the refusal without
+the assets.
