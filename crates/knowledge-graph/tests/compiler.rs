@@ -59,7 +59,9 @@ fn manifest_listed_graphs_are_compiled() {
     // of one suspending subgraph under iteration-scoped records) + the static
     // decision table fixtures (task-9: a skill-less DecisionTable node mapped
     // whole into a generic function; lookup-1: the same table resolved by the
-    // 'lookup' simple plugin in a data mapper decision node) + the math-1
+    // 'lookup' simple plugin in a data mapper decision node; range-lookup-1: a
+    // money band table and a time window table resolved by the 'rangeLookup'
+    // simple plugin, min..max with the upper bound excluded) + the math-1
     // fixture (a COMPUTE over an unresolved model variable names the variable)
     // + the math-2 fixture (CONDITION, a boolean rejected wherever a number is
     // needed, an unknown function, overflow and division by zero, each by name)
@@ -81,7 +83,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        63,
+        64,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
