@@ -1,0 +1,163 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Playground
+  description: The API playground's own endpoints - list, view and deploy OpenAPI documents
+
+servers:
+  - url: http://127.0.0.1:8200/api
+paths:
+  /specs:
+    get:
+      summary: List all API files
+      operationId: listFiles
+      tags:
+        - playground
+      responses:
+        '200':
+          description: a list of OpenAPI yaml or json files
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileList"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /specs/{filename}:
+    get:
+      summary: View API specs
+      operationId: viewFile
+      tags:
+        - playground
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          description: the file name of the API specs to retrieve
+          schema:
+            type: string
+      responses:
+        '200':
+          description: file content
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: file not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      summary: Deploy API specs
+      description: Write the document into the specs folder (api.playground.specs). An existing file of that name answers 409 unless overwrite=true.
+      operationId: deployFile
+      tags:
+        - playground
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          description: a plain file name ending with .yaml, .yml or .json
+          schema:
+            type: string
+        - name: overwrite
+          in: query
+          required: false
+          description: replace an existing file of that name
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: deployed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deployed"
+        '400':
+          description: bad file name or empty document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: the file exists and overwrite was not set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    FileList:
+      type: object
+      required:
+        - total
+        - list
+        - time
+      properties:
+        total:
+          type: integer
+          format: int32
+        list:
+          type: array
+          items:
+            type: string
+        time:
+          type: string
+          format: date-time
+
+    Deployed:
+      type: object
+      required:
+        - deployed
+        - overwritten
+      properties:
+        deployed:
+          type: string
+        overwritten:
+          type: boolean
+        folder:
+          type: string
+
+    Error:
+      type: object
+      required:
+        - type
+        - status
+        - message
+        - path
+      properties:
+        type:
+          type: string
+        status:
+          type: integer
+          format: int8
+        message:
+          type: string
+        path:
+          type: string\n

@@ -256,21 +256,24 @@ rows. See `help schema` in the Playground.
 ## Round trip through the API playground {#api-playground}
 
 The document is written for the tooling the field already uses - Swagger UI and OpenAPI 3.0
-generators. With the [API playground](https://github.com/Accenture/mercury-composable/tree/main/extensions/api-playground)
-of the Java repository (Swagger UI served by a Mercury app; any Swagger UI works the same) and a
-MiniGraph application in dev mode (`cargo run -p minigraph-playground`):
+generators. The API playground (`extensions/api-playground`, `cargo run -p api-playground` after
+fetching the Swagger UI assets as its README says) is Swagger UI in a Mercury page, served by a
+Mercury app on port 8200 - the twin of the Java module. With a MiniGraph application in dev mode
+(`cargo run -p minigraph-playground`):
 
-1. **Load the engine's URL directly.** Paste `http://127.0.0.1:8085/api/openapi/payment` into the
-   Swagger UI explore bar. The dev routes carry the wildcard CORS entry, so the browser may read it,
-   and `servers` points at the engine, so **Try it out** posts the request body and the header
-   parameters to `POST /api/graph/payment` on the engine - a bad request shows the 400 above.
-2. **Or keep the file.** Download `payment.yaml` (the attachment, or the Schema panel's **Download
-   YAML**), copy it into the API playground's `resources/sample/yaml` folder (or the externalized
-   folder its `static-locations` names), and `GET /api/specs` lists it beside `demo.yaml`;
-   `http://127.0.0.1:8200/yaml/payment.yaml` loads it. A file kept this way is a point-in-time
+1. **Load the engine's document directly.** Press **MiniGraph**, keep host `127.0.0.1` and port
+   `8085`, enter the graph ID `payment` (or a Playground session ID for the draft) and Load. The
+   dev routes carry the wildcard CORS entry, so the browser may read it, and `servers` points at the
+   engine, so **Try it out** posts the request body and the header parameters to
+   `POST /api/graph/payment` on the engine - a bad request shows the 400 above. The URL field takes
+   any OpenAPI document URL the same way.
+2. **Or keep the file.** Press **Deploy** to save the loaded document into the playground's specs
+   folder ([`api.playground.specs`](../configuration-reference.md#api-playground-specs)), where
+   **Specs** offers it from then on; or download `payment.yaml` (the attachment, or the Schema
+   panel's **Download YAML**) and drop it on the page. A file kept this way is a point-in-time
    export; the engine's URL is always current.
 3. **Round trip.** Correct the graph in the Playground - a type, a `required`, a new path - Save in the
-   Schema panel, and reload the explore bar: the document follows the draft at
+   Schema panel, and Load again in the dialog: the document follows the draft at
    `/api/openapi/session/{sessionId}`, and the deployed graph's at `/api/openapi/{graph-id}` after
    the next deploy.
 

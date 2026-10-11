@@ -94,6 +94,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "api-playground"
+version = "4.12.22"
+dependencies = [
+ "async-trait",
+ "log",
+ "mercury-platform-core",
+ "mercury-test-support",
+ "rmpv",
+ "serde_json",
+]
+
+[[package]]
 name = "arc-swap"
 version = "1.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,0 +1,18 @@
+# The API playground - Swagger UI in a Mercury page (the twin of the Java extensions/api-playground).
+application.name: api-playground
+info.app.version: 1.0.0
+info.app.description: API playground for OpenAPI 3.0
+log.format: text
+#
+# The Reactive HTTP server serves the page (static content from resources/public) and the
+# REST automation endpoints in rest.yaml on this one port.
+#
+rest.automation: true
+rest.server.port: 8200
+#
+# The specs folder: your own OpenAPI documents (yaml, yml or json). GET /api/specs lists them
+# beside the bundled example demo.yaml, the page's "Specs" list offers them, and the page's
+# Deploy button writes the current document here (PUT /api/specs/{filename}). A demo.yaml in
+# this folder replaces the bundled example.
+#
+api.playground.specs: /tmp/api-playground

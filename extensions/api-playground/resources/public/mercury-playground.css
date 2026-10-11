@@ -1,0 +1,90 @@
+/* Mercury API Playground - the page around Swagger UI. Colours follow the documentation site:
+   deep purple primary, cyan accent. Swagger UI's own styles are untouched. */
+:root {
+  --mp-primary: #512da8;
+  --mp-primary-dark: #311b92;
+  --mp-accent: #00bcd4;
+  --mp-on-primary: #ffffff;
+  --mp-text: #3b4151;
+  --mp-muted: #6b7280;
+  --mp-border: #d9d9e3;
+  --mp-surface: #ffffff;
+  --mp-status-bg: #f3f0fa;
+}
+
+html, body { margin: 0; padding: 0; background: var(--mp-surface); }
+body { font-family: sans-serif; color: var(--mp-text); }
+
+.mp-header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+  padding: 10px 20px; background: var(--mp-primary); color: var(--mp-on-primary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.mp-brand { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.mp-mark { width: 30px; height: 30px; align-self: center; color: var(--mp-on-primary); }
+.mp-brand-name { font-size: 20px; font-weight: 700; letter-spacing: 0.3px; }
+.mp-brand-sub { font-size: 14px; opacity: 0.85; }
+
+.mp-source { display: flex; flex: 1 1 520px; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.mp-source input[type="url"] {
+  flex: 1 1 320px; min-width: 200px; padding: 8px 10px; border: 1px solid transparent; border-radius: 4px;
+  font-size: 14px; color: var(--mp-text); background: var(--mp-surface);
+}
+.mp-source input[type="url"]:focus { outline: 2px solid var(--mp-accent); outline-offset: 1px; }
+.mp-select-label select {
+  padding: 8px 10px; border: 1px solid transparent; border-radius: 4px; font-size: 14px;
+  color: var(--mp-text); background: var(--mp-surface); max-width: 220px;
+}
+
+.mp-button {
+  padding: 8px 14px; border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 4px;
+  background: transparent; color: var(--mp-on-primary); font-size: 14px; cursor: pointer; white-space: nowrap;
+}
+.mp-button:hover { background: rgba(255, 255, 255, 0.12); }
+.mp-button.mp-primary { background: var(--mp-accent); border-color: var(--mp-accent); color: #062a2e; font-weight: 600; }
+.mp-button.mp-primary:hover { filter: brightness(1.08); }
+
+.mp-status {
+  padding: 6px 20px; font-size: 13px; color: var(--mp-muted); background: var(--mp-status-bg);
+  border-bottom: 1px solid var(--mp-border); min-height: 1.2em;
+}
+.mp-status.mp-error { color: #b00020; background: #fdecee; }
+.mp-status code { font-size: 12px; }
+
+.mp-drop-overlay {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(81, 45, 168, 0.35); backdrop-filter: blur(1px); z-index: 1000; pointer-events: none;
+}
+.mp-drop-overlay[hidden] { display: none; }
+.mp-drop-card {
+  padding: 28px 40px; border: 3px dashed var(--mp-on-primary); border-radius: 12px;
+  background: var(--mp-primary-dark); color: var(--mp-on-primary); font-size: 20px; font-weight: 600;
+}
+
+.mp-dialog { border: none; border-radius: 8px; padding: 0; max-width: 520px; width: calc(100% - 32px); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); }
+.mp-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+.mp-dialog form { padding: 20px 24px 18px; }
+.mp-dialog h2 { margin: 0 0 8px; font-size: 18px; color: var(--mp-primary-dark); }
+.mp-hint { margin: 0 0 14px; font-size: 13px; color: var(--mp-muted); line-height: 1.45; }
+.mp-hint code, .mp-preview code { font-size: 12px; background: var(--mp-status-bg); padding: 1px 4px; border-radius: 3px; }
+.mp-row { display: flex; gap: 14px; margin-bottom: 12px; }
+.mp-row label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; flex: 1; }
+.mp-radios label { flex-direction: row; align-items: center; flex: 0 0 auto; gap: 6px; }
+.mp-block { display: flex; flex-direction: column; gap: 4px; font-size: 13px; margin-bottom: 10px; }
+.mp-dialog input[type="text"], .mp-dialog input[type="number"] {
+  padding: 8px 10px; border: 1px solid var(--mp-border); border-radius: 4px; font-size: 14px; color: var(--mp-text);
+}
+.mp-dialog input:focus { outline: 2px solid var(--mp-accent); outline-offset: 1px; border-color: transparent; }
+.mp-preview { margin: 0 0 16px; font-size: 13px; color: var(--mp-muted); word-break: break-all; }
+.mp-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.mp-dialog .mp-button { color: var(--mp-primary); border-color: var(--mp-primary); }
+.mp-dialog .mp-button:hover { background: var(--mp-status-bg); }
+.mp-dialog .mp-button.mp-primary { color: #062a2e; border-color: var(--mp-accent); }
+
+.mp-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 720px) {
+  .mp-header { padding: 10px 16px; }
+  .mp-status { padding: 6px 16px; }
+  .mp-source input[type="url"] { flex-basis: 100%; }
+}

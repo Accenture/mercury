@@ -13,7 +13,23 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
-Nothing yet. Each change merged to `main` after v4.12.22 is listed here; it moves under its release heading when the version is cut.
+Each change merged to `main` after v4.12.22 is listed here; it moves under its release heading when the version is cut.
+
+### Added
+
+1. **The API playground, the twin of the Java `extensions/api-playground` (Increment 175).** A new application crate
+   `extensions/api-playground` (`cargo run -p api-playground`, port 8200): Swagger UI in a Mercury-branded page, served by REST
+   automation as static content from `resources/public` beside three endpoints - `GET /api/specs` lists the documents the application
+   offers (the specs folder `api.playground.specs` and the bundled example `demo.yaml`; a folder file wins over the example),
+   `GET /api/specs/{filename}` serves one as `application/yaml` or `application/json`, and `PUT /api/specs/{filename}` deploys a document
+   into the folder (409 for an existing name unless `?overwrite=true`). The page - `index.html`, stylesheet and script mirrored
+   byte-for-byte from the Java repository, the reference - offers a **URL** field (and `?url=`), a **MiniGraph** dialog (host, port 8085,
+   graph ID or session ID → `GET /api/openapi/...` of a MiniGraph application in dev mode, the values remembered in the browser), a
+   **Specs** list, **Browse** or drag-and-drop of a yaml or json file, and **Deploy**, which asks before an existing file is replaced.
+   The Swagger UI assets are third-party code fetched into the ignored `resources/public/swagger-ui` folder by
+   `scripts/fetch-swagger-ui.py` or `.js` (the latest GitHub release; `--version` pins one; the target is emptied first), never
+   committed; the application refuses to start without them, with the instruction in its message. The configuration reference gains
+   `api.playground.specs`; the graph contract guide's round trip describes the dialog. No upgrade action.
 
 ---
 ## Version 4.12.22, 10/9/2026
