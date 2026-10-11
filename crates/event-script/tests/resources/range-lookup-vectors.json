@@ -1,7 +1,7 @@
 {
  "format": "mercury-range-lookup-vectors",
  "version": 1,
- "note": "Shared conformance vectors for the rangeLookup simple plugin: every engine that executes flows runs these. 'args' are the call's arguments (a JSON object is the range table - a decision-table shape whose bands are ranges written as text; a JSON number is a Double or Long/Integer, a string is text, null is a null value), 'expect' the band name or null, 'error' an engine-neutral code matched by each engine against its own message. A range min..max runs from min inclusive up to but excluding max; an omitted end is open. The table decides the comparison: numeric bounds compare the value as a decimal, text bounds compare as text without case. Every band is checked when the table is read, whatever the value: a malformed, mixed or empty band is refused by name.",
+ "note": "Shared conformance vectors for the rangeLookup simple plugin: every engine that executes flows runs these. 'args' are the call's arguments (a JSON object is the range table - a decision-table shape whose bands are ranges written as text; a JSON number is a Double or Long/Integer, a string is text, null is a null value), 'expect' the band name or null, 'error' an engine-neutral code matched by each engine against its own message. A range min..max runs from min inclusive up to but excluding max; an omitted end is open. A bound is a canonical number, quoted text (single or double quotes) or unquoted text, and the table decides the comparison: numeric bounds compare the value as a decimal, quoted bounds as written and case-sensitively, unquoted text bounds as text without case; a table mixing kinds is refused, and so is a band given as a list. Every band is checked when the table is read, whatever the value: a malformed, mixed or empty band is refused by name.",
  "vectors": [
   {
    "id": "tier-open-upper-at-bound",
@@ -691,6 +691,127 @@
    ],
    "error": "mixed-band",
    "note": "a single band never mixes a number and text"
+  },
+  {
+   "id": "quoted-table-case-sensitive-lower",
+   "args": [
+    {
+     "keys": [
+      "a",
+      "b"
+     ],
+     "a": "'A'..'M'",
+     "b": "'M'.."
+    },
+    "m"
+   ],
+   "expect": "b",
+   "note": "quoted bounds compare as written: a lowercase m sorts above the uppercase M, so it is the second band"
+  },
+  {
+   "id": "quoted-table-case-sensitive-upper",
+   "args": [
+    {
+     "keys": [
+      "a",
+      "b"
+     ],
+     "a": "'A'..'M'",
+     "b": "'M'.."
+    },
+    "B"
+   ],
+   "expect": "a"
+  },
+  {
+   "id": "quoted-zero-padded-code",
+   "args": [
+    {
+     "keys": [
+      "legacy",
+      "current"
+     ],
+     "legacy": "'0000'..'1000'",
+     "current": "'1000'.."
+    },
+    "0450"
+   ],
+   "expect": "legacy",
+   "note": "quotes keep a zero-padded code as text - unquoted, 0000 and 1000 would read as a text and a numeric bound"
+  },
+  {
+   "id": "quoted-zero-padded-code-at-bound",
+   "args": [
+    {
+     "keys": [
+      "legacy",
+      "current"
+     ],
+     "legacy": "'0000'..'1000'",
+     "current": "'1000'.."
+    },
+    "1000"
+   ],
+   "expect": "current"
+  },
+  {
+   "id": "error-list-band-table",
+   "args": [
+    {
+     "keys": [
+      "a"
+     ],
+     "a": [
+      "1..2"
+     ]
+    },
+    1
+   ],
+   "error": "list-band",
+   "note": "a band is one range, never a list"
+  },
+  {
+   "id": "error-table-mixed-quoting",
+   "args": [
+    {
+     "keys": [
+      "a",
+      "b"
+     ],
+     "a": "'x'..'y'",
+     "b": "1..2"
+    },
+    1
+   ],
+   "error": "mixed-quoting",
+   "note": "quote every bound of a table or none"
+  },
+  {
+   "id": "error-band-mixed-quoting",
+   "args": [
+    {
+     "keys": [
+      "a"
+     ],
+     "a": "'x'..y"
+    },
+    1
+   ],
+   "error": "mixed-band-quoting"
+  },
+  {
+   "id": "error-second-separator-band",
+   "args": [
+    {
+     "keys": [
+      "a"
+     ],
+     "a": "a..b..c"
+    },
+    1
+   ],
+   "error": "bad-range",
+   "note": "an unquoted bound never contains the separator; a quoted one may"
   }
  ]
 }

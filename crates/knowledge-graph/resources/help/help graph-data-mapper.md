@@ -60,9 +60,12 @@ When a rule is a band rather than a list of values - a tier by amount, an eligib
 time window - f:rangeLookup(table, value, default) returns the first band whose range contains the
 value. Each band field is ONE range written as text: min..max runs from min inclusive up to but
 excluding max, an omitted end is open, so adjacent bands tile a scale with no gap and no overlap - a
-band that ends at a value is written with the next value as its upper bound. Numeric bounds compare the value exactly as a decimal (a
-non-numeric value fails by name); text bounds compare as text without case, which is how ISO-8601
-dates and times work. A table that mixes numeric and text bounds is refused.
+band that ends at a value is written with the next value as its upper bound. A bound is a canonical
+number (compared exactly as a decimal; a non-numeric value fails by name), text in single or double quotes
+('0020', "2026-11-15" - compared as written, case-sensitively; the quotes keep a zero-padded code as text) or
+unquoted text (compared without case). A table that mixes kinds is refused, and so is a band given as a list.
+Text compares as written, so a value must be shaped like the bounds: dates and times in ISO-8601 order and
+zero-padded, the value carrying the same parts as the bounds - 9:30 is not 09:30.
 
 ```
 create node loyalty-tiers
@@ -79,7 +82,8 @@ mapping[]=f:rangeLookup(loyalty-tiers, input.body.annual_spend, text(unknown)) -
 
 The bounds of a band are data too: f:minRange(range, default) and f:maxRange(range, default) read one
 range in the same notation and return its lower or upper bound, typed by the notation - a numeric bound
-is a number (a whole number is a long, any other number a double), a text bound is text as written - and
+is a long for a whole number and the exact decimal text for any other number (the DECIMAL rule), a text
+bound is text as written, a quoted one without its quotes - and
 an open end answers the optional default, or null when there is none. A dynamic key reads the band the
 lookup chose:
 
@@ -92,7 +96,9 @@ mapping[]=f:maxRange(loyalty-tiers.{model.tier}) -> output.body.tier_to
 tier_from is 10000 for gold and the default 0 for standard (the lower end of ..2500 is open); tier_to is
 25000 for gold and stays unset for platinum (25000.. has no upper bound). A range is refused exactly when
 rangeLookup would refuse the band - malformed, mixing a number and text, or empty (3..3 holds nothing,
-the upper bound being excluded) - and the lookup checks every band when it reads a table.
+the upper bound being excluded) - and the lookup checks every band when it reads a table. A decimal bound
+stays text so that nothing is rounded; f:double(model.mid_to) in a second mapping converts it when a
+floating-point output value is wanted.
 
 Dynamic keys
 ------------

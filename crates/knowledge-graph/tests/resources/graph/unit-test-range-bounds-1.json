@@ -45,12 +45,37 @@
     },
     {
       "types": [
+        "DecisionTable"
+      ],
+      "alias": "fee-bands",
+      "properties": {
+        "purpose": "a fee band by percentage - decimal bounds; a bound read back is its exact decimal text, the DECIMAL convention",
+        "keys": "[ \"low\", \"mid\", \"high\" ]",
+        "low": "0..2.5",
+        "mid": "2.5..7.5",
+        "high": "7.5.."
+      }
+    },
+    {
+      "types": [
+        "DecisionTable"
+      ],
+      "alias": "product-codes",
+      "properties": {
+        "purpose": "a product line by zero-padded code - the quotes keep the codes as text, compared as written",
+        "keys": "[ \"legacy\", \"current\" ]",
+        "legacy": "'0000'..'1000'",
+        "current": "'1000'.."
+      }
+    },
+    {
+      "types": [
         "Decision"
       ],
       "alias": "locate",
       "properties": {
         "skill": "graph.data.mapper",
-        "purpose": "the band the lookup chose, read back through a dynamic key: its bounds typed by the notation (a whole number for a money band, text for a time), an open end answering the default or nothing",
+        "purpose": "the band the lookup chose, read back through a dynamic key: its bounds typed by the notation (a whole number for a money band, the exact decimal text for a fee band, text for a time or a quoted code), an open end answering the default or nothing; f:double converts a decimal bound when a floating-point output value is wanted",
         "mapping": [
           "f:rangeLookup(loyalty-tiers, input.body.annual_spend, text(unknown)) -> model.tier",
           "model.tier -> output.body.tier",
@@ -58,7 +83,12 @@
           "f:maxRange(loyalty-tiers.{model.tier}) -> model.tier_to",
           "model.tier_to -> output.body.tier_to",
           "f:notNull(model.tier_to) -> model.capped",
-          "f:maxRange(cut-off.same_day) -> output.body.same_day_until"
+          "f:maxRange(cut-off.same_day) -> output.body.same_day_until",
+          "f:rangeLookup(product-codes, input.body.product_code) -> output.body.product_line",
+          "f:minRange(product-codes.current) -> output.body.current_from",
+          "f:maxRange(fee-bands.mid) -> model.mid_to",
+          "model.mid_to -> output.body.mid_to_text",
+          "f:double(model.mid_to) -> output.body.mid_to"
         ]
       }
     },
@@ -118,6 +148,26 @@
         }
       ],
       "target": "cut-off"
+    },
+    {
+      "source": "knowledge",
+      "relations": [
+        {
+          "type": "table",
+          "properties": {}
+        }
+      ],
+      "target": "fee-bands"
+    },
+    {
+      "source": "knowledge",
+      "relations": [
+        {
+          "type": "table",
+          "properties": {}
+        }
+      ],
+      "target": "product-codes"
     },
     {
       "source": "root",

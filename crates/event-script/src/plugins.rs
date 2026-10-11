@@ -291,16 +291,23 @@ fn plugin_range_lookup(args: &[Value]) -> Result<Value, String> {
             map_entry(&table, &key).ok_or_else(|| format!("Missing key in input: {key}"))?;
         bands.push(Band::parse(&key, &display(entry))?);
     }
-    let numeric = Band::numeric_table(&bands)?;
+    let kind = Band::table_kind(&bands)?;
     if matches!(value, Value::Nil) {
         return Ok(default.clone());
     }
-    let hit = if numeric {
-        let v = crate::decimal::operand(value, NAME)?;
-        bands.iter().position(|band| band.contains_number(&v))
-    } else {
-        let v = display(value).to_lowercase();
-        bands.iter().position(|band| band.contains_text(&v))
+    let hit = match kind {
+        Kind::Number => {
+            let v = crate::decimal::operand(value, NAME)?;
+            bands.iter().position(|band| band.contains_number(&v))
+        }
+        Kind::Quoted => {
+            let v = display(value);
+            bands.iter().position(|band| band.contains_text(&v, false))
+        }
+        Kind::Text => {
+            let v = display(value).to_lowercase();
+            bands.iter().position(|band| band.contains_text(&v, true))
+        }
     };
     Ok(hit.map_or_else(|| default.clone(), |i| Value::from(bands[i].key.as_str())))
 }
@@ -349,86 +356,233 @@ fn range_bound(args: &[Value], lower_end: bool) -> Result<Value, String> {
     };
     Ok(match bound {
         None => default.clone(),
-        Some(bound) if range.numeric => typed_number(bound),
+        Some(bound) if range.kind == Kind::Number => typed_number(bound),
         Some(bound) => Value::from(bound.as_str()),
     })
 }
 
-/// A whole number within the 64-bit range is an integer; any other number is a float.
+/// A whole number within the 64-bit range is an integer; any other number stays
+/// its exact decimal text - the high-precision rule of the DECIMAL statement,
+/// where a float would round it.
 fn typed_number(bound: &str) -> Value {
     if !bound.contains('.') {
         if let Ok(whole) = bound.parse::<i64>() {
             return Value::from(whole);
         }
     }
-    // a canonical number always parses as a float; one beyond the 64-bit range lands here too
-    Value::from(bound.parse::<f64>().unwrap_or(f64::NAN))
+    Value::from(bound)
 }
 
 const NOTATION: &str =
     " must be written as min..max, min.. or ..max (the upper bound is excluded) - got ";
 
+/// How the bounds of a range, and of every band of a table, compare.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Kind {
+    /// canonical numbers, compared exactly as decimals
+    Number,
+    /// unquoted text, compared without case
+    Text,
+    /// quoted text, compared as written
+    Quoted,
+}
+
 /// One range written as text - the notation shared by `rangeLookup`, `minRange`
 /// and `maxRange` (Java `RangeNotation`): `min..max` runs from `min` inclusive
 /// up to but EXCLUDING `max`, and `min..` or `..max` leaves an end open. A bound
-/// is numeric when it is a canonical number and text otherwise; a range never
-/// mixes the two, and a range whose lower bound is not below its upper bound
-/// (`3..3`, `5..1`) holds nothing - no value could ever match it - and is
-/// refused. The three plugins read the notation here, so a range is refused by
-/// one of them exactly when the others refuse it.
+/// is one of three kinds, and a range never mixes two of them: a canonical
+/// number compares exactly as a decimal; text in single or double quotes
+/// (`'0020'`, `"2026-11-15"`) compares as written, case-sensitively - the quotes
+/// keep a zero-padded code or a case-sensitive band as text, and a quoted bound
+/// may contain the separator; anything else (`16:00`, `h`) is unquoted text,
+/// compared without case, which may not contain the separator. A range whose
+/// lower bound is not below its upper bound (`3..3`, `5..1`) holds nothing - no
+/// value could ever match it - and is refused; so is a band given as a list or a
+/// map, because a band is one range. The three plugins read the notation here,
+/// so a range is refused by one of them exactly when the others refuse it.
 struct Range {
-    /// the lower bound as written, or None when the lower end is open
+    /// the lower bound as written (a quoted bound without its quotes), or None when open
     lower: Option<String>,
-    /// the upper bound as written, or None when the upper end is open
+    /// the upper bound as written (a quoted bound without its quotes), or None when open
     upper: Option<String>,
-    /// true when the bounds are numbers, false when they are text
-    numeric: bool,
+    /// the kind of the bounds - a range with two bounds has them of one kind
+    kind: Kind,
+    /// the lower bound as a decimal when the range is numeric and has one
+    lower_number: Option<bigdecimal::BigDecimal>,
+    /// the upper bound as a decimal when the range is numeric and has one
+    upper_number: Option<bigdecimal::BigDecimal>,
+}
+
+/// One bound while parsing: its value and kind (None when open) and the unread rest.
+struct Bound<'a> {
+    value: Option<&'a str>,
+    kind: Option<Kind>,
+    rest: &'a str,
+}
+
+impl<'a> Bound<'a> {
+    fn unquoted(value: &'a str, rest: &'a str) -> Bound<'a> {
+        if value.is_empty() {
+            return Bound {
+                value: None,
+                kind: None,
+                rest,
+            };
+        }
+        let kind = if crate::decimal::parse_canonical(value).is_some() {
+            Kind::Number
+        } else {
+            Kind::Text
+        };
+        Bound {
+            value: Some(value),
+            kind: Some(kind),
+            rest,
+        }
+    }
+
+    fn quoted(
+        value: &'a str,
+        rest: &'a str,
+        subject: &str,
+        range: &str,
+    ) -> Result<Bound<'a>, String> {
+        if value.is_empty() {
+            return Err(format!(
+                "{subject} has an empty quoted bound - an open end is written by omission: '{range}'"
+            ));
+        }
+        Ok(Bound {
+            value: Some(value),
+            kind: Some(Kind::Quoted),
+            rest,
+        })
+    }
+}
+
+fn malformed(subject: &str, range: &str) -> String {
+    format!("{subject}{NOTATION}'{range}'")
+}
+
+fn is_quote(c: char) -> bool {
+    c == '\'' || c == '"'
 }
 
 impl Range {
     /// `subject` starts every refusal: "Range of 'gold'" for a band of a
     /// table, "Range" for a single range.
     fn parse(text: &str, subject: &str) -> Result<Range, String> {
-        let text = text.trim();
-        let bad = || format!("{subject}{NOTATION}'{text}'");
-        let Some((lower, upper)) = text.split_once("..") else {
-            return Err(bad());
+        let range = text.trim();
+        if range.starts_with('[') || range.starts_with('{') {
+            return Err(format!(
+                "{subject} must be one range, not a list or a map - got '{range}'"
+            ));
+        }
+        let lower = Self::lower_bound(range, subject)?;
+        let upper = Self::upper_bound(lower.rest, range, subject)?;
+        let kind = match (lower.kind, upper.kind) {
+            (Some(kind), _) | (None, Some(kind)) => kind,
+            (None, None) => return Err(malformed(subject, range)),
         };
-        let lower = lower.trim();
-        let upper = upper.trim();
-        if (lower.is_empty() && upper.is_empty())
-            || upper.starts_with('<')
-            || upper.starts_with('=')
-            || lower.ends_with('>')
-            || lower.ends_with('=')
+        if let (Some(lo), Some(hi), Some(lk), Some(hk)) =
+            (lower.value, upper.value, lower.kind, upper.kind)
         {
-            return Err(bad());
+            Self::check_bounds(range, subject, lo, lk, hi, hk)?;
         }
-        let is_numeric = |bound: &str| crate::decimal::parse_canonical(bound).is_some();
-        let lower_numeric = !lower.is_empty() && is_numeric(lower);
-        let upper_numeric = !upper.is_empty() && is_numeric(upper);
-        if !lower.is_empty() && !upper.is_empty() {
-            if lower_numeric != upper_numeric {
-                return Err(format!(
-                    "{subject} mixes a numeric and a text bound - got '{text}'"
-                ));
-            }
-            let empty = if lower_numeric {
-                crate::decimal::parse_canonical(lower) >= crate::decimal::parse_canonical(upper)
+        let number = |bound: Option<&str>| {
+            if kind == Kind::Number {
+                bound.and_then(crate::decimal::parse_canonical)
             } else {
-                lower.to_lowercase() >= upper.to_lowercase()
+                None
+            }
+        };
+        Ok(Range {
+            lower: lower.value.map(str::to_string),
+            upper: upper.value.map(str::to_string),
+            kind,
+            lower_number: number(lower.value),
+            upper_number: number(upper.value),
+        })
+    }
+
+    /// The lower bound - quoted up to its closing quote, else the text before
+    /// the first separator - and the rest.
+    fn lower_bound<'a>(range: &'a str, subject: &str) -> Result<Bound<'a>, String> {
+        let Some(first) = range.chars().next() else {
+            return Err(malformed(subject, range));
+        };
+        if is_quote(first) {
+            let Some(close) = range[1..].find(first) else {
+                return Err(malformed(subject, range));
             };
-            if empty {
+            let value = &range[1..1 + close];
+            let rest = range[2 + close..].trim();
+            let Some(rest) = rest.strip_prefix("..") else {
+                return Err(malformed(subject, range));
+            };
+            return Bound::quoted(value, rest.trim(), subject, range);
+        }
+        let Some((value, rest)) = range.split_once("..") else {
+            return Err(malformed(subject, range));
+        };
+        let value = value.trim();
+        if value.ends_with('>') || value.ends_with('=') {
+            return Err(malformed(subject, range));
+        }
+        Ok(Bound::unquoted(value, rest.trim()))
+    }
+
+    /// The upper bound from what follows the separator: quoted to the end, or
+    /// unquoted text with no separator.
+    fn upper_bound<'a>(rest: &'a str, range: &str, subject: &str) -> Result<Bound<'a>, String> {
+        let Some(first) = rest.chars().next() else {
+            return Ok(Bound::unquoted("", ""));
+        };
+        if is_quote(first) {
+            if rest.len() < 2 || !rest.ends_with(first) {
+                return Err(malformed(subject, range));
+            }
+            return Bound::quoted(&rest[1..rest.len() - 1], "", subject, range);
+        }
+        if rest.contains("..") || first == '.' || first == '<' || first == '=' {
+            return Err(malformed(subject, range));
+        }
+        Ok(Bound::unquoted(rest, ""))
+    }
+
+    /// A range with two bounds has them of one kind, and its lower bound below
+    /// its upper bound.
+    fn check_bounds(
+        range: &str,
+        subject: &str,
+        lo: &str,
+        lk: Kind,
+        hi: &str,
+        hk: Kind,
+    ) -> Result<(), String> {
+        if lk != hk {
+            if lk == Kind::Quoted || hk == Kind::Quoted {
                 return Err(format!(
-                    "{subject} is empty - its lower bound is not below its upper bound: '{text}'"
+                    "{subject} mixes a quoted and an unquoted bound - quote both bounds or neither: '{range}'"
                 ));
             }
+            return Err(format!(
+                "{subject} mixes a numeric and a text bound - got '{range}' (a bound with a leading zero is text; quote both bounds to compare them as text)"
+            ));
         }
-        Ok(Range {
-            lower: (!lower.is_empty()).then(|| lower.to_string()),
-            upper: (!upper.is_empty()).then(|| upper.to_string()),
-            numeric: lower_numeric || upper_numeric,
-        })
+        let empty = match lk {
+            Kind::Number => {
+                crate::decimal::parse_canonical(lo) >= crate::decimal::parse_canonical(hi)
+            }
+            Kind::Quoted => lo >= hi,
+            Kind::Text => lo.to_lowercase() >= hi.to_lowercase(),
+        };
+        if empty {
+            return Err(format!(
+                "{subject} is empty - its lower bound is not below its upper bound: '{range}'"
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -447,38 +601,53 @@ impl Band {
         })
     }
 
-    /// True when every band is numeric; false when every band is text; an
-    /// error for a table that mixes the two.
-    fn numeric_table(bands: &[Band]) -> Result<bool, String> {
-        let numeric = bands.iter().filter(|b| b.range.numeric).count();
-        if numeric > 0 && numeric < bands.len() {
-            return Err(
-                "Range table mixes numeric and text bounds - a table is one or the other"
-                    .to_string(),
-            );
+    /// The kind every band shares; a table with no bands reads as text and
+    /// matches nothing.
+    fn table_kind(bands: &[Band]) -> Result<Kind, String> {
+        let mut kind = None;
+        for band in bands {
+            match kind {
+                None => kind = Some(band.range.kind),
+                Some(k) if k != band.range.kind => {
+                    if k == Kind::Quoted || band.range.kind == Kind::Quoted {
+                        return Err(
+                            "Range table mixes quoted and unquoted bounds - quote every bound or none"
+                                .to_string(),
+                        );
+                    }
+                    return Err(
+                        "Range table mixes numeric and text bounds - a table is one or the other"
+                            .to_string(),
+                    );
+                }
+                Some(_) => {}
+            }
         }
-        Ok(numeric > 0)
+        Ok(kind.unwrap_or(Kind::Text))
     }
 
     fn contains_number(&self, value: &bigdecimal::BigDecimal) -> bool {
-        let lower = self
+        let at_or_above_lower = self
             .range
-            .lower
-            .as_deref()
-            .and_then(crate::decimal::parse_canonical);
-        let upper = self
-            .range
-            .upper
-            .as_deref()
-            .and_then(crate::decimal::parse_canonical);
-        let at_or_above_lower = lower.as_ref().is_none_or(|lo| lo <= value);
-        let below_upper = upper.as_ref().is_none_or(|hi| value < hi);
+            .lower_number
+            .as_ref()
+            .is_none_or(|lo| lo <= value);
+        let below_upper = self.range.upper_number.as_ref().is_none_or(|hi| value < hi);
         at_or_above_lower && below_upper
     }
 
-    fn contains_text(&self, value: &str) -> bool {
-        let lower = self.range.lower.as_deref().map(str::to_lowercase);
-        let upper = self.range.upper.as_deref().map(str::to_lowercase);
+    fn contains_text(&self, value: &str, ignore_case: bool) -> bool {
+        let fold = |bound: &Option<String>| {
+            bound.as_deref().map(|b| {
+                if ignore_case {
+                    b.to_lowercase()
+                } else {
+                    b.to_string()
+                }
+            })
+        };
+        let lower = fold(&self.range.lower);
+        let upper = fold(&self.range.upper);
         let at_or_above_lower = lower.as_deref().is_none_or(|lo| lo <= value);
         let below_upper = upper.as_deref().is_none_or(|hi| value < hi);
         at_or_above_lower && below_upper
@@ -2131,15 +2300,14 @@ mod tests {
             (Value::from("keys"), Value::Array(vec![Value::from("a")])),
             (Value::from("a"), Value::from("1..x")),
         ]);
-        assert_eq!(
-            Err("Range of 'a' mixes a numeric and a text bound - got '1..x'".to_string()),
-            calculate("rangeLookup", &[mixed_band, Value::from(1)])
-        );
+        assert!(calculate("rangeLookup", &[mixed_band, Value::from(1)])
+            .unwrap_err()
+            .starts_with("Range of 'a' mixes a numeric and a text bound - got '1..x'"));
     }
 
-    /// Java `RangeBoundsPluginTest`: a numeric bound is a number (a whole number
-    /// an integer, any other a float), a text bound is text as written, an open
-    /// end the default or Nil, and the refusals are rangeLookup's.
+    /// Java `RangeBoundsPluginTest`: a whole number is an integer, any other
+    /// number its exact decimal text, a text or quoted bound text as written,
+    /// an open end the default or Nil, and the refusals are rangeLookup's.
     #[test]
     fn range_bounds_match_java_semantics() {
         assert!(contains_simple_plugin("minRange"));
@@ -2155,14 +2323,15 @@ mod tests {
             max(&[Value::from("10000..25000")])
         );
         assert_eq!(Ok(Value::from(-5i64)), min(&[Value::from("-5..5")]));
+        // a decimal bound is its exact text - the DECIMAL convention; so is a whole number beyond 64 bits
         assert_eq!(
-            Ok(Value::from(2500.5)),
+            Ok(Value::from("2500.50")),
             min(&[Value::from("2500.50..10000")])
         );
-        assert_eq!(Ok(Value::from(0.1)), max(&[Value::from("..0.1")]));
-        assert_eq!(Ok(Value::from(2.0)), max(&[Value::from("1.0..2.0")]));
+        assert_eq!(Ok(Value::from("0.1")), max(&[Value::from("..0.1")]));
+        assert_eq!(Ok(Value::from("2.0")), max(&[Value::from("1.0..2.0")]));
         assert_eq!(
-            Ok(Value::from(1.0e20)),
+            Ok(Value::from("100000000000000000000")),
             min(&[Value::from("100000000000000000000..")])
         );
         assert_eq!(Ok(Value::from(10i64)), min(&[Value::from(" 10 .. 20 ")]));
@@ -2175,6 +2344,17 @@ mod tests {
             max(&[Value::from("00:00..16:00")])
         );
         assert_eq!(Ok(Value::from("H")), max(&[Value::from("A..H")]));
+        // quoted text: as written, the quotes removed, a zero-padded code never a number
+        assert_eq!(
+            Ok(Value::from("0020")),
+            min(&[Value::from("'0020'..'0030'")])
+        );
+        assert_eq!(
+            Ok(Value::from("0030")),
+            max(&[Value::from("\"0020\"..\"0030\"")])
+        );
+        assert_eq!(Ok(Value::from("a..b")), min(&[Value::from("'a..b'..'c'")]));
+        assert_eq!(Ok(Value::from("1000")), min(&[Value::from("'1000'..")]));
         // an open end: the default, or Nil
         assert_eq!(Ok(Value::Nil), min(&[Value::from("..2500")]));
         assert_eq!(Ok(Value::Nil), max(&[Value::from("25000..")]));
@@ -2209,10 +2389,9 @@ mod tests {
         assert!(min(&[Value::from(5)])
             .unwrap_err()
             .starts_with("Range must be written as"));
-        assert_eq!(
-            Err("Range mixes a numeric and a text bound - got '1..x'".to_string()),
-            min(&[Value::from("1..x")])
-        );
+        assert!(min(&[Value::from("1..x")])
+            .unwrap_err()
+            .starts_with("Range mixes a numeric and a text bound - got '1..x'"));
         assert_eq!(
             Err(
                 "Range is empty - its lower bound is not below its upper bound: '3 .. 3'"
@@ -2223,5 +2402,77 @@ mod tests {
         assert!(max(&[Value::from("h..a")])
             .unwrap_err()
             .starts_with("Range is empty"));
+        // quoted bounds compare as written: 'a' is above 'B'
+        assert!(max(&[Value::from("'a'..'B'")])
+            .unwrap_err()
+            .starts_with("Range is empty"));
+        // a list is not a range, a second separator is malformed, quoting is all or nothing
+        assert!(min(&[Value::Array(vec![Value::from("10000..25000")])])
+            .unwrap_err()
+            .starts_with("Range must be one range, not a list or a map"));
+        assert!(min(&[Value::from("a..b..c")])
+            .unwrap_err()
+            .starts_with("Range must be written as"));
+        assert!(min(&[Value::from("1...2")])
+            .unwrap_err()
+            .starts_with("Range must be written as"));
+        assert!(min(&[Value::from("'a..b")])
+            .unwrap_err()
+            .starts_with("Range must be written as"));
+        assert!(min(&[Value::from("'a'..b")]).unwrap_err().starts_with(
+            "Range mixes a quoted and an unquoted bound - quote both bounds or neither"
+        ));
+        assert!(min(&[Value::from("''..'m'")])
+            .unwrap_err()
+            .starts_with("Range has an empty quoted bound - an open end is written by omission"));
+    }
+
+    /// Quoted bounds make a table case-sensitive and keep zero-padded codes as text;
+    /// a list band and a table mixing quoting are refused when the table is read.
+    #[test]
+    fn range_lookup_reads_quoted_bounds_as_written() {
+        let table = |a: &str, b: &str| {
+            Value::Map(vec![
+                (
+                    Value::from("keys"),
+                    Value::Array(vec![Value::from("a"), Value::from("b")]),
+                ),
+                (Value::from("a"), Value::from(a)),
+                (Value::from("b"), Value::from(b)),
+            ])
+        };
+        let initials = table("'A'..'M'", "'M'..");
+        assert_eq!(
+            Ok(Value::from("b")),
+            calculate("rangeLookup", &[initials.clone(), Value::from("m")])
+        );
+        assert_eq!(
+            Ok(Value::from("a")),
+            calculate("rangeLookup", &[initials, Value::from("B")])
+        );
+        let codes = table("'0000'..'1000'", "'1000'..");
+        assert_eq!(
+            Ok(Value::from("a")),
+            calculate("rangeLookup", &[codes.clone(), Value::from("0450")])
+        );
+        assert_eq!(
+            Ok(Value::from("b")),
+            calculate("rangeLookup", &[codes, Value::from("1000")])
+        );
+        assert!(
+            calculate("rangeLookup", &[table("'x'..'y'", "1..2"), Value::from(1)])
+                .unwrap_err()
+                .starts_with("Range table mixes quoted and unquoted bounds")
+        );
+        let list_band = Value::Map(vec![
+            (Value::from("keys"), Value::Array(vec![Value::from("a")])),
+            (
+                Value::from("a"),
+                Value::Array(vec![Value::from("10000..25000")]),
+            ),
+        ]);
+        assert!(calculate("rangeLookup", &[list_band, Value::from(1)])
+            .unwrap_err()
+            .starts_with("Range of 'a' must be one range, not a list or a map"));
     }
 }

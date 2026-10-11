@@ -1476,8 +1476,8 @@ For example:
 | **Collection**      | getFirst        | A single non-empty List — returns its first element.                                                                  |
 | **Collection**      | getLast         | A single non-empty List — returns its last element.                                                                   |
 | **Decision**        | lookup          | A decision table, a value and an optional default — returns the name of the first rule whose list contains the value (compared as text, case-insensitively), or the default on a miss (null when omitted). The table is a map: `keys` lists the rule names in priority order and each rule field lists its values; `keys` and each rule may be a list or a JSON array written as text, and the table itself may be JSON text. Syntax: `f:lookup(table, value, text(default))` — see the worked example below. |
-| **Decision**        | rangeLookup     | A range table, a value and an optional default — returns the name of the first band whose range contains the value, or the default on a miss (null when omitted; a null value takes the default). The table has the decision-table shape, but each band field is ONE range written as text: `min..max` runs from `min` inclusive up to but excluding `max`, an omitted end is open, so adjacent bands tile a scale with no gap and no overlap. The table decides the comparison: numeric bounds compare the value exactly as a decimal (a number or a numeric string; anything else fails by name), text bounds compare as text without case — ISO-8601 dates and times, alphabetic bands. A table mixing numeric and text bounds is refused. Syntax: `f:rangeLookup(table, value, text(default))` — see the worked example below. |
-| **Decision**        | minRange        | One range written as text and an optional default — returns the range's lower bound, typed by the notation: a numeric bound is a number (a whole number within the 64-bit range is an integer, any other number a float), a text bound is text as written; an open end (`..max`) returns the default, null when omitted. The notation is `rangeLookup`'s (`min..max`, `min..`, `..max`) and so are the refusals: a malformed range, a range mixing a numeric and a text bound, an empty range (`3..3` holds nothing, the upper bound being excluded). Syntax: `f:minRange(range, default)` — see *The bounds of a band* below. |
+| **Decision**        | rangeLookup     | A range table, a value and an optional default — returns the name of the first band whose range contains the value, or the default on a miss (null when omitted; a null value takes the default). The table has the decision-table shape, but each band field is ONE range written as text: `min..max` runs from `min` inclusive up to but excluding `max`, an omitted end is open, so adjacent bands tile a scale with no gap and no overlap. A bound is a canonical number, quoted text (`'0020'`, `"2026-11-15"` — single or double quotes) or unquoted text, and the table decides the comparison: numeric bounds compare the value exactly as a decimal (a number or a numeric string; anything else fails by name), quoted bounds compare it as written and case-sensitively, unquoted text bounds compare it as text without case. A table mixing kinds is refused, and so is a band given as a list. Text compares as written, so a value must be shaped like the bounds — dates and times in ISO-8601 order, zero-padded. Syntax: `f:rangeLookup(table, value, text(default))` — see the worked example below. |
+| **Decision**        | minRange        | One range written as text and an optional default — returns the range's lower bound, typed by the notation: a whole number within the 64-bit range is an integer, any other number is its exact decimal as text (`2500.50` — the high-precision rule of `DECIMAL`; `f:double` converts it when a floating-point number is wanted in the output), a text bound is text as written, a quoted one without its quotes; an open end (`..max`) returns the default, null when omitted. The notation is `rangeLookup`'s (`min..max`, `min..`, `..max`) and so are the refusals: a malformed range, a band given as a list, a range mixing kinds, an empty range (`3..3` holds nothing, the upper bound being excluded). Syntax: `f:minRange(range, default)` — see *The bounds of a band* below. |
 | **Decision**        | maxRange        | The upper bound of one range — the first value the range leaves out — otherwise as `minRange`: an open end (`min..`) returns the default, null when omitted. Syntax: `f:maxRange(range, default)`. |
 | **Type Conversion** | b64             | Either a base64 encoded String, OR a byte array.                                                                      |
 | **Type Conversion** | binary          | Either a byte[], Map or String                                                                                        |
@@ -1639,11 +1639,16 @@ time window — `f:rangeLookup(table, value, default)` returns the first band wh
 value. The table has the same shape, but each band is **one range written as text**: `min..max` runs
 from `min` inclusive **up to but excluding** `max`, and an omitted end is open - so adjacent bands tile a
 scale with no gap and no overlap, and a band that ends at a value is written with the next value as its
-upper bound (the top band is simply left open). The **table decides how values compare**: when every
-bound is a number, the value must be a number or a numeric string and is compared exactly as a decimal
-(so money written as text per the `DECIMAL` convention works, and `true` or `abc` fails by name); when
-the bounds are text, values compare as text without case, which is how ISO-8601 dates and times and
-alphabetic bands work. A table that mixes the two is refused.
+upper bound (the top band is simply left open). A bound is one of three kinds, and the **table decides how values
+compare**: a canonical number (`25000`, `2500.50`) makes a numeric band — the value must be a number or a numeric
+string and is compared exactly as a decimal (so money written as text per the `DECIMAL` convention works, and
+`true` or `abc` fails by name); text in single or double quotes (`'0020'`, `"2026-11-15"`) makes a quoted band,
+compared as written and case-sensitively — the quotes keep a zero-padded code as text, where `0000` would read as
+a number; unquoted text (`16:00`, `h`) compares as text without case, which is how alphabetic bands work. A table
+that mixes kinds is refused, and so is a band given as a list: a band is one range. Text compares as written, so
+**a value must be shaped like the bounds**: dates and times in ISO-8601 order and zero-padded, either
+`2026-10-11T15:00:00Z` or `2026-10-11 15:00:00`, with the value carrying the same parts as the bounds — `9:30` is
+not `09:30`, and a time-only band does not place a full timestamp.
 
 ```yaml
 - 'classpath(json:/decision/loyalty-tiers.json) -> model.tiers'
@@ -1663,11 +1668,12 @@ value against numeric bands does, by name.
 *The bounds of a band*
 
 `f:minRange(range, default)` and `f:maxRange(range, default)` read one range in the same notation and
-return its lower or upper bound, **typed by the notation**: a numeric bound is a number — a whole number
-within the 64-bit range is an integer, any other number a float — and a text bound is text as written. An
+return its lower or upper bound, **typed by the notation**: a whole number within the 64-bit range is an integer,
+any other number is its exact decimal as text (`2500.50` — the high-precision rule of `DECIMAL`, where a float
+would round it), and a text bound is text as written, a quoted one without its quotes. An
 open end has no bound, so it returns the optional default, or null when there is none (the null-source
 rule then leaves a `model.*` target unset). A range is refused exactly when `rangeLookup` would refuse
-the band: malformed, mixing a numeric and a text bound, or empty — `3..3` holds nothing, since the upper
+the band: malformed, a list, mixing kinds, or empty — `3..3` holds nothing, since the upper
 bound is excluded — and the lookup checks every band when it reads a table, whatever the value.
 
 ```yaml
@@ -1681,6 +1687,17 @@ With the tables above, `model.gold_from` is `10000` and `model.gold_to` is `2500
 `model.standard_from` is the default `0` because the lower end of `..2500` is open, and
 `model.same_day_until` is the text `16:00`. The bounds of the band a lookup chose are one dynamic key
 away: `f:maxRange(model.tiers.{model.tier})` reads the band that `model.tier` names.
+
+A decimal bound stays text so that nothing is rounded; when a floating-point number is wanted in the output,
+convert it with a type-conversion plugin in a second statement — a plugin argument is never another plugin:
+
+```yaml
+- 'f:maxRange(model.fee_bands.mid) -> model.mid_to'
+- 'f:double(model.mid_to) -> output.body.mid_to'
+```
+
+With `fee-bands.json` as `{"keys": ["low", "mid", "high"], "low": "0..2.5", "mid": "2.5..7.5", "high": "7.5.."}`,
+`model.mid_to` is the text `7.5` and `output.body.mid_to` the number `7.5`.
 
 This makes simple dataset creation a one-liner — e.g. seeding an empty list before
 building it up with append-mode (`[]`) mapping rules — without writing a composable
