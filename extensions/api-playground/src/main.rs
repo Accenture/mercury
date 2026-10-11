@@ -53,7 +53,7 @@ const CONTENT_TYPE: &str = "Content-Type";
 // ---- the documents this application offers ------------------------------------------------
 
 /// The OpenAPI documents by name: the specs folder's files and the sample document. A folder
-/// file wins over the example of the same name. Only YAML and JSON files are offered (`.yaml`,
+/// file wins over the sample document of the same name. Only YAML and JSON files are offered (`.yaml`,
 /// `.yml` or `.json`), and a name must be a plain file name (letters, digits, dot, dash,
 /// underscore).
 struct Specs {

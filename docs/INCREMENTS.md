@@ -4779,7 +4779,7 @@ Reactive HTTP server instead of Spring Boot, the branded page, Deploy). REST aut
 yaml/yml/json name, a non-empty text body, 409 for an existing name unless `?overwrite=true`, 503 without a folder; the folder is
 created on first use). The three functions are untyped `ComposableFunction`s reading the request through `AsyncHttpRequest::from_value`;
 the list's `time` is an ISO-8601 stamp computed without a date-time dependency. The page (`index.html`, `mercury-playground.css`,
-`mercury-playground.js`) and the example are byte-identical to the Java repository's, the reference; the fetch scripts differ only in
+`mercury-playground.js`) and the sample document are byte-identical to the Java repository's, the reference; the fetch scripts differ only in
 their default target (`resources/public/swagger-ui`) and the next-step message. The binary refuses to start when
 `public/swagger-ui/swagger-ui-bundle.js` is absent, with the fetch instruction - the analog of the Java module's enforcer rule,
 chosen over a build-time check so `cargo test --workspace` in CI needs no network. Four unit tests on the `Specs` type cover the list,

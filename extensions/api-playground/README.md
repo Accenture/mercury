@@ -7,7 +7,7 @@ demand, and this page loads it in one dialog.
 
 This is the Rust twin of the Java `extensions/api-playground`: the Reactive HTTP server of
 `platform-core` serves the page as static content from `resources/public` and the three REST
-endpoints below through REST automation, on one port. The page files and the example document are
+endpoints below through REST automation, on one port. The page files and the sample document are
 mirrored byte-for-byte from the Java repository, the reference.
 
 ## Before you start
