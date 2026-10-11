@@ -2,20 +2,20 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Playground
-  description: The API playground's own endpoints - list, view and deploy OpenAPI documents
+  description: The API playground's own endpoints - list, view and deploy specs documents
 
 servers:
   - url: http://127.0.0.1:8200/api
 paths:
   /specs:
     get:
-      summary: List all API files
+      summary: List the specs documents
       operationId: listFiles
       tags:
         - playground
       responses:
         '200':
-          description: a list of OpenAPI yaml or json files
+          description: the specs documents (yaml or json) this application offers
           content:
             application/json:
               schema:
@@ -29,7 +29,7 @@ paths:
 
   /specs/{filename}:
     get:
-      summary: View API specs
+      summary: View a specs document
       operationId: viewFile
       tags:
         - playground
@@ -37,7 +37,7 @@ paths:
         - name: filename
           in: path
           required: true
-          description: the file name of the API specs to retrieve
+          description: the file name of the specs document
           schema:
             type: string
       responses:
@@ -60,7 +60,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
     put:
-      summary: Deploy API specs
+      summary: Deploy a specs document
       description: Write the document into the specs folder (api.playground.specs). An existing file of that name answers 409 unless overwrite=true.
       operationId: deployFile
       tags:
