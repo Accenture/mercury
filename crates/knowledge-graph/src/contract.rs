@@ -69,8 +69,8 @@ fn plugin_type(name: &str) -> Option<&'static str> {
             Some(BOOLEAN)
         }
         "text" | "concat" | "substring" | "now" | "uuid" | "dateTime" | "b64" | "lookup"
-        | "decimalAdd" | "decimalSubtract" | "decimalMultiply" | "decimalDiv" | "decimalMod"
-        | "decimalRound" => Some(STRING),
+        | "rangeLookup" | "decimalAdd" | "decimalSubtract" | "decimalMultiply" | "decimalDiv"
+        | "decimalMod" | "decimalRound" => Some(STRING),
         "listOfMap" | "updateListOfMap" => Some(ARRAY),
         _ => None,
     }

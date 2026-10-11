@@ -22,7 +22,8 @@ The lock-step twin of Java 4.12.23 (Increment 175): the API playground. The grap
 document on demand; this release adds the tool that makes it useful - a Mercury-branded Swagger UI page, `extensions/api-playground`,
 that loads a graph's document from a MiniGraph application in one dialog, from a URL, from a dropped file or from its own specs
 folder, and deploys the loaded document into that folder. The guide page that documents the contract renders its front matter
-correctly again, and a test now guards every documentation page's front matter. **No upgrade action** for applications; a developer
+correctly again, and a test now guards every documentation page's front matter. A field request closes the round: `f:rangeLookup`,
+the band-matching twin of `f:lookup` (item 2). **No upgrade action** for applications; a developer
 who runs the playground fetches the Swagger UI assets once with the script in its README.
 
 ### Added
@@ -41,9 +42,22 @@ who runs the playground fetches the Swagger UI assets once with the script in it
    committed; the application refuses to start without them, with the instruction in its message. The configuration reference gains
    `api.playground.specs`; the graph contract guide's round trip describes the dialog. No upgrade action.
 
+2. **`f:rangeLookup` - a decision table of bands, for eligibility rules, tiers and time windows (Increment 176; the twin of the
+   Java plugin).** `f:lookup` answers which rule lists a value; `f:rangeLookup(table, value, default)` answers which band contains it.
+   The table has the decision-table shape, but each band field is ONE range written as text: `min..max` runs from `min` inclusive up
+   to but excluding `max`, and an omitted end is open, so adjacent bands tile a scale with no gap and no overlap
+   (`gold=10000..25000`, `silver=2500..10000`; the top band `platinum=25000..`). The table decides how values compare: when every
+   bound is a number the value must be a number or a numeric string and is compared exactly as a decimal (`true` or `abc` fails by
+   name); when the bounds are text, values compare as text without case, which is how ISO-8601 dates and times
+   (`same_day=00:00..16:00`) and alphabetic bands work; a table mixing the two is refused. A null value, or a miss, takes the optional
+   default. The contract knows the plugin's result as a string. Pinned by 37 shared vectors (`range-lookup-vectors.json`,
+   byte-identical in the Java repository), a unit test, and the graph fixture `unit-test-range-lookup-1` on both engines; documented
+   in the Event Script syntax guide, the skills reference (*Range tables*), the AI agent guide and the mirrored `help
+   graph-data-mapper` (bundle redeployed). No upgrade action.
+
 ### Fixed
 
-2. **The graph contract guide page's front matter renders again, and a test guards every page's.** The published page
+3. **The graph contract guide page's front matter renders again, and a test guards every page's.** The published page
    `guides/knowledge-graph/graph-contract/` showed its title, summary, audience and keywords as body text: one colon-space inside the
    unquoted YAML `summary` scalar made the front matter unparseable, and MkDocs keeps unparseable front matter in the document while
    `mkdocs build --strict` says nothing. The summary is rephrased, and the contract provider's snapshot tests gain

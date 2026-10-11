@@ -257,6 +257,164 @@ fn plugin_lookup(args: &[Value]) -> Result<Value, String> {
     Ok(default.clone())
 }
 
+/// `f:rangeLookup(table, value[, default])` - the name of the first band of a
+/// range table whose range contains the value (Java `SimpleRangeLookup`). The
+/// table has the decision-table shape: `keys` names the bands in priority
+/// order and each band is ONE range written as text - `min..max` runs from
+/// `min` inclusive up to but EXCLUDING `max`, an omitted end is open, so
+/// adjacent bands tile a scale with no gap and no overlap. The table decides
+/// how values compare: when every bound is a number the bands are
+/// numeric and the value must be a number or a numeric string, compared exactly
+/// as a decimal; when the bounds are text, values compare as text,
+/// case-insensitively (ISO-8601 dates and times, alphabetic bands). A table
+/// that mixes numeric and text bounds is refused. No band, or a Nil value,
+/// returns the optional third argument, or Nil when there is none.
+#[simple_plugin("rangeLookup")]
+fn plugin_range_lookup(args: &[Value]) -> Result<Value, String> {
+    const NAME: &str = "rangeLookup";
+    let (table, value, default) = match args {
+        [table, value] => (table, value, &Value::Nil),
+        [table, value, default] => (table, value, default),
+        _ => {
+            return Err(format!(
+                "Expected two or three input values - actual={}",
+                args.len()
+            ));
+        }
+    };
+    let table = decision_table(table)?;
+    let keys = map_entry(&table, "keys").ok_or_else(|| "Missing keys in input".to_string())?;
+    let mut bands = Vec::new();
+    for key in decision_table_entry(keys)? {
+        let entry =
+            map_entry(&table, &key).ok_or_else(|| format!("Missing key in input: {key}"))?;
+        bands.push(Band::parse(&key, display(entry).trim())?);
+    }
+    if matches!(value, Value::Nil) {
+        return Ok(default.clone());
+    }
+    let numeric = Band::numeric_table(&bands)?;
+    let hit = if numeric {
+        let v = crate::decimal::operand(value, NAME)?;
+        bands
+            .iter()
+            .map(|band| band.contains_number(&v))
+            .collect::<Result<Vec<bool>, String>>()?
+            .into_iter()
+            .position(|hit| hit)
+    } else {
+        let v = display(value).to_lowercase();
+        bands
+            .iter()
+            .map(|band| band.contains_text(&v))
+            .collect::<Result<Vec<bool>, String>>()?
+            .into_iter()
+            .position(|hit| hit)
+    };
+    Ok(hit.map_or_else(|| default.clone(), |i| Value::from(bands[i].key.as_str())))
+}
+
+/// One band of a range table: a lower bound (inclusive) and an upper bound
+/// (exclusive), each optional.
+struct Band {
+    key: String,
+    text: String,
+    lower: Option<String>,
+    upper: Option<String>,
+}
+
+impl Band {
+    fn parse(key: &str, text: &str) -> Result<Band, String> {
+        let bad = || {
+            format!(
+                "Range of '{key}' must be written as min..max, min.. or ..max (the upper bound is excluded) - got '{text}'"
+            )
+        };
+        let Some((lower, upper)) = text.split_once("..") else {
+            return Err(bad());
+        };
+        let lower = lower.trim();
+        let upper = upper.trim();
+        if (lower.is_empty() && upper.is_empty())
+            || upper.starts_with('<')
+            || upper.starts_with('=')
+            || lower.ends_with('>')
+            || lower.ends_with('=')
+        {
+            return Err(bad());
+        }
+        Ok(Band {
+            key: key.to_string(),
+            text: text.to_string(),
+            lower: (!lower.is_empty()).then(|| lower.to_string()),
+            upper: (!upper.is_empty()).then(|| upper.to_string()),
+        })
+    }
+
+    /// True when every bound is a number; false when every bound is text; an
+    /// error for a table that mixes the two.
+    fn numeric_table(bands: &[Band]) -> Result<bool, String> {
+        let (mut numeric, mut text) = (0, 0);
+        for bound in bands
+            .iter()
+            .flat_map(|b| [b.lower.as_deref(), b.upper.as_deref()])
+            .flatten()
+        {
+            if crate::decimal::parse_canonical(bound).is_some() {
+                numeric += 1;
+            } else {
+                text += 1;
+            }
+        }
+        if numeric > 0 && text > 0 {
+            return Err(
+                "Range table mixes numeric and text bounds - a table is one or the other"
+                    .to_string(),
+            );
+        }
+        Ok(numeric > 0)
+    }
+
+    fn empty(&self) -> String {
+        format!(
+            "Range of '{}' is empty - its lower bound is not below its upper bound: '{}'",
+            self.key, self.text
+        )
+    }
+
+    fn contains_number(&self, value: &bigdecimal::BigDecimal) -> Result<bool, String> {
+        let lower = self
+            .lower
+            .as_deref()
+            .and_then(crate::decimal::parse_canonical);
+        let upper = self
+            .upper
+            .as_deref()
+            .and_then(crate::decimal::parse_canonical);
+        if let (Some(lo), Some(hi)) = (&lower, &upper) {
+            if lo >= hi {
+                return Err(self.empty());
+            }
+        }
+        let at_or_above_lower = lower.as_ref().is_none_or(|lo| lo <= value);
+        let below_upper = upper.as_ref().is_none_or(|hi| value < hi);
+        Ok(at_or_above_lower && below_upper)
+    }
+
+    fn contains_text(&self, value: &str) -> Result<bool, String> {
+        let lower = self.lower.as_deref().map(str::to_lowercase);
+        let upper = self.upper.as_deref().map(str::to_lowercase);
+        if let (Some(lo), Some(hi)) = (&lower, &upper) {
+            if lo >= hi {
+                return Err(self.empty());
+            }
+        }
+        let at_or_above_lower = lower.as_deref().is_none_or(|lo| lo <= value);
+        let below_upper = upper.as_deref().is_none_or(|hi| value < hi);
+        Ok(at_or_above_lower && below_upper)
+    }
+}
+
 /// The decision table as map entries: a map, or a JSON object written as text.
 fn decision_table(value: &Value) -> Result<Vec<(Value, Value)>, String> {
     const NOT_A_TABLE: &str = "First argument must be a decision table as a map or JSON text";
@@ -1726,5 +1884,153 @@ mod tests {
             calculate("camelCase", &[Value::from("MyKey")]),
             Err("Input must be a map or a list for camelCase key normalization".to_string())
         );
+    }
+
+    /// Java `SimpleRangeLookupTest`: numeric half-open and inclusive bands, text
+    /// bands (times, initials, ISO dates) compared without case, the default on a
+    /// miss or a Nil value, the whole table as JSON text, the error messages.
+    #[test]
+    fn range_lookup_matches_java_semantics() {
+        assert!(contains_simple_plugin("rangeLookup"));
+        let tiers = Value::Map(vec![
+            (Value::from("purpose"), Value::from("ignored")),
+            (
+                Value::from("keys"),
+                Value::from("[ \"platinum\", \"gold\", \"silver\", \"standard\" ]"),
+            ),
+            (Value::from("platinum"), Value::from("25000..")),
+            (Value::from("gold"), Value::from("10000..25000")),
+            (Value::from("silver"), Value::from("2500..10000")),
+            (Value::from("standard"), Value::from("..2500")),
+        ]);
+        let place = |v: Value| calculate("rangeLookup", &[tiers.clone(), v]);
+        assert_eq!(place(Value::from(25000)), Ok(Value::from("platinum")));
+        assert_eq!(place(Value::from("24999.99")), Ok(Value::from("gold")));
+        assert_eq!(place(Value::from(10000)), Ok(Value::from("gold")));
+        assert_eq!(place(Value::from(9999.99)), Ok(Value::from("silver")));
+        assert_eq!(place(Value::from(0)), Ok(Value::from("standard")));
+        assert_eq!(place(Value::from("-50")), Ok(Value::from("standard")));
+        let scores = Value::Map(vec![
+            (
+                Value::from("keys"),
+                Value::Array(vec![Value::from("excellent"), Value::from("poor")]),
+            ),
+            (Value::from("excellent"), Value::from("800..")),
+            (Value::from("poor"), Value::from("300..580")),
+        ]);
+        assert_eq!(
+            calculate("rangeLookup", &[scores.clone(), Value::from(850)]),
+            Ok(Value::from("excellent"))
+        );
+        assert_eq!(
+            calculate("rangeLookup", &[scores.clone(), Value::from(299)]),
+            Ok(Value::Nil)
+        );
+        assert_eq!(
+            calculate(
+                "rangeLookup",
+                &[
+                    scores.clone(),
+                    Value::from("299.99"),
+                    Value::from("unknown")
+                ]
+            ),
+            Ok(Value::from("unknown"))
+        );
+        assert_eq!(
+            calculate(
+                "rangeLookup",
+                &[scores.clone(), Value::Nil, Value::from("unknown")]
+            ),
+            Ok(Value::from("unknown"))
+        );
+        // text bands: a same-day cut-off by time, initials, an ISO date window
+        let cut_off = Value::Map(vec![
+            (
+                Value::from("keys"),
+                Value::Array(vec![Value::from("same_day"), Value::from("next_day")]),
+            ),
+            (Value::from("same_day"), Value::from("00:00..16:00")),
+            (Value::from("next_day"), Value::from("16:00..")),
+        ]);
+        assert_eq!(
+            calculate("rangeLookup", &[cut_off.clone(), Value::from("15:59:59")]),
+            Ok(Value::from("same_day"))
+        );
+        assert_eq!(
+            calculate("rangeLookup", &[cut_off, Value::from("16:00")]),
+            Ok(Value::from("next_day"))
+        );
+        let initials = Value::Map(vec![
+            (
+                Value::from("keys"),
+                Value::Array(vec![Value::from("branch-a"), Value::from("branch-b")]),
+            ),
+            (Value::from("branch-a"), Value::from("a..h")),
+            (Value::from("branch-b"), Value::from("h..")),
+        ]);
+        assert_eq!(
+            calculate("rangeLookup", &[initials.clone(), Value::from("Garcia")]),
+            Ok(Value::from("branch-a"))
+        );
+        assert_eq!(
+            calculate("rangeLookup", &[initials, Value::from("HARRIS")]),
+            Ok(Value::from("branch-b"))
+        );
+        let json =
+            Value::from("{\"keys\": [\"low\", \"high\"], \"low\": \"..100\", \"high\": \"100..\"}");
+        assert_eq!(
+            calculate("rangeLookup", &[json.clone(), Value::from(99.5)]),
+            Ok(Value::from("low"))
+        );
+        assert_eq!(
+            calculate("rangeLookup", &[json, Value::from("100")]),
+            Ok(Value::from("high"))
+        );
+        // errors by name
+        let table = |range: &str| {
+            Value::Map(vec![
+                (Value::from("keys"), Value::Array(vec![Value::from("a")])),
+                (Value::from("a"), Value::from(range)),
+            ])
+        };
+        assert_eq!(
+            calculate("rangeLookup", std::slice::from_ref(&scores)),
+            Err("Expected two or three input values - actual=1".to_string())
+        );
+        assert!(calculate("rangeLookup", &[table("1-2"), Value::from(1)])
+            .unwrap_err()
+            .starts_with("Range of 'a' must be written as"));
+        assert!(calculate("rangeLookup", &[table(".."), Value::from(1)])
+            .unwrap_err()
+            .starts_with("Range of 'a' must be written as"));
+        assert!(calculate("rangeLookup", &[table("1..<2"), Value::from(1)])
+            .unwrap_err()
+            .starts_with("Range of 'a' must be written as"));
+        assert!(calculate("rangeLookup", &[table("5..1"), Value::from(3)])
+            .unwrap_err()
+            .starts_with("Range of 'a' is empty"));
+        assert!(calculate("rangeLookup", &[table("2..2"), Value::from(2)])
+            .unwrap_err()
+            .starts_with("Range of 'a' is empty"));
+        let mixed = Value::Map(vec![
+            (
+                Value::from("keys"),
+                Value::Array(vec![Value::from("a"), Value::from("b")]),
+            ),
+            (Value::from("a"), Value::from("1..2")),
+            (Value::from("b"), Value::from("x..y")),
+        ]);
+        assert!(calculate("rangeLookup", &[mixed, Value::from(1)])
+            .unwrap_err()
+            .starts_with("Range table mixes numeric and text bounds"));
+        assert!(
+            calculate("rangeLookup", &[scores.clone(), Value::from("abc")])
+                .unwrap_err()
+                .contains("Expected a decimal number in rangeLookup")
+        );
+        assert!(calculate("rangeLookup", &[scores, Value::from(true)])
+            .unwrap_err()
+            .starts_with("Boolean operand in rangeLookup"));
     }
 }

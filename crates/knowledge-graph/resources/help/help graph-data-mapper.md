@@ -56,6 +56,27 @@ The table's "keys" field lists the rule names in priority order and each rule fi
 each may be a list or a JSON array written as text (keys=[ "a", "b" ]), and the table itself may be
 JSON text. One table replaces a ladder of IF-THEN-ELSE and the product owner certifies it on the graph.
 
+When a rule is a band rather than a list of values - a tier by amount, an eligibility threshold, a
+time window - f:rangeLookup(table, value, default) returns the first band whose range contains the
+value. Each band field is ONE range written as text: min..max runs from min inclusive up to but
+excluding max, an omitted end is open, so adjacent bands tile a scale with no gap and no overlap - a
+band that ends at a value is written with the next value as its upper bound. Numeric bounds compare the value exactly as a decimal (a
+non-numeric value fails by name); text bounds compare as text without case, which is how ISO-8601
+dates and times work. A table that mixes numeric and text bounds is refused.
+
+```
+create node loyalty-tiers
+with type DecisionTable
+with properties
+keys=[ "platinum", "gold", "silver", "standard" ]
+platinum=25000..
+gold=10000..25000
+silver=2500..10000
+standard=..2500
+
+mapping[]=f:rangeLookup(loyalty-tiers, input.body.annual_spend, text(unknown)) -> output.body.tier
+```
+
 Dynamic keys
 ------------
 A {namespace.key} reference inside a source resolves before the source is read, and its value is

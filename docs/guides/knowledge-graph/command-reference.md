@@ -91,7 +91,7 @@ entries, `for_each` entries and the output mapping of `graph.task`, `graph.exten
 `graph.api.fetcher`; a fetcher or extension `input[]` parameter mapped from a null source is simply not
 supplied. A default for a model variable therefore comes from the **source** side:
 `f:defaultValue(input.body.flag, boolean(false)) -> model.flag`, or a plugin's own default such as
-`f:lookup(table, value, text(unknown))`. Do not write a default into `model.*` first and overlay it with
+`f:lookup(table, value, text(unknown))` or `f:rangeLookup(table, value, text(unknown))`. Do not write a default into `model.*` first and overlay it with
 a possibly-null source — the overlay removes the default.
 
 ### Dynamic keys and values in a source {#dynamic-keys}

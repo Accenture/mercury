@@ -1853,6 +1853,45 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
         assert_eq!(Some(Value::from("kept")), mm.get_element("kept"));
     }
 
+    // --- unit-test-range-lookup-1 (the Java GraphTaskTest twin): the
+    // rangeLookup simple plugin in a data mapper decision node -
+    // 'f:rangeLookup(loyalty-tiers, input.body.annual_spend, text(unknown))'
+    // places a spend in a half-open money band, compared exactly as a decimal,
+    // and 'f:rangeLookup(cut-off, input.body.instructed_at)' a time in an
+    // ISO-8601 window compared as text; both tables are skill-less nodes
+    for (spend, at, tier, processing) in [
+        (
+            serde_json::json!("12500.75"),
+            "15:30",
+            "gold",
+            Some(Value::from("same_day")),
+        ),
+        (
+            serde_json::json!(2499.99),
+            "16:00",
+            "standard",
+            Some(Value::from("next_day")),
+        ),
+        // a miss without a default is a null source: the output.body target is left unset
+        (serde_json::json!(0), "", "standard", None),
+    ] {
+        let reply = run_graph(
+            &platform,
+            "unit-test-range-lookup-1",
+            serde_json::json!({"annual_spend": spend, "instructed_at": at}),
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(200, reply.status(), "spend {spend} at {at}");
+        let mm = body_map(&reply);
+        assert_eq!(
+            Some(Value::from(tier)),
+            mm.get_element("tier"),
+            "spend {spend}"
+        );
+        assert_eq!(processing, mm.get_element("processing"), "at {at}");
+    }
+
     // --- unit-test-math-1 (Java #453): the seed's overlay
     // 'input.body.threshold -> model.threshold' clears the model variable when
     // the input is absent and 'model.factor' is never set, so the COMPUTE over

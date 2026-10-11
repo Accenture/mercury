@@ -1476,6 +1476,7 @@ For example:
 | **Collection**      | getFirst        | A single non-empty List — returns its first element.                                                                  |
 | **Collection**      | getLast         | A single non-empty List — returns its last element.                                                                   |
 | **Decision**        | lookup          | A decision table, a value and an optional default — returns the name of the first rule whose list contains the value (compared as text, case-insensitively), or the default on a miss (null when omitted). The table is a map: `keys` lists the rule names in priority order and each rule field lists its values; `keys` and each rule may be a list or a JSON array written as text, and the table itself may be JSON text. Syntax: `f:lookup(table, value, text(default))` — see the worked example below. |
+| **Decision**        | rangeLookup     | A range table, a value and an optional default — returns the name of the first band whose range contains the value, or the default on a miss (null when omitted; a null value takes the default). The table has the decision-table shape, but each band field is ONE range written as text: `min..max` runs from `min` inclusive up to but excluding `max`, an omitted end is open, so adjacent bands tile a scale with no gap and no overlap. The table decides the comparison: numeric bounds compare the value exactly as a decimal (a number or a numeric string; anything else fails by name), text bounds compare as text without case — ISO-8601 dates and times, alphabetic bands. A table mixing numeric and text bounds is refused. Syntax: `f:rangeLookup(table, value, text(default))` — see the worked example below. |
 | **Type Conversion** | b64             | Either a base64 encoded String, OR a byte array.                                                                      |
 | **Type Conversion** | binary          | Either a byte[], Map or String                                                                                        |
 | **Type Conversion** | length          | Either a byte[], List or String                                                                                       |
@@ -1628,6 +1629,34 @@ a skill-less node's properties:
 
 with `state-rules.json` as `{"keys": ["community-property", "separate-property"],
 "community-property": ["CA", "TX"], "separate-property": ["NY"]}`.
+
+*Range table lookup*
+
+When a rule is a band rather than a list of values — an eligibility threshold, a tier by amount, a
+time window — `f:rangeLookup(table, value, default)` returns the first band whose range contains the
+value. The table has the same shape, but each band is **one range written as text**: `min..max` runs
+from `min` inclusive **up to but excluding** `max`, and an omitted end is open - so adjacent bands tile a
+scale with no gap and no overlap, and a band that ends at a value is written with the next value as its
+upper bound (the top band is simply left open). The **table decides how values compare**: when every
+bound is a number, the value must be a number or a numeric string and is compared exactly as a decimal
+(so money written as text per the `DECIMAL` convention works, and `true` or `abc` fails by name); when
+the bounds are text, values compare as text without case, which is how ISO-8601 dates and times and
+alphabetic bands work. A table that mixes the two is refused.
+
+```yaml
+- 'classpath(json:/decision/loyalty-tiers.json) -> model.tiers'
+- 'f:rangeLookup(model.tiers, input.body.annual_spend, text(unknown)) -> output.body.tier'
+- 'classpath(json:/decision/cut-off.json) -> model.cut_off'
+- 'f:rangeLookup(model.cut_off, input.body.instructed_at) -> output.body.processing'
+```
+
+with `loyalty-tiers.json` as `{"keys": ["platinum", "gold", "silver", "standard"], "platinum": "25000..",
+"gold": "10000..25000", "silver": "2500..10000", "standard": "..2500"}` — `9999.99` is silver and `10000`
+is gold — and `cut-off.json` as `{"keys": ["same_day", "next_day"], "same_day": "00:00..16:00",
+"next_day": "16:00.."}`, a same-day processing window compared as text, `16:00` itself being next day.
+A credit score band reads `"poor": "300..580", "fair": "580..670", ..., "excellent": "800.."`. A null
+value, or a miss, takes the default, so an absent request field never aborts the flow; a non-numeric
+value against numeric bands does, by name.
 
 This makes simple dataset creation a one-liner — e.g. seeding an empty list before
 building it up with append-mode (`[]`) mapping rules — without writing a composable
