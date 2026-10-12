@@ -30,6 +30,10 @@
   `cargo publish --workspace` from the tag, none yanked; the platform-core tarball's 33 source files the tag's set with `lib.rs`,
   `serializer.rs` and `canonical_packager.rs` SHA-256 identical; the event-script tarball carries `simple_plugin("rangeLookup")`; the
   api-playground crate is an application and is not published). Field acceptance not yet reported. Origin 2026-10-11-034408.md.
+  **Java 4.12.23 REJECTED by the field's Snyk gate 2026-10-12** (Guava 32.0.1-jre through Confluent's serializers in every consumer of
+  the Java `minimalist-kafka` - a Java-only dependency issue, no equivalent here); **v4.12.24 is prepared on both engines**
+  ([[release-4-12-24]], 2026-10-12): this port's content is the Increments 177–179 twin, in lock-step by
+  [[conv-ports-adopt-java-release-number]].
   Prior: v4.12.22 (2026-10-10 01:25:48Z — the lock-step twin of Java 4.12.22: the graph contract, Increments 170–174; #374 → merge
   `e39b5597` = tag; the `contract` module and OpenAPI on demand, input validation at the root, the Schema panel bundle, the docs with five
   claims; READ: a root `schema` is validated from this release on; 136 suites / 707 tests; crates 12/12 at 01:30Z; Java #542 `67e573e8`
