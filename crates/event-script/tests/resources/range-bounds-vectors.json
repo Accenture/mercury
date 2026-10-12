@@ -1,7 +1,7 @@
 {
  "format": "mercury-range-bounds-vectors",
  "version": 1,
- "note": "Shared conformance vectors for the minRange and maxRange simple plugins: every engine that executes flows runs these. 'plugin' names the plugin, 'args' are the call's arguments (a string is the range written as text, a number a default or a non-range, a list or an object a band that is not a range, null a null range), 'expect' the bound typed by the notation (a JSON integer is a 64-bit whole number; any other numeric bound is its exact decimal text, the DECIMAL convention; a string is text - a quoted bound without its quotes; null an open end without a default), 'error' an engine-neutral code matched by each engine against its own message. A range min..max runs from min inclusive up to but excluding max; an omitted end is open; a bound is a canonical number, quoted text (single or double quotes, compared as written) or unquoted text; a malformed, list, mixed or empty range is refused exactly as rangeLookup refuses such a band.",
+ "note": "Shared conformance vectors for the minRange and maxRange simple plugins: every engine that executes flows runs these. 'plugin' names the plugin, 'args' are the call's arguments (a string is the range written as text, a number a default or a non-range, a list or an object a band that is not a range, null a null range), 'expect' the bound typed by the notation (a JSON integer is a number written without a decimal point, within 64 bits; any other numeric bound is its exact decimal text, the DECIMAL convention; a string is text - a quoted bound without its quotes; null an open end without a default, or a null range, which has no bounds and never answers the default), 'error' an engine-neutral code matched by each engine against its own message. A range min..max runs from min inclusive up to but excluding max; an omitted end is open; a bound is a canonical number, quoted text (single or double quotes, compared as written; the other quote character is ordinary text inside, its own never) or unquoted text; text orders by Unicode code point; a malformed, list, mixed or empty range is refused exactly as rangeLookup refuses such a band.",
  "vectors": [
   {
    "id": "min-whole-number",
@@ -202,6 +202,48 @@
    "expect": "m"
   },
   {
+   "id": "min-double-quoted-holds-single-quote",
+   "plugin": "minRange",
+   "args": [
+    "\"this is a 'nice' drawing\"..\"zebra\""
+   ],
+   "expect": "this is a 'nice' drawing",
+   "note": "the other quote character is ordinary text inside a quoted bound, in either position - the YAML convention"
+  },
+  {
+   "id": "max-single-quoted-holds-double-quote",
+   "plugin": "maxRange",
+   "args": [
+    "'a'..'this is a \"nice\" drawing'"
+   ],
+   "expect": "this is a \"nice\" drawing"
+  },
+  {
+   "id": "min-quoted-apostrophe",
+   "plugin": "minRange",
+   "args": [
+    "\"O'Brien\"..\"O'Neil\""
+   ],
+   "expect": "O'Brien"
+  },
+  {
+   "id": "min-wide-characters-by-code-point",
+   "plugin": "minRange",
+   "args": [
+    "'\uff10'..'\ud83d\ude00'"
+   ],
+   "expect": "\uff10",
+   "note": "text orders by Unicode code point: U+FF10 (a fullwidth zero) sits below U+1F600 (an emoji), where UTF-16 units would put it above"
+  },
+  {
+   "id": "max-wide-characters-unquoted",
+   "plugin": "maxRange",
+   "args": [
+    "\uff10..\ud83d\ude00"
+   ],
+   "expect": "\ud83d\ude00"
+  },
+  {
    "id": "min-open-lower-null",
    "plugin": "minRange",
    "args": [
@@ -209,6 +251,25 @@
    ],
    "expect": null,
    "note": "an open end has no bound"
+  },
+  {
+   "id": "null-range-null",
+   "plugin": "minRange",
+   "args": [
+    null
+   ],
+   "expect": null,
+   "note": "a null range - the band a lookup did not choose, read back through a dynamic key - has no bounds"
+  },
+  {
+   "id": "null-range-ignores-default",
+   "plugin": "maxRange",
+   "args": [
+    null,
+    0
+   ],
+   "expect": null,
+   "note": "never the default: that belongs to an open end, a bound the author placed"
   },
   {
    "id": "max-open-upper-null",
@@ -280,15 +341,6 @@
     0
    ],
    "error": "arity"
-  },
-  {
-   "id": "error-null-range",
-   "plugin": "minRange",
-   "args": [
-    null
-   ],
-   "error": "bad-range",
-   "note": "a null range is not a range"
   },
   {
    "id": "error-dash-separator",
@@ -368,6 +420,15 @@
    "note": "quoted bounds compare as written: 'a' is above 'B'"
   },
   {
+   "id": "error-wide-characters-reversed",
+   "plugin": "minRange",
+   "args": [
+    "'\ud83d\ude00'..'\uff10'"
+   ],
+   "error": "empty-range",
+   "note": "by code point U+1F600 is above U+FF10"
+  },
+  {
    "id": "error-list-band",
    "plugin": "minRange",
    "args": [
@@ -427,6 +488,31 @@
    "plugin": "maxRange",
    "args": [
     "'a' x..'b'"
+   ],
+   "error": "bad-range"
+  },
+  {
+   "id": "error-quote-inside-lower-bound",
+   "plugin": "minRange",
+   "args": [
+    "'a'b'..'z'"
+   ],
+   "error": "bad-range",
+   "note": "a quoted bound never holds its own quote character, in either position - the other style does that"
+  },
+  {
+   "id": "error-quote-inside-upper-bound",
+   "plugin": "maxRange",
+   "args": [
+    "'a'..'b'c'"
+   ],
+   "error": "bad-range"
+  },
+  {
+   "id": "error-text-after-upper-quote",
+   "plugin": "maxRange",
+   "args": [
+    "'a'..'b' x'"
    ],
    "error": "bad-range"
   },

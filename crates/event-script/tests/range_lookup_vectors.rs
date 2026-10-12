@@ -58,7 +58,7 @@ fn fragments(code: &str) -> &'static [&'static str] {
         "mixed-band-quoting" => &["mixes a quoted and an unquoted bound"],
         "list-band" => &["not a list or a map"],
         "not-a-number" => &["Expected a decimal number in rangeLookup", "Cannot convert"],
-        "boolean-operand" => &["Boolean operand in rangeLookup"],
+        "bad-value" => &["must be a number or text"],
         other => panic!("unknown error code {other}"),
     }
 }

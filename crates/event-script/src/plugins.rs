@@ -265,10 +265,14 @@ fn plugin_lookup(args: &[Value]) -> Result<Value, String> {
 /// adjacent bands tile a scale with no gap and no overlap. The table decides
 /// how values compare: when every bound is a number the bands are
 /// numeric and the value must be a number or a numeric string, compared exactly
-/// as a decimal; when the bounds are text, values compare as text,
-/// case-insensitively (ISO-8601 dates and times, alphabetic bands). A table
-/// that mixes numeric and text bounds is refused. No band, or a Nil value,
-/// returns the optional third argument, or Nil when there is none.
+/// as a decimal; when the bounds are quoted text (`'0020'`, `"2026-11-15"`),
+/// values compare as written, case-sensitively; when the bounds are unquoted
+/// text, values compare as text without case (ISO-8601 dates and times,
+/// alphabetic bands). Text orders by Unicode code point, and the value must be
+/// a number or text: a boolean, a list, a map or bytes are refused by name on
+/// every table, because a band is a scale and none of them sits on one. A table
+/// that mixes kinds is refused. No band, or a Nil value, returns the optional
+/// third argument, or Nil when there is none.
 #[simple_plugin("rangeLookup")]
 fn plugin_range_lookup(args: &[Value]) -> Result<Value, String> {
     const NAME: &str = "rangeLookup";
@@ -295,6 +299,7 @@ fn plugin_range_lookup(args: &[Value]) -> Result<Value, String> {
     if matches!(value, Value::Nil) {
         return Ok(default.clone());
     }
+    check_value(value)?;
     let hit = match kind {
         Kind::Number => {
             let v = crate::decimal::operand(value, NAME)?;
@@ -312,15 +317,37 @@ fn plugin_range_lookup(args: &[Value]) -> Result<Value, String> {
     Ok(hit.map_or_else(|| default.clone(), |i| Value::from(bands[i].key.as_str())))
 }
 
+/// A band is a scale of numbers or text, so the value must be one of them;
+/// anything else is refused by name (Java `SimpleRangeLookup.checkValue`).
+fn check_value(value: &Value) -> Result<(), String> {
+    let kind = match value {
+        Value::Integer(_) | Value::F32(_) | Value::F64(_) | Value::String(_) => return Ok(()),
+        Value::Boolean(_) => "a boolean",
+        Value::Array(_) => "a list",
+        Value::Map(_) => "a map",
+        Value::Binary(_) => "bytes",
+        _ => "an object",
+    };
+    Err(format!(
+        "rangeLookup value must be a number or text - got {kind}"
+    ))
+}
+
 /// `f:minRange(range[, default])` - the lower bound of one range written as
 /// `rangeLookup`'s bands are (`min..max` from `min` inclusive up to but
 /// excluding `max`; `min..` or `..max` leaves an end open), typed by the
-/// notation: a numeric bound is a number (a whole number within the 64-bit
-/// range an integer, any other number a float), a text bound is text as
-/// written, and an open end answers the optional default, or Nil when there is
-/// none - the null-source rule then leaves a mapping target unset. A malformed
-/// range, one mixing a numeric and a text bound, and an empty one are refused
-/// by name, exactly as `rangeLookup` refuses such a band (Java `SimpleMinRange`).
+/// notation: a number written without a decimal point, within the 64-bit
+/// range, is an integer, any other number its exact decimal TEXT (the DECIMAL
+/// convention - `f:double` converts it when a floating-point output value is
+/// wanted), a text bound is text as written, a quoted one without its quotes,
+/// and an open end answers the optional default, or Nil when there is none -
+/// the null-source rule then leaves a mapping target unset. A Nil range answers
+/// Nil, never the default: the band a lookup did not choose, read back through
+/// a dynamic key, has no bounds, while the default belongs to an open end. A
+/// malformed range (a quoted bound not closed, followed by text, or holding its
+/// own quote character), a band given as a list, a range mixing kinds and an
+/// empty one are refused by name, exactly as `rangeLookup` refuses such a band
+/// (Java `SimpleMinRange`).
 #[simple_plugin("minRange")]
 fn plugin_min_range(args: &[Value]) -> Result<Value, String> {
     range_bound(args, true)
@@ -346,7 +373,8 @@ fn range_bound(args: &[Value], lower_end: bool) -> Result<Value, String> {
         }
     };
     if matches!(range, Value::Nil) {
-        return Err(format!("Range{NOTATION}null"));
+        // no range, no bounds: the null-source rule leaves the mapping target unset
+        return Ok(Value::Nil);
     }
     let range = Range::parse(&display(range), "Range")?;
     let bound = if lower_end {
@@ -532,17 +560,23 @@ impl Range {
         Ok(Bound::unquoted(value, rest.trim()))
     }
 
-    /// The upper bound from what follows the separator: quoted to the end, or
-    /// unquoted text with no separator.
+    /// The upper bound from what follows the separator: quoted up to its
+    /// closing quote, which must end the range, or unquoted text with no
+    /// separator.
     fn upper_bound<'a>(rest: &'a str, range: &str, subject: &str) -> Result<Bound<'a>, String> {
         let Some(first) = rest.chars().next() else {
             return Ok(Bound::unquoted("", ""));
         };
         if is_quote(first) {
-            if rest.len() < 2 || !rest.ends_with(first) {
+            // the first closing quote ends the bound, as it does for the lower
+            // bound, and nothing may follow it
+            let Some(close) = rest[1..].find(first) else {
+                return Err(malformed(subject, range));
+            };
+            if 2 + close != rest.len() {
                 return Err(malformed(subject, range));
             }
-            return Bound::quoted(&rest[1..rest.len() - 1], "", subject, range);
+            return Bound::quoted(&rest[1..1 + close], "", subject, range);
         }
         if rest.contains("..") || first == '.' || first == '<' || first == '=' {
             return Err(malformed(subject, range));
@@ -2270,7 +2304,7 @@ mod tests {
         );
         assert!(calculate("rangeLookup", &[scores, Value::from(true)])
             .unwrap_err()
-            .starts_with("Boolean operand in rangeLookup"));
+            .starts_with("rangeLookup value must be a number or text - got a boolean"));
     }
 
     /// Java `SimpleRangeLookupTest.shouldCheckEveryBandWhenTheTableIsRead`: a band
@@ -2355,6 +2389,20 @@ mod tests {
         );
         assert_eq!(Ok(Value::from("a..b")), min(&[Value::from("'a..b'..'c'")]));
         assert_eq!(Ok(Value::from("1000")), min(&[Value::from("'1000'..")]));
+        // the other quote character is ordinary text inside a quoted bound, in either position - the YAML convention
+        assert_eq!(
+            Ok(Value::from("this is a 'nice' drawing")),
+            min(&[Value::from("\"this is a 'nice' drawing\"..\"zebra\"")])
+        );
+        assert_eq!(
+            Ok(Value::from("this is a \"nice\" drawing")),
+            max(&[Value::from("'a'..'this is a \"nice\" drawing'")])
+        );
+        // text orders by code point: U+FF10 sits below U+1F600, as the Java engine orders it since its UTF-16 fix
+        assert_eq!(
+            Ok(Value::from("\u{FF10}")),
+            min(&[Value::from("'\u{FF10}'..'\u{1F600}'")])
+        );
         // an open end: the default, or Nil
         assert_eq!(Ok(Value::Nil), min(&[Value::from("..2500")]));
         assert_eq!(Ok(Value::Nil), max(&[Value::from("25000..")]));
@@ -2375,10 +2423,9 @@ mod tests {
         assert!(min(&[])
             .unwrap_err()
             .starts_with("Expected one or two input values - actual=0"));
-        assert_eq!(
-            Err("Range must be written as min..max, min.. or ..max (the upper bound is excluded) - got null".to_string()),
-            min(&[Value::Nil])
-        );
+        // a Nil range has no bounds and never answers the default
+        assert_eq!(Ok(Value::Nil), min(&[Value::Nil]));
+        assert_eq!(Ok(Value::Nil), max(&[Value::Nil, Value::from(0)]));
         assert_eq!(
             Err("Range must be written as min..max, min.. or ..max (the upper bound is excluded) - got '1-2'".to_string()),
             max(&[Value::from("1-2")])
@@ -2417,6 +2464,16 @@ mod tests {
             .unwrap_err()
             .starts_with("Range must be written as"));
         assert!(min(&[Value::from("'a..b")])
+            .unwrap_err()
+            .starts_with("Range must be written as"));
+        // a quoted bound never holds its own quote character, in either position - the other style does that
+        assert!(min(&[Value::from("'a'b'..'z'")])
+            .unwrap_err()
+            .starts_with("Range must be written as"));
+        assert!(max(&[Value::from("'a'..'b'c'")])
+            .unwrap_err()
+            .starts_with("Range must be written as"));
+        assert!(max(&[Value::from("'a'..'b' x'")])
             .unwrap_err()
             .starts_with("Range must be written as"));
         assert!(min(&[Value::from("'a'..b")]).unwrap_err().starts_with(
@@ -2474,5 +2531,63 @@ mod tests {
         assert!(calculate("rangeLookup", &[list_band, Value::from(1)])
             .unwrap_err()
             .starts_with("Range of 'a' must be one range, not a list or a map"));
+        // the other quote character is ordinary text inside a quoted bound, and text orders by code point
+        let names = table("\"O'Brien\"..\"O'Neil\"", "'Z'..");
+        assert_eq!(
+            Ok(Value::from("a")),
+            calculate("rangeLookup", &[names, Value::from("O'Hara")])
+        );
+        let wide = table("'\u{FF10}'..'\u{1F600}'", "'\u{1F600}'..");
+        assert_eq!(
+            Ok(Value::from("a")),
+            calculate("rangeLookup", &[wide, Value::from("\u{FFE5}")])
+        );
+    }
+
+    /// Java `SimpleRangeLookupTest.shouldRefuseAValueThatIsNotANumberOrText`: a
+    /// band is a scale of numbers or text, so a boolean, a list, a map or bytes
+    /// are refused by name on every table - a list compared as its text differed
+    /// by engine.
+    #[test]
+    fn range_lookup_refuses_a_value_that_is_not_a_number_or_text() {
+        let band = |range: &str| {
+            Value::Map(vec![
+                (Value::from("keys"), Value::Array(vec![Value::from("a")])),
+                (Value::from("a"), Value::from(range)),
+            ])
+        };
+        assert_eq!(
+            Err("rangeLookup value must be a number or text - got a list".to_string()),
+            calculate(
+                "rangeLookup",
+                &[band("a..h"), Value::Array(vec![Value::from("b")])]
+            )
+        );
+        assert_eq!(
+            Err("rangeLookup value must be a number or text - got a map".to_string()),
+            calculate(
+                "rangeLookup",
+                &[
+                    band("'a'..'h'"),
+                    Value::Map(vec![(Value::from("b"), Value::from(1))])
+                ]
+            )
+        );
+        assert_eq!(
+            Err("rangeLookup value must be a number or text - got a boolean".to_string()),
+            calculate("rangeLookup", &[band("1..2"), Value::from(true)])
+        );
+        assert_eq!(
+            Err("rangeLookup value must be a number or text - got bytes".to_string()),
+            calculate("rangeLookup", &[band("a..h"), Value::Binary(vec![])])
+        );
+        // a Nil value still takes the default
+        assert_eq!(
+            Ok(Value::from("none")),
+            calculate(
+                "rangeLookup",
+                &[band("a..h"), Value::Nil, Value::from("none")]
+            )
+        );
     }
 }

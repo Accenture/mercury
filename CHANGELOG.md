@@ -16,28 +16,39 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ### Added
 
 1. **`f:minRange` and `f:maxRange` - the bounds of a range, typed by the notation; quoted text bounds; `f:rangeLookup` checks every
-   band when it reads a table (Increments 177 and 178; the twins of the Java plugins).** A band of a range table is one range written
-   as text (`min..max`, the upper bound excluded; `min..` or `..max` leaves an end open), and until now a flow or a graph could place
-   a value in a band but not read the band's bounds back. `f:minRange(range, default)` and `f:maxRange(range, default)` return the
-   lower or upper bound, typed by the notation: a whole number within the 64-bit range is an integer, any other number is its exact
-   decimal as text (`2500.50` - the high-precision rule of `DECIMAL`, where a float would round it; `f:double` converts it when a
-   floating-point output value is wanted), a text bound is text as written, and an open end answers the optional default, or Nil
-   when there is none, so the null-source rule leaves a mapping target unset. A bound is now one of three kinds: a canonical number,
-   quoted text in single or double quotes (`'0020'`, `"2026-11-15"` - compared as written and case-sensitively, the quotes keeping a
-   zero-padded code or a case-sensitive band as text) or unquoted text, compared without case as before, so every table of v4.12.23
-   behaves the same. The three plugins read the notation through one parser (`Range::parse`), so a range is refused by one of them
-   exactly when the others refuse it: malformed (a second `..` outside quotes included), given as a list, mixing kinds, or empty -
-   `3..3` holds nothing, because the upper bound is excluded. `f:rangeLookup` checks every band when it reads the table, whatever
-   the value (a Nil value included), where it used to check a band only when the walk reached it. Text compares as written, so a
-   value must be shaped like the bounds - dates and times in ISO-8601 order and zero-padded - which the guides now state. In a
-   knowledge graph a dynamic key reads the band the lookup chose - `f:maxRange(loyalty-tiers.{model.tier}) -> model.tier_to` - and
-   a `graph.math` node computes with it (`DECIMAL: to_next_tier -> {model.tier_to} - {input.body.annual_spend}`). Pinned by the
-   shared `range-bounds-vectors.json` (52 vectors, byte-identical with the Java repository), eleven new entries of
-   `range-lookup-vectors.json`, the fixture `unit-test-range-bounds-1` and the unit tests. Docs: the syntax guide's plugin table,
-   *Range table lookup* and *The bounds of a band*, the skills reference's *Range tables*, the command reference, the AI agent guide
-   and the mirrored `help graph-data-mapper` (bundle redeployed). Shaped by an independent review of the first cut (a list band
-   read as text, zero-padded codes, decimal precision). **Upgrade note:** a range table holding an empty, mixed or list band beyond
-   the bands a run reached was accepted before and is refused now - fix the band; no other action.
+   band when it reads a table and refuses a value that is not a number or text (Increments 177 to 179; the twins of the Java
+   plugins).** A band of a range table is one range written as text (`min..max`, the upper bound excluded; `min..` or `..max` leaves
+   an end open), and until now a flow or a graph could place a value in a band but not read the band's bounds back.
+   `f:minRange(range, default)` and `f:maxRange(range, default)` return the lower or upper bound, typed by the notation: a number
+   written without a decimal point, within the 64-bit range, is an integer, any other number is its exact decimal as text (`2500.50`
+   - the high-precision rule of `DECIMAL`, where a float would round it; `f:double` converts it when a floating-point output value is
+   wanted), a text bound is text as written, and an open end answers the optional default, or Nil when there is none, so the
+   null-source rule leaves a mapping target unset. A Nil range - the band a lookup did not choose, read back through a dynamic key -
+   answers Nil, never the default: the default belongs to an open end, a bound the author placed, while a missing band has no
+   bounds, so the read-back pattern below survives a miss with its targets unset. A bound is now one of three kinds: a canonical
+   number, quoted text in single or double quotes (`'0020'`, `"2026-11-15"` - compared as written and case-sensitively, the quotes
+   keeping a zero-padded code or a case-sensitive band as text; a quoted bound may hold the separator and the other quote character,
+   `"O'Brien"`, never its own) or unquoted text, compared without case as before. The three plugins read the notation through one
+   parser (`Range::parse`), so a range is refused by one of them exactly when the others refuse it: malformed (a second `..` outside
+   quotes, or a quoted bound holding its own quote character, included), given as a list, mixing kinds, or empty - `3..3` holds
+   nothing, because the upper bound is excluded. `f:rangeLookup` checks every band when it reads the table, whatever the value (a
+   Nil value included), where it used to check a band only when the walk reached it; the value placed must be a number or text - a
+   boolean, a list or a map is refused by name on every table, where a list used to compare as its text and differ by engine; and
+   text orders by Unicode code point on both engines (this engine always did; the Java engine ordered UTF-16 units, which disagree
+   above U+FFFF). Text compares as written, so a value must be shaped like the bounds - dates and times in ISO-8601 order and
+   zero-padded, one UTC offset and one precision throughout - which the guides now state. In a knowledge graph a dynamic key reads
+   the band the lookup chose - `f:maxRange(loyalty-tiers.{model.tier}) -> model.tier_to` - and a `graph.math` node computes with it
+   (`DECIMAL: to_next_tier -> {model.tier_to} - {input.body.annual_spend}`). Pinned by the shared `range-bounds-vectors.json` (62
+   vectors, byte-identical with the Java repository) and `range-lookup-vectors.json` (55), the fixture `unit-test-range-bounds-1` (a
+   miss included) and the unit tests. Docs: the syntax guide's plugin table, *Range table lookup* and *The bounds of a band*, the
+   skills reference's *Range tables*, the command reference, the AI agent guide and the mirrored `help graph-data-mapper` (bundle
+   redeployed). Shaped by two independent reviews: of the first cut (a list band read as text, zero-padded codes, decimal precision)
+   and of the merged result (the read-back pattern aborting on a miss, text order above U+FFFF, the quoted upper bound read to the
+   last character, a list value compared as text). **Upgrade note:** four things a v4.12.23 table could hold are refused now - an
+   empty, mixed or list band anywhere in the table (it used to be checked only when a run reached it), a text band with a second
+   `..` (`a..b..c` was read as `a` up to `b..c`), a list band in a text table (it matched silently as its text) and a list, map or
+   boolean value (likewise); a text bound that begins with a quote character is now a quoted bound, compared with case. Fix the band
+   or the value; no other action.
 
 ---
 ## Version 4.12.23, 10/11/2026

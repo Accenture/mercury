@@ -1,7 +1,7 @@
 {
  "format": "mercury-range-lookup-vectors",
  "version": 1,
- "note": "Shared conformance vectors for the rangeLookup simple plugin: every engine that executes flows runs these. 'args' are the call's arguments (a JSON object is the range table - a decision-table shape whose bands are ranges written as text; a JSON number is a Double or Long/Integer, a string is text, null is a null value), 'expect' the band name or null, 'error' an engine-neutral code matched by each engine against its own message. A range min..max runs from min inclusive up to but excluding max; an omitted end is open. A bound is a canonical number, quoted text (single or double quotes) or unquoted text, and the table decides the comparison: numeric bounds compare the value as a decimal, quoted bounds as written and case-sensitively, unquoted text bounds as text without case; a table mixing kinds is refused, and so is a band given as a list. Every band is checked when the table is read, whatever the value: a malformed, mixed or empty band is refused by name.",
+ "note": "Shared conformance vectors for the rangeLookup simple plugin: every engine that executes flows runs these. 'args' are the call's arguments (a JSON object is the range table - a decision-table shape whose bands are ranges written as text; a JSON number is a Double or Long/Integer, a string is text, null is a null value), 'expect' the band name or null, the value must be a number or text (a boolean, a list or a map is refused by name on every table); text orders by Unicode code point; 'error' an engine-neutral code matched by each engine against its own message. A range min..max runs from min inclusive up to but excluding max; an omitted end is open. A bound is a canonical number, quoted text (single or double quotes) or unquoted text, and the table decides the comparison: numeric bounds compare the value as a decimal, quoted bounds as written and case-sensitively, unquoted text bounds as text without case; a table mixing kinds is refused, and so is a band given as a list. Every band is checked when the table is read, whatever the value: a malformed, mixed or empty band is refused by name.",
  "vectors": [
   {
    "id": "tier-open-upper-at-bound",
@@ -644,7 +644,8 @@
     },
     true
    ],
-   "error": "boolean-operand"
+   "error": "bad-value",
+   "note": "the value must be a number or text on every table; a boolean sits on no scale"
   },
   {
    "id": "error-empty-band-beyond-hit",
@@ -812,6 +813,106 @@
    ],
    "error": "bad-range",
    "note": "an unquoted bound never contains the separator; a quoted one may"
+  },
+  {
+   "id": "quoted-band-holds-the-other-quote",
+   "args": [
+    {
+     "keys": [
+      "names"
+     ],
+     "names": "\"O'Brien\"..\"O'Neil\""
+    },
+    "O'Hara"
+   ],
+   "expect": "names",
+   "note": "the other quote character is ordinary text inside a quoted bound - the YAML convention"
+  },
+  {
+   "id": "quoted-band-upper-bound-excluded-with-apostrophe",
+   "args": [
+    {
+     "keys": [
+      "names"
+     ],
+     "names": "\"O'Brien\"..\"O'Neil\""
+    },
+    "O'Neil",
+    "none"
+   ],
+   "expect": "none"
+  },
+  {
+   "id": "wide-characters-by-code-point",
+   "args": [
+    {
+     "keys": [
+      "wide"
+     ],
+     "wide": "'\uff10'..'\ud83d\ude00'"
+    },
+    "\uffe5"
+   ],
+   "expect": "wide",
+   "note": "text orders by Unicode code point: U+FFE5 sits between U+FF10 and U+1F600, where UTF-16 units would put it above the emoji and miss"
+  },
+  {
+   "id": "wide-characters-miss",
+   "args": [
+    {
+     "keys": [
+      "wide"
+     ],
+     "wide": "'\uff10'..'\ud83d\ude00'"
+    },
+    "\ud83d\ude01",
+    "none"
+   ],
+   "expect": "none"
+  },
+  {
+   "id": "error-list-value",
+   "args": [
+    {
+     "keys": [
+      "a"
+     ],
+     "a": "a..h"
+    },
+    [
+     "b"
+    ]
+   ],
+   "error": "bad-value",
+   "note": "a band is a scale of numbers or text; a list compared as its text differed by engine, so every table refuses it by name"
+  },
+  {
+   "id": "error-map-value",
+   "args": [
+    {
+     "keys": [
+      "a"
+     ],
+     "a": "'a'..'h'"
+    },
+    {
+     "b": 1
+    }
+   ],
+   "error": "bad-value"
+  },
+  {
+   "id": "error-boolean-text-table",
+   "args": [
+    {
+     "keys": [
+      "a"
+     ],
+     "a": "a..h"
+    },
+    true
+   ],
+   "error": "bad-value"
   }
  ]
 }

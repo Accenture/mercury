@@ -86,11 +86,15 @@ omitted end is open, so adjacent bands tile a scale with no gap and no overlap. 
 decides the comparison: a canonical number makes a numeric band — the value is compared exactly as a decimal, and
 a non-numeric value fails by name, as `graph.math` does; text in single or double quotes (`'0020'`,
 `"2026-11-15"`) makes a quoted band, compared as written and case-sensitively — the quotes keep a zero-padded
-code as text; unquoted text (`16:00`, `h`) compares without case, which is how alphabetic bands work. A table
-that mixes kinds is refused, and so is a band given as a list. Text compares as written, so **a value must be
-shaped like the bounds**: dates and times in ISO-8601 order and zero-padded (`2026-10-11T15:00:00Z` or
-`2026-10-11 15:00:00`), the value carrying the same parts — `9:30` is not `09:30`, and a time-only band does not
-place a full timestamp.
+code as text, and a quoted bound may hold the separator and the other quote character (`"O'Brien"`), never its
+own; unquoted text (`16:00`, `h`) compares without case, which is how alphabetic bands work. Text orders by Unicode
+code point on both engines. The value must be a number or text — a boolean, a list or a map fails by name, because
+a band is a scale and none of them sits on one. A table that mixes kinds is refused, and so is a band given as a
+list. Text compares as written, so **a value must be shaped like the bounds**: dates and times in ISO-8601 order and
+zero-padded (`2026-10-11T15:00:00Z` or `2026-10-11 15:00:00`), the value carrying the same parts — `9:30` is not
+`09:30`, and a time-only band does not place a full timestamp — and one UTC offset and one precision throughout,
+UTC by preference: `17:00:00+02:00` sorts after `16:00:00Z` though it is the earlier instant, and `15:00:00.5Z`
+sorts before `15:00:00Z`.
 
 ```
 create node loyalty-tiers
@@ -126,11 +130,11 @@ aborts the run. The product owner reads the bands on the graph, and a new thresh
 never code.
 
 The bounds of a band are data too. `f:minRange(range, default)` and `f:maxRange(range, default)` read one
-range in the same notation and return its lower or upper bound, **typed by the notation** — a whole number
-is an integer, any other number is its exact decimal as text (the high-precision rule of `DECIMAL`), a text bound is
-text as written, a quoted one without its quotes — and an
-open end answers the optional default, or null when there is none, so the null-source rule leaves the target
-unset. A dynamic key reads the band the lookup chose:
+range in the same notation and return its lower or upper bound, **typed by the notation** — a number written
+without a decimal point is an integer, any other number is its exact decimal as text (the high-precision rule of
+`DECIMAL`), a text bound is text as written, a quoted one without its quotes — and an open end answers the
+optional default, or null when there is none, so the null-source rule leaves the target unset. A dynamic key reads
+the band the lookup chose:
 
 ```
 create node locate
@@ -145,10 +149,12 @@ mapping[]=f:maxRange(cut-off.same_day) -> output.body.same_day_until
 
 `tier_from` is `10000` for gold and the default `0` for standard (the lower end of `..2500` is open);
 `tier_to` is `25000` for gold and stays unset for platinum (`25000..` has no upper bound); `same_day_until`
-is the text `16:00`. A `graph.math` node reads a bound the same way (`MAPPING: f:maxRange(loyalty-tiers.{model.tier})
+is the text `16:00`. On a miss — no spend in the request — `model.tier` is the default `unknown`, `loyalty-tiers.unknown`
+is nothing, and a null range answers null, never the default, so `tier_from` and `tier_to` stay unset and the run
+never aborts (an unknown tier never reads as "from 0"). A `graph.math` node reads a bound the same way (`MAPPING: f:maxRange(loyalty-tiers.{model.tier})
 -> model.tier_to`) and computes with it (`DECIMAL: to_next_tier -> {model.tier_to} - {input.body.annual_spend}`).
-A range is refused exactly when `rangeLookup` would refuse the band — malformed, a list, mixing kinds,
-or empty: `3..3` holds nothing, since the upper bound is excluded — and the lookup checks every
+A range is refused exactly when `rangeLookup` would refuse the band — malformed (a quoted bound holding its own
+quote character included), a list, mixing kinds, or empty: `3..3` holds nothing, since the upper bound is excluded — and the lookup checks every
 band when it reads a table, whatever the value.
 
 A decimal bound stays text so that nothing is rounded. When a floating-point number is wanted in the output,

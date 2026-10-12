@@ -4867,3 +4867,35 @@ conversion recipe), the skills reference's *Range tables*, the AI agent guide, t
 Gates: `cargo test -p mercury-event-script --lib range --test range_bounds_vectors --test range_lookup_vectors`,
 `cargo test -p mercury-knowledge-graph`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all --check`,
 `scripts/check-doc-claims.py`, `scripts/check-llms-links.py`.
+
+## Increment 179 — The range plugins after a second review: a Nil range answers Nil, symmetric quoted bounds, a typed lookup value (2026-10-11)
+
+The maintainer's rulings on a second independent review of `f:rangeLookup`, `f:minRange` and `f:maxRange` (Increments 176–178), the
+twin of the Java PR. (1) The documented read-back pattern - `f:minRange(loyalty-tiers.{model.tier}, int(0))` after a lookup whose
+default is `unknown` - aborted the run on a miss: `loyalty-tiers.unknown` is Nil and `range_bound` refused a Nil range by name, while
+the guides promised that an absent request field never aborts. A Nil range now answers Nil, never the default - the default belongs
+to an open end, a bound the author placed, while a missing band has no bounds - so the targets stay unset through the null-source
+rule; the shared vector `error-null-range` became `null-range-null` and `null-range-ignores-default`, and `graph_runtime` runs the
+fixture's miss (no spend in the request: the tier `unknown`, no `tier_from`, no `tier_to`, no `to_next_tier`, HTTP 200). (2) The
+quoted upper bound ran from its opening quote to the last character, so `'a'..'b' x'` was accepted with a quote inside the bound
+while the lower bound stops at its first closing quote; `Range::upper_bound` now finds the first closing quote and requires it to end
+the range. The maintainer's convention was checked first and holds: the other quote character is ordinary text inside a bound
+(`"this is a 'nice' drawing"`, `'this is a "nice" drawing'` - the YAML convention), a bound's own quote character never, in either
+position. (3) A list or map value on a text table compared as its `display` text, which differs from Java's `String.valueOf`;
+`check_value` refuses a boolean, a list, a map or bytes by name on every table (`rangeLookup value must be a number or text - got a
+list`), and the vector code `boolean-operand` became `bad-value`. (4) Text order above U+FFFF: this engine compares `&str` by code
+point and always did; the Java engine compared UTF-16 units and gained a code-point comparator, pinned by vectors with U+FF10, U+FFE5
+and U+1F600 so the two engines prove they agree. (5) The nits: the stale `plugin_min_range` comment (a decimal bound is its exact
+text, not a float; the refusal list), "a whole number" is "a number written without a decimal point" (`1.0` stays the text `1.0`),
+timestamps need one UTC offset and one precision (declared, not gated), the help page's refusal list, and the CHANGELOG's claim that
+every v4.12.23 table behaves the same (a text band with a second `..` and a list band in a text table are refused now even when a run
+reaches them). Pinned by the shared `range-bounds-vectors.json` (62) and `range-lookup-vectors.json` (55), both byte-identical with
+the Java repository and green on the first run, `range_lookup_refuses_a_value_that_is_not_a_number_or_text`, the extended
+`range_bounds_match_java_semantics` and `range_lookup_reads_quoted_bounds_as_written`. Docs: the syntax guide's plugin table, *Range
+table lookup* and *The bounds of a band*, the skills reference's *Range tables*, the mirrored help page and the redeployed bundle
+(`index-CLmQ6fcx.js` replaces `index-DPKAiH17.js`); CHANGELOG Unreleased item 1 amended in place.
+
+Gates: `cargo test -p mercury-event-script --lib range` and `cargo test -p mercury-event-script --test range_bounds_vectors --test
+range_lookup_vectors` (the vector tests run without the name filter, which left them out of the earlier one-line gate),
+`cargo test -p mercury-knowledge-graph`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all --check`,
+`scripts/check-doc-claims.py`, `scripts/check-llms-links.py`.
