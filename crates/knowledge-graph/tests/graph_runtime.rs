@@ -1961,6 +1961,24 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
             "spend {spend}"
         );
     }
+    // a miss - no spend in the request - names the default tier, and the band
+    // read back through the dynamic key is nothing: a Nil range answers Nil,
+    // never the default, so tier_from and tier_to stay unset, the math node
+    // takes its ELSE path, and the run never aborts
+    let reply = run_graph(
+        &platform,
+        "unit-test-range-bounds-1",
+        serde_json::json!({"product_code": "0450"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "a miss");
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("unknown")), mm.get_element("tier"));
+    assert_eq!(None, mm.get_element("tier_from"));
+    assert_eq!(None, mm.get_element("tier_to"));
+    assert_eq!(None, mm.get_element("to_next_tier"));
+    assert_eq!(Some(Value::from("legacy")), mm.get_element("product_line"));
 
     // --- unit-test-math-1 (Java #453): the seed's overlay
     // 'input.body.threshold -> model.threshold' clears the model variable when
