@@ -13,6 +13,16 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
+Nothing yet. Each change merged to `main` after v4.12.24 is listed here; it moves under its release heading when the version is cut.
+
+---
+## Version 4.12.24, 10/12/2026
+
+The lock-step twin of Java 4.12.24: the range plugins' bounds and refinements that landed after the 4.12.23 tag (Increments 177 to
+179). The Java release also answers a finding of the field's Snyk gate - Google Guava resolving to an old version through Confluent's
+serializers in `minimalist-kafka` - which this engine has no equivalent of, so its content is item 1 alone. **Upgrade note:** an
+application with a range table reads item 1's upgrade note; no other action.
+
 ### Added
 
 1. **`f:minRange` and `f:maxRange` - the bounds of a range, typed by the notation; quoted text bounds; `f:rangeLookup` checks every
