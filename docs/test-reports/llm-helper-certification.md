@@ -42,6 +42,10 @@ Claude key with nothing throttled.*
   own logs; none is broken. [Scenario 7](#scenario-7-one-connected-tree-per-request).
 - **The engines held no credential.** The credential reached the two helpers only; each engine process was started without
   one (verified by counting the variable in each process's environment: 1 for each helper, 0 for each engine).
+- **AWS Bedrock through IAM, driven 2026-10-14 ([Scenario 8](#scenario-8-aws-bedrock-through-iam-the-helpers-second-backend-driven-2026-10-14)).**
+  The helper's second backend ran against an enterprise account with temporary IAM credentials and no vendor key: negative
+  controls first, then a chat reply, a structured verdict and a progressive stream on Haiku 4.5 from both helpers, and the Java
+  engine's shipped triage graph and streaming relay in front of each. The account's two surfaces and its model gates are Finding 7.
 
 ## What was under test
 
@@ -244,6 +248,30 @@ relay, the client leg, the helper's span and a terminal with `frames=0`. A helpe
 business correlation id and the trace id in their `context` block, and the completed-call line holds the model, the
 `stop_reason`, the token counts, the request id and the elapsed time — never a prompt or a completion.
 
+## Scenario 8 — AWS Bedrock through IAM: the helper's second backend, driven 2026-10-14
+
+The helper's Bedrock backend (`llm.backend: 'bedrock'`, mercury-python #43 and mercury-nodejs #111, the surface setting of
+mercury-python #44 and its Node twin) was driven on 2026-10-14 (UTC) against an enterprise AWS account in `us-east-1`, with
+temporary IAM credentials - a key pair and a session token - in the helper processes' environment and nothing else: no vendor
+API key anywhere. Negative controls ran first. Each helper ran on a port of its own and was driven over Event-over-HTTP with the
+Python pack's `PostOffice` client, then the Java engine (the shipped playground, `-Dllm.peer.port`) ran in front of each.
+
+| Step | Python helper | Node.js helper |
+|---|---|---|
+| A corrupted secret | `401 LLM provider error - 401 authentication_error: The request signature we calculated does not match ...` | the same |
+| No credential at all | health `503 AWS credential missing`; the call a bare 500 until mercury-python #44 mapped the SDK's wording (Finding 7) | health `503 AWS credential missing`; the call the same 503 |
+| `llm.chat`, Haiku 4.5 | `200`, `ready`, 14 input / 4 output tokens | `200`, `ready`, 14 / 4 |
+| `llm.chat` with a schema | `{"verdict": "bug", "confidence": 0.95}`, 218 / 17 | the same, 218 / 17 |
+| `llm.stream` | 4 batches, the first after 815 ms, `eof` with usage 20 / 23 | 4 batches, the first after 714 ms, usage 20 / 23 |
+| Java engine, the shipped `support-triage` graph | `bug` → `bug-filed`, 240 / 29 | `question` → `answered`, 242 / 24 |
+| Java engine, the streaming relay `/api/llm/stream` | 4 `data` frames, then `done` with usage, the trace id and the correlation id | the same, `language: node.js` |
+
+Every call ran on `us.anthropic.claude-haiku-4-5-20251001-v1:0` through the classic Bedrock runtime (`llm.aws.api: 'runtime'`),
+because the account turned out to be enabled for that surface and not for the Anthropic-shaped one the SDK prefers, and for
+Haiku 4.5 and not for the newer model generation (Finding 7). The Rust engine was not driven in this round: a backend changes
+nothing in an engine, which reaches the helper by route, and the Java engine's two layers show the composition unchanged.
+`/api/llm/chat` of Scenario 3 is an entry of the deploy folder (Appendix A), not a shipped one, and was not redeployed.
+
 ## Findings
 
 1. **The cadence of progressive rendering belongs to the API and the model, not to the pipeline.** Opus 5.5's batches arrive in
@@ -276,6 +304,19 @@ business correlation id and the trace id in their `context` block, and the compl
 6. **Engine parity held without adjustment.** The same graph JSON, byte for byte, ran on both engines; the relay's contract
    and error shapes were identical; the only visible difference is cosmetic, the order in which each engine serializes a
    response map's keys.
+7. **Bedrock has two surfaces, two gates and a model vocabulary of its own (2026-10-14).** The SDK's preferred Bedrock client
+   targets an Anthropic-shaped endpoint that spells a model `anthropic.claude-opus-5-5`; the classic runtime takes an inference
+   profile id exactly as the account lists it (`us.anthropic.claude-haiku-4-5-20251001-v1:0`), with a date and a version no rule
+   can derive. An account may be enabled for one surface and not the other: this one answered `403 ... is not available for
+   this account` on the Anthropic-shaped endpoint for every Claude model while the classic runtime served Haiku 4.5, so the
+   helper gained `llm.aws.api` (`mantle`, the default, or `runtime`) and `llm.health` names the surface. Model access is two
+   steps - a one-time use case for Anthropic models and a per-model agreement, `CreateFoundationModelAgreement` on the offer the
+   account is given - and the agreement alone does not open a model generation the account is not enabled for: Opus 5.5, Sonnet
+   5.5 and Haiku 5.5 stayed `403` on both surfaces with their agreements active, an AWS account-team matter rather than a
+   setting; `GetFoundationModelAvailability` tells the four gates apart (agreement, authorization, entitlement, region).
+   Bedrock sends no `request-id` the helper reads, so a reply carries none. The negative control earned its place: the second
+   one surfaced the SDK's exact wording for an empty credential chain, `Could not resolve AWS credentials from session`, which
+   the Python mapping had not covered - fixed in mercury-python #44; the Node chain's `CredentialsProviderError` mapped as built.
 
 ## Defects found and fixed
 
@@ -293,6 +334,10 @@ Start a helper with the credential exported in its environment, and each engine 
 # Python helper (8086) and Node.js helper (8087), from their repositories
 mercury-serve examples/llm-helper/llm_helper.py -Dlog.format=compact -Dllm.log.batches=true
 node dist/src/cli.js examples/llm-helper/llm-helper.mjs -Dlog.format=compact -Dllm.log.batches=true
+# AWS Bedrock instead of a key (Scenario 8): the AWS credential chain in the helper's environment, the surface the
+# account is enabled for, the model as the account lists it
+mercury-serve examples/llm-helper/llm_helper.py -Dllm.backend=bedrock -Dllm.aws.api=runtime \
+  -Dllm.model=us.anthropic.claude-haiku-4-5-20251001-v1:0
 
 # the engines, with the deploy folder of Appendix A (replace $DEPLOY; Rust takes one REST location)
 java -Drest.server.port=8085 -Dllm.peer.port=8086 -Dlog.format=compact \
