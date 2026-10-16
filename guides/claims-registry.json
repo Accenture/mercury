@@ -1,0 +1,513 @@
+{
+  "registry": "claims-fixture",
+  "version": "1.0",
+  "description": "Machine-readable registry of CI-pinned documentation behavior claims for the Rust engine (the engine-neutral mechanism of the Java repo's ADR-0023). Each claim states exactly what its named engine test pins - no more. The claim's normative sentence must appear on one of its pages (scripts/check-doc-claims.py: whitespace-normalized, case-insensitive containment) and the engine test pin must exist as a fn definition; the pinned tests run in the normal cargo test --workspace build. An AI agent may treat these claims as source-verified.",
+  "test_ref_format": "crates/<crate-dir>::<test-file-stem>::<fn>",
+  "claims": [
+    {
+      "id": "error-dataset-code-key",
+      "claim": "The error dataset of an exception handler exposes the failing status as error.code.",
+      "pages": [
+        "docs/guides/event-script/syntax.md",
+        "docs/guides/event-script/flow-grammar.md"
+      ],
+      "quote": "error.code - the status code of the exception",
+      "test": "crates/event-script::flow_runtime::flows_run_end_to_end_like_java",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "decision-branching",
+      "claim": "A decision task branches on true/false or a 1-based integer; an integer above the branch count aborts the flow.",
+      "pages": [
+        "docs/guides/event-script/flow-grammar.md"
+      ],
+      "quote": "`true`→next[0]/`false`→next[1]; or numeric 1-indexed, multi-way",
+      "test": "crates/event-script::flow_runtime::flows_run_end_to_end_like_java",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "decision-invalid-value",
+      "claim": "A non-boolean, non-numeric decision value coerces to 1 and silently selects the first branch; a missing decision aborts the flow.",
+      "pages": [
+        "docs/guides/event-script/syntax.md"
+      ],
+      "quote": "silently select the first branch",
+      "test": "crates/event-script::claims::non_numeric_decision_silently_routes_to_branch_one",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "flows-location-default",
+      "claim": "A flows.yaml manifest that omits 'location' loads its flow files from classpath:/flows/.",
+      "pages": [
+        "docs/guides/configuration-reference.md",
+        "docs/guides/flow-schema-reference.md"
+      ],
+      "quote": "`location` inside the manifest defaults to `classpath:/flows/`",
+      "test": "crates/event-script::claims::manifest_without_location_loads_flows_from_default_classpath",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "subflow-ttl-catchable",
+      "claim": "A task-level ttl on a flow:// task makes the child time out first, so its 408 is catchable by the parent's exception handler.",
+      "pages": [
+        "docs/guides/event-script/flow-grammar.md"
+      ],
+      "quote": "overrides the propagated parent TTL so the sub-flow's timeout is catchable",
+      "test": "crates/event-script::flow_runtime::flows_run_end_to_end_like_java",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "no-handler-error-shape",
+      "claim": "An unhandled flow error reaches the caller as {type: error, status, message} with the matching HTTP status.",
+      "pages": [
+        "docs/guides/flow-schema-reference.md"
+      ],
+      "quote": "the flow aborts and the caller receives the error as",
+      "test": "crates/event-script::flow_runtime::flows_run_end_to_end_like_java",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "duplicate-route-reload",
+      "claim": "Registering a duplicate route does not fail the application: the earlier registration is reloaded and the newest function serves.",
+      "pages": [
+        "docs/guides/macros-reference.md"
+      ],
+      "quote": "a duplicate route RELOADS the existing one, exactly like Java `Platform.register`",
+      "test": "crates/platform-core::event_bus::route_validation_replacement_and_worker_clamp_match_java",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "env-instances-config-key",
+      "claim": "With env_instances, the configured value beats the annotation's instances literal when the key is set; a missing key falls back to the literal.",
+      "pages": [
+        "docs/guides/macros-reference.md"
+      ],
+      "quote": "the instance count is configuration-driven — the literal loses to the configured value when the key is set",
+      "test": "crates/platform-core::annotations::annotation_macros_end_to_end",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "stream-field-parsed",
+      "claim": "rest.yaml's stream: true is parsed by the engine and streaming replies ride a dedicated ordered reply lane.",
+      "pages": [
+        "docs/guides/http-streaming.md",
+        "docs/guides/rest-automation.md"
+      ],
+      "quote": "Add `stream: true` to the endpoint definition in rest.yaml",
+      "test": "crates/platform-core::event_stream::sse_segments_arrive_progressively_with_terminal_done_event",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "config-override-precedence",
+      "claim": "A value in the runtime override registry (the -Dkey=value mechanism) beats the same key's configuration-file value.",
+      "pages": [
+        "docs/guides/configuration-reference.md"
+      ],
+      "quote": "win over configuration-file values",
+      "test": "crates/platform-core::config::override_registry_beats_the_file_value",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "config-manifest-merge-order",
+      "claim": "Configuration files merge in the manifest order - a later manifest file's value overrides an earlier one's, and keys unique to one file survive the merge.",
+      "pages": [
+        "docs/guides/configuration-reference.md"
+      ],
+      "quote": "merge in the manifest order",
+      "test": "crates/platform-core::config::later_manifest_files_override_earlier_ones",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "msgpack-typed-roundtrip",
+      "claim": "Envelope bodies are typed through serde on set_body/body_as - a small i64 round-trips as i64 with no Java-style Integer downcast surprise.",
+      "pages": [
+        "docs/guides/event-envelope-reference.md"
+      ],
+      "quote": "typed values pass through `serde` on `set_body`/`body_as`",
+      "test": "crates/platform-core::event_bus::envelope_round_trips_through_msgpack",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "trace-noop-outside-bracket",
+      "claim": "Trace annotation and context calls are silent no-ops outside a trace bracket.",
+      "pages": [
+        "docs/guides/observability.md"
+      ],
+      "quote": "outside a trace both calls are no-ops",
+      "test": "crates/platform-core::telemetry::untraced_request_emits_no_telemetry",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "inspect-returns-subtrees",
+      "claim": "The Playground inspect command resolves whole subtrees, not only leaf keys.",
+      "pages": [
+        "docs/guides/knowledge-graph/command-reference.md"
+      ],
+      "quote": "a whole namespace: input | output | model | error",
+      "test": "crates/knowledge-graph::playground::playground_command_grammar_and_companion",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "export-identity-guard",
+      "claim": "Export validates the declared root name only when one is declared; a missing or blank root name is accepted and self-named.",
+      "pages": [
+        "docs/guides/knowledge-graph/command-reference.md"
+      ],
+      "quote": "missing or blank root name is accepted",
+      "test": "crates/knowledge-graph::playground::export_name_guard_accepts_missing_and_rejects_mismatch",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "root-purpose-gate-only",
+      "claim": "A graph whose root node lacks a purpose fails the CompileGraph deployment gate.",
+      "pages": [
+        "docs/guides/knowledge-graph/build-your-first-graph.md"
+      ],
+      "quote": "structure, the root node's `purpose`, data-mapping syntax",
+      "test": "crates/knowledge-graph::compiler::manifest_listed_graphs_are_compiled",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "reserved-model-keys",
+      "claim": "The reserved model-metadata key set is exactly ten names: cid, instance, flow, ttl, trace, parent, root, none, run, iteration_index - and every one is rejected as a data-mapping write target.",
+      "pages": [
+        "docs/guides/knowledge-graph/workflow-suspension.md"
+      ],
+      "quote": "The ten reserved model-metadata keys",
+      "test": "crates/knowledge-graph::common::reserved_model_metadata_is_immutable",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "compiled-or-404",
+      "claim": "A graph is deployed only when manifest-listed and passing CompileGraph; a failed or unlisted graph is absent from the executable registry.",
+      "pages": [
+        "docs/guides/knowledge-graph/build-your-first-graph.md"
+      ],
+      "quote": "A graph that fails the gate, or is not listed",
+      "test": "crates/knowledge-graph::compiler::invalid_manifest_graphs_are_not_compiled",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "suspended-reply-200",
+      "claim": "A suspended run replies HTTP 200 with {type: suspended, cid} - the run completed normally by suspending.",
+      "pages": [
+        "docs/guides/knowledge-graph/workflow-suspension.md"
+      ],
+      "quote": "the run completed normally by suspending",
+      "test": "crates/knowledge-graph::graph_runtime::suspend_resume_matches_java_semantics",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "extension-target-asymmetry",
+      "claim": "A missing flow:// target aborts the run before any call and is not exception=-routable; a missing graph id surfaces as the delegate's 404 reply, catchable by the exception= route.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "a missing `flow://{flow-id}` aborts the run *before* any call is made",
+      "test": "crates/knowledge-graph::claims::extension_missing_flow_aborts_but_missing_graph_routes_to_handler",
+      "since": "4.12.3+"
+    },
+    {
+      "id": "null-source-removes-target",
+      "claim": "In a MiniGraph data mapping a source that resolves to null (a missing key, or a plugin returning null) clears a model.* target (removed, or set to null when the source key exists or the target is indexed) and leaves any other target untouched - the same rule as Event Script - so a default for a model variable must come from the source side, never from default-then-overlay.",
+      "pages": [
+        "docs/guides/knowledge-graph/command-reference.md"
+      ],
+      "quote": "A null source clears a `model.*` target and leaves any other target untouched",
+      "test": "crates/knowledge-graph::graph_runtime::graph_task_matches_java_semantics",
+      "since": "4.12.16+"
+    },
+    {
+      "id": "kafka-schema-decode-failure-dead-letters",
+      "claim": "On a schema.enabled binding a record that cannot be decoded (unframed, or an unresolvable id) is dead-lettered at once with the raw record, without a retry or a flow attempt.",
+      "pages": [
+        "docs/guides/minimalist-kafka.md"
+      ],
+      "quote": "A **decode failure is a poison message** (retrying will not help), so the raw record is dead-lettered immediately",
+      "test": "crates/minimalist-kafka::flow_adapter_e2e::inbound_adapter_end_to_end",
+      "since": "4.12.14+"
+    },
+    {
+      "id": "kafka-schema-subject-not-a-record-header",
+      "claim": "The subject and version headers of simple.kafka.notification select the schema and are not forwarded to Kafka as record headers.",
+      "pages": [
+        "docs/guides/minimalist-kafka.md"
+      ],
+      "quote": "The `subject` and `version` headers are encoding directives: they never reach Kafka as record headers.",
+      "test": "crates/minimalist-kafka::notification_schema::subject_driven_publish_frames_the_document",
+      "since": "4.12.14+"
+    },
+    {
+      "id": "otel-forwarding-default-off",
+      "claim": "Linking the OpenTelemetry forwarder crate registers nothing; the distributed.trace.forwarder route exists only when otel.forwarding is true.",
+      "pages": [
+        "docs/guides/observability.md"
+      ],
+      "quote": "the route exists only when otel.forwarding is true",
+      "test": "examples/hello-flow::otel_forwarding_switch::the_forwarder_is_not_registered_when_forwarding_is_off",
+      "since": "4.12.14+"
+    },
+    {
+      "id": "otel-forwarder-preserves-w3c-ids",
+      "claim": "The OpenTelemetry forwarder exports each span with the engine's exact W3C trace, span and parent-span ids, so the backend reconstructs the lineage the engine recorded.",
+      "pages": [
+        "docs/guides/observability.md"
+      ],
+      "quote": "preserving the exact W3C trace, span and parent-span ids",
+      "test": "extensions/opentelemetry-forwarder::trace_pipeline::traced_rpc_chain_produces_linked_spans",
+      "since": "4.12.14+"
+    },
+    {
+      "id": "otel-forwarder-credential-per-export",
+      "claim": "The OpenTelemetry forwarder resolves otel.exporter.otlp.headers on every export, so a credential published after start-up as a runtime override reaches the backend without a restart.",
+      "pages": [
+        "docs/guides/observability.md",
+        "docs/guides/configuration-reference.md"
+      ],
+      "quote": "The credential is re-read on every export",
+      "test": "extensions/opentelemetry-forwarder::otlp_export::exporter_end_to_end",
+      "since": "4.12.14+"
+    },
+    {
+      "id": "kafka-consumer-leaves-group-on-shutdown",
+      "claim": "Stopping a flow consumer makes its member leave the consumer group at once, so its partitions are reassigned to the surviving members instead of waiting for the session timeout.",
+      "pages": [
+        "docs/guides/minimalist-kafka.md"
+      ],
+      "quote": "the consumer's close sends the group coordinator a **LeaveGroup**: the member's partitions are reassigned to the surviving members at once",
+      "test": "crates/minimalist-kafka::kafka_shutdown::closing_a_flow_consumer_leaves_the_group_at_once",
+      "since": "4.12.15+"
+    },
+    {
+      "id": "kafka-producer-flushed-on-shutdown",
+      "claim": "On shutdown, after the consumers stop, the shared producer is flushed within a bounded grace so records callers already enqueued are delivered before the process exits; the handle is then forgotten.",
+      "pages": [
+        "docs/guides/minimalist-kafka.md"
+      ],
+      "quote": "the shared producer is **flushed** — every record already accepted by `simple.kafka.notification` or a dead-letter write is delivered before the process exits",
+      "test": "crates/minimalist-kafka::kafka_shutdown::close_publisher_delivers_the_lingering_records_then_forgets_the_handle",
+      "since": "4.12.15+"
+    },
+    {
+      "id": "math-boolean-operand-rejected",
+      "claim": "In graph.math a boolean is never a number: a boolean operand in arithmetic, in a </> comparison or as a function argument - and a COMPUTE whose result is a bare boolean - fails naming the selector instead of computing as 1 or 0; an unknown function, an overflow to infinity and a division by zero fail by name too.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "each enforced by a named failure rather than a silent value",
+      "test": "crates/knowledge-graph::graph_runtime::graph_task_matches_java_semantics",
+      "since": "4.12.18+"
+    },
+    {
+      "id": "graph-manifest-list-later-wins",
+      "claim": "graph.model.automation accepts a comma-separated list of graph manifests, each with its own location; when two manifests list the same graph id, the later manifest wins - its copy replaces the earlier one, and a rejected later copy leaves the id not executable (404).",
+      "pages": [
+        "docs/guides/configuration-reference.md",
+        "docs/guides/knowledge-graph/ai-agent-guide.md"
+      ],
+      "quote": "accepts a comma-separated list of manifests, each carrying its own location, and when two manifests list the same graph id the later manifest wins",
+      "test": "crates/knowledge-graph::compiler::later_manifest_wins_for_a_duplicate_graph_id",
+      "since": "4.12.19+"
+    },
+    {
+      "id": "graph-set-all-or-none",
+      "claim": "A deployment manifest's sets register all of a set's graphs or none: when one graph of a set fails the gate, no graph of that set is executable.",
+      "pages": [
+        "docs/guides/configuration-reference.md"
+      ],
+      "quote": "a set registers all of its graphs or none",
+      "test": "crates/knowledge-graph::graph_set_loader::a_set_with_a_graph_the_gate_refuses_registers_none",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-set-duplicate-error",
+      "claim": "A duplicate graph id that involves a packaged set is logged as an ERROR, and the later copy in compile order owns the id.",
+      "pages": [
+        "docs/guides/configuration-reference.md"
+      ],
+      "quote": "a duplicate that involves a set is logged as an ERROR",
+      "test": "crates/knowledge-graph::graph_set_loader::a_duplicate_involving_a_set_is_won_by_the_later_copy",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-set-unpack-folder",
+      "claim": "sets need an unpack folder of their own: a file:/ location the application can write; a classpath: value, the Playground temp folder, a folder another manifest uses, or no unpack at all skips the manifest's sets with an ERROR while its loose graphs still compile.",
+      "pages": [
+        "docs/guides/configuration-reference.md"
+      ],
+      "quote": "`sets` need a writable `unpack` folder of their own",
+      "test": "crates/knowledge-graph::graph_set_loader::sets_need_a_writable_unpack_folder_of_their_own",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-set-crafted-entry-refused",
+      "claim": "A set whose entry is not named <graph-id>.json with a valid id is rejected before any file is written to the unpack folder.",
+      "pages": [
+        "docs/guides/configuration-reference.md"
+      ],
+      "quote": "rejected before any file is written",
+      "test": "crates/knowledge-graph::graph_set_loader::a_crafted_entry_name_is_refused_before_any_file_is_written",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-set-next-start-cleanup",
+      "claim": "The generated manifest in the unpack folder records every file the loader wrote, and the next start removes the file of a graph a new version of the set no longer holds; no other file is touched.",
+      "pages": [
+        "docs/guides/configuration-reference.md"
+      ],
+      "quote": "the next start removes a graph a new version of the set no longer holds",
+      "test": "crates/knowledge-graph::graph_set_loader::the_next_start_removes_the_files_of_a_graph_the_set_no_longer_holds",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "math-expression-dialect",
+      "claim": "The graph.math expression dialect is exactly: number, string and boolean literals; the operators ** (right-associative; a unary operand needs parentheses), unary + - !, * / %, + - (+ concatenates when either side is a string), < <= > >= (two numbers, or two strings compared lexically), == != (same type only, except that a string that is a canonical number compares as a number in all six comparison operators), && || (short-circuit), the ternary ?: and parentheses; the eighteen built-in functions sin, cos, tan, asin, acos, atan, sqrt, abs, floor, ceil, round, log, log10, exp, min, max, pow, random (each also under Math.); and the constants PI and E. Nothing else parses: no bitwise operators, no assignment or user variables, no user-defined functions - an unlisted function fails by name.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "This list is the whole dialect: an operator, function or constant not listed here is rejected by name, never silently accepted.",
+      "test": "crates/knowledge-graph::expression_dialect::the_dialect_is_exactly_the_documented_functions_and_constants",
+      "since": "4.9.0+"
+    },
+    {
+      "id": "math-decimal-statement",
+      "claim": "A graph.math DECIMAL statement is the high-precision COMPUTE: the expression is evaluated with exact decimal arithmetic and the result is stored as a canonical decimal string (plain notation, the computed scale kept, a zero of any scale written \"0\"); a Double or Float value is converted through its shortest decimal text at its minimal scale (exact over that text, and only as exact as the computation that produced it); rounding is always explicit, round(x, scale, mode); sqrt, log, log10, exp, trigonometry, random() and the constants PI and E are refused by name; COMPUTE is unchanged.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "`DECIMAL` is the high-precision `COMPUTE`: exact decimal arithmetic whose result is a canonical decimal string, and `COMPUTE` is untouched.",
+      "test": "crates/knowledge-graph::decimal_vectors::every_vector_holds_in_the_decimal_evaluator",
+      "since": "4.12.20+"
+    },
+    {
+      "id": "math-numeric-strings-compare-as-numbers",
+      "claim": "In graph.math a string that is a canonical number (plain notation: an optional minus sign, digits without leading zeros, an optional fraction) compares as a number in == != < <= > >=, so '200' == '200', 200 == 200 and 200 == '200' are the same comparison and '9.5' < '10.25' compares 9.5 with 10.25; the comparison is exact, and text that is not a canonical number keeps the strict rules.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "A string that is a canonical number compares as a number",
+      "test": "crates/knowledge-graph::numeric_string_comparison::the_three_spellings_of_one_comparison_are_the_same",
+      "since": "4.12.20+"
+    },
+    {
+      "id": "math-decimal-number-inputs",
+      "claim": "In a graph.math DECIMAL statement a JSON number (a Double or Float) is accepted and converted through the shortest decimal text it prints as, at its minimal scale and in plain notation (5.0E-4 is 0.0005, 100.0 is 100), so a number and the same decimal written as a string give the same answer; it is exact over that text and only as exact as the computation that produced the number, which the guide declares so that sending numbers instead of strings is a conscious decision.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "A JSON number is a double, and `DECIMAL` converts it through the shortest decimal text it prints as, at its minimal scale",
+      "test": "crates/knowledge-graph::graph_runtime::decimal_statement_matches_java_semantics",
+      "since": "4.12.20+"
+    },
+    {
+      "id": "mapping-source-dynamic-variables",
+      "claim": "In a MiniGraph data mapping a {namespace.key} reference inside a source resolves before the source is read - as a key segment (table.{model.key}), a list index (items[{model.i}]) or text in a constant or a plugin argument - and its value is inserted verbatim: a '!', '>', '&&' or '==' in a text constant does not quote it, and only a JSONPath filter quotes a text value; an unresolved reference renders the text null, so a composed key misses and the null-source rule applies; a composed key is case-sensitive.",
+      "pages": [
+        "docs/guides/knowledge-graph/command-reference.md"
+      ],
+      "quote": "A `{namespace.key}` reference inside a mapping source resolves before the source is read, and its value is inserted verbatim, never quoted",
+      "test": "crates/knowledge-graph::graph_runtime::mapping_source_resolves_dynamic_variables_verbatim",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "json-path-result-shape",
+      "claim": "A $. JSONPath mapping source takes Jayway's result shape - by the kind of path, not the number of matches: a definite path (child member names and single indexes only) yields the value, or null when it is absent; an indefinite path (a filter, a wildcard, a deep scan, a slice or a union) always yields a list, one match being a one-element list and no match an empty list, unless a member name before its first indefinite step is missing, which yields null.",
+      "pages": [
+        "docs/guides/event-script/syntax.md"
+      ],
+      "quote": "The result shape depends on the kind of path, not on the number of matches",
+      "test": "crates/knowledge-graph::graph_runtime::json_path_source_takes_the_jayway_shape",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "msgpack-nesting-limit",
+      "claim": "A MsgPack payload the engine decodes - an event envelope, an Event API request, MsgPack.unpack - may nest at most 64 maps and lists, the outermost container being level 1, so an envelope's body may nest 63; one level more is refused as a decoding error naming the limit (Nesting deeper than 64 levels; HTTP 400 at the Event API) before the decoder's recursion can exhaust the stack.",
+      "pages": [
+        "docs/guides/event-envelope-reference.md"
+      ],
+      "quote": "A payload nested deeper than 64 maps and lists is refused as a decoding error, the envelope map being level 1",
+      "test": "crates/platform-core::envelope_wire_format::an_envelope_nested_too_deep_is_a_decoding_error",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "msgpack-hostile-header",
+      "claim": "A MsgPack decoder of the engine - serializer::from_msgpack (the envelope and the Event API), EventEnvelope::from_bytes and canonical_packager::decode - refuses a header whose declared str, bin or ext length or array or map count exceeds the bytes that remain, as a decoding error and without allocating for the declared size, and refuses the format byte 0xc1, which the specification never uses; the shared vector file msgpack-hostile-header-vectors.json pins the same inputs in both engines.",
+      "pages": [
+        "docs/guides/event-envelope-reference.md"
+      ],
+      "quote": "A header that promises more than the input holds is refused at the header",
+      "test": "crates/platform-core::msgpack_hostile_header_vectors::every_hostile_header_is_refused_at_the_header",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "msgpack-empty-input",
+      "claim": "Empty MsgPack input decodes as an empty map at serializer::from_msgpack and as an empty envelope at EventEnvelope::from_bytes, never as a decoding error, following the Java engine's MsgPack.unpack (the reference implementation), while canonical_packager::decode refuses empty input because a package is never empty; the shared vector file pins it as the control the event codec accepts and the canonical decoder rejects.",
+      "pages": [
+        "docs/guides/event-envelope-reference.md"
+      ],
+      "quote": "Empty input decodes as an empty map, so an empty byte array is an empty envelope and never a decoding error",
+      "test": "crates/platform-core::msgpack_hostile_header_vectors::empty_input_is_an_empty_envelope_as_in_java",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "msgpack-exactly-one-value",
+      "claim": "A MsgPack payload the engine decodes holds exactly one value: serializer::from_msgpack (the envelope and the Event API) and canonical_packager::decode refuse bytes after the top-level container, well-formed or not, as a decoding error (Unexpected bytes after the value at offset N; HTTP 400 at the Event API), so two different byte strings never decode to the same value, following the Java engine (the reference implementation); the canonical decoder always did, the event codec does since Increment 165, and the shared vector file pins an empty map followed by 0xc1 and by a well-formed nil in both engines.",
+      "pages": [
+        "docs/guides/event-envelope-reference.md"
+      ],
+      "quote": "Bytes after the top-level container, well-formed or not, are refused as a decoding error",
+      "test": "crates/platform-core::msgpack_hostile_header_vectors::bytes_after_the_value_are_refused",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-schema-closed-vocabulary",
+      "claim": "A root or end node's schema property declares the request or response in a closed subset of OpenAPI 3.0 keywords (type, properties, required, items, enum, minimum, maximum, exclusiveMinimum, exclusiveMaximum, minLength, maxLength, pattern, minItems, maxItems, nullable, additionalProperties; title, description, example and format documentary), and schema::compile refuses an unknown keyword, a keyword that does not apply to the declared type, a malformed value and a pattern outside the subset common to both engines, naming the location; the shared vector file graph-schema-vectors.json pins every accept and reject in both engines (Increment 172).",
+      "pages": [
+        "docs/guides/knowledge-graph/graph-contract.md"
+      ],
+      "quote": "The vocabulary is a closed subset of OpenAPI 3.0 keywords, and the gate refuses any other keyword",
+      "test": "crates/knowledge-graph::graph_schema::the_gate_accepts_the_vocabulary_and_refuses_the_rest",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-input-validation-at-root",
+      "claim": "When the root node carries a schema, the executor and the Playground's traveler validate input.body and input.header against it as the first thing at the root on every run through the built-in function graph.schema.validator (common::validate_input - an assumed step, nothing written into the node, never repeated by a resumed traversal); a failure takes the standard task error path - HTTP 400 with every violation in one message, or the root's exception= handler - and never reaches the root's own skill.",
+      "pages": [
+        "docs/guides/knowledge-graph/graph-contract.md"
+      ],
+      "quote": "validated against the root node's schema as the first thing at the root on every run, and a failed validation never reaches the root's own skill",
+      "test": "crates/knowledge-graph::graph_runtime::input_validation_at_the_root",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-openapi-on-demand",
+      "claim": "GET /api/openapi/{graph_id} (dev mode) answers a minimal OpenAPI 3.0 document of a deployed graph as a YAML attachment, ?format=json as JSON and ?view=contract as the derived contract with its evidence, and GET /api/openapi/session/{sessionId} the same for a session's draft; the document is derived from the model on every request and never stored (Increment 171).",
+      "pages": [
+        "docs/guides/knowledge-graph/graph-contract.md"
+      ],
+      "quote": "The document is derived from the model each time it is requested and never stored",
+      "test": "crates/knowledge-graph::graph_runtime::openapi_document_on_demand",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-contract-declaration-wins",
+      "claim": "The graph contract (contract.rs) merges the declared schema over the surface discovered in the model (the path scan, direct evidence, one hop through a typed variable or an extension target's declared output): the declaration wins, a discovered path the declaration lacks is appended untyped and flagged, and a declared path the model never references is kept and flagged; the shared fixture graph-contract-vectors.json pins the contract view, the document and the describe lines in both engines.",
+      "pages": [
+        "docs/guides/knowledge-graph/graph-contract.md"
+      ],
+      "quote": "The declaration wins: a discovered path the declaration lacks is appended untyped and flagged, and a declared path the model never references is kept and flagged",
+      "test": "crates/knowledge-graph::graph_contract::shared_vectors_pin_the_contract_and_the_document",
+      "since": "4.12.21+"
+    },
+    {
+      "id": "graph-schema-dry-run-parity",
+      "claim": "A Playground dry run validates the instance's input.body and input.header against the root's schema exactly as the deployed executor does - the same assumed step, the same message - and the pre-run check refuses a schema outside the vocabulary before the run starts.",
+      "pages": [
+        "docs/guides/knowledge-graph/graph-contract.md"
+      ],
+      "quote": "A dry run in the Playground validates the input exactly as a deployed run does",
+      "test": "crates/knowledge-graph::graph_runtime::dry_run_validates_the_input_at_the_root",
+      "since": "4.12.21+"
+    }
+  ]
+}
