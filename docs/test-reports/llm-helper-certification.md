@@ -43,9 +43,9 @@ Claude key with nothing throttled.*
 - **The engines held no credential.** The credential reached the two helpers only; each engine process was started without
   one (verified by counting the variable in each process's environment: 1 for each helper, 0 for each engine).
 - **AWS Bedrock through IAM, driven 2026-10-14 ([Scenario 8](#scenario-8-aws-bedrock-through-iam-the-helpers-second-backend-driven-2026-10-14)).**
-  The helper's second backend ran against an enterprise account with temporary IAM credentials and no vendor key: negative
+  The helper's second backend ran against an enterprise account through IAM and no vendor key: negative
   controls first, then a chat reply, a structured verdict and a progressive stream on Haiku 4.5 from both helpers, and the Java
-  engine's shipped triage graph and streaming relay in front of each. The account's two surfaces and its model gates are Finding 7.
+  engine's shipped triage graph and streaming relay in front of each. Bedrock's two surfaces and its model gates are Finding 7.
 
 ## What was under test
 
@@ -251,9 +251,9 @@ business correlation id and the trace id in their `context` block, and the compl
 ## Scenario 8 — AWS Bedrock through IAM: the helper's second backend, driven 2026-10-14
 
 The helper's Bedrock backend (`llm.backend: 'bedrock'`, mercury-python #43 and mercury-nodejs #111, the surface setting of
-mercury-python #44 and its Node twin) was driven on 2026-10-14 (UTC) against an enterprise AWS account in `us-east-1`, with
-temporary IAM credentials - a key pair and a session token - in the helper processes' environment and nothing else: no vendor
-API key anywhere. Negative controls ran first. Each helper ran on a port of its own and was driven over Event-over-HTTP with the
+mercury-python #44 and its Node twin) was driven on 2026-10-14 (UTC) against an enterprise AWS account, with IAM credentials
+in the helper processes' environment and nothing else: no vendor API key anywhere. Negative controls ran first. Each helper ran
+on a port of its own and was driven over Event-over-HTTP with the
 Python pack's `PostOffice` client, then the Java engine (the shipped playground, `-Dllm.peer.port`) ran in front of each.
 
 | Step | Python helper | Node.js helper |
@@ -267,8 +267,7 @@ Python pack's `PostOffice` client, then the Java engine (the shipped playground,
 | Java engine, the streaming relay `/api/llm/stream` | 4 `data` frames, then `done` with usage, the trace id and the correlation id | the same, `language: node.js` |
 
 Every call ran on `us.anthropic.claude-haiku-4-5-20251001-v1:0` through the classic Bedrock runtime (`llm.aws.api: 'runtime'`),
-because the account turned out to be enabled for that surface and not for the Anthropic-shaped one the SDK prefers, and for
-Haiku 4.5 and not for the newer model generation (Finding 7). The Rust engine was not driven in this round: a backend changes
+the surface and the model available to the drive (Finding 7). The Rust engine was not driven in this round: a backend changes
 nothing in an engine, which reaches the helper by route, and the Java engine's two layers show the composition unchanged.
 `/api/llm/chat` of Scenario 3 is an entry of the deploy folder (Appendix A), not a shipped one, and was not redeployed.
 
@@ -307,13 +306,12 @@ nothing in an engine, which reaches the helper by route, and the Java engine's t
 7. **Bedrock has two surfaces, two gates and a model vocabulary of its own (2026-10-14).** The SDK's preferred Bedrock client
    targets an Anthropic-shaped endpoint that spells a model `anthropic.claude-opus-5-5`; the classic runtime takes an inference
    profile id exactly as the account lists it (`us.anthropic.claude-haiku-4-5-20251001-v1:0`), with a date and a version no rule
-   can derive. An account may be enabled for one surface and not the other: this one answered `403 ... is not available for
-   this account` on the Anthropic-shaped endpoint for every Claude model while the classic runtime served Haiku 4.5, so the
-   helper gained `llm.aws.api` (`mantle`, the default, or `runtime`) and `llm.health` names the surface. Model access is two
-   steps - a one-time use case for Anthropic models and a per-model agreement, `CreateFoundationModelAgreement` on the offer the
-   account is given - and the agreement alone does not open a model generation the account is not enabled for: Opus 5.5, Sonnet
-   5.5 and Haiku 5.5 stayed `403` on both surfaces with their agreements active, an AWS account-team matter rather than a
-   setting; `GetFoundationModelAvailability` tells the four gates apart (agreement, authorization, entitlement, region).
+   can derive. An account may be enabled for one surface and not the other - a call to a surface the account is not enabled
+   for answers `403 ... is not available for this account` - so the helper gained `llm.aws.api` (`mantle`, the default, or
+   `runtime`) and `llm.health` names the surface. Model access is two steps - a one-time use case for Anthropic models and a
+   per-model agreement, `CreateFoundationModelAgreement` on the offer the account is given - and the agreement alone does not
+   open a model generation the account is not enabled for: that is an account enablement rather than a setting;
+   `GetFoundationModelAvailability` tells the four gates apart (agreement, authorization, entitlement, region).
    Bedrock sends no `request-id` the helper reads, so a reply carries none. The negative control earned its place: the second
    one surfaced the SDK's exact wording for an empty credential chain, `Could not resolve AWS credentials from session`, which
    the Python mapping had not covered - fixed in mercury-python #44; the Node chain's `CredentialsProviderError` mapped as built.
