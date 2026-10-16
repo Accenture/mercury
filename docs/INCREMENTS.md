@@ -4899,3 +4899,17 @@ Gates: `cargo test -p mercury-event-script --lib range` and `cargo test -p mercu
 range_lookup_vectors` (the vector tests run without the name filter, which left them out of the earlier one-line gate),
 `cargo test -p mercury-knowledge-graph`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all --check`,
 `scripts/check-doc-claims.py`, `scripts/check-llms-links.py`.
+
+## Increment 180 — rustls 0.23.46 for four RustSec advisories (2026-10-16)
+
+The `audit` gate (Increment 138) did its job: on 2026-10-16 it failed a docs-only pull request and then the main branch's own run on
+four RustSec advisories against `rustls` 0.23.45, published on 2026-10-14 - RUSTSEC-2026-0346 (`Debug` impls for client session
+values expose TLS secrets), RUSTSEC-2026-0347 (buffered application data sent to the outer server after an ECH rejection),
+RUSTSEC-2026-0348 (Brotli certificate decompression can allocate up to 1 GiB before authentication) and RUSTSEC-2026-0349 (an
+unauthenticated ServerHello can downgrade later connections to classical key exchange), all patched in 0.23.46.
+`cargo update -p rustls --precise 0.23.46` moves that one crate in the lockfile and nothing else; `cargo tree -i rustls` names its
+dependents, `tokio-rustls` 0.26.4 behind the platform's HTTP client and `redis` 1.5.0 behind the four Redis extensions, whose
+`^0.23` ranges take the patch release as is. No source changes. CHANGELOG Unreleased, a `Security` item.
+
+Gates: `cargo build --workspace`, `cargo test --workspace` (every suite green, unchanged), and the CI `audit` job on the pull
+request.

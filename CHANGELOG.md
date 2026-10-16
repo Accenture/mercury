@@ -13,7 +13,17 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
-Nothing yet. Each change merged to `main` after v4.12.24 is listed here; it moves under its release heading when the version is cut.
+Each change merged to `main` after v4.12.24 is listed here; it moves under its release heading when the version is cut.
+
+### Security
+
+1. **rustls 0.23.46 (Increment 180).** The `audit` gate failed on 2026-10-16 on four RustSec advisories against `rustls` 0.23.45,
+   published on 2026-10-14 and all patched in 0.23.46: RUSTSEC-2026-0346 (`Debug` impls for client session values expose TLS
+   secrets), RUSTSEC-2026-0347 (buffered application data sent to the outer server after an ECH rejection), RUSTSEC-2026-0348
+   (Brotli certificate decompression can allocate up to 1 GiB before authentication) and RUSTSEC-2026-0349 (an unauthenticated
+   ServerHello can downgrade later connections to classical key exchange). The lockfile moves that one crate; its dependents are
+   `tokio-rustls` (the platform's HTTP client) and `redis` (the four Redis extensions). The workspace builds and its tests pass
+   unchanged. **Upgrade note:** none - a lockfile bump, no API change.
 
 ---
 ## Version 4.12.24, 10/12/2026
