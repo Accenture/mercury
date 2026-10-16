@@ -145,6 +145,35 @@ stale since increment 1; caught by the memory smoke test.)*
 3. When in doubt about a pattern or convention, ask rather than assume.
 4. Record all significant decisions in the session log and continuity file.
 5. If you see a TODO, open thread, or obvious issue, note it in continuity.md.
+6. **Compartmentalize downstream secrets (standing instruction, Eric, 2026-09-30).** This
+   repository and its siblings — `mercury`, `mercury-composable`, `mercury-python`,
+   `mercury-nodejs`, `mercury-go` — are open source. Nothing that identifies a downstream
+   adopter may enter them: **customer or company names and brands, project and repository
+   names, people's names, and other project-identifiable data** (pilot lengths and dates,
+   internal RFC/ticket ids, business-domain specifics, hostnames, cloud accounts). This
+   covers code, tests, docs, commit messages, PR text, and above all `memory/` — session
+   logs, `continuity.md`, `open-threads/`, archives, and any ADR/RFC entries. A downstream
+   brand name is never recorded in session memory or in any open thread.
+   - **Refer to it generically:** "a downstream adopter", "the field" (client production
+     installations that consume Mercury releases through their own governed pipelines), "a
+     field installation". Describe the *technical* need, not whose need it was or what
+     business it serves; generalize a domain-specific example (e.g. "financial contracts",
+     not the adopter's industry niche).
+   - **Input documents from a downstream project** (feature requests, design drafts) may name
+     their origin. Read them, but scrub before anything is copied into this repo: names,
+     "prepared in <their repo>", their internal RFC numbers, adopter-specific use cases.
+     Cite them in memory only as "a downstream design draft" — never by path or repo name.
+   - **Scan before committing or opening a PR:** `git diff` (and staged memory) for any
+     identifier from the source material. If something leaks, stop and tell Eric before
+     pushing; history on `main` is append-only, so a leak cannot be quietly undone.
+   - **The field's infrastructure cost and setup issues are out of scope too (Eric, 2026-10-16):**
+     an API credit balance, cloud account setup, expired credentials, model access gating and
+     similar matters are outside this open-source project's control and are escalated to the
+     field admin. They are never logged here, in memory or in docs; a record says what the
+     project did and learned, not what the field's infrastructure did.
+   - Applies to every agent and every session, including lightweight logs. The rule's history
+     lives in mercury-composable (`memory/instructions.md` Core Rule 6, fact
+     `conv-compartment-downstream-secrets`).
 
 ## Testing
 
