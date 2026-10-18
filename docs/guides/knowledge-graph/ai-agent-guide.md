@@ -284,23 +284,24 @@ promotes.
    ```bash
    cargo run -p mercury-graph-packager -- pack --set {set} --manifest version=1.0.0 /tmp/graph/{name}.json
    ```
-2. **Stage** the file with a manifest that names the set and an `unpack` folder the application can write:
+2. **Stage** the file with a manifest that names the set and an `unpack` folder the application can write,
+   outside the Playground's temp folder (`location.graph.temp`, `/tmp/graph` by default):
    ```bash
    mkdir -p /tmp/graph/deploy && cp {set}.pack /tmp/graph/deploy/
    cat > /tmp/graph/deploy/graphs.yaml <<'EOF'
    location: 'file:/tmp/graph/deploy'
    sets:
      - '{set}'
-   unpack: 'file:/tmp/graph/deploy/unpacked'
+   unpack: 'file:/tmp/unpack'
    EOF
    ```
 3. **Restart** with both manifests as above and **verify** the set in the startup log:
    ```
-   Deployed set {set} (version 1.0.0) from file:/tmp/graph/deploy/{set}.pack - 1 graphs into file:/tmp/graph/deploy/unpacked
+   Deployed set {set} (version 1.0.0) from file:/tmp/graph/deploy/{set}.pack - 1 graphs into file:/tmp/unpack
    ```
    `list graphs` shows `{name} (set {set}, version 1.0.0)`, a duplicate of a bundled id is logged as an
    ERROR (the set's copy wins, as a later manifest's does), and `import graph from {name}` finds the
-   unpacked copy. The loader's generated manifest, `/tmp/graph/deploy/unpacked/graphs.yaml`, records what
+   unpacked copy. The loader's generated manifest, `/tmp/unpack/graphs.yaml`, records what
    deployed and which files it wrote.
 
 The rules of a set — the entry names, the root-name agreement, the manifest fields, the command line

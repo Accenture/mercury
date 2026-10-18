@@ -744,9 +744,9 @@ Read by `crates/knowledge-graph` (compiler).
 `<set>.pack` ([the canonical package](canonical-package-format.md#graph-sets)), read from the manifest's
 `location` — and must then name an `unpack` folder: a `file:/` location the application can write, where the
 loader writes every graph of a set as `<unpack>/<graph-id>.json` before the gate reads it. A `classpath:` value,
-the Playground's temp folder (`location.graph.temp`) and a folder another manifest already uses are refused:
-`sets` need a writable `unpack` folder of their own, and without one the manifest's sets are skipped with an ERROR
-while its loose graphs still compile.
+the Playground's temp folder (`location.graph.temp`) or a folder inside it, and a folder another manifest already uses
+are refused: `sets` need a writable `unpack` folder of their own, and without one the manifest's sets are skipped with
+an ERROR while its loose graphs still compile.
 
 ```yaml
 graphs:
