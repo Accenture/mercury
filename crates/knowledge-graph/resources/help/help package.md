@@ -62,13 +62,14 @@ Deploying a set
 ---------------
 List the set in the deployment manifest beside the loose graphs, and name a
 file:/ folder the application can write, where the set is unpacked before
-the gate reads it:
+the gate reads it. The folder must be outside the Playground's temp folder
+(location.graph.temp, /tmp/graph by default):
 
 ```yaml
 location: 'classpath:/graph'      # where <set>.pack is read from
 sets:
   - 'my-set'
-unpack: 'file:/tmp/graph/unpacked'
+unpack: 'file:/tmp/unpack'
 ```
 
 - A set registers all of its graphs or none; the ERROR in the startup log

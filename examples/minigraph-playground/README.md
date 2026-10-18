@@ -63,7 +63,8 @@ through the `graph-executor` flow:
 curl -X POST 'http://127.0.0.1:8085/api/graph/{graph-id}' -H 'content-type: application/json' -d '{...}'
 ```
 
-All fourteen tutorials and `support-triage` are deployed in this app (`resources/graphs.yaml`). Tutorial 13,
+All fourteen tutorials and `support-triage` are deployed in this app (`resources/graphs.yaml`): tutorial 1 and
+`support-triage` as loose graphs, tutorials 2 to 14 as the graph set `tutorials`. Tutorial 13,
 for one, fetches a profile from the app's own dev mock endpoint:
 
 ```bash
@@ -114,10 +115,11 @@ the relay and the AI node (see the OpenTelemetry certification report).
 | `src/main.rs` | the one-line main; links the engine's inventory |
 | `resources/application.yml` | app name, `app.env=dev`, port, temp folder |
 | `resources/rest.yaml` | the Playground/companion endpoint bindings |
-| `resources/graphs.yaml` | the deployment manifest: the fourteen tutorials and `support-triage` (compiled or 404) |
+| `resources/graphs.yaml` | the deployment manifest: `tutorial-1`, `support-triage` and the set `tutorials` (compiled or 404); the set unpacks into `/tmp/unpack` |
 | `resources/flows.yaml` | the flows this app deploys: `graph-executor` and `flow-11` |
 | `resources/flows/graph-executor.yml` | the standard exposure flow behind `POST /api/graph/{graph-id}` |
 | `resources/flows/flow-11.yml` | the echo flow that tutorial 11's `graph.extension` node calls (`flow://flow-11`) |
-| `resources/graph/support-triage.json` | the E0 triage graph; the tutorials' own models travel with the engine crate |
+| `resources/graph/support-triage.json` | the E0 triage graph; tutorial 1's model travels with the engine crate |
+| `resources/graph/tutorials.pack` | the graph set `tutorials` (version 1.0): tutorials 2 to 14, packed by the graph packager |
 | `../../crates/knowledge-graph/resources/public/` | the served bundle, deployed from the Java repo's webapp (`npm run release:rust`) |
 | `../../crates/knowledge-graph/resources/help/` | the `describe`/help markdown, mirrored from the Java repo by the same command |

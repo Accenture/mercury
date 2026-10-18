@@ -19,7 +19,6 @@ Enter 'import graph from tutorial-7' first.
 ```
 > import graph from tutorial-7
 Found deployed graph model in classpath:/graph
-Please export an updated version and re-import to instantiate an instance model
 Graph model imported as draft
 ```
 

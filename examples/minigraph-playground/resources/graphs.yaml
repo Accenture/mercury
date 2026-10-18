@@ -5,29 +5,27 @@
 # answers HTTP-404 as if it does not exist (the CompileFlows precedent).
 graphs:
   - 'tutorial-1'
-  - 'tutorial-2'
-  - 'tutorial-3'
-  - 'tutorial-4'
-  - 'tutorial-5'
-  - 'tutorial-6'
-  - 'tutorial-7'
-  - 'tutorial-8'
-  - 'tutorial-9'
-  - 'tutorial-10'
-  - 'tutorial-11'
-  - 'tutorial-12'
-  # tutorial-13: graph.task as an HTTP client by configuration - async.http.request fetches a
-  # profile from this app's own dev mock endpoint (/api/mdm/profile/{id} in rest.yaml, app.env=dev)
-  - 'tutorial-13'
-  # tutorial-14: the suspend/resume purchase workflow (three checkpoints, four
-  # runs, one business correlation id) - see 'help tutorial 14' and the
-  # workflow-suspension guide
-  - 'tutorial-14'
   # the agent-orchestration experiment E0 (bounded-agency support triage): its llm.chat
   # node is a function on the LLM helper app (a python or node host) reached through
   # event-over-http.yaml
   - 'support-triage'
 
+#
+# Graph set is optional
+# ---------------------
+#
+# To illustrate use of "graph sets",
+# tutorial-2 to 14 are deployed in packed format under resources/graph/tutorials.pack.
+# (tutorial-13 fetches a profile from this app's own dev mock endpoint; tutorial-14 is
+# the suspend/resume purchase workflow - see 'help tutorial 14')
+#
+# The "unpack" folder is "/tmp/unpack".
+#
+sets:
+  - 'tutorials'
+
 # like flows.yaml, the manifest carries the location of its own models
-# (the tutorials travel with the knowledge-graph engine's resources)
+# (tutorial-1 travels with the knowledge-graph engine's resources)
 location: 'classpath:/graph'
+
+unpack: 'file:/tmp/unpack'
