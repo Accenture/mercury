@@ -27,7 +27,6 @@ Enter the following to import tutorial 3. Note that tutorial-3.json is preloaded
 > import graph from tutorial-3
 Graph model not found in /tmp/graph/tutorial-3.json
 Found deployed graph model in classpath:/graph
-Please export an updated version and re-import to instantiate an instance model
 Graph model imported as draft
 ```
 

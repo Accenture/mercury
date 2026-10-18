@@ -1986,10 +1986,7 @@ async fn handle_import_graph(
                 say(
                     po,
                     out_route,
-                    format!(
-                        "Found deployed graph model in {location}\nPlease export an updated version \
-                         and re-import to instantiate an instance model"
-                    ),
+                    format!("Found deployed graph model in {location}"),
                 )
                 .await;
                 import_graph_as_draft(po, in_route, out_route, &json).await
