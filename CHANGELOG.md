@@ -51,6 +51,13 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    upload has none, the header carrying the instance's `model.cid` - and `x-iteration-index` setting `model.iteration_index`. The
    console names each derived value. **Upgrade note:** a dry run that read a mock header back under its written case now sees the
    lower-case name; a graph reading one header by name is unaffected.
+2. **The Playground's graph view widens a node whose text would wrap heavily (Increment 183).** Every node was 240 px wide, so a
+   node with long mapping lines or a long description grew into a tall, narrow column. A node now starts at 240 px and widens in
+   40 px steps, up to 480 px, while its property values would wrap onto more than 1.5 lines per row on average; every node in a
+   layout column takes the width of the column's widest node, and thumbnail mode keeps every card at 240 px. The change is in the
+   Java repo's webapp (mercury-composable #570); this repo receives the regenerated bundle (`index-CWNizJaH` became
+   `index-QRtKBTvK`; the other chunks and the 44 help pages are unchanged). **Upgrade note:** none - a layout change in the
+   dev-mode Playground only.
 
 ---
 ## Version 4.12.24, 10/12/2026

@@ -4947,3 +4947,22 @@ moves that one crate in the lockfile and nothing else; `cargo tree -i rustls-web
 item.
 
 Gates: `cargo build --workspace`, `cargo test --workspace` (719 passed, unchanged), and the CI `audit` job on the pull request.
+
+## Increment 183 — The Playground's graph view widens a node whose text would wrap heavily; the bundle is regenerated (2026-10-21)
+
+A webapp change made in the Java repo (mercury-composable #570) and deployed here with `npm run release:all` (Increment 152's lane). The
+engine did not change.
+
+- **The problem.** Every node in the Graph tab was 240 px wide. A node with long mapping lines or a long description wrapped each value onto
+  three or four lines and grew into a tall, narrow column; in a text-heavy graph one node was taller than the screen.
+- **The rule.** A node starts at 240 px and widens in 40 px steps, up to 480 px, while its property rows would wrap onto more than 1.5 lines
+  per row on average. The layout's existing line estimate (22 characters per line at 240 px) now scales with the width: the value column is
+  the node width minus 86 px, at one character per 7 px of the 12 px text, both measured in the browser. Every flow node in a layout column
+  takes the width of the column's widest node, so the column stays aligned and the edge-intrusion scoring stays exact; columns are 120 px
+  apart. Segregated nodes keep their own width; thumbnail mode keeps every card at 240 px.
+- **The bundle.** `index-CWNizJaH` became `index-QRtKBTvK`; the vendor chunks, the stylesheets and the 44 mirrored help pages are
+  byte-identical.
+- **Checked.** The webapp's own tests in the Java repo (57 files, 461 tests, six new for the width rule); `cargo test -p
+  mercury-knowledge-graph --test home_page` 2/2 with the deployed bundle.
+
+Gates: `cargo test -p mercury-knowledge-graph`, `cargo test -p minigraph-playground`.
