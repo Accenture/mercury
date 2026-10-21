@@ -4948,9 +4948,9 @@ item.
 
 Gates: `cargo build --workspace`, `cargo test --workspace` (719 passed, unchanged), and the CI `audit` job on the pull request.
 
-## Increment 183 — The Playground's graph view widens a node whose text would wrap heavily and exports the graph as a PNG; the bundle is regenerated (2026-10-21)
+## Increment 183 — The Playground's graph view widens a node whose text would wrap heavily and exports the graph as a PNG; a favicon; the bundle is regenerated (2026-10-21)
 
-Two webapp changes made in the Java repo (mercury-composable #570 and #571) and deployed here together with `npm run release:all`
+Two webapp changes made in the Java repo (mercury-composable #570 and #571, with two touch-ups) and deployed here together with `npm run release:all`
 (Increment 152's lane). The engine did not change.
 
 - **Node width (#570).** Every node in the Graph tab was 240 px wide. A node with long mapping lines or a long description wrapped each
@@ -4966,9 +4966,13 @@ Two webapp changes made in the Java repo (mercury-composable #570 and #571) and 
   created. The image draws the node cards without their shadow: Safari paints a blurred box-shadow inside the renderer's `foreignObject`
   as a solid grey block. No SVG export: the renderer's SVG keeps the node cards as HTML inside `foreignObject`, which most SVG renderers outside a
   browser show as a blank image.
-- **The bundle.** `index-CWNizJaH.js` became `index-Ce3GNaH4.js` and `index-DaTDFwQo.css` became `index-BH572KKk.css`; the vendor chunks
+- **Touch-ups (the same round, on #571).** The console's command input states its keys once: the placeholder is "Enter command" and the
+  hint below it reads "⏎ to send · ⇧⏎ for new line · ↑↓ for history". And `resources/public/favicon.ico`, the Mercury atom at 16, 32 and
+  48 px, the same file as the Java engine's, answers the `/favicon.ico` request that used to be a 404 (`serve_static` maps `.ico` to
+  `image/x-icon`).
+- **The bundle.** `index-CWNizJaH.js` became `index-Dhz_Pqc_.js` and `index-DaTDFwQo.css` became `index-BH572KKk.css`; the vendor chunks
   and the 44 mirrored help pages are byte-identical, and every deployed file is byte-identical with the one the Java branch commits.
-- **Checked.** The webapp's own tests in the Java repo (59 files, 488 tests); the export in Chrome 156, Firefox 158 and Safari 27
+- **Checked.** The webapp's own tests in the Java repo (60 files, 490 tests); the export in Chrome 156, Firefox 158 and Safari 27
   against the Java engine (the same image in each); `cargo test -p mercury-knowledge-graph -p minigraph-playground` with the deployed
   bundle (25 test binaries, 99 tests).
 

@@ -48,8 +48,11 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    export: the renderer's SVG keeps the node cards as HTML inside `foreignObject`, which vector editors and office suites show as a
    blank image. The change is in the Java repo's webapp (mercury-composable #571, with the npm dependency `html-to-image` 1.11.11,
    MIT); this repo receives the regenerated bundle, which carries both #570 and #571: `index-CWNizJaH.js` became
-   `index-Ce3GNaH4.js` and `index-DaTDFwQo.css` became `index-BH572KKk.css`; the vendor chunks and the 44 help pages are
+   `index-Dhz_Pqc_.js` and `index-DaTDFwQo.css` became `index-BH572KKk.css`; the vendor chunks and the 44 help pages are
    unchanged. **Upgrade note:** none - a new toolbar action in the dev-mode Playground.
+3. **The Playground engine has a favicon - the Mercury atom.** `resources/public/favicon.ico` holds 16, 32 and 48 px images of the white
+   atom that the documentation site and the API playground use, on the API playground's deep purple. It is the same file as the Java
+   engine's; every Playground page load used to answer `/favicon.ico` with 404. **Upgrade note:** none.
 
 ### Changed
 
@@ -66,6 +69,9 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    layout column takes the width of the column's widest node, and thumbnail mode keeps every card at 240 px. The change is in the
    Java repo's webapp (mercury-composable #570); this repo receives the regenerated bundle (see Added 2). **Upgrade note:** none -
    a layout change in the dev-mode Playground only.
+3. **The Playground's command input states its keys once.** The input box's placeholder repeated the hint printed below it; it now reads
+   "Enter command", and the hint below uses symbols: "⏎ to send · ⇧⏎ for new line · ↑↓ for history". The change is in the Java repo's
+   webapp (mercury-composable #571); this repo receives the regenerated bundle (see Added 2). **Upgrade note:** none.
 
 ---
 ## Version 4.12.24, 10/12/2026
