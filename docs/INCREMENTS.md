@@ -4936,3 +4936,14 @@ repository and the graph-contract guide names the Input header rows. Pinned by t
 
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p mercury-knowledge-graph`,
 `cargo test -p minigraph-playground`.
+
+## Increment 182 — rustls-webpki 0.103.16 for RUSTSEC-2026-0382 (2026-10-20)
+
+The `audit` gate failed the pull request of Increment 181 on RUSTSEC-2026-0382 against `rustls-webpki` 0.103.15, published on
+2026-10-20 (certificate verification may accept distrusted intermediates) and patched in 0.103.16 - an advisory of the day, not
+the change under review, so the main branch's next run would fail the same way. `cargo update -p rustls-webpki --precise 0.103.16`
+moves that one crate in the lockfile and nothing else; `cargo tree -i rustls-webpki` names its one dependent, `rustls` 0.23.46
+(Increment 180), behind `tokio-rustls` 0.26.4 and `redis` 1.5.0. No source changes. CHANGELOG Unreleased, a second `Security`
+item.
+
+Gates: `cargo build --workspace`, `cargo test --workspace` (719 passed, unchanged), and the CI `audit` job on the pull request.

@@ -24,6 +24,11 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    ServerHello can downgrade later connections to classical key exchange). The lockfile moves that one crate; its dependents are
    `tokio-rustls` (the platform's HTTP client) and `redis` (the four Redis extensions). The workspace builds and its tests pass
    unchanged. **Upgrade note:** none - a lockfile bump, no API change.
+2. **rustls-webpki 0.103.16 (Increment 182).** The `audit` gate failed on 2026-10-21 on RUSTSEC-2026-0382 against `rustls-webpki`
+   0.103.15, published on 2026-10-20 and patched in 0.103.16: certificate verification may accept distrusted intermediates. The
+   lockfile moves that one crate; it sits behind `rustls` 0.23.46, whose dependents are `tokio-rustls` (the platform's HTTP client)
+   and `redis` (the four Redis extensions). The workspace builds and its tests pass unchanged. **Upgrade note:** none - a lockfile
+   bump, no API change.
 
 ### Added
 
