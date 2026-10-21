@@ -4977,3 +4977,19 @@ Two webapp changes made in the Java repo (mercury-composable #570 and #571, with
   bundle (25 test binaries, 99 tests).
 
 Gates: `cargo test -p mercury-knowledge-graph`, `cargo test -p minigraph-playground`.
+
+## Increment 184 — The Playground bundle is rebuilt with Vite 8.3.5 (Rolldown 1.2.15) (2026-10-21)
+
+A toolchain change in the Java repo's webapp (mercury-composable #572, a Dependabot security update), deployed here with
+`npm run release:all` (Increment 152's lane). The engine did not change.
+
+- **Why.** Vite 8.1.5 was affected by five dev-server advisories (GHSA-587h-7wmj-h5pm high, three medium, one low), none of them in the
+  shipped bundle. Vite 8.3.5 brings Rolldown 1.1.5 → 1.2.15, which emits a different bundle: every JavaScript chunk changes, the
+  CommonJS interop helper among them (`__toESM` now checks for an own `default` export), and the router vendor chunk is 4.6 KB smaller.
+- **The bundle.** `index-Dhz_Pqc_.js` became `index-CrqpNrFx.js`; the runtime and vendor chunks have new hashes. `index-BH572KKk.css`,
+  `favicon.ico` and the 44 help pages are unchanged, and every deployed file is byte-identical with the Java repo's.
+- **Checked.** In the Java repo the two bundles were A/B-tested in Chrome 156 and Firefox 158 against two engine jars: routing, the graph
+  view, the Raw view, the help panel, the command palette and the PNG export were the same, pixel for pixel, and there were no console errors.
+  Here, `cargo test -p mercury-knowledge-graph --test home_page` passed with the deployed bundle.
+
+Gates: `cargo test -p mercury-knowledge-graph`.

@@ -72,6 +72,12 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
 3. **The Playground's command input states its keys once.** The input box's placeholder repeated the hint printed below it; it now reads
    "Enter command", and the hint below uses symbols: "⏎ to send · ⇧⏎ for new line · ↑↓ for history". The change is in the Java repo's
    webapp (mercury-composable #571); this repo receives the regenerated bundle (see Added 2). **Upgrade note:** none.
+4. **The Playground bundle is rebuilt with Vite 8.3.5 (Rolldown 1.2.15; Increment 184).** The Java repo's webapp moved from Vite 8.1.5
+   to close five Vite dev-server advisories (mercury-composable #572). The new Rolldown emits a different bundle - every JavaScript
+   chunk changes, the CommonJS interop helper among them - so this repo receives the rebuilt files, byte-identical with the Java
+   repo's: `index-Dhz_Pqc_.js` becomes `index-CrqpNrFx.js`, and the vendor and runtime chunks get new hashes. The stylesheet, the
+   favicon and the 44 help pages are unchanged. **Upgrade note:** none - in Chrome and Firefox the rebuilt bundle behaves the same.
+
 
 ---
 ## Version 4.12.24, 10/12/2026
