@@ -41,6 +41,15 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    regenerated bundle's Upload form gains **Model variables** rows - a name, a type (text, number, boolean or JSON) and the value -
    posted after the headers, and its labels read **JSON payload (input body)** and **Input header (optional)**; `help upload` is
    mirrored from the Java repository. **Upgrade note:** none - a new namespace.
+2. **The Playground exports the graph as a PNG image (Increment 183).** The Graph tab's toolbar gains an **Export PNG** button that
+   saves the whole graph, not only the part the viewport shows, at zoom 1 with a solid background and 2 image pixels per graph
+   pixel, as `<graph-id>.png`; the minimap, the zoom controls and the selection outline stay out of the image, and the node cards
+   are drawn without their shadow, which Safari paints as a solid grey block. There is no SVG
+   export: the renderer's SVG keeps the node cards as HTML inside `foreignObject`, which vector editors and office suites show as a
+   blank image. The change is in the Java repo's webapp (mercury-composable #571, with the npm dependency `html-to-image` 1.11.11,
+   MIT); this repo receives the regenerated bundle, which carries both #570 and #571: `index-CWNizJaH.js` became
+   `index-Ce3GNaH4.js` and `index-DaTDFwQo.css` became `index-BH572KKk.css`; the vendor chunks and the 44 help pages are
+   unchanged. **Upgrade note:** none - a new toolbar action in the dev-mode Playground.
 
 ### Changed
 
@@ -55,9 +64,8 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    node with long mapping lines or a long description grew into a tall, narrow column. A node now starts at 240 px and widens in
    40 px steps, up to 480 px, while its property values would wrap onto more than 1.5 lines per row on average; every node in a
    layout column takes the width of the column's widest node, and thumbnail mode keeps every card at 240 px. The change is in the
-   Java repo's webapp (mercury-composable #570); this repo receives the regenerated bundle (`index-CWNizJaH` became
-   `index-QRtKBTvK`; the other chunks and the 44 help pages are unchanged). **Upgrade note:** none - a layout change in the
-   dev-mode Playground only.
+   Java repo's webapp (mercury-composable #570); this repo receives the regenerated bundle (see Added 2). **Upgrade note:** none -
+   a layout change in the dev-mode Playground only.
 
 ---
 ## Version 4.12.24, 10/12/2026
