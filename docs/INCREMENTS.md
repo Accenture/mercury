@@ -4947,3 +4947,33 @@ moves that one crate in the lockfile and nothing else; `cargo tree -i rustls-web
 item.
 
 Gates: `cargo build --workspace`, `cargo test --workspace` (719 passed, unchanged), and the CI `audit` job on the pull request.
+
+## Increment 183 — The Playground's graph view widens a node whose text would wrap heavily and exports the graph as a PNG; a favicon; the bundle is regenerated (2026-10-21)
+
+Two webapp changes made in the Java repo (mercury-composable #570 and #571, with two touch-ups) and deployed here together with `npm run release:all`
+(Increment 152's lane). The engine did not change.
+
+- **Node width (#570).** Every node in the Graph tab was 240 px wide. A node with long mapping lines or a long description wrapped each
+  value onto three or four lines and grew into a tall, narrow column; in a text-heavy graph one node was taller than the screen. A node
+  now starts at 240 px and widens in 40 px steps, up to 480 px, while its property rows would wrap onto more than 1.5 lines per row on
+  average. The layout's existing line estimate (22 characters per line at 240 px) now scales with the width: the value column is the
+  node width minus 86 px, at one character per 7 px of the 12 px text, both measured in the browser. Every flow node in a layout column
+  takes the width of the column's widest node, so the column stays aligned and the edge-intrusion scoring stays exact; columns are 120 px
+  apart. Segregated nodes keep their own width; thumbnail mode keeps every card at 240 px.
+- **PNG export (#571).** The Graph toolbar's **Export PNG** button saves the whole graph at zoom 1, 2 image pixels per graph pixel, on a
+  solid background, through the npm package `html-to-image` 1.11.11 (MIT, no dependencies, pinned exactly: 1.11.12 and 1.11.13 draw
+  styles wrongly). In a Chromium browser the "save as" dialog opens first; a save that fails after it removes the empty file the dialog
+  created. The image draws the node cards without their shadow: Safari paints a blurred box-shadow inside the renderer's `foreignObject`
+  as a solid grey block. No SVG export: the renderer's SVG keeps the node cards as HTML inside `foreignObject`, which most SVG renderers outside a
+  browser show as a blank image.
+- **Touch-ups (the same round, on #571).** The console's command input states its keys once: the placeholder is "Enter command" and the
+  hint below it reads "⏎ to send · ⇧⏎ for new line · ↑↓ for history". And `resources/public/favicon.ico`, the Mercury atom at 16, 32 and
+  48 px, the same file as the Java engine's, answers the `/favicon.ico` request that used to be a 404 (`serve_static` maps `.ico` to
+  `image/x-icon`).
+- **The bundle.** `index-CWNizJaH.js` became `index-Dhz_Pqc_.js` and `index-DaTDFwQo.css` became `index-BH572KKk.css`; the vendor chunks
+  and the 44 mirrored help pages are byte-identical, and every deployed file is byte-identical with the one the Java branch commits.
+- **Checked.** The webapp's own tests in the Java repo (60 files, 490 tests); the export in Chrome 156, Firefox 158 and Safari 27
+  against the Java engine (the same image in each); `cargo test -p mercury-knowledge-graph -p minigraph-playground` with the deployed
+  bundle (25 test binaries, 99 tests).
+
+Gates: `cargo test -p mercury-knowledge-graph`, `cargo test -p minigraph-playground`.
