@@ -221,8 +221,9 @@ traversal (`graph.resume`) never validates again.
 
 A dry run in the Playground validates the input exactly as a deployed run does: `instantiate graph`,
 Upload the mock body and headers, `run`, and the console shows the same line or the same refusal. The
-Upload step's **Headers** rows (`POST /api/mock/{sessionId}?namespace=header`) are how a dry run
-satisfies a header requirement.
+Upload step's **Input header** rows (`POST /api/mock/{sessionId}?namespace=header`) are how a dry run
+satisfies a header requirement; the engine processes them as a request's headers are (the names in lower
+case; the correlation-ID header, added when absent, carries `model.cid`).
 
 Validation is a **contract check, not business logic**: it says what a well-formed request is. A rule
 such as "a refund may not exceed the charge" belongs to a `graph.math` node that stages

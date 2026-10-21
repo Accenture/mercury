@@ -4913,3 +4913,37 @@ dependents, `tokio-rustls` 0.26.4 behind the platform's HTTP client and `redis` 
 
 Gates: `cargo build --workspace`, `cargo test --workspace` (every suite green, unchanged), and the CI `audit` job on the pull
 request.
+
+## Increment 181 — Mock model variables, and mock headers processed as a request's (2026-10-20)
+
+The twin of the Java engine's change (mercury-composable, the same day). Two loose ends of the dry run: a deployed graph's model is
+partly set before the first node (`model.cid` from the request's correlation-ID header, `model.iteration_index` from a parent's
+`x-iteration-index`), and a dry run has no request, so only the console's `instantiate graph` lines could set a model variable; and
+the mock headers of Increment 170 were stored as written, where a request's reach the graph processed. `rest::upload_mock_content`
+gains the `model` namespace (`check_mock_model_variables`: a JSON object, no empty path segment - a name of dots alone would address
+the whole model - no null value, and the composite-path syntax of `MultiLevelMap`, whose own reason is quoted) and refuses two header
+names that differ only by case (`check_mock_headers`); the messages are the Java engine's, except the composite-path reason, which
+each engine words itself. `commands::load_mock_content` dispatches on the namespace: `model` sets each key as `model.{key}`, leaving
+the others; `header` goes through `load_mock_headers` - every name in lower case, CR and LF removed from a value, the correlation-ID
+header (`http.correlation.id.header`, read once, lower case) setting `model.cid` or, when absent, carrying the instance's `model.cid`,
+and `x-iteration-index` setting `model.iteration_index` - with a console line for each derived value (`model.cid = order-1001 (from
+input.header.x-correlation-id)`). The `upload mock data` reply names the three endpoints. The regenerated webapp bundle (one source,
+two targets) adds the Upload form's **Model variables** rows (a name, a type - text, number, boolean or JSON - and the value, posted
+after the headers) and relabels **JSON payload (input body)** and **Input header (optional)**; `help upload` is mirrored from the Java
+repository and the graph-contract guide names the Input header rows. Pinned by the extended
+`mock_header_upload_loads_every_member_instance` and the new `mock_headers_are_processed_as_a_request` and
+`mock_upload_rest_edge_refuses_bad_input` in `tests/graph_runtime.rs`, the twins of the Java tests.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p mercury-knowledge-graph`,
+`cargo test -p minigraph-playground`.
+
+## Increment 182 — rustls-webpki 0.103.16 for RUSTSEC-2026-0382 (2026-10-20)
+
+The `audit` gate failed the pull request of Increment 181 on RUSTSEC-2026-0382 against `rustls-webpki` 0.103.15, published on
+2026-10-20 (certificate verification may accept distrusted intermediates) and patched in 0.103.16 - an advisory of the day, not
+the change under review, so the main branch's next run would fail the same way. `cargo update -p rustls-webpki --precise 0.103.16`
+moves that one crate in the lockfile and nothing else; `cargo tree -i rustls-webpki` names its one dependent, `rustls` 0.23.46
+(Increment 180), behind `tokio-rustls` 0.26.4 and `redis` 1.5.0. No source changes. CHANGELOG Unreleased, a second `Security`
+item.
+
+Gates: `cargo build --workspace`, `cargo test --workspace` (719 passed, unchanged), and the CI `audit` job on the pull request.

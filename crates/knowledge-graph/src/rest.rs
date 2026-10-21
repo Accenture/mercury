@@ -533,10 +533,11 @@ fn query_parameter(event: &EventEnvelope, name: &str) -> Option<String> {
 /// Java `UploadMockContent` (`upload.mock.content`): mock data into a live
 /// graph instance. The `namespace` query parameter selects the target: `body`
 /// (the default) takes a JSON map or list as `input.body`; `header` takes a JSON
-/// object of text values as `input.header` - the shape a real request delivers,
-/// read case-insensitively by the graph, so a dry run can supply the headers a
-/// graph reads. Either namespace travels like a command to every member of a
-/// collaborative session.
+/// object of text values as `input.header`, processed as a real request's headers
+/// are (see `commands::load_mock_headers`), so a dry run can supply the headers a
+/// graph reads; `model` takes a JSON object whose keys name model variables, for
+/// the state a request's edge would have set. Each namespace travels like a
+/// command to every member of a collaborative session.
 pub async fn upload_mock_content(
     platform: &Platform,
     event: EventEnvelope,
@@ -549,15 +550,8 @@ pub async fn upload_mock_content(
         .filter(|v| !v.trim().is_empty())
         .unwrap_or_else(|| "body".to_string());
     match namespace.as_str() {
-        "header" => {
-            let text_map = matches!(&body, Value::Map(entries)
-                if entries.iter().all(|(_, v)| matches!(v, Value::String(_))));
-            if !text_map {
-                return Err(invalid(
-                    "Mock headers must be a JSON object with text values",
-                ));
-            }
-        }
+        "header" => check_mock_headers(&body)?,
+        "model" => check_mock_model_variables(&body)?,
         "body" => {
             if !matches!(body, Value::Map(_) | Value::Array(_)) {
                 return Err(invalid(
@@ -567,7 +561,7 @@ pub async fn upload_mock_content(
         }
         other => {
             return Err(invalid(format!(
-                "Unknown mock namespace '{other}' - use body or header"
+                "Unknown mock namespace '{other}' - use body, header or model"
             )));
         }
     }
@@ -576,6 +570,64 @@ pub async fn upload_mock_content(
     } else {
         Err(invalid(format!("Session {id} is expired or invalid")))
     }
+}
+
+/// Mock headers are a JSON object of text values whose names are distinct without
+/// case, because a request's header names are case-insensitive and the engine
+/// stores them in lower case (Java `UploadMockContent.checkHeaders`).
+fn check_mock_headers(body: &Value) -> Result<(), AppError> {
+    let entries = match body {
+        Value::Map(entries) if entries.iter().all(|(_, v)| matches!(v, Value::String(_))) => {
+            entries
+        }
+        _ => {
+            return Err(invalid(
+                "Mock headers must be a JSON object with text values",
+            ))
+        }
+    };
+    let mut names = std::collections::HashSet::new();
+    for (name, _) in entries {
+        let lower = display(name).to_lowercase();
+        if !names.insert(lower.clone()) {
+            return Err(invalid(format!(
+                "Duplicate mock header '{lower}' - header names are case-insensitive"
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Mock model variables are a JSON object: each key is a model path without the
+/// `model.` prefix, in the dot-bracket syntax of the state machine, and each value
+/// is not null (Java `UploadMockContent.checkModelVariables`). An empty segment is
+/// named here because a name of dots alone must never address the whole model.
+fn check_mock_model_variables(body: &Value) -> Result<(), AppError> {
+    let Value::Map(entries) = body else {
+        return Err(invalid("Mock model variables must be a JSON object"));
+    };
+    let mut syntax = event_script::mlm::MultiLevelMap::new();
+    for (key, value) in entries {
+        let name = display(key);
+        if name.trim().is_empty()
+            || name.starts_with('.')
+            || name.ends_with('.')
+            || name.contains("..")
+        {
+            return Err(invalid(format!(
+                "Invalid mock model variable '{name}' - empty path segment"
+            )));
+        }
+        if value.is_nil() {
+            return Err(invalid(format!(
+                "Mock model variable '{name}' has no value"
+            )));
+        }
+        syntax
+            .set_element(&format!("model.{name}"), Value::Nil)
+            .map_err(|e| invalid(format!("Invalid mock model variable '{name}' - {e}")))?;
+    }
+    Ok(())
 }
 
 /// Java `ImportGraphContent` (`import.graph.content`): a graph model from a file

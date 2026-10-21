@@ -24,6 +24,33 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    ServerHello can downgrade later connections to classical key exchange). The lockfile moves that one crate; its dependents are
    `tokio-rustls` (the platform's HTTP client) and `redis` (the four Redis extensions). The workspace builds and its tests pass
    unchanged. **Upgrade note:** none - a lockfile bump, no API change.
+2. **rustls-webpki 0.103.16 (Increment 182).** The `audit` gate failed on 2026-10-21 on RUSTSEC-2026-0382 against `rustls-webpki`
+   0.103.15, published on 2026-10-20 and patched in 0.103.16: certificate verification may accept distrusted intermediates. The
+   lockfile moves that one crate; it sits behind `rustls` 0.23.46, whose dependents are `tokio-rustls` (the platform's HTTP client)
+   and `redis` (the four Redis extensions). The workspace builds and its tests pass unchanged. **Upgrade note:** none - a lockfile
+   bump, no API change.
+
+### Added
+
+1. **The Playground's dry run mocks model variables (`POST /api/mock/{id}?namespace=model`; Increment 181).** The twin of the Java
+   engine's change. A deployed graph's model is partly set before the first node - `model.cid` from the request's correlation-ID
+   header - and a dry run has no request, so the console's `instantiate graph` lines were the only way to set a model variable. The
+   mock upload gains a third namespace: a JSON object whose keys are model paths (`tier`, `limits.daily`, `items[0]`) sets each as
+   `model.{key}` and leaves the others in place, with the console line "Mock data loaded into 'model' namespace", in every member's
+   instance of a collaborative session. A key with an empty path segment, a bad index or a null value is refused (HTTP 400). The
+   regenerated bundle's Upload form gains **Model variables** rows - a name, a type (text, number, boolean or JSON) and the value -
+   posted after the headers, and its labels read **JSON payload (input body)** and **Input header (optional)**; `help upload` is
+   mirrored from the Java repository. **Upgrade note:** none - a new namespace.
+
+### Changed
+
+1. **The Playground processes mock headers as a request's headers (Increment 181).** A header uploaded through
+   `POST /api/mock/{id}?namespace=header` was stored as written. It is now processed as the HTTP edge and the deployed walker process
+   a request's: every name in lower case (two names that differ only by case are refused), CR and LF removed from a value, the
+   business correlation-ID header (`http.correlation.id.header`, X-Correlation-Id by default) setting `model.cid` - and, when the
+   upload has none, the header carrying the instance's `model.cid` - and `x-iteration-index` setting `model.iteration_index`. The
+   console names each derived value. **Upgrade note:** a dry run that read a mock header back under its written case now sees the
+   lower-case name; a graph reading one header by name is unaffected.
 
 ---
 ## Version 4.12.24, 10/12/2026
