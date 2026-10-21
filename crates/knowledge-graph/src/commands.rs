@@ -37,7 +37,7 @@ use platform_core::graph::{MiniGraph, SimpleConnection, SimpleNode};
 use platform_core::{AppConfigReader, AppError, EventEnvelope, ManagedCache, Platform, PostOffice};
 use rmpv::Value;
 
-use crate::common::{get_model_ttl, initialize_with_node_properties, invalid};
+use crate::common::{self, get_model_ttl, initialize_with_node_properties, invalid};
 use crate::model::{self, GraphInstance};
 use crate::session::{self, GraphSession};
 
@@ -212,7 +212,7 @@ pub async fn handle(
     let out_route = get("out").unwrap_or_default();
     let message = get("message").unwrap_or_default();
     let forwarded = get("forwarded").map(|v| v == "true").unwrap_or(false);
-    // the mock-data upload names its namespace (body, the default, or header)
+    // the mock-data upload names its namespace (body, the default, header or model)
     let namespace = get("namespace").unwrap_or_else(|| "body".to_string());
     // the mock-data upload carries its payload as a raw value, not as text
     let content = entries
@@ -300,7 +300,8 @@ async fn handle_request(
 /// is replayed into every subscriber's instance; a subscriber forwards the payload
 /// to the primary, which does the same (the subscriber receives it back on the
 /// replay). Every member of a collaborative session then runs the graph with the
-/// same `input.body`, and every member's console confirms the load.
+/// same `input.body` (or `input.header` or model variables, the namespace the
+/// upload names), and every member's console confirms the load.
 async fn handle_upload(
     po: &PostOffice,
     in_route: &str,
@@ -407,9 +408,10 @@ fn import_body(in_route: &str, out_route: &str, content: Value, forwarded: bool)
     Value::Map(map)
 }
 
-/// Load the mock content into the instance's `input.body` or, for the `header`
-/// namespace, `input.header` - the names kept as given, since the graph reads
-/// headers case-insensitively, exactly as it reads a real request's.
+/// Load the mock content into the instance: the `body` namespace replaces
+/// `input.body`, the `header` namespace replaces `input.header` as a request
+/// delivers it (see `load_mock_headers`), and the `model` namespace sets each
+/// variable it names under `model`, leaving the others in place.
 async fn load_mock_content(
     po: &PostOffice,
     in_route: &str,
@@ -426,21 +428,100 @@ async fn load_mock_content(
         .await;
         return;
     };
-    let header = namespace == "header";
-    {
+    let lines = {
         let mut state = instance.state.lock().expect("graph state machine");
-        let _ = state.set_element(if header { "input.header" } else { "input.body" }, content);
+        match (namespace, content) {
+            ("header", Value::Map(headers)) => load_mock_headers(&mut state, headers),
+            ("model", Value::Map(variables)) => {
+                for (key, value) in variables {
+                    let _ = state.set_element(&format!("model.{}", display(&key)), value);
+                }
+                vec!["Mock data loaded into 'model' namespace".to_string()]
+            }
+            (_, content) => {
+                let _ = state.set_element("input.body", content);
+                vec!["Mock data loaded into 'input.body' namespace".to_string()]
+            }
+        }
+    };
+    for line in lines {
+        say(po, out_route, line).await;
     }
-    say(
-        po,
-        out_route,
-        if header {
-            "Mock data loaded into 'input.header' namespace"
-        } else {
-            "Mock data loaded into 'input.body' namespace"
-        },
-    )
-    .await;
+}
+
+/// Mock headers are processed as a real request's are before they reach the graph
+/// (Java `GraphCommandService.loadMockHeaders`). The REST edge stores every header
+/// name in lower case and removes CR and LF from a value. The business
+/// correlation-id header (`http.correlation.id.header`) seeds `model.cid`, as
+/// Event Script's HTTP flow adapter does, and a request without one carries the
+/// edge's id - here the instance's `model.cid`. A `x-iteration-index` header
+/// becomes `model.iteration_index`, as the deployed walker lifts it for a
+/// subgraph's for_each iteration. Returns the console lines: the load, then each
+/// derived value.
+fn load_mock_headers(state: &mut MultiLevelMap, content: Vec<(Value, Value)>) -> Vec<String> {
+    let mut headers: Vec<(String, String)> = Vec::new();
+    for (name, value) in content {
+        set_header(
+            &mut headers,
+            &display(&name).to_lowercase(),
+            display(&value).replace(['\r', '\n'], ""),
+        );
+    }
+    let header = |headers: &[(String, String)], name: &str| {
+        headers
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, v)| v.clone())
+            .filter(|v| !v.trim().is_empty())
+    };
+    let mut lines = vec!["Mock data loaded into 'input.header' namespace".to_string()];
+    let cid_header = correlation_id_header();
+    let cid_path = format!("input.header.{cid_header}");
+    if let Some(cid) = header(&headers, cid_header) {
+        let _ = state.set_element("model.cid", Value::from(cid.as_str()));
+        lines.push(derived_value("model.cid", &cid, &cid_path));
+    } else if let Some(Value::String(text)) = state.get_element("model.cid") {
+        let cid = text.as_str().unwrap_or_default().to_string();
+        if !cid.trim().is_empty() {
+            lines.push(derived_value(&cid_path, &cid, "model.cid"));
+            set_header(&mut headers, cid_header, cid);
+        }
+    }
+    if let Some(index) = header(&headers, common::ITERATION_INDEX_HEADER) {
+        let target = format!("model.{}", common::ITERATION_INDEX);
+        let index = index.trim().to_string();
+        let _ = state.set_element(&target, Value::from(index.as_str()));
+        let source = format!("input.header.{}", common::ITERATION_INDEX_HEADER);
+        lines.push(derived_value(&target, &index, &source));
+    }
+    let map = headers
+        .into_iter()
+        .map(|(name, value)| (Value::from(name), Value::from(value)))
+        .collect();
+    let _ = state.set_element("input.header", Value::Map(map));
+    lines
+}
+
+fn set_header(headers: &mut Vec<(String, String)>, name: &str, value: String) {
+    match headers.iter_mut().find(|(n, _)| n == name) {
+        Some(slot) => slot.1 = value,
+        None => headers.push((name.to_string(), value)),
+    }
+}
+
+fn derived_value(target: &str, value: &str, source: &str) -> String {
+    format!("{target} = {value} (from {source})")
+}
+
+/// The business correlation-id header of a request, in lower case (Event Script's
+/// HTTP flow adapter seeds `model.cid` from it; default X-Correlation-Id).
+fn correlation_id_header() -> &'static str {
+    static NAME: OnceLock<String> = OnceLock::new();
+    NAME.get_or_init(|| {
+        AppConfigReader::get_instance()
+            .get_property_or("http.correlation.id.header", "X-Correlation-Id")
+            .to_lowercase()
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -657,7 +738,8 @@ async fn handle_part_three(
                 out_route,
                 format!(
                     "You may upload JSON payload -> POST /api/mock/{name} \
-                     (mock headers, a JSON object of text values -> POST /api/mock/{name}?namespace=header)"
+                     (mock headers, a JSON object of text values -> POST /api/mock/{name}?namespace=header; \
+                     model variables, a JSON object -> POST /api/mock/{name}?namespace=model)"
                 ),
             )
             .await;
@@ -2487,8 +2569,9 @@ pub fn has_session(id: &str) -> bool {
 /// that it propagates to every member of a collaborative session like a command
 /// (see `handle_upload`). Returns false when the session has no graph instance.
 /// Load mock data into the session's graph instance under the given namespace:
-/// `body` (a map or a list as `input.body`) or `header` (a map of text values as
-/// `input.header`). The REST edge validates the payload shape for the namespace.
+/// `body` (a map or a list as `input.body`), `header` (a map of text values as
+/// `input.header`) or `model` (a map of model variables). The REST edge validates
+/// the payload shape for the namespace.
 pub async fn upload_content(
     platform: &Platform,
     id: &str,

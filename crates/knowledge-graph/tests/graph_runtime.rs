@@ -661,6 +661,8 @@ async fn graph_runtime_end_to_end() {
     companion_sync_instantiate_creates_model_cid(&platform).await;
     mock_upload_loads_every_member_instance(&platform).await;
     mock_header_upload_loads_every_member_instance(&platform).await;
+    mock_headers_are_processed_as_a_request(&platform).await;
+    mock_upload_rest_edge_refuses_bad_input(&platform).await;
     graph_import_loads_every_member_draft(&platform).await;
     companion_sync_inspect_error_shows_context(&platform).await;
     companion_sync_inspect_error_reports_recovery(&platform).await;
@@ -2549,8 +2551,10 @@ async fn mock_upload_loads_every_member_instance(platform: &Platform) {
 
 /// The header namespace of the mock upload (`POST /api/mock/{id}?namespace=header`,
 /// Java `mockHeaderUploadLoadsEveryMemberInstanceTest`): a JSON object of text values
-/// becomes every member's `input.header`, the names kept as given (the graph reads
-/// headers case-insensitively), the body untouched; the invitation names both endpoints.
+/// becomes every member's `input.header` as a request delivers it - the names in
+/// lower case, and the correlation-id header carrying the member's `model.cid` when
+/// the upload has none - the body untouched; the model namespace sets every member's
+/// model variables; the invitation names the three endpoints.
 async fn mock_header_upload_loads_every_member_instance(platform: &Platform) {
     let po = PostOffice::new(platform);
     let (sid_a, in_a, out_a) = ("ws-770092-1", "ws.770092.1.in", "ws.770092.1.out");
@@ -2618,6 +2622,7 @@ async fn mock_header_upload_loads_every_member_instance(platform: &Platform) {
     }
     const HEADERS_LOADED: &str = "Mock data loaded into 'input.header' namespace";
     const BODY_LOADED: &str = "Mock data loaded into 'input.body' namespace";
+    const MODEL_LOADED: &str = "Mock data loaded into 'model' namespace";
 
     ws(&po, in_b, out_b, &format!("session subscribe {sid_a}")).await;
     assert!(
@@ -2666,12 +2671,22 @@ async fn mock_header_upload_loads_every_member_instance(platform: &Platform) {
         "B loaded the headers: {:?}",
         seen(&tap_b)
     );
+    assert!(
+        wait_for(&tap_b, "input.header.x-correlation-id = ").await,
+        "B names the derived header: {:?}",
+        seen(&tap_b)
+    );
     for sid in [sid_a, sid_b] {
+        let cid = knowledge_graph::commands::download_content(sid, "model.cid")
+            .unwrap_or_else(|| panic!("{sid} holds model.cid"));
         let header = knowledge_graph::commands::download_content(sid, "input.header")
             .unwrap_or_else(|| panic!("{sid} holds input.header"));
         assert_eq!(
             event_script::conversions::to_json_string(&header),
-            r#"{"X-Request-Id":"abc-123"}"#,
+            format!(
+                r#"{{"x-correlation-id":"{}","x-request-id":"abc-123"}}"#,
+                event_script::conversions::display(&cid)
+            ),
             "{sid} input.header after the subscriber's upload"
         );
     }
@@ -2693,25 +2708,259 @@ async fn mock_header_upload_loads_every_member_instance(platform: &Platform) {
         "B loaded the body: {:?}",
         seen(&tap_b)
     );
-    let header = knowledge_graph::commands::download_content(sid_b, "input.header")
+    let header = knowledge_graph::commands::download_content(sid_b, "input.header.x-request-id")
         .expect("B keeps input.header");
-    assert_eq!(
-        event_script::conversions::to_json_string(&header),
-        r#"{"X-Request-Id":"abc-123"}"#
-    );
+    assert_eq!(event_script::conversions::display(&header), "abc-123");
     let body = knowledge_graph::commands::download_content(sid_b, "input.body")
         .expect("B holds input.body");
     assert_eq!(
         event_script::conversions::to_json_string(&body),
         r#"{"person_id":300}"#
     );
-    // the invitation names both endpoints
+    // model variables travel the same way and leave model.cid in place
+    let cid_b = knowledge_graph::commands::download_content(sid_b, "model.cid").expect("B cid");
+    tap_a.lock().expect("tap").clear();
+    tap_b.lock().expect("tap").clear();
+    let variables = rmpv::Value::Map(vec![(rmpv::Value::from("tier"), rmpv::Value::from("gold"))]);
+    assert!(knowledge_graph::commands::upload_content(platform, sid_b, variables, "model").await);
+    for (tap, label) in [(&tap_a, "A"), (&tap_b, "B")] {
+        assert!(
+            wait_for(tap, MODEL_LOADED).await,
+            "{label} loaded the model variables: {:?}",
+            seen(tap)
+        );
+    }
+    for sid in [sid_a, sid_b] {
+        let tier = knowledge_graph::commands::download_content(sid, "model.tier")
+            .unwrap_or_else(|| panic!("{sid} holds model.tier"));
+        assert_eq!(event_script::conversions::display(&tier), "gold");
+    }
+    assert_eq!(
+        knowledge_graph::commands::download_content(sid_b, "model.cid"),
+        Some(cid_b)
+    );
+    // the invitation names the three endpoints
     tap_a.lock().expect("tap").clear();
     ws(&po, in_a, out_a, "upload mock data").await;
     assert!(
         wait_for(&tap_a, "?namespace=header").await,
         "the invitation names the header endpoint: {:?}",
         seen(&tap_a)
+    );
+    assert!(
+        seen(&tap_a).iter().any(|l| l.contains("?namespace=model")),
+        "the invitation names the model endpoint: {:?}",
+        seen(&tap_a)
+    );
+}
+
+/// Mock headers are processed as a real request's are (Java
+/// `mockHeadersAreProcessedAsARequestTest`): the names in lower case, CR and LF
+/// removed from a value, the correlation-id header seeding `model.cid` and
+/// `x-iteration-index` seeding `model.iteration_index` - each derived value named on
+/// the console; model variables uploaded after them are set as given, dotted and
+/// indexed paths included.
+async fn mock_headers_are_processed_as_a_request(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let (sid, in_route, out_route) = ("ws-770096-1", "ws.770096.1.in", "ws.770096.1.out");
+    let tap = Arc::new(Mutex::new(Vec::<String>::new()));
+    platform
+        .register(out_route, Arc::new(OutTap { seen: tap.clone() }), 1)
+        .expect("register out tap");
+    open_session(&po, in_route).await;
+    for _ in 0..50 {
+        if knowledge_graph::commands::has_session(sid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(knowledge_graph::commands::has_session(sid), "session open");
+    async fn ws(po: &PostOffice, in_route: &str, out_route: &str, command: &str) {
+        po.send(
+            EventEnvelope::new()
+                .set_to("graph.command.singleton")
+                .set_raw_body(rmpv::Value::Map(vec![
+                    (rmpv::Value::from("type"), rmpv::Value::from("command")),
+                    (rmpv::Value::from("in"), rmpv::Value::from(in_route)),
+                    (rmpv::Value::from("out"), rmpv::Value::from(out_route)),
+                    (rmpv::Value::from("message"), rmpv::Value::from(command)),
+                ])),
+        )
+        .await
+        .expect("command dispatched");
+    }
+    async fn wait_for(tap: &Arc<Mutex<Vec<String>>>, needle: &str) -> bool {
+        for _ in 0..150 {
+            if tap.lock().expect("tap").iter().any(|l| l.contains(needle)) {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        false
+    }
+    fn seen(tap: &Arc<Mutex<Vec<String>>>) -> Vec<String> {
+        tap.lock().expect("tap").clone()
+    }
+    fn text(sid: &str, path: &str) -> String {
+        knowledge_graph::commands::download_content(sid, path)
+            .map(|v| event_script::conversions::to_json_string(&v))
+            .unwrap_or_else(|| panic!("{sid} holds {path}"))
+    }
+    for command in [
+        "create node root",
+        "create node end",
+        "connect root to end with next",
+        "instantiate graph",
+    ] {
+        ws(&po, in_route, out_route, command).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert!(
+        wait_for(&tap, "Graph instance created").await,
+        "{:?}",
+        seen(&tap)
+    );
+    tap.lock().expect("tap").clear();
+    let headers = rmpv::Value::Map(vec![
+        (
+            rmpv::Value::from("X-Correlation-Id"),
+            rmpv::Value::from("order-1001"),
+        ),
+        (
+            rmpv::Value::from("X-Iteration-Index"),
+            rmpv::Value::from(" 2 "),
+        ),
+        (rmpv::Value::from("X-Note"), rmpv::Value::from("a\r\nb")),
+    ]);
+    assert!(knowledge_graph::commands::upload_content(platform, sid, headers, "header").await);
+    for line in [
+        "model.cid = order-1001 (from input.header.x-correlation-id)",
+        "model.iteration_index = 2 (from input.header.x-iteration-index)",
+    ] {
+        assert!(wait_for(&tap, line).await, "{line}: {:?}", seen(&tap));
+    }
+    assert_eq!(
+        text(sid, "input.header"),
+        r#"{"x-correlation-id":"order-1001","x-iteration-index":" 2 ","x-note":"ab"}"#
+    );
+    assert_eq!(text(sid, "model.cid"), r#""order-1001""#);
+    assert_eq!(text(sid, "model.iteration_index"), r#""2""#);
+    tap.lock().expect("tap").clear();
+    let variables = rmpv::Value::Map(vec![
+        (rmpv::Value::from("tier"), rmpv::Value::from("gold")),
+        (rmpv::Value::from("limits.daily"), rmpv::Value::from(500)),
+        (rmpv::Value::from("flags[0]"), rmpv::Value::from(true)),
+    ]);
+    assert!(knowledge_graph::commands::upload_content(platform, sid, variables, "model").await);
+    assert!(
+        wait_for(&tap, "Mock data loaded into 'model' namespace").await,
+        "{:?}",
+        seen(&tap)
+    );
+    assert_eq!(text(sid, "model.tier"), r#""gold""#);
+    assert_eq!(text(sid, "model.limits.daily"), "500");
+    assert_eq!(text(sid, "model.flags"), "[true]");
+    assert_eq!(text(sid, "model.cid"), r#""order-1001""#);
+}
+
+/// The REST edge of the mock upload (Java `mockHeaderUploadRestEdgeRefusesBadInputTest`
+/// and `mockModelUploadRestEdgeRefusesBadInputTest`) refuses an unknown namespace, two
+/// header names that differ only by case, a model payload that is not a JSON object, a
+/// model variable with an empty path segment, a bad index or no value, and - after the
+/// shape check - an unknown session.
+async fn mock_upload_rest_edge_refuses_bad_input(platform: &Platform) {
+    fn request(namespace: &str, body: rmpv::Value) -> EventEnvelope {
+        EventEnvelope::new().set_raw_body(rmpv::Value::Map(vec![
+            (
+                rmpv::Value::from("parameters"),
+                rmpv::Value::Map(vec![
+                    (
+                        rmpv::Value::from("path"),
+                        rmpv::Value::Map(vec![(
+                            rmpv::Value::from("id"),
+                            rmpv::Value::from("ws-000000-0"),
+                        )]),
+                    ),
+                    (
+                        rmpv::Value::from("query"),
+                        rmpv::Value::Map(vec![(
+                            rmpv::Value::from("namespace"),
+                            rmpv::Value::from(namespace),
+                        )]),
+                    ),
+                ]),
+            ),
+            (rmpv::Value::from("body"), body),
+        ]))
+    }
+    fn map(entries: Vec<(&str, rmpv::Value)>) -> rmpv::Value {
+        rmpv::Value::Map(
+            entries
+                .into_iter()
+                .map(|(k, v)| (rmpv::Value::from(k), v))
+                .collect(),
+        )
+    }
+    let cases = [
+        (
+            request("cookie", map(vec![("a", rmpv::Value::from("b"))])),
+            "Unknown mock namespace 'cookie' - use body, header or model",
+        ),
+        (
+            request("header", map(vec![("count", rmpv::Value::from(5))])),
+            "Mock headers must be a JSON object with text values",
+        ),
+        (
+            request(
+                "header",
+                map(vec![
+                    ("X-Tenant", rmpv::Value::from("a")),
+                    ("x-tenant", rmpv::Value::from("b")),
+                ]),
+            ),
+            "Duplicate mock header 'x-tenant' - header names are case-insensitive",
+        ),
+        (
+            request("model", rmpv::Value::Array(vec![rmpv::Value::from("a")])),
+            "Mock model variables must be a JSON object",
+        ),
+        (
+            request("model", map(vec![("a..b", rmpv::Value::from(1))])),
+            "Invalid mock model variable 'a..b' - empty path segment",
+        ),
+        (
+            request("model", map(vec![(".", rmpv::Value::from(1))])),
+            "Invalid mock model variable '.' - empty path segment",
+        ),
+        (
+            request("model", map(vec![("tier", rmpv::Value::Nil)])),
+            "Mock model variable 'tier' has no value",
+        ),
+        (
+            request("model", map(vec![("tier", rmpv::Value::from("gold"))])),
+            "Session ws-000000-0 is expired or invalid",
+        ),
+    ];
+    for (event, expected) in cases {
+        let error = knowledge_graph::rest::upload_mock_content(platform, event)
+            .await
+            .expect_err(expected);
+        assert_eq!(error.status(), 400, "{expected}");
+        assert_eq!(error.message(), expected);
+    }
+    // a bad index is refused with this engine's composite-path reason
+    let error = knowledge_graph::rest::upload_mock_content(
+        platform,
+        request("model", map(vec![("items[x]", rmpv::Value::from(1))])),
+    )
+    .await
+    .expect_err("a bad index");
+    assert!(
+        error
+            .message()
+            .starts_with("Invalid mock model variable 'items[x]' - "),
+        "{}",
+        error.message()
     );
 }
 
