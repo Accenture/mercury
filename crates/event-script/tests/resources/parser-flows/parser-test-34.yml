@@ -1,0 +1,17 @@
+flow:
+  id: 'parser-test-34'
+  description: 'test an output JSONPath that is not RFC 9535 - a Jayway-only path function'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> header.user'
+    process: 'greeting.test'
+    output:
+      - "result -> output.body"
+      # invalid: .length() is a Jayway path function; RFC 9535 has length() inside a filter only (RFC-0010)
+      - "$.result.items.length() -> output.header.count"
+    description: 'Hello World'
+    execution: end

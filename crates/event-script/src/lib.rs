@@ -61,6 +61,7 @@ pub mod decimal;
 pub mod executor;
 pub mod flows;
 pub mod instance;
+pub mod jsonpath_source;
 pub mod manager;
 pub mod mapping;
 pub mod mlm;

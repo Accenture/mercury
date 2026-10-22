@@ -80,6 +80,31 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
 
 
 ---
+
+5. **A JSONPath outside RFC 9535 is refused, not answered with null (RFC-0010 WP3; Increment 185).** The twin of the Java engine's
+   change, which replaces Jayway with an in-house RFC 9535 engine. This engine already evaluated `$` paths with `serde_json_path`,
+   an RFC 9535 implementation, so the two engines now accept the same queries, give the same answers and refuse the same way.
+   - **At evaluation.** A `$` path the parser refuses used to answer a silent null, the same as a missing value. It now fails the
+     mapping by name, as `reason at position N of 'path'`, and the Playground's JSON-Path console prints that reason.
+   - **At deployment.** The flow compiler drops a task whose `$` source is not RFC 9535, as it does for any invalid mapping entry,
+     with an ERROR that names the standard; CompileGraph, the graph-set packager and the Playground's `run` reject such a graph.
+     The check covers a data mapping's source, a simple plugin's `$` argument and a data dictionary's default value. A reference in
+     the path (`{model.key}`, `[model.i]`, `{namespace.key}`) is checked by where it lands; its value is still substituted first.
+   - **A `{reference}` never holds a JSONPath query** in a knowledge graph: `{$.input.body.amount}` in a `graph.math` expression or
+     a mapping source is refused.
+   - **A simple plugin's `$` argument reaches the plugin whole.** The argument splitter cut it at a comma inside its brackets or a
+     string literal; it now ends a `$` argument at the first comma outside them, and every other argument splits as before.
+   - **Evidence.** The JSONPath Compliance Test Suite (`cts.json`, 715 cases, byte-identical with the Java engine's) runs against
+     `serde_json_path`: every answer is the standard's and the 249 invalid queries are refused. Its normalized paths omit RFC 9535's
+     escapes in 16 name-selector cases, which the engine never reads (pinned by name). The shared `jsonpath-source-vectors.json` (49
+     vectors) and the parser and graph fixtures are byte-identical with the Java engine's, except one graph that differs where the
+     two engines' tutorials differ (`graph.math` for `graph.js`).
+
+   **Upgrade note (READ):** a flow or a graph whose `$` path this engine answered with null, because the path is not RFC 9535, now
+   fails at startup: the flow loses that task and the graph answers 404. Jayway-only syntax (`in`, `=~`, `.length()` and the like)
+   was always null here; the standard's forms replace it (`@.code == 'a' || @.code == 'b'`, `match(@.code, 'a|b')`,
+   `length(@.tags)`). A `{$...}` reference is refused: map the value to a model variable first.
+
 ## Version 4.12.24, 10/12/2026
 
 The lock-step twin of Java 4.12.24: the range plugins' bounds and refinements that landed after the 4.12.23 tag (Increments 177 to

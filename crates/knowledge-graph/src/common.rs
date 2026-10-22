@@ -25,6 +25,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use event_script::conversions::{display, to_json_string};
+use event_script::jsonpath_source;
 use event_script::mapping::{get_constant_value, get_lhs_element, get_lhs_or_constant};
 use event_script::mlm::MultiLevelMap;
 use event_script::util::{split, str2long};
@@ -254,6 +255,7 @@ fn has_boolean_operator(text: &str) -> bool {
 pub fn assert_variables_resolved(expression: &str, state: &MultiLevelMap) -> Result<(), AppError> {
     let mut unresolved: Vec<String> = Vec::new();
     for key in selectors_in(expression) {
+        jsonpath_source::refuse_json_path_key(&key).map_err(invalid)?;
         if matches!(
             get_lhs_or_constant(&key, state).map_err(invalid)?,
             None | Some(Value::Nil)
@@ -416,6 +418,8 @@ pub fn substitute_var_if_any_logical(
                     let verbatim: String = chars[seg_start..seg_end].iter().collect();
                     out.push_str(&verbatim);
                 } else {
+                    // a {reference} names a key or a constant, never a JSONPath (RFC-0010)
+                    jsonpath_source::refuse_json_path_key(&key).map_err(invalid)?;
                     append_parameter(&mut out, &key, state, logical, dot)?;
                 }
                 start = seg_end;

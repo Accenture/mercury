@@ -97,10 +97,11 @@ pub fn get_lhs_or_constant(lhs: &str, source: &MultiLevelMap) -> Result<Option<V
 
 /// Java `getLhsElement`: `$.…` JSONPath, `f:plugin(...)` invocation, or a
 /// composite-key lookup with an optional legacy `:type` qualifier on a
-/// `model.*` selector. `Err` = a failed plugin call (task-level failure).
+/// `model.*` selector. `Err` = a failed plugin call (task-level failure), or a
+/// JSONPath that is not RFC 9535 (RFC-0010).
 pub fn get_lhs_element(lhs: &str, source: &MultiLevelMap) -> Result<Option<Value>, String> {
     if lhs.starts_with('$') {
-        return Ok(source.get_element(lhs));
+        return source.try_get_element(lhs);
     }
     let colon = model_type_index(lhs);
     let selector = match colon {
@@ -289,31 +290,65 @@ fn get_value_from_simple_plugin(selector: &str, source: &MultiLevelMap) -> Resul
 
 /// Split plugin arguments by top-level comma only, ignoring commas nested
 /// inside parentheses (e.g. a `text(,)` constant argument) — Java
-/// `splitTopLevelArguments`.
+/// `splitTopLevelArguments`. A JSONPath argument (`$...`) ends at the first
+/// comma outside its brackets and string literals, so a union such as
+/// `$.a['b','c']` or a filter's text stays one argument (RFC-0010).
 pub fn split_top_level_arguments(text: &str) -> Vec<String> {
+    let chars: Vec<char> = text.chars().collect();
     let mut result = Vec::new();
-    let mut depth = 0usize;
-    let mut current = String::new();
-    for c in text.chars() {
-        match c {
-            '(' => {
-                depth += 1;
-                current.push(c);
-            }
-            ')' => {
-                depth = depth.saturating_sub(1);
-                current.push(c);
-            }
-            ',' if depth == 0 => {
-                result.push(std::mem::take(&mut current));
-            }
-            _ => current.push(c),
-        }
-    }
-    if !current.is_empty() {
-        result.push(current);
+    let mut start = 0usize;
+    while start < chars.len() {
+        let json_path = chars[start..]
+            .iter()
+            .find(|c| !c.is_whitespace())
+            .is_some_and(|c| *c == '$');
+        let end = if json_path {
+            end_of_json_path_argument(&chars, start)
+        } else {
+            end_of_argument(&chars, start)
+        };
+        result.push(chars[start..end].iter().collect());
+        start = end + 1;
     }
     result
+}
+
+fn end_of_argument(chars: &[char], start: usize) -> usize {
+    let mut depth = 0usize;
+    for (i, c) in chars.iter().enumerate().skip(start) {
+        match c {
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => return i,
+            _ => {}
+        }
+    }
+    chars.len()
+}
+
+fn end_of_json_path_argument(chars: &[char], start: usize) -> usize {
+    let mut brackets = 0i32;
+    let mut quote: Option<char> = None;
+    let mut escaped = false;
+    for (i, c) in chars.iter().enumerate().skip(start) {
+        if escaped {
+            escaped = false;
+        } else if let Some(q) = quote {
+            escaped = *c == '\\';
+            if *c == q {
+                quote = None;
+            }
+        } else {
+            match c {
+                '\'' | '"' => quote = Some(*c),
+                '[' => brackets += 1,
+                ']' => brackets -= 1,
+                ',' if brackets <= 0 => return i,
+                _ => {}
+            }
+        }
+    }
+    chars.len()
 }
 
 /// Java `getValueByType` — the legacy `:type` command on a non-model source

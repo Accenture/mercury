@@ -1,0 +1,61 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "every JSONPath form the gate accepts: references where a value can stand, a union and a quoted comma in a simple plugin's argument, and a MAPPING statement",
+        "name": "unit-test-jsonpath-ok"
+      }
+    },
+    {
+      "alias": "worker",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "$.input.body.{model.key} -> output.body.by_key",
+          "$.input.body.items[{model.i}] -> output.body.by_index",
+          "$.input.body.items[?(@.team == '{model.team}')].name -> output.body.in_literal",
+          "$.input.body.items[?(@.team == {input.body.team})].name -> output.body.in_filter",
+          "$.input.body.fetcher-ext.result -> output.body.hyphen",
+          "f:length($.input.body.items[?(@.tag == 'a,b')]) -> output.body.quoted_comma",
+          "f:length($.input.body['items','more']) -> output.body.union"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "worker",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "worker",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

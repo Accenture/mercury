@@ -135,7 +135,7 @@ impl MultiLevelMap {
     /// resolves to `None`.
     pub fn get_element(&self, composite_path: &str) -> Option<Value> {
         if composite_path.starts_with('$') {
-            return self.json_path_query(composite_path);
+            return self.json_path_query(composite_path).ok().flatten();
         }
         let segments = parse_path(composite_path).ok()?;
         let mut current: Option<&Value> = None;
@@ -163,20 +163,17 @@ impl MultiLevelMap {
     /// a union) always yields a list, one match being a one-element list and
     /// none an empty list - unless a member name before its first indefinite
     /// step is missing, which Jayway reports as not found (`None`).
-    fn json_path_query(&self, path: &str) -> Option<Value> {
-        let json = to_json(&self.to_value())?;
-        let (query, parsed) = match serde_json_path::JsonPath::parse(path) {
-            Ok(query) => (query, path.to_string()),
-            // Jayway (the Java engine) tolerates hyphens in dot-notation
-            // member names (e.g. `$.fetcher-ext.result`); RFC 9535 does not.
-            // Rewrite such segments to bracket notation and retry.
-            Err(_) => {
-                let lenient = bracketize_lenient_segments(path);
-                (serde_json_path::JsonPath::parse(&lenient).ok()?, lenient)
-            }
+    ///
+    /// A path that is not RFC 9535 is an `Err` naming the reason and the
+    /// position (RFC-0010), as the Java engine's `JsonPathException` does;
+    /// it used to be a silent `None`, indistinguishable from a missing value.
+    fn json_path_query(&self, path: &str) -> Result<Option<Value>, String> {
+        let (query, parsed) = compile_json_path(path)?;
+        let Some(json) = to_json(&self.to_value()) else {
+            return Ok(None);
         };
         let nodes = query.query(&json).all();
-        match path_shape(&parsed) {
+        Ok(match path_shape(&parsed) {
             Some(PathShape::Indefinite(prefix)) => {
                 if misses_a_member_name(&json, &prefix) {
                     None
@@ -191,6 +188,19 @@ impl MultiLevelMap {
                 1 => Some(from_json(nodes[0])),
                 _ => Some(Value::Array(nodes.into_iter().map(from_json).collect())),
             },
+        })
+    }
+
+    /// Retrieve by composite path, or by JSONPath when the path starts with
+    /// `$` - where a path that is not RFC 9535 is an `Err` naming the reason
+    /// and the position (Java `MultiLevelMap.getElement`, which throws).
+    /// A data mapping reads its source through this; `get_element` keeps
+    /// answering `None` for such a path.
+    pub fn try_get_element(&self, composite_path: &str) -> Result<Option<Value>, String> {
+        if composite_path.starts_with('$') {
+            self.json_path_query(composite_path)
+        } else {
+            Ok(self.get_element(composite_path))
         }
     }
 
@@ -362,6 +372,40 @@ fn remove_in(current: &mut Value, segments: &[Segment]) {
 /// Rewrite dot-notation segments that are not valid RFC 9535 shorthand
 /// names (currently: names containing hyphens) into bracket notation —
 /// `$.fetcher-ext.result` becomes `$['fetcher-ext'].result` (Jayway parity).
+/// Compile a JSONPath query to RFC 9535 with Mercury's one extension, a
+/// hyphen in a dot-notation member name (`$.fetcher-ext.result`, which Jayway
+/// accepted): the strict parse first, then one retry with such names in
+/// bracket notation. The error is the strict parse's, as
+/// `reason at position N of 'query'` with N a character index (Java
+/// `JsonPath.compileLenient`). Returns the query and the text it was parsed
+/// from.
+pub fn compile_json_path(path: &str) -> Result<(serde_json_path::JsonPath, String), String> {
+    compile_json_path_at(path)
+        .map_err(|(reason, position)| format!("{reason} at position {position} of '{path}'"))
+}
+
+/// `compile_json_path` with the error as its reason and its character
+/// position, for a caller that restates the position in other text.
+pub fn compile_json_path_at(
+    path: &str,
+) -> Result<(serde_json_path::JsonPath, String), (String, usize)> {
+    match serde_json_path::JsonPath::parse(path) {
+        Ok(query) => Ok((query, path.to_string())),
+        Err(strict) => {
+            let lenient = bracketize_lenient_segments(path);
+            if lenient != path {
+                if let Ok(query) = serde_json_path::JsonPath::parse(&lenient) {
+                    return Ok((query, lenient));
+                }
+            }
+            // the parser reports a byte offset; the position is a character index
+            let offset = strict.position().min(path.len());
+            let position = path.char_indices().take_while(|(i, _)| *i < offset).count();
+            Err((strict.message().to_string(), position))
+        }
+    }
+}
+
 fn bracketize_lenient_segments(path: &str) -> String {
     let chars: Vec<char> = path.chars().collect();
     let mut out = String::with_capacity(path.len() + 8);
