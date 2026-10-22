@@ -643,6 +643,7 @@ async fn graph_runtime_end_to_end() {
     statement_commands_resolve_dynamic_variables(&platform).await;
     mapping_source_resolves_dynamic_variables_verbatim(&platform).await;
     json_path_source_takes_the_jayway_shape(&platform).await;
+    a_value_substituted_into_json_path_is_checked_where_it_lands(&platform).await;
     successful_retry_resolves_the_error_context(&platform).await;
     suspend_resume_x_run_over_the_real_http_stack(&platform).await;
     openapi_document_on_demand(&platform).await;
@@ -4000,6 +4001,49 @@ async fn mapping_source_resolves_dynamic_variables_verbatim(platform: &Platform)
 /// none an empty list - unless a member name before its first indefinite step is
 /// missing, which yields null (so the null-source rule leaves an output target
 /// untouched).
+/// Java `GraphTaskTest.aValueSubstitutedIntoJsonPathIsCheckedWhereItLands`
+/// (unit-test-jsonpath-2): a reference in a JSONPath source is substituted
+/// before the query is parsed, each value checked where it lands (RFC-0010) -
+/// a quote and a trailing backslash are escaped inside the author's literal and
+/// in the literal a bare filter value becomes, so they stay text; the
+/// graph.math CONDITION quotes the same value with its backslash escaped.
+async fn a_value_substituted_into_json_path_is_checked_where_it_lands(platform: &Platform) {
+    for team in ["it's", "back\\"] {
+        let reply = run_graph(
+            platform,
+            "unit-test-jsonpath-2",
+            serde_json::json!({"data": {"item": "found"}, "key": "item", "team": team,
+                "people": [{"name": "Ann", "team": team}, {"name": "Bob", "team": "blue"}]}),
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(200, reply.status(), "{team}: {:?}", reply.body());
+        let mm = body_map(&reply);
+        assert_eq!(Some(Value::from("found")), mm.get_element("by_key"));
+        assert_eq!(str_list(&mm, "in_literal"), ["Ann"], "{team}");
+        assert_eq!(str_list(&mm, "in_filter"), ["Ann"], "{team}");
+        assert_eq!(Some(Value::from(true)), mm.get_element("same"), "{team}");
+    }
+    // a value that would add a wildcard to the query fails the mapping by name
+    let reply = run_graph(
+        platform,
+        "unit-test-jsonpath-2",
+        serde_json::json!({"data": {"item": "found"}, "key": "*", "team": "blue", "people": []}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(400, reply.status());
+    let message = body_map(&reply)
+        .get_element("message")
+        .map(|v| event_script::conversions::display(&v));
+    assert!(
+        message.as_deref().unwrap_or_default().contains(
+            "Cannot substitute {input.body.key} into '$.input.body.data.{input.body.key}' - '*' is not a key path"
+        ),
+        "{message:?}"
+    );
+}
+
 async fn json_path_source_takes_the_jayway_shape(platform: &Platform) {
     let reply = run_graph(
         platform,

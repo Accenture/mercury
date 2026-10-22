@@ -33,6 +33,7 @@ use platform_core::{AppConfigReader, ConfigValue};
 use crate::conversions::{
     display, get_b64, get_binary_value, get_boolean_value, get_length, get_text_value,
 };
+use crate::jsonpath_source;
 use crate::mlm::MultiLevelMap;
 use crate::plugins;
 use crate::util::{str2double, str2float, str2int, str2long};
@@ -295,6 +296,13 @@ fn get_value_from_simple_plugin(selector: &str, source: &MultiLevelMap) -> Resul
 /// `$.a['b','c']` or a filter's text stays one argument (RFC-0010).
 pub fn split_top_level_arguments(text: &str) -> Vec<String> {
     let chars: Vec<char> = text.chars().collect();
+    argument_spans(&chars)
+        .into_iter()
+        .map(|(start, end)| chars[start..end].iter().collect())
+        .collect()
+}
+
+fn argument_spans(chars: &[char]) -> Vec<(usize, usize)> {
     let mut result = Vec::new();
     let mut start = 0usize;
     while start < chars.len() {
@@ -303,14 +311,70 @@ pub fn split_top_level_arguments(text: &str) -> Vec<String> {
             .find(|c| !c.is_whitespace())
             .is_some_and(|c| *c == '$');
         let end = if json_path {
-            end_of_json_path_argument(&chars, start)
+            end_of_json_path_argument(chars, start)
         } else {
-            end_of_argument(&chars, start)
+            end_of_argument(chars, start)
         };
-        result.push(chars[start..end].iter().collect());
+        result.push((start, end));
         start = end + 1;
     }
     result
+}
+
+/// True when a data-mapping source is a JSONPath query or a simple plugin
+/// with a JSONPath argument (Java `DataMappingHelper.hasJsonPath`).
+pub fn has_json_path(lhs: &str) -> bool {
+    if jsonpath_source::is_json_path(lhs) {
+        return true;
+    }
+    match (lhs.find('('), lhs.rfind(')')) {
+        (Some(start), Some(end)) if lhs.starts_with("f:") && start > 0 && end > start => {
+            split_top_level_arguments(&lhs[start + 1..end])
+                .iter()
+                .any(|arg| jsonpath_source::is_json_path(arg.trim()))
+        }
+        _ => false,
+    }
+}
+
+/// Substitute the references in a data-mapping source (RFC-0010 WP4): a
+/// JSONPath query, and each JSONPath argument of a simple plugin, through
+/// `jsonpath_source::substitute`, which checks each value where it lands;
+/// every other part of the source through the engine's own substitution
+/// (`other`). Java `DataMappingHelper.substituteJsonPaths`.
+pub fn substitute_json_paths(
+    lhs: &str,
+    form: jsonpath_source::Form,
+    values: &dyn Fn(&str) -> Result<Option<Value>, String>,
+    other: &dyn Fn(&str) -> Result<String, String>,
+) -> Result<String, String> {
+    if jsonpath_source::is_json_path(lhs) {
+        return jsonpath_source::substitute(lhs, form, values);
+    }
+    let (Some(start), Some(end)) = (lhs.find('('), lhs.rfind(')')) else {
+        return other(lhs);
+    };
+    if !lhs.starts_with("f:") || start == 0 || end <= start {
+        return other(lhs);
+    }
+    let arguments: Vec<char> = lhs[start + 1..end].chars().collect();
+    let mut out = other(&lhs[..=start])?;
+    let mut last = 0usize;
+    for (from, to) in argument_spans(&arguments) {
+        out.extend(&arguments[last..from]);
+        let argument: String = arguments[from..to].iter().collect();
+        let query = argument.trim_start();
+        if jsonpath_source::is_json_path(query) {
+            out.push_str(&argument[..argument.len() - query.len()]);
+            out.push_str(&jsonpath_source::substitute(query, form, values)?);
+        } else {
+            out.push_str(&other(&argument)?);
+        }
+        last = to;
+    }
+    out.extend(&arguments[last..]);
+    out.push_str(&other(&lhs[end..])?);
+    Ok(out)
 }
 
 fn end_of_argument(chars: &[char], start: usize) -> usize {

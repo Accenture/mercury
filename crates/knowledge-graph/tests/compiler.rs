@@ -70,6 +70,7 @@ fn manifest_listed_graphs_are_compiled() {
     // + the mapping-1 fixture (a {namespace.key} reference in a mapping source, inserted verbatim)
     // + the jsonpath-1 fixture (a $. mapping source in Jayway's result shape)
     // + the jsonpath-ok fixture (every JSONPath form the gate accepts - RFC-0010)
+    // + the jsonpath-2 fixture (values substituted into JSONPath sources, each checked where it lands)
     // + the 2 graph-contract fixtures (schema-1: a root schema validated as the
     // assumed first step; schema-2: a failed validation routed to the root's
     // exception handler - RFC-0007)
@@ -87,7 +88,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        66,
+        67,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );

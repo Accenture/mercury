@@ -1,5 +1,5 @@
 {
-  "description": "RFC-0010 WP3: a data-mapping source written as a JSONPath query is checked against RFC 9535 when a flow or a graph is compiled. Each engine reads this file byte for byte. 'sources' gives whether a source is accepted and, when the references in it are found, where each one lands (name, index, literal or filter); a source without 'sites' is refused before it is parsed, because a reference stands where no value can make a query. 'plugin_arguments' gives how a simple plugin's arguments are split (trimmed); 'reference_keys' gives which knowledge-graph {reference} keys are refused because they are JSONPath queries.",
+  "description": "RFC-0010 WP3: a data-mapping source written as a JSONPath query is checked against RFC 9535 when a flow or a graph is compiled. Each engine reads this file byte for byte. 'sources' gives whether a source is accepted and, when the references in it are found, where each one lands (name, index, literal or filter); a source without 'sites' is refused before it is parsed, because a reference stands where no value can make a query. 'plugin_arguments' gives how a simple plugin's arguments are split (trimmed); 'reference_keys' gives which knowledge-graph {reference} keys are refused because they are JSONPath queries. 'substitutions' (WP4) gives the query each source becomes once its references are replaced by 'values' (a key missing from 'values' has no value), each value checked where it lands, or the 'error' that refuses the value.",
   "sources": [
     {
       "form": "event-script",
@@ -239,6 +239,22 @@
       "source": "$.input.body.countries.first()",
       "valid": false,
       "sites": []
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.{model.{model.k}}",
+      "valid": false,
+      "sites": [
+        "name"
+      ]
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.{model.{model.k}}",
+      "valid": false,
+      "sites": [
+        "name"
+      ]
     }
   ],
   "plugin_arguments": [
@@ -337,6 +353,319 @@
     {
       "key": " $.input.body.amount",
       "refused": true
+    }
+  ],
+  "substitutions": [
+    {
+      "form": "event-script",
+      "source": "$.input.body.{model.key}",
+      "values": {
+        "model.key": "item"
+      },
+      "query": "$.input.body.item"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.{model.path}",
+      "values": {
+        "model.path": "items[0].name"
+      },
+      "query": "$.input.body.items[0].name"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.{model.key}",
+      "values": {
+        "model.key": "*"
+      },
+      "error": "Cannot substitute {model.key} into '$.input.body.{model.key}' - '*' is not a key path"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.{model.key}",
+      "values": {
+        "model.key": "a..b"
+      },
+      "error": "Cannot substitute {model.key} into '$.input.body.{model.key}' - 'a..b' is not a key path"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.{model.key}",
+      "values": {
+        "model.key": "x[?(@.a)]"
+      },
+      "error": "Cannot substitute {model.key} into '$.input.body.{model.key}' - 'x[?(@.a)]' is not a key path"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.{model.key}",
+      "values": {},
+      "query": "$.input.body.null"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.{model.key}",
+      "values": {
+        "model.key": true
+      },
+      "query": "$.input.body.null"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[model.i]",
+      "values": {
+        "model.i": 2
+      },
+      "query": "$.input.body.items[2]"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[model.i]",
+      "values": {
+        "model.i": "2"
+      },
+      "query": "$.input.body.items[2]"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[{model.i}]",
+      "values": {
+        "model.i": "1:3"
+      },
+      "error": "Cannot substitute {model.i} into '$.input.body.items[{model.i}]' - '1:3' is not an integer index"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[{model.i}]",
+      "values": {
+        "model.i": -1
+      },
+      "query": "$.input.body.items[-1]"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.people[?(@.team == '{model.team}')].name",
+      "values": {
+        "model.team": "it's"
+      },
+      "query": "$.input.body.people[?(@.team == 'it\\'s')].name"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.people[?(@.team == '{model.team}')].name",
+      "values": {
+        "model.team": "a\\"
+      },
+      "query": "$.input.body.people[?(@.team == 'a\\\\')].name"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.people[?(@.team == {model.team})].name",
+      "values": {
+        "model.team": "alpha"
+      },
+      "query": "$.input.body.people[?(@.team == 'alpha')].name"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.people[?(@.team == {model.team})].name",
+      "values": {
+        "model.team": "@.x || true"
+      },
+      "query": "$.input.body.people[?(@.team == '@.x || true')].name"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.people[?(@.team == {model.team})].name",
+      "values": {
+        "model.team": "'alpha'"
+      },
+      "query": "$.input.body.people[?(@.team == 'alpha')].name"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.people[?(@.age > {model.min})].name",
+      "values": {
+        "model.min": "10"
+      },
+      "query": "$.input.body.people[?(@.age > 10)].name"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.people[?(@.age > {model.min})].name",
+      "values": {
+        "model.min": 10
+      },
+      "query": "$.input.body.people[?(@.age > 10)].name"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.people[?(@.age > {model.min})].name",
+      "values": {
+        "model.min": 1.5
+      },
+      "query": "$.input.body.people[?(@.age > 1.5)].name"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.people[?(@.active == {model.flag})].name",
+      "values": {
+        "model.flag": true
+      },
+      "query": "$.input.body.people[?(@.active == true)].name"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.people[?(@.active == {model.flag})].name",
+      "values": {
+        "model.flag": "true"
+      },
+      "query": "$.input.body.people[?(@.active == true)].name"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.people[?(@.team == {model.team})].name",
+      "values": {
+        "model.team": [
+          "a",
+          "b"
+        ]
+      },
+      "error": "Cannot substitute {model.team} into '$.input.body.people[?(@.team == {model.team})].name' - a list or a map cannot be substituted into a JSONPath"
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.people[?(@.team == {model.team})].name",
+      "values": {},
+      "query": "$.input.body.people[?(@.team == null)].name"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.{model.key}",
+      "values": {
+        "model.key": "item"
+      },
+      "query": "$.input.body.item"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.people[?(@.team == {input.body.team})].name",
+      "values": {
+        "input.body.team": "alpha"
+      },
+      "query": "$.input.body.people[?(@.team == 'alpha')].name"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.people[?(@.age > {model.min})].name",
+      "values": {
+        "model.min": "10"
+      },
+      "query": "$.input.body.people[?(@.age > '10')].name"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.people[?(@.age > {model.min})].name",
+      "values": {
+        "model.min": 10
+      },
+      "query": "$.input.body.people[?(@.age > 10)].name"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.people[?(@.team == {model.team})].name",
+      "values": {
+        "model.team": "it's"
+      },
+      "query": "$.input.body.people[?(@.team == 'it\\'s')].name"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.people[?(@.team == {model.team})].name",
+      "values": {
+        "model.team": "a\\"
+      },
+      "query": "$.input.body.people[?(@.team == 'a\\\\')].name"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.people[?(@.team == {model.team})].name",
+      "values": {
+        "model.team": "'alpha'"
+      },
+      "query": "$.input.body.people[?(@.team == '\\'alpha\\'')].name"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.people[?(@.team == {model.team})].name",
+      "values": {
+        "model.team": "a\nb"
+      },
+      "query": "$.input.body.people[?(@.team == 'a\\nb')].name"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.people[?(@.team == '{model.team}')].name",
+      "values": {
+        "model.team": "alpha"
+      },
+      "query": "$.input.body.people[?(@.team == 'alpha')].name"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.people[?(@.team == \"{model.team}\")].name",
+      "values": {
+        "model.team": "say \"hi\""
+      },
+      "query": "$.input.body.people[?(@.team == \"say \\\"hi\\\"\")].name"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.{model.key}",
+      "values": {
+        "model.key": {
+          "a": 1
+        }
+      },
+      "error": "Cannot substitute {model.key} into '$.input.body.{model.key}' - a list or a map cannot be substituted into a JSONPath"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.items[{model.i}]",
+      "values": {
+        "model.i": "2"
+      },
+      "query": "$.input.body.items[2]"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.item_{model.n}",
+      "values": {
+        "model.n": 5
+      },
+      "query": "$.input.body.item_5"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.people[?(@.team == {model.team})].name",
+      "values": {},
+      "query": "$.input.body.people[?(@.team == null)].name"
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.{model.key}",
+      "values": {
+        "model.key": true
+      },
+      "query": "$.input.body.true"
+    },
+    {
+      "form": "graph",
+      "source": "$['{model.k}']",
+      "values": {
+        "model.k": "a'b"
+      },
+      "query": "$['a\\'b']"
     }
   ]
 }

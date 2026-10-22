@@ -1,0 +1,28 @@
+flow:
+  id: 'json-path-substitution-test'
+  description: 'Test model variables substituted into a JSONPath source, each value checked where it lands (RFC-0010)'
+  ttl: 10s
+
+first.task: 'no.op'
+
+#
+# A model variable is substituted into a JSONPath source before the query is parsed (RFC-0010).
+# Each value is checked where it lands so that it cannot change the query's structure:
+# a key path in a name, escaped inside a string literal, and bare in a filter a literal as written
+# or a text value quoted as a string literal.
+#
+tasks:
+  - input:
+      - 'input.body.key -> model.key'
+      - 'input.body.team -> model.team'
+      - 'input.body.min -> model.min'
+      - '$.input.body.data.{model.key} -> by_key'
+      - "$.input.body.people[?(@.team == '{model.team}')].name -> in_literal"
+      - '$.input.body.people[?(@.team == {model.team})].name -> in_filter'
+      - '$.input.body.people[?(@.age > {model.min})].name -> older'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'result -> output.body'
+    description: 'Substitute model variables into JSONPath sources'
+    execution: end
