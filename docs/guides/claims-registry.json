@@ -401,7 +401,7 @@
     },
     {
       "id": "mapping-source-dynamic-variables",
-      "claim": "In a MiniGraph data mapping a {namespace.key} reference inside a source resolves before the source is read - as a key segment (table.{model.key}), a list index (items[{model.i}]) or text in a constant or a plugin argument - and its value is inserted verbatim: a '!', '>', '&&' or '==' in a text constant does not quote it, and only a JSONPath filter quotes a text value; an unresolved reference renders the text null, so a composed key misses and the null-source rule applies; a composed key is case-sensitive.",
+      "claim": "In a MiniGraph data mapping a {namespace.key} reference inside a source resolves before the source is read - as a key segment (table.{model.key}), a list index (items[{model.i}]) or text in a constant or a plugin argument - and its value is inserted verbatim: a '!', '>', '&&' or '==' in a text constant does not quote it; a JSONPath source is the exception, where each value is checked where it lands and a text value bare in a filter becomes a string literal; an unresolved reference renders the text null, so a composed key misses and the null-source rule applies; a composed key is case-sensitive.",
       "pages": [
         "docs/guides/knowledge-graph/command-reference.md"
       ],
@@ -411,13 +411,63 @@
     },
     {
       "id": "json-path-result-shape",
-      "claim": "A $. JSONPath mapping source takes Jayway's result shape - by the kind of path, not the number of matches: a definite path (child member names and single indexes only) yields the value, or null when it is absent; an indefinite path (a filter, a wildcard, a deep scan, a slice or a union) always yields a list, one match being a one-element list and no match an empty list, unless a member name before its first indefinite step is missing, which yields null.",
+      "claim": "A $. JSONPath mapping source takes Mercury's result shape, the same on both engines - by the kind of path, not the number of matches: a definite path (child member names and single indexes only) yields the value, or null when it is absent; an indefinite path (a filter, a wildcard, a deep scan, a slice or a union) always yields a list, one match being a one-element list and no match an empty list, unless a member name before its first indefinite step is missing, which yields null.",
       "pages": [
         "docs/guides/event-script/syntax.md"
       ],
       "quote": "The result shape depends on the kind of path, not on the number of matches",
-      "test": "crates/knowledge-graph::graph_runtime::json_path_source_takes_the_jayway_shape",
+      "test": "crates/knowledge-graph::graph_runtime::json_path_source_takes_the_mercury_shape",
       "since": "4.12.21+"
+    },
+    {
+      "id": "json-path-refused-before-it-runs",
+      "claim": "A $ JSONPath source outside RFC 9535 is refused when the flow is compiled: the flow compiler drops the task, as for any other invalid mapping entry, with an error that names RFC 9535, the reason and the position - Jayway-only forms such as 'in', '=~' and '.length()' included, in an input source, an output source or a simple plugin's $ argument.",
+      "pages": [
+        "docs/guides/event-script/syntax.md"
+      ],
+      "quote": "A path outside the standard is refused before it runs",
+      "test": "crates/event-script::compiler::json_path_outside_rfc_9535_drops_the_task",
+      "since": "4.12.26+"
+    },
+    {
+      "id": "json-path-substitution-checked",
+      "claim": "A model variable substituted into a $ JSONPath source is replaced before the query is parsed and checked where it lands: a key path in a name, an integer in an index, escaped inside a string literal the author wrote, and bare in a filter a number, a boolean or null as written and text as a string literal - Event Script keeping text that is already one literal as written, so numeric text compares as a number; a value that fails its check, such as '*' in a name, fails the mapping by name.",
+      "pages": [
+        "docs/guides/event-script/syntax.md"
+      ],
+      "quote": "The value is checked where it lands, so that it cannot change the query's structure",
+      "test": "crates/event-script::flow_runtime::flows_run_end_to_end_like_java",
+      "since": "4.12.26+"
+    },
+    {
+      "id": "json-path-graph-gate",
+      "claim": "A knowledge graph whose JSONPath is outside RFC 9535 - in a data mapping's source, a MAPPING statement, a simple plugin's $ argument or a data dictionary's default value - is rejected by the deployment gate (CompileGraph, the graph-set packager and the Playground's run), and the message names the node, the entry and the reason.",
+      "pages": [
+        "docs/guides/knowledge-graph/command-reference.md"
+      ],
+      "quote": "A graph whose JSONPath is outside the standard is rejected at deployment",
+      "test": "crates/knowledge-graph::compiler::a_json_path_outside_rfc_9535_fails_the_gate",
+      "since": "4.12.26+"
+    },
+    {
+      "id": "reference-never-json-path",
+      "claim": "A knowledge-graph {reference} names a state-machine key or a constant, never a JSONPath query: {$.input.body.amount} is refused in a mapping source and in a graph.math statement, at deployment and at run time.",
+      "pages": [
+        "docs/guides/knowledge-graph/command-reference.md"
+      ],
+      "quote": "A reference never holds a JSONPath query",
+      "test": "crates/knowledge-graph::compiler::a_json_path_outside_rfc_9535_fails_the_gate",
+      "since": "4.12.26+"
+    },
+    {
+      "id": "json-path-substitution-graph",
+      "claim": "In a knowledge graph, a {namespace.key} value substituted into a JSONPath source is checked where it lands: a quote or a trailing backslash is escaped inside the author's literal and in the string literal a bare filter value becomes, so it stays text, and a value that would change the query's structure fails the node by name with HTTP 400.",
+      "pages": [
+        "docs/guides/knowledge-graph/command-reference.md"
+      ],
+      "quote": "A JSONPath source is the exception: each value is checked where it lands",
+      "test": "crates/knowledge-graph::graph_runtime::a_value_substituted_into_json_path_is_checked_where_it_lands",
+      "since": "4.12.26+"
     },
     {
       "id": "msgpack-nesting-limit",

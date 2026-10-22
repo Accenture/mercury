@@ -125,8 +125,12 @@ line per key) answers a value per key, where f:lookup answers which rule lists a
   side: a target is a literal path.
 - An unresolved reference renders the text null, so a composed key misses and a constant reads
   "null". A composed key is case-sensitive, unlike f:lookup.
-- Nothing is quoted, whatever a text constant contains ("!", "<", ">", "=="). A JSONPath filter is
-  the one exception: a text value is quoted there so it reads as a string literal in the query.
+- Nothing is quoted, whatever a text constant contains ("!", "<", ">", "=="). A JSONPath source is
+  the exception: each value is checked where it lands - a key path in a name, an integer in an
+  index, escaped inside a string literal, and a text value quoted as a string literal bare in a
+  filter - and a value that fails is refused by name.
+- A reference never holds a JSONPath query ({$.input.body.x} is refused); map the value to a
+  model variable first.
 - Keep a fixed prefix before a request value (census-2020.{input.body.state}) so the request
   chooses only within that table. A table value is text, and f:long(null) is -1, so refuse an
   unknown key before converting.
@@ -153,8 +157,9 @@ Beyond constants, two non-constant source forms are valid:
   f:now(text(local)), f:concat(model.a, text(!)), f:add(model.n, int(1)),
   f:ternary(...), f:defaultValue(input.body.flag, boolean(false)),
   f:removeKey(model.list, text(key)), f:listOfMap(...).
-- $.  - a JSONPath expression over the state machine. Prefer plain
-  dot-bracket keys; use JSONPath only when the query needs it.
+- $.  - an RFC 9535 JSONPath query over the state machine. Prefer plain
+  dot-bracket keys; use JSONPath only when the query needs it. A path
+  outside the standard rejects the graph when it is deployed.
 
 Notes
 -----

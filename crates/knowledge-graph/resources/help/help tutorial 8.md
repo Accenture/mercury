@@ -359,5 +359,7 @@ f:listOfMap() plugin to consolidate maps of lists into a list of maps, and used 
 plugin to remove unwanted key-values from a list of maps — the building blocks for reshaping a
 third-party API response into your internal data contract.
 
-Note that JSON-Path also supports value comparison for selective key-value retrieval. Please refer
-to a JSON-Path syntax reference on the web for more details.
+Note that JSON-Path also supports value comparison for selective key-value retrieval, as in
+$.input.body.profile.account[?(@.amount > 100)].id. Both engines follow RFC 9535, the IETF JSONPath
+standard; the Event Script syntax guide's JSON Path section lists its forms and the checks on a
+value substituted into a path.

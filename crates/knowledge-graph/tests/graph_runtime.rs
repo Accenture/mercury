@@ -642,7 +642,7 @@ async fn graph_runtime_end_to_end() {
     generic_exception_context_serves_every_node(&platform).await;
     statement_commands_resolve_dynamic_variables(&platform).await;
     mapping_source_resolves_dynamic_variables_verbatim(&platform).await;
-    json_path_source_takes_the_jayway_shape(&platform).await;
+    json_path_source_takes_the_mercury_shape(&platform).await;
     a_value_substituted_into_json_path_is_checked_where_it_lands(&platform).await;
     successful_retry_resolves_the_error_context(&platform).await;
     suspend_resume_x_run_over_the_real_http_stack(&platform).await;
@@ -3994,9 +3994,9 @@ async fn mapping_source_resolves_dynamic_variables_verbatim(platform: &Platform)
     assert_eq!(Some(Value::from("a")), mm.get_element("item"));
 }
 
-/// Java `GraphTaskTest.jsonPathSourceTakesTheJaywayShape` (unit-test-jsonpath-1):
-/// a `$.` mapping source is shaped by the kind of path, as Jayway shapes it for
-/// the Java engine. A definite path yields the value, or null when it is absent;
+/// Java `GraphTaskTest.jsonPathSourceTakesTheMercuryShape` (unit-test-jsonpath-1):
+/// a `$.` mapping source is shaped by the kind of path, Mercury's rule on both
+/// engines. A definite path yields the value, or null when it is absent;
 /// an indefinite path always yields a list - one match is a one-element list and
 /// none an empty list - unless a member name before its first indefinite step is
 /// missing, which yields null (so the null-source rule leaves an output target
@@ -4044,7 +4044,7 @@ async fn a_value_substituted_into_json_path_is_checked_where_it_lands(platform: 
     );
 }
 
-async fn json_path_source_takes_the_jayway_shape(platform: &Platform) {
+async fn json_path_source_takes_the_mercury_shape(platform: &Platform) {
     let reply = run_graph(
         platform,
         "unit-test-jsonpath-1",

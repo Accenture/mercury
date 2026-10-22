@@ -112,6 +112,14 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    query syntax into a `$` path - a wildcard, a filter, `..` or a quote - now fails the mapping instead of changing the query; in a
    knowledge graph, a text value inside a literal the author quoted (`'{model.team}'`) is no longer quoted a second time, so that
    form now works.
+7. **The guides describe RFC 9535 JSONPath (RFC-0010 WP5; Increment 187).** The Event Script syntax guide's JSON Path section states
+   the grammar, the result shape, the refusal before a flow or a graph runs, a replacement for each Jayway-only form (which this
+   engine answered with null) and the checks on a substituted value; the flow grammar, the knowledge graph's command reference, the
+   commands catalog and the AI agent guide's pre-send checklist follow it. Seven claims pin the behaviour against this engine's
+   tests: `json-path-result-shape` and `mapping-source-dynamic-variables` are updated, and five are new. The result-shape test is
+   now `json_path_source_takes_the_mercury_shape`. The Playground bundle is redeployed from the Java repo with its help
+   (`help graph-data-mapper`, `help tutorial 8`): `index-CrqpNrFx.js` became `index-D5Sx-GL2.js`, the vendor chunks, the stylesheet
+   and the other 42 help pages are unchanged, and every deployed file is byte-identical with the Java repo's. **Upgrade note:** none.
 
 ### Fixed
 
