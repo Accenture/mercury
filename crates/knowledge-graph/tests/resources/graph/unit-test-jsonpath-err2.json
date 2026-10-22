@@ -1,0 +1,55 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "a Jayway-only path function in a simple plugin's JSONPath argument must fail the gate (RFC-0010)",
+        "name": "unit-test-jsonpath-err2"
+      }
+    },
+    {
+      "alias": "worker",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "f:length($.input.body.items.length()) -> output.body.count"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "worker",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "worker",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

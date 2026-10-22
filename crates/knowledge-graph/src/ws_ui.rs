@@ -279,13 +279,18 @@ async fn handle_text_message(po: &PostOffice, route: &str, tx_path: &str, messag
                         ),
                     )
                     .await;
-                    let result = mm.get_element(message).unwrap_or(Value::Nil);
-                    say(
-                        po,
-                        tx_path,
-                        format!("{}\n", event_script::conversions::to_json_string(&result)),
-                    )
-                    .await;
+                    // a path that is not RFC 9535 answers its reason and position, as on
+                    // the Java engine, instead of a null (RFC-0010)
+                    let reply = match mm.try_get_element(message) {
+                        Ok(result) => format!(
+                            "{}\n",
+                            event_script::conversions::to_json_string(
+                                &result.unwrap_or(Value::Nil)
+                            )
+                        ),
+                        Err(e) => e,
+                    };
+                    say(po, tx_path, reply).await;
                 }
                 None => {
                     say(

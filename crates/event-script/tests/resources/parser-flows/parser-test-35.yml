@@ -1,0 +1,17 @@
+flow:
+  id: 'parser-test-35'
+  description: 'test a simple plugin argument written as a JSONPath that is not RFC 9535'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> header.user'
+      # invalid: '=~' is a Jayway filter operator; RFC 9535 writes match() or search() (RFC-0010)
+      - "f:length($.input.body.items[?(@.code =~ /a.*/)]) -> model.count"
+    process: 'greeting.test'
+    output:
+      - "result -> output.body"
+    description: 'Hello World'
+    execution: end

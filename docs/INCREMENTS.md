@@ -4993,3 +4993,34 @@ A toolchain change in the Java repo's webapp (mercury-composable #572, a Dependa
   Here, `cargo test -p mercury-knowledge-graph --test home_page` passed with the deployed bundle.
 
 Gates: `cargo test -p mercury-knowledge-graph`.
+
+## Increment 185 — A JSONPath outside RFC 9535 is refused, at evaluation and at deployment (RFC-0010 WP3) (2026-10-22)
+
+The twin of the Java engine's WP3 (mercury-composable `feature/minimalist-jsonpath`). RFC-0010 makes RFC 9535 the one JSONPath
+grammar of both engines; the Java engine replaces Jayway with its own engine, and this one keeps `serde_json_path`, which already
+implements the standard. Eric's rulings for WP3 are recorded in the RFC: a flow drops the task, a graph is rejected, one scanner
+finds where each reference lands, a simple plugin's `$` argument stays supported, and a `{reference}` never holds a JSONPath query.
+
+- **Evaluation (`mlm.rs`).** `compile_json_path` parses strictly and then retries once with hyphenated dotted names in bracket
+  notation, as before, and returns the strict parse's error as `reason at position N of 'path'` (N a character index; the parser
+  reports a byte offset). `try_get_element` answers that error for a `$` path, and `mapping::get_lhs_element` reads a source through
+  it, so the mapping fails by name; `get_element` keeps answering `None`. The JSON-Path console in `ws_ui.rs` prints the reason.
+- **The scanner (`jsonpath_source.rs`, Java `JsonPathSource`).** It finds the references this engine substitutes into a source
+  (Event Script's `{model.key}` and `[model.i]`, the graph's `{namespace.key}`), copying the engine's own scans, and tells where each
+  one lands - a name, an index, a string literal or bare in a filter - from a small RFC 9535 lexer. `check` parses the source with a
+  stand-in for each (`x`, `0`, `x`, `'x'`) and restates a parse error's position in the source as written; a reference where no value
+  can make a query (`${model.key}`) is refused. WP4 reuses the scanner to check each value before it is inserted.
+- **The gates.** The flow compiler (`compiler.rs`) drops a task whose `$` source or `$` plugin argument is not RFC 9535, with
+  "Skip invalid task ... that has a JSONPath not compliant with RFC 9535"; the graph validator (`model_validator.rs`) rejects a graph
+  for one in a mapping property, a `MAPPING:` statement or a data dictionary's default value, and for a `{$...}` reference in any
+  statement or mapping source. The run-time guard refuses a `{$...}` reference where a reference is resolved (`common.rs`
+  substitution and `assert_variables_resolved`, `skills.rs` `render_inexact_numbers`).
+- **The argument splitter (`mapping.rs`).** A `$` argument ends at the first comma outside its brackets and string literals, so a
+  union or a filter's text reaches the plugin whole; every other argument splits as before.
+- **Checked.** The JSONPath Compliance Test Suite (`tests/resources/cts/`, byte-identical with the Java engine's, BSD-2) against
+  `serde_json_path` 0.7.2: 715 cases, every answer the standard's and the 249 invalid queries refused; the normalized paths of 16
+  name-selector cases lack RFC 9535's escapes, which the engine never reads (pinned by name in `jsonpath_compliance_suite.rs`). The
+  shared `jsonpath-source-vectors.json` (49 vectors) and parser flows 33-36 are byte-identical with the Java engine's; graph
+  fixtures `unit-test-jsonpath-ok` and `-err1` to `-err4` likewise, `-err5` built from this engine's `tutorial-113`.
+
+Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`.

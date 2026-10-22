@@ -48,6 +48,9 @@ graphs:
   # a $. JSONPath mapping source in Jayway's result shape: a definite path yields the value, an
   # indefinite one always a list (one match, none), null when a member name before it is missing
   - 'unit-test-jsonpath-1'
+  # RFC-0010: every accepted JSONPath form compiles, and a JSONPath outside RFC 9535 rejects its graph
+  - 'unit-test-jsonpath-ok'
+  - 'unit-test-jsonpath-err1'
   - 'unit-test-math-1'
   - 'unit-test-math-2'
   - 'rust-foreach'

@@ -1,0 +1,17 @@
+flow:
+  id: 'parser-test-33'
+  description: 'test an input JSONPath that is not RFC 9535 - a Jayway-only filter operator'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> header.user'
+      # invalid: 'in' is a Jayway filter operator; RFC 9535 writes @.code == 'a' || @.code == 'b' (RFC-0010)
+      - "$.input.body.items[?(@.code in ['a', 'b'])] -> model.codes"
+    process: 'greeting.test'
+    output:
+      - "result -> output.body"
+    description: 'Hello World'
+    execution: end

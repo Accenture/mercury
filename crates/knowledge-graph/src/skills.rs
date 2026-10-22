@@ -341,6 +341,7 @@ fn decimal(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Result<
 fn render_inexact_numbers(expression: &str, state: &MultiLevelMap) -> Result<String, AppError> {
     let mut result = expression.to_string();
     for key in selectors_in(expression) {
+        event_script::jsonpath_source::refuse_json_path_key(&key).map_err(invalid)?;
         let plain = match get_lhs_or_constant(&key, state).map_err(invalid)? {
             Some(Value::F64(d)) => DecimalEvaluator::plain_text(d),
             Some(Value::F32(f)) => DecimalEvaluator::plain_text_f32(f),

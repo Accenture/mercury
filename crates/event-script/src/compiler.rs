@@ -33,6 +33,7 @@ use platform_core::{AppConfigReader, ConfigReader, ConfigValue};
 
 use crate::converter;
 use crate::flows;
+use crate::jsonpath_source;
 use crate::model::{Flow, Task};
 use crate::util::{duration_in_seconds, is_numeric, split, str2long};
 use crate::validator::{self, MAP_TO};
@@ -234,6 +235,9 @@ fn valid_input_mapping(
             );
             return false;
         }
+        if rejected_json_path(&line, name, md) {
+            return false;
+        }
         let sep = line.rfind(MAP_TO).expect("validated");
         let rhs = line[sep + 2..].trim();
         if rhs.starts_with("input.") || rhs == "input" {
@@ -270,7 +274,9 @@ fn valid_output_mapping(
         }
         if validator::valid_output(&line, is_decision) {
             let rhs = line[line.rfind(MAP_TO).expect("validated") + 2..].trim();
-            if rejected_reserved_target("output", rhs, name, md, &line) {
+            if rejected_reserved_target("output", rhs, name, md, &line)
+                || rejected_json_path(&line, name, md)
+            {
                 return false;
             }
             if line.contains("model.parent.") || line.contains("model.root.") {
@@ -293,6 +299,24 @@ fn valid_output_mapping(
         return false;
     }
     true
+}
+
+/// Log and reject a data mapping entry whose JSONPath does not follow RFC
+/// 9535 (RFC-0010): the source, or a simple plugin's argument, written as
+/// `$...`. Like every other invalid entry, it drops the task (Java
+/// `CompileFlows.rejectedJsonPath`).
+fn rejected_json_path(line: &str, name: &str, md: &FlowConfigMetadata) -> bool {
+    let lhs = line[..line.rfind(MAP_TO).expect("validated")].trim();
+    match jsonpath_source::validate_json_paths(lhs, jsonpath_source::Form::EventScript) {
+        Ok(()) => false,
+        Err(e) => {
+            log::error!(
+                "Skip invalid task {} in {name} that has a JSONPath not compliant with RFC 9535 - {line} ({e})",
+                md.unique_task_name
+            );
+            true
+        }
+    }
 }
 
 fn rejected_reserved_target(

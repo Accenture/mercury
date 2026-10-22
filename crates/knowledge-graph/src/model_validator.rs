@@ -35,6 +35,7 @@
 //! outgoing connection; a 'resume' node needs 'task').
 
 use event_script::conversions::display;
+use event_script::jsonpath_source;
 use platform_core::graph::{MiniGraph, SimpleNode};
 use rmpv::Value;
 use std::sync::Arc;
@@ -68,7 +69,83 @@ pub fn validate(graph: &MiniGraph) -> Result<(), String> {
     validate_suspend_resume(graph)?;
     validate_node_ttl(graph)?;
     validate_model_metadata_immutability(graph)?;
+    validate_json_paths(graph)?;
     validate_schemas(graph)
+}
+
+/// The JSONPath sources compile (RFC-0010): a data mapping's source written as
+/// `$...`, a simple plugin's `$...` argument and a data dictionary's `$...`
+/// default value follow RFC 9535 with Mercury's hyphen rule. JSONPath belongs
+/// to data mapping, where a source and its target are separated by `->`, so a
+/// `{reference}` names a state-machine key or a constant, never a JSONPath - in
+/// a mapping source and in a statement alike (Java
+/// `GraphModelValidator.validateJsonPaths`).
+fn validate_json_paths(graph: &MiniGraph) -> Result<(), String> {
+    let mut dictionaries: Vec<String> = Vec::new();
+    for node in graph.get_nodes() {
+        dictionaries.extend(get_entries(node.get_property("dictionary")));
+    }
+    for node in graph.get_nodes() {
+        let alias = node.get_alias();
+        for property in MAPPING_PROPERTIES {
+            for entry in get_entries(node.get_property(property)) {
+                validate_mapping_source(alias, property, &entry)?;
+            }
+        }
+        for statement in get_entries(node.get_property("statement")) {
+            let text = statement.trim();
+            match text.find(':') {
+                Some(colon) if text[..colon + 1].eq_ignore_ascii_case(MAPPING_TAG) => {
+                    validate_mapping_source(alias, "statement", &text[colon + 1..])?;
+                }
+                _ => validate_references(alias, "statement", &statement, text)?,
+            }
+        }
+        if dictionaries.iter().any(|d| d == alias) {
+            for entry in get_entries(node.get_property("input")) {
+                validate_dictionary_default(alias, &entry)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_mapping_source(alias: &str, property: &str, entry: &str) -> Result<(), String> {
+    // an 'input' entry without '->' is skill vocabulary, not a data mapping
+    let Some(sep) = entry.rfind(MAP_TO) else {
+        return Ok(());
+    };
+    let lhs = entry[..sep].trim();
+    validate_references(alias, property, entry, lhs)?;
+    jsonpath_source::validate_json_paths(lhs, jsonpath_source::Form::Graph)
+        .map_err(|e| not_compliant(alias, property, entry, &e))
+}
+
+fn validate_dictionary_default(alias: &str, entry: &str) -> Result<(), String> {
+    // a data dictionary's 'key:default' - the default is read from the state machine when it names a source
+    match entry.find(':') {
+        Some(colon) if !entry.contains(MAP_TO) => jsonpath_source::validate_json_paths(
+            entry[colon + 1..].trim(),
+            jsonpath_source::Form::Plain,
+        )
+        .map_err(|e| not_compliant(alias, "input", entry, &e)),
+        _ => Ok(()),
+    }
+}
+
+fn validate_references(alias: &str, property: &str, entry: &str, text: &str) -> Result<(), String> {
+    for key in crate::common::selectors_in(text) {
+        jsonpath_source::refuse_json_path_key(&key)
+            .map_err(|e| format!("{NODE_NAME}{alias} - {property} '{}' - {e}", entry.trim()))?;
+    }
+    Ok(())
+}
+
+fn not_compliant(alias: &str, property: &str, entry: &str, e: &str) -> String {
+    format!(
+        "{NODE_NAME}{alias} - {property} '{}' has a JSONPath not compliant with RFC 9535 - {e}",
+        entry.trim()
+    )
 }
 
 /// The graph contract's declarations compile (RFC-0007; Java

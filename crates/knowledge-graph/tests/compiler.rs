@@ -69,6 +69,7 @@ fn manifest_listed_graphs_are_compiled() {
     // + the decimal-loop fixture (the documented money loop: an exact running sum over for_each)
     // + the mapping-1 fixture (a {namespace.key} reference in a mapping source, inserted verbatim)
     // + the jsonpath-1 fixture (a $. mapping source in Jayway's result shape)
+    // + the jsonpath-ok fixture (every JSONPath form the gate accepts - RFC-0010)
     // + the 2 graph-contract fixtures (schema-1: a root schema validated as the
     // assumed first step; schema-2: a failed validation routed to the root's
     // exception handler - RFC-0007)
@@ -77,15 +78,16 @@ fn manifest_listed_graphs_are_compiled() {
     // manifest-reject's later copy is rejected and the id stays out);
     // + the range-bounds-1 fixture (a band's bounds through a dynamic key, typed
     // by the notation; a graph.math IF skips the distance when the end is open)
-    // the 16 deliberately-invalid fixtures
+    // the 17 deliberately-invalid fixtures
     // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias, schema-err1 with
-    // an unknown schema keyword, schema-err2 with an inapplicable one) are rejected
+    // an unknown schema keyword, schema-err2 with an inapplicable one, jsonpath-err1
+    // with a JSONPath outside RFC 9535) are rejected
     // by the mandatory quality gate. Every graph a runtime test executes MUST
     // be listed here - deployed execution is compiled-or-404 (no lazy load)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        65,
+        66,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
@@ -143,11 +145,68 @@ fn invalid_manifest_graphs_are_not_compiled() {
         // (error.source/code/message/stack) - the graph model itself rejects
         // reserved aliases at node creation, so the gate rejection is inherited
         "unit-test-error-alias",
+        // a Jayway-only filter operator in a data mapping's JSONPath (RFC-0010)
+        "unit-test-jsonpath-err1",
     ] {
         assert!(
             !graphs::graph_exists(id),
             "{id} must be rejected by the quality gate"
         );
+    }
+}
+
+/// Java parity (CompileGraphTest.aJsonPathOutsideRfc9535FailsTheGate): a data
+/// mapping's `$` source, a simple plugin's `$` argument and a data dictionary's
+/// `$` default value follow RFC 9535, and a `{reference}` never holds a
+/// JSONPath query (RFC-0010). err1 a Jayway-only filter operator, err2 a
+/// Jayway-only path function in a plugin argument, err3 a `{$...}` reference
+/// in a graph.math expression, err4 one in a mapping source, err5 a
+/// dictionary default. Each message is checked, so a fixture rejected for
+/// another reason cannot pass.
+#[test]
+fn a_json_path_outside_rfc_9535_fails_the_gate() {
+    compile_once();
+    assert!(graphs::graph_exists("unit-test-jsonpath-ok"));
+    assert!(!graphs::graph_exists("unit-test-jsonpath-err1"));
+    let import = |id: &str| {
+        let reader =
+            ConfigReader::load(&format!("classpath:/graph/{id}.json")).expect("fixture loads");
+        let json = ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
+        let model = event_script::conversions::from_json(&json);
+        let graph = MiniGraph::new();
+        graph.import_graph(&model).expect("fixture is importable");
+        graph
+    };
+    assert!(model_validator::validate(&import("unit-test-jsonpath-ok")).is_ok());
+    for (id, expected) in [
+        (
+            "unit-test-jsonpath-err1",
+            "node worker - mapping '$.input.body.items[?(@.code in ['a', 'b'])] -> output.body.codes' \
+             has a JSONPath not compliant with RFC 9535 - ",
+        ),
+        (
+            "unit-test-jsonpath-err2",
+            "node worker - mapping 'f:length($.input.body.items.length()) -> output.body.count' \
+             has a JSONPath not compliant with RFC 9535 - ",
+        ),
+        (
+            "unit-test-jsonpath-err3",
+            "node worker - statement 'COMPUTE: total -> {$.input.body.amount} + 1' \
+             - JSONPath is not supported in a reference - {$.input.body.amount}",
+        ),
+        (
+            "unit-test-jsonpath-err4",
+            "node worker - mapping '$.input.body.{$.input.body.key} -> output.body.value' \
+             - JSONPath is not supported in a reference",
+        ),
+        (
+            "unit-test-jsonpath-err5",
+            "node person-name - input 'country:$.input.body.countries.first()' \
+             has a JSONPath not compliant with RFC 9535 - ",
+        ),
+    ] {
+        let error = model_validator::validate(&import(id)).unwrap_err();
+        assert!(error.starts_with(expected), "{id}: {error}");
     }
 }
 

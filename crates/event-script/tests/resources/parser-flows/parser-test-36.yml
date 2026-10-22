@@ -1,0 +1,21 @@
+flow:
+  id: 'parser-test-36'
+  description: 'test the JSONPath forms the flow compiler accepts - references, a union and a quoted comma'
+  ttl: 10s
+
+first.task: 'greeting.test'
+
+tasks:
+  - input:
+      - 'input.path_parameter.user -> header.user'
+      # valid: a reference stands where a value can make the query (RFC-0010)
+      - "$.input.body.{model.key} -> model.by_key"
+      - "$.input.body.items[model.i] -> model.by_index"
+      - "$.input.body.items[?(@.team == '{model.team}')].name -> model.in_literal"
+      - "f:length($.input.body.items[?(@.tag == 'a,b')]) -> model.quoted_comma"
+      - "f:length($.input.body['items','more']) -> model.union"
+    process: 'greeting.test'
+    output:
+      - "result -> output.body"
+    description: 'Hello World'
+    execution: end

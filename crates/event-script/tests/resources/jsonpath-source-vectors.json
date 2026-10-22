@@ -1,0 +1,342 @@
+{
+  "description": "RFC-0010 WP3: a data-mapping source written as a JSONPath query is checked against RFC 9535 when a flow or a graph is compiled. Each engine reads this file byte for byte. 'sources' gives whether a source is accepted and, when the references in it are found, where each one lands (name, index, literal or filter); a source without 'sites' is refused before it is parsed, because a reference stands where no value can make a query. 'plugin_arguments' gives how a simple plugin's arguments are split (trimmed); 'reference_keys' gives which knowledge-graph {reference} keys are refused because they are JSONPath queries.",
+  "sources": [
+    {
+      "form": "event-script",
+      "source": "$.input.body.name",
+      "valid": true,
+      "sites": []
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.{model.key}",
+      "valid": true,
+      "sites": [
+        "name"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$..{model.key}",
+      "valid": true,
+      "sites": [
+        "name"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.{model.a}{model.b}",
+      "valid": true,
+      "sites": [
+        "name",
+        "name"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.item_{model.n}",
+      "valid": true,
+      "sites": [
+        "name"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.fetcher-ext.result.{model.key}",
+      "valid": true,
+      "sites": [
+        "name"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[model.i]",
+      "valid": true,
+      "sites": [
+        "index"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[ model.i ].name",
+      "valid": true,
+      "sites": [
+        "index"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[{model.i}]",
+      "valid": true,
+      "sites": [
+        "index"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[{model.a}:{model.b}]",
+      "valid": true,
+      "sites": [
+        "index",
+        "index"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[?(@.team == '{model.team}')].name",
+      "valid": true,
+      "sites": [
+        "literal"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[?(@.team == {model.team})].name",
+      "valid": true,
+      "sites": [
+        "filter"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[?(@.price > {model.min} && @.price < {model.max})]",
+      "valid": true,
+      "sites": [
+        "filter",
+        "filter"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[?(@.{model.field} == 1)]",
+      "valid": true,
+      "sites": [
+        "name"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[?match(@.code, {model.pattern})]",
+      "valid": true,
+      "sites": [
+        "filter"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[?@.a == 1, {model.i}]",
+      "valid": true,
+      "sites": [
+        "index"
+      ]
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[?(@.a[model.i] == 1)]",
+      "valid": false,
+      "sites": []
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.{text}",
+      "valid": false,
+      "sites": []
+    },
+    {
+      "form": "event-script",
+      "source": "${model.key}",
+      "valid": false
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[?(@.code in ['a', 'b'])]",
+      "valid": false,
+      "sites": []
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items.length()",
+      "valid": false,
+      "sites": []
+    },
+    {
+      "form": "event-script",
+      "source": "$.input.body.items[?(@.code =~ /a.*/)]",
+      "valid": false,
+      "sites": []
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.{model.key}",
+      "valid": true,
+      "sites": [
+        "name"
+      ]
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.people[?(@.team == {input.body.team})].name",
+      "valid": true,
+      "sites": [
+        "filter"
+      ]
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.items[{model.i}]",
+      "valid": true,
+      "sites": [
+        "index"
+      ]
+    },
+    {
+      "form": "graph",
+      "source": "$.{fetcher.result}.name",
+      "valid": true,
+      "sites": [
+        "name"
+      ]
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.items[model.i]",
+      "valid": false,
+      "sites": []
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body.{a:b}",
+      "valid": false,
+      "sites": []
+    },
+    {
+      "form": "graph",
+      "source": "${model.key}",
+      "valid": false
+    },
+    {
+      "form": "graph",
+      "source": "$.input.body[{model.key}",
+      "valid": false,
+      "sites": [
+        "index"
+      ]
+    },
+    {
+      "form": "plain",
+      "source": "$.input.body.amount",
+      "valid": true,
+      "sites": []
+    },
+    {
+      "form": "plain",
+      "source": "$.input.body.{model.key}",
+      "valid": false,
+      "sites": []
+    },
+    {
+      "form": "plain",
+      "source": "$.input.body.countries.first()",
+      "valid": false,
+      "sites": []
+    }
+  ],
+  "plugin_arguments": [
+    {
+      "arguments": "",
+      "split": []
+    },
+    {
+      "arguments": "model.a, model.b",
+      "split": [
+        "model.a",
+        "model.b"
+      ]
+    },
+    {
+      "arguments": "text(a, b), model.c",
+      "split": [
+        "text(a, b)",
+        "model.c"
+      ]
+    },
+    {
+      "arguments": "text(it's), model.b",
+      "split": [
+        "text(it's)",
+        "model.b"
+      ]
+    },
+    {
+      "arguments": "$.a['b','c'], text(x)",
+      "split": [
+        "$.a['b','c']",
+        "text(x)"
+      ]
+    },
+    {
+      "arguments": "model.a, $.b[0,1]",
+      "split": [
+        "model.a",
+        "$.b[0,1]"
+      ]
+    },
+    {
+      "arguments": "$.items[?(@.tag == 'a,b')], int(1)",
+      "split": [
+        "$.items[?(@.tag == 'a,b')]",
+        "int(1)"
+      ]
+    },
+    {
+      "arguments": "$.items[?(@.name == ']')], model.x",
+      "split": [
+        "$.items[?(@.name == ']')]",
+        "model.x"
+      ]
+    },
+    {
+      "arguments": "$.items[?(@.name == 'it\\'s, ok')], model.x",
+      "split": [
+        "$.items[?(@.name == 'it\\'s, ok')]",
+        "model.x"
+      ]
+    },
+    {
+      "arguments": "$.a[?match(@.b, 'c')], model.x",
+      "split": [
+        "$.a[?match(@.b, 'c')]",
+        "model.x"
+      ]
+    },
+    {
+      "arguments": "$.a, $.b",
+      "split": [
+        "$.a",
+        "$.b"
+      ]
+    }
+  ],
+  "reference_keys": [
+    {
+      "key": "model.amount",
+      "refused": false
+    },
+    {
+      "key": "input.body.items[0]",
+      "refused": false
+    },
+    {
+      "key": "text($5)",
+      "refused": false
+    },
+    {
+      "key": "$.input.body.amount",
+      "refused": true
+    },
+    {
+      "key": " $.input.body.amount",
+      "refused": true
+    }
+  ]
+}

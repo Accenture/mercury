@@ -1,0 +1,56 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "purpose": "a Jayway-only filter operator in a data mapping's JSONPath must fail the gate (RFC 9535, RFC-0010)",
+        "name": "unit-test-jsonpath-err1"
+      }
+    },
+    {
+      "alias": "worker",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "input.body.name -> output.body.name",
+          "$.input.body.items[?(@.code in ['a', 'b'])] -> output.body.codes"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "worker",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "worker",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

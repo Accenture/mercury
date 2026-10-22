@@ -136,6 +136,12 @@ fn loaded_flow_set_matches_the_java_engine() {
         "parser-test-missing-external-state-machine",
         // ttl-0: a valid per-task ttl on a sub-flow task compiles (1..3 reject)
         "parser-test-ttl-0",
+        // 33-35: a JSONPath outside RFC 9535 drops the task, the flow still
+        // loads; 36 keeps it (RFC-0010)
+        "parser-test-33",
+        "parser-test-34",
+        "parser-test-35",
+        "parser-test-36",
     ];
     let mut expected: Vec<&str> = expected;
     expected.sort_unstable();
@@ -264,6 +270,30 @@ fn reserved_model_keys_drop_the_offending_task() {
     }
     // positive control
     assert!(!flow("greetings").tasks.is_empty());
+}
+
+/// Java parity (FlowTests.jsonPathOutsideRfc9535DropsTheTaskAtCompileTime):
+/// a JSONPath source must follow RFC 9535 (RFC-0010). Like every other invalid
+/// mapping, the task is dropped at compile time with an ERROR naming the
+/// standard: 33 has a Jayway-only filter operator in an input source, 34 a
+/// Jayway-only path function in an output source and 35 a Jayway-only
+/// operator in a simple plugin's argument. 36 keeps its task: references
+/// where a value can stand, a union and a quoted comma in a plugin argument.
+#[test]
+fn json_path_outside_rfc_9535_drops_the_task() {
+    compile_once();
+    for id in ["parser-test-33", "parser-test-34", "parser-test-35"] {
+        assert!(
+            !flow(id).tasks.contains_key("greeting.test"),
+            "{id}: the task must be dropped"
+        );
+    }
+    let accepted = flow("parser-test-36");
+    let task = accepted
+        .tasks
+        .get("greeting.test")
+        .expect("the accepted JSONPath forms keep the task");
+    assert_eq!(task.input.len(), 6);
 }
 
 /// Other invalid mappings drop the task the same way (23: bad map() key-values;
