@@ -77,10 +77,6 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    chunk changes, the CommonJS interop helper among them - so this repo receives the rebuilt files, byte-identical with the Java
    repo's: `index-Dhz_Pqc_.js` becomes `index-CrqpNrFx.js`, and the vendor and runtime chunks get new hashes. The stylesheet, the
    favicon and the 44 help pages are unchanged. **Upgrade note:** none - in Chrome and Firefox the rebuilt bundle behaves the same.
-
-
----
-
 5. **A JSONPath outside RFC 9535 is refused, not answered with null (RFC-0010 WP3; Increment 185).** The twin of the Java engine's
    change, which replaces Jayway with an in-house RFC 9535 engine. This engine already evaluated `$` paths with `serde_json_path`,
    an RFC 9535 implementation, so the two engines now accept the same queries, give the same answers and refuse the same way.
@@ -104,7 +100,28 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    fails at startup: the flow loses that task and the graph answers 404. Jayway-only syntax (`in`, `=~`, `.length()` and the like)
    was always null here; the standard's forms replace it (`@.code == 'a' || @.code == 'b'`, `match(@.code, 'a|b')`,
    `length(@.tags)`). A `{$...}` reference is refused: map the value to a model variable first.
+6. **A value substituted into a JSONPath cannot change the query's structure (RFC-0010 WP4; Increment 186).** The twin of the Java
+   engine's change. A reference in a `$` path is still replaced before the query is parsed, and its value is now checked where it
+   lands: in a name a key path (names joined by dots, each optionally with `[n]` indexes, as in `items[0].name`), in an index an
+   integer, inside a string literal the author wrote its text escaped for that literal (its quote, its backslash and its control
+   characters), and bare in a filter a number, a boolean or null as written and text as a string literal - Event Script keeping text
+   that is already one literal (`10`, `true`, `'abc'`) as written, as it always has. A list or a map is never substituted. A value
+   that fails its check fails the mapping by name (`Cannot substitute {model.key} into '$.input.body.{model.key}' - '*' is not a key
+   path`). A simple plugin's `$` argument gets the same checks. The 39 substitution vectors in the shared
+   `jsonpath-source-vectors.json` give the same queries and messages on both engines. **Upgrade note (READ):** a value that carried
+   query syntax into a `$` path - a wildcard, a filter, `..` or a quote - now fails the mapping instead of changing the query; in a
+   knowledge graph, a text value inside a literal the author quoted (`'{model.team}'`) is no longer quoted a second time, so that
+   form now works.
 
+### Fixed
+
+1. **A text value with a backslash keeps it in a knowledge graph's quoted expression (Increment 186).** In a `graph.math` expression
+   (`IF`, `CONDITION`, `COMPUTE`), a `{reference}` to a text value is quoted as a string literal, and the quoting escaped the quote but
+   not the backslash. The expression lexer reads a backslash as an escape, so `C:\temp` became a tab and a value that ended with `\`
+   escaped the closing quote and failed the statement. The backslash is now escaped first; the Java engine has the same fix.
+   **Upgrade note:** none - an expression that compared such a value read the wrong text or failed.
+
+---
 ## Version 4.12.24, 10/12/2026
 
 The lock-step twin of Java 4.12.24: the range plugins' bounds and refinements that landed after the 4.12.23 tag (Increments 177 to

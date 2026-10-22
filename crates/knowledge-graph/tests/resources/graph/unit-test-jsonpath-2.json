@@ -1,0 +1,80 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "name": "unit-test-jsonpath-2",
+        "purpose": "a {namespace.key} reference in a JSONPath source is substituted before the query is parsed, each value checked where it lands - a key path in a name, escaped inside a string literal, quoted as a string literal bare in a filter (RFC-0010); a quoted text value in a graph.math expression escapes its backslash"
+      }
+    },
+    {
+      "alias": "probe",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "$.input.body.data.{input.body.key} -> output.body.by_key",
+          "$.input.body.people[?(@.team == '{input.body.team}')].name -> output.body.in_literal",
+          "$.input.body.people[?(@.team == {input.body.team})].name -> output.body.in_filter"
+        ]
+      }
+    },
+    {
+      "alias": "tally",
+      "types": [
+        "UnitTest"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "CONDITION: same -> {input.body.team} == {input.body.team}",
+          "MAPPING: tally.result.same -> output.body.same"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "probe",
+      "relations": [
+        {
+          "type": "map",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "probe",
+      "target": "tally",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "tally",
+      "target": "end",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

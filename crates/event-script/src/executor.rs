@@ -1617,6 +1617,25 @@ fn substitute_dynamic_index(
     source: &MultiLevelMap,
     is_rhs: bool,
 ) -> Result<String, String> {
+    if !is_rhs && crate::mapping::has_json_path(statement) {
+        // RFC-0010 WP4: a value substituted into a JSONPath source is checked
+        // where it lands, so that it cannot change the query's structure; the
+        // rest of the source is substituted as before
+        return crate::mapping::substitute_json_paths(
+            statement,
+            crate::jsonpath_source::Form::EventScript,
+            &|key| Ok(source.get_element(key)),
+            &|part| substitute_references(part, source, false),
+        );
+    }
+    substitute_references(statement, source, is_rhs)
+}
+
+fn substitute_references(
+    statement: &str,
+    source: &MultiLevelMap,
+    is_rhs: bool,
+) -> Result<String, String> {
     let mut text = substitute_runtime_vars(statement, source);
     if text.contains('[') && text.contains(']') {
         let mut output = String::new();

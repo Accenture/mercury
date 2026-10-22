@@ -50,6 +50,7 @@ graphs:
   - 'unit-test-jsonpath-1'
   # RFC-0010: every accepted JSONPath form compiles, and a JSONPath outside RFC 9535 rejects its graph
   - 'unit-test-jsonpath-ok'
+  - 'unit-test-jsonpath-2'
   - 'unit-test-jsonpath-err1'
   - 'unit-test-math-1'
   - 'unit-test-math-2'

@@ -5024,3 +5024,36 @@ finds where each reference lands, a simple plugin's `$` argument stays supported
   fixtures `unit-test-jsonpath-ok` and `-err1` to `-err4` likewise, `-err5` built from this engine's `tutorial-113`.
 
 Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`.
+
+## Increment 186 — A value substituted into a JSONPath is checked where it lands (RFC-0010 WP4) (2026-10-22)
+
+The twin of the Java engine's WP4 (mercury-composable `feature/minimalist-jsonpath`). Model-variable substitution before
+JSONPath parsing was already this engine's order (Increment 185's parity check); WP4 adds the RFC's safeguard, so that a value
+cannot change the query's structure. Eric's two rulings are recorded in the RFC: Event Script keeps a text value that is already
+one literal as written bare in a filter, and a name takes Mercury's dot-bracket key path.
+
+- **The substitution (`jsonpath_source::substitute`, Java `JsonPathSource.substitute`).** Increment 185's scanner finds each
+  reference and where it lands, and each value is checked there: in a name a key path (names joined by single dots, each
+  optionally followed by `[n]` indexes), in an index an integer, inside a string literal the author wrote its text escaped for that
+  literal (the quote, the backslash and the control characters), and bare in a filter a number, a boolean or null as written and
+  text as a string literal - Event Script keeping text that is already one literal as written. A list or a map is refused. Event
+  Script's `[model.i]` keeps its `str2int` rendering, and a value renders as text the way each form always has
+  (`string_from_model_value` for Event Script). The error: `Cannot substitute {model.key} into '...' - '*' is not a key path`.
+- **The callers.** `executor::substitute_dynamic_index` sends a `$` source, or a plugin call with a `$` argument, through
+  `mapping::substitute_json_paths` and the rest through the engine's own substitution (`substitute_references`, the former body);
+  `common::substitute_mapping_source` does the same for the knowledge graph, refusing a `{$...}` key as before.
+  `mapping::has_json_path` and `substitute_json_paths` are Java `DataMappingHelper.hasJsonPath` and `substituteJsonPaths`; the
+  splitter now exposes its argument spans.
+- **The quoting fix (`common.rs` `append_parameter`).** A text value quoted into a `graph.math` expression escapes its backslash,
+  then its quote: the expression lexer reads a backslash as an escape, so `C:\temp` read a tab and a trailing `\` escaped the
+  closing quote.
+- **A nested reference in a `$` source** (`{model.{model.k}}`) is refused here and in Java, at deployment and at run time, although
+  the two engines' brace scans differ; pinned by two new source vectors.
+- **The CHANGELOG separator.** Increment 185 appended its Changed item below the `---` that closes the Unreleased section; it is
+  back above `## Version 4.12.24`.
+- **Checked.** The shared `jsonpath-source-vectors.json` (35 sources, 39 substitutions, 11 argument splits, 5 reference keys)
+  gives the same queries and the same messages as the Java engine. `json-path-substitution-test` (a flow) and
+  `unit-test-jsonpath-2` (a graph), both byte-identical with the Java engine's, run a quote, a trailing backslash, numeric text
+  and a wildcard value end to end.
+
+Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`.

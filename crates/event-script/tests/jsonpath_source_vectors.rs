@@ -18,8 +18,10 @@
 //! a graph is compiled. `jsonpath-source-vectors.json` is byte-identical with
 //! the Java engine's (Java `JsonPathSourceTest`).
 
-use event_script::jsonpath_source::{check, references, refuse_json_path_key, Form};
+use event_script::conversions::from_json;
+use event_script::jsonpath_source::{check, references, refuse_json_path_key, substitute, Form};
 use event_script::mapping::split_top_level_arguments;
+use event_script::mlm::compile_json_path;
 use serde_json::Value as Json;
 
 const VECTORS: &str = include_str!("resources/jsonpath-source-vectors.json");
@@ -41,7 +43,7 @@ fn form(name: &str) -> Form {
 #[test]
 fn sources_are_checked_where_each_reference_lands() {
     let vectors = section("sources");
-    assert_eq!(vectors.len(), 33, "source vector count");
+    assert_eq!(vectors.len(), 35, "source vector count");
     for v in vectors {
         let source = v["source"].as_str().expect("source");
         let form = form(v["form"].as_str().expect("form"));
@@ -106,6 +108,38 @@ fn a_reference_key_is_never_a_json_path() {
             );
         } else {
             assert!(refuse_json_path_key(key).is_ok(), "{{{key}}}");
+        }
+    }
+}
+
+#[test]
+fn substitutions_are_checked_where_each_value_lands() {
+    let vectors = section("substitutions");
+    assert_eq!(vectors.len(), 39, "substitution vector count");
+    for v in vectors {
+        let source = v["source"].as_str().expect("source");
+        let form = form(v["form"].as_str().expect("form"));
+        let values = v["values"].as_object().expect("values").clone();
+        let lookup = |key: &str| Ok(values.get(key).map(from_json));
+        let result = substitute(source, form, &lookup);
+        match v.get("error") {
+            Some(expected) => assert_eq!(
+                result.expect_err(source),
+                expected.as_str().expect("an error"),
+                "{source} {values:?}"
+            ),
+            None => {
+                let query = result.unwrap_or_else(|e| panic!("{source} {values:?}: {e}"));
+                assert_eq!(
+                    query,
+                    v["query"].as_str().expect("a query"),
+                    "{source} {values:?}"
+                );
+                assert!(
+                    compile_json_path(&query).is_ok(),
+                    "the query compiles: {query}"
+                );
+            }
         }
     }
 }

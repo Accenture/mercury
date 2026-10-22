@@ -73,6 +73,7 @@ fn loaded_flow_set_matches_the_java_engine() {
         "fork-n-join-with-dynamic-model-test",
         "greetings",
         "header-and-json-path-test",
+        "json-path-substitution-test",
         "http-client-by-config",
         "http-client-sink-trace",
         "input-validation-1",

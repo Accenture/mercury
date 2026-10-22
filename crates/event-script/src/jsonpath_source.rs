@@ -35,8 +35,11 @@
 //! (`executor::substitute_dynamic_index`) - so a `[model.i]` inside a filter is
 //! not an index reference, and the parser refuses it.
 
+use crate::conversions::display;
 use crate::mapping::split_top_level_arguments;
 use crate::mlm::compile_json_path_at;
+use crate::util::str2int;
+use rmpv::Value;
 
 const MODEL_NAMESPACE: &str = "model.";
 
@@ -78,12 +81,18 @@ impl Site {
 }
 
 /// A reference in a source, by character index: `start` is its first
-/// character and `end` the one after its last.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// character and `end` the one after its last. `key` is the key it names;
+/// `braced` is true for a `{key}` and false for Event Script's `[model.i]`,
+/// whose span is the bracket's content; `quote` is the enclosing string
+/// literal's quote character when the site is a literal.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reference {
     pub start: usize,
     pub end: usize,
     pub site: Site,
+    pub key: String,
+    pub braced: bool,
+    pub quote: Option<char>,
 }
 
 /// True when a data-mapping source is a JSONPath query.
@@ -149,7 +158,26 @@ pub fn references(source: &str, form: Form) -> Result<Vec<Reference>, String> {
                     "a reference is not allowed here at position {i} of '{source}'"
                 ));
             };
-            result.push(Reference { start, end, site });
+            let braced = chars[start] == '{';
+            let key = if braced {
+                let key = text(&chars, start + 1, end - 1);
+                // Event Script trims its key; the knowledge graph reads the key as written
+                if form == Form::EventScript {
+                    key.trim().to_string()
+                } else {
+                    key
+                }
+            } else {
+                text(&chars, start, end).trim().to_string()
+            };
+            result.push(Reference {
+                start,
+                end,
+                site,
+                key,
+                braced,
+                quote: lexer.quote,
+            });
             // the lexer reads the stand-in in place of the reference, so the context after it is the same
             for c in stand_in(site).chars() {
                 lexer.accept(c);
@@ -204,6 +232,223 @@ pub fn refuse_json_path_key(key: &str) -> Result<(), String> {
     } else {
         Ok(())
     }
+}
+
+/// Substitute each reference in a JSONPath source with its value, checked
+/// where the reference lands, so that a value cannot change the query's
+/// structure (RFC-0010 WP4; Java `JsonPathSource.substitute`): in a name a key
+/// path (names joined by single dots, each optionally followed by `[n]`
+/// indexes), in an index an integer, inside a string literal the author wrote
+/// its text escaped for that literal, and bare inside a filter a number, a
+/// boolean or null as written and text as a string literal - except that
+/// Event Script, which has always inserted text as written, keeps text that is
+/// already one literal (a number, `true`, `false`, `null` or a quoted string)
+/// as written. A list or a map is never substituted. Event Script's
+/// `[model.i]` keeps its integer rendering, and a value renders as text the
+/// way each engine form always has.
+pub fn substitute(
+    source: &str,
+    form: Form,
+    values: &dyn Fn(&str) -> Result<Option<Value>, String>,
+) -> Result<String, String> {
+    let references = references(source, form)?;
+    if references.is_empty() {
+        return Ok(source.to_string());
+    }
+    let chars: Vec<char> = source.chars().collect();
+    let mut query = String::new();
+    let mut last = 0usize;
+    for reference in &references {
+        query.push_str(&text(&chars, last, reference.start));
+        let value = values(&reference.key)?;
+        query.push_str(&render(source, &chars, reference, form, value.as_ref())?);
+        last = reference.end;
+    }
+    query.push_str(&text(&chars, last, chars.len()));
+    Ok(query)
+}
+
+fn render(
+    source: &str,
+    chars: &[char],
+    reference: &Reference,
+    form: Form,
+    value: Option<&Value>,
+) -> Result<String, String> {
+    if matches!(value, Some(Value::Map(_)) | Some(Value::Array(_))) {
+        return Err(invalid(
+            source,
+            chars,
+            reference,
+            "a list or a map cannot be substituted into a JSONPath",
+        ));
+    }
+    let text = text_of(form, value);
+    if !reference.braced {
+        // Event Script's [model.i] has always rendered as an integer
+        return Ok(str2int(&text).to_string());
+    }
+    match reference.site {
+        Site::Name if is_key_path(&text) => Ok(text),
+        Site::Name => Err(invalid(
+            source,
+            chars,
+            reference,
+            &format!("'{text}' is not a key path"),
+        )),
+        Site::Index if is_integer(&text) => Ok(text),
+        Site::Index => Err(invalid(
+            source,
+            chars,
+            reference,
+            &format!("'{text}' is not an integer index"),
+        )),
+        Site::Literal => Ok(escape(&text, reference.quote.unwrap_or('\''))),
+        Site::Filter => Ok(filter_value(form, value)),
+    }
+}
+
+fn filter_value(form: Form, value: Option<&Value>) -> String {
+    match value {
+        None | Some(Value::Nil) => "null".to_string(),
+        Some(v @ (Value::Integer(_) | Value::F32(_) | Value::F64(_) | Value::Boolean(_))) => {
+            display(v)
+        }
+        Some(v) => {
+            let text = display(v);
+            if form == Form::EventScript && is_literal(&text) {
+                text
+            } else {
+                format!("'{}'", escape(&text, '\''))
+            }
+        }
+    }
+}
+
+/// A value as text, the way each engine form has always rendered it: Event
+/// Script renders a string or a number and anything else as null
+/// (`mapping::string_from_model_value`); the knowledge graph renders any value.
+fn text_of(form: Form, value: Option<&Value>) -> String {
+    match value {
+        None | Some(Value::Nil) => "null".to_string(),
+        Some(v @ (Value::String(_) | Value::Integer(_) | Value::F32(_) | Value::F64(_))) => {
+            display(v)
+        }
+        Some(v) if form != Form::EventScript => display(v),
+        Some(_) => "null".to_string(),
+    }
+}
+
+fn invalid(source: &str, chars: &[char], reference: &Reference, reason: &str) -> String {
+    let written = if reference.braced {
+        text(chars, reference.start, reference.end)
+    } else {
+        format!("[{}]", reference.key)
+    };
+    format!("Cannot substitute {written} into '{source}' - {reason}")
+}
+
+/// Escape text for an RFC 9535 string literal written with the given quote:
+/// the quote, the backslash and the control characters.
+pub fn escape(text: &str, quote: char) -> String {
+    let mut out = String::new();
+    for c in text.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '\u{8}' => out.push_str("\\b"),
+            '\u{c}' => out.push_str("\\f"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if c == quote => {
+                out.push('\\');
+                out.push(c);
+            }
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+/// True when a value's text is a key path: names joined by single dots, each
+/// optionally followed by `[n]` indexes (`items[0].name`).
+pub fn is_key_path(text: &str) -> bool {
+    !text.is_empty()
+        && text.split('.').all(|part| {
+            let name = part.chars().take_while(|c| is_name_char(*c)).count();
+            let rest: Vec<char> = part.chars().skip(name).collect();
+            name > 0 && are_indexes(&rest)
+        })
+}
+
+fn are_indexes(chars: &[char]) -> bool {
+    let mut i = 0usize;
+    while i < chars.len() {
+        if chars[i] != '[' {
+            return false;
+        }
+        let digits = chars[i + 1..]
+            .iter()
+            .take_while(|c| c.is_ascii_digit())
+            .count();
+        if digits == 0 || chars.get(i + 1 + digits) != Some(&']') {
+            return false;
+        }
+        i += digits + 2;
+    }
+    true
+}
+
+fn is_integer(text: &str) -> bool {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit())
+}
+
+fn is_number(text: &str) -> bool {
+    let rest = text.strip_prefix('-').unwrap_or(text);
+    let int_len = rest.chars().take_while(|c| c.is_ascii_digit()).count();
+    if int_len == 0 || (int_len > 1 && rest.starts_with('0')) {
+        return false;
+    }
+    let mut rest = &rest[int_len..];
+    if let Some(fraction) = rest.strip_prefix('.') {
+        let n = fraction.chars().take_while(|c| c.is_ascii_digit()).count();
+        if n == 0 {
+            return false;
+        }
+        rest = &fraction[n..];
+    }
+    if let Some(exponent) = rest.strip_prefix(['e', 'E']) {
+        let exponent = exponent.strip_prefix(['-', '+']).unwrap_or(exponent);
+        return !exponent.is_empty() && exponent.chars().all(|c| c.is_ascii_digit());
+    }
+    rest.is_empty()
+}
+
+/// Text that is already exactly one RFC 9535 literal: a number, `true`,
+/// `false`, `null`, or a string in single or double quotes whose own quote
+/// character appears inside only escaped.
+fn is_literal(text: &str) -> bool {
+    if is_number(text) || matches!(text, "true" | "false" | "null") {
+        return true;
+    }
+    let chars: Vec<char> = text.chars().collect();
+    if chars.len() < 2 || !matches!(chars[0], '\'' | '"') || chars[chars.len() - 1] != chars[0] {
+        return false;
+    }
+    let quote = chars[0];
+    let mut escaped = false;
+    for c in &chars[1..chars.len() - 1] {
+        if escaped {
+            escaped = false;
+        } else if *c == '\\' {
+            escaped = true;
+        } else if *c == quote {
+            return false;
+        }
+    }
+    !escaped
 }
 
 fn stand_in(site: Site) -> &'static str {

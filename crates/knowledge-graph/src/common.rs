@@ -26,7 +26,9 @@ use std::time::Duration;
 
 use event_script::conversions::{display, to_json_string};
 use event_script::jsonpath_source;
-use event_script::mapping::{get_constant_value, get_lhs_element, get_lhs_or_constant};
+use event_script::mapping::{
+    get_constant_value, get_lhs_element, get_lhs_or_constant, has_json_path, substitute_json_paths,
+};
 use event_script::mlm::MultiLevelMap;
 use event_script::util::{split, str2long};
 use platform_core::graph::{MiniGraph, SimpleNode};
@@ -367,11 +369,27 @@ pub fn substitute_var_if_any(text: &str, state: &MultiLevelMap) -> Result<String
 /// Render `{selectors}` into the source of a data mapping - a key path, a constant or a
 /// plugin call. The value is inserted verbatim: a mapping source is never a boolean
 /// expression, so a `!`, `<`, `>` or `==` inside a text constant does not make it one. A
-/// JSONPath filter is the exception: a text value is quoted there so that it reads as a
-/// string literal in the query (Java `substituteMappingSource`).
+/// JSONPath source, and a simple plugin's JSONPath argument, are the exception (RFC-0010
+/// WP4): each value is checked where it lands, so that it cannot change the query's
+/// structure - a key path in a name, an integer in an index, escaped inside a string
+/// literal, and a text value quoted as a string literal bare in a filter (Java
+/// `substituteMappingSource`).
 pub fn substitute_mapping_source(text: &str, state: &MultiLevelMap) -> Result<String, AppError> {
-    let logical = text.starts_with("$.") && text.contains('@');
-    substitute_var_if_any_logical(text, state, logical)
+    if !has_json_path(text) {
+        return substitute_var_if_any_logical(text, state, false);
+    }
+    substitute_json_paths(
+        text,
+        jsonpath_source::Form::Graph,
+        &|key| {
+            jsonpath_source::refuse_json_path_key(key)?;
+            get_lhs_or_constant(key, state)
+        },
+        &|part| {
+            substitute_var_if_any_logical(part, state, false).map_err(|e| e.message().to_string())
+        },
+    )
+    .map_err(invalid)
 }
 
 /// Render `{selectors}` into an expression with an explicit boolean context: in a
@@ -457,8 +475,10 @@ fn append_parameter(
             // quote only in a boolean (logical) operation when the value is
             // not part of a dotted variable name
             if logical && !dot {
+                // the expression lexer reads a backslash as an escape, so it is
+                // escaped first, then the quote
                 out.push('\'');
-                out.push_str(&text.replace('\'', "\\'"));
+                out.push_str(&text.replace('\\', "\\\\").replace('\'', "\\'"));
                 out.push('\'');
             } else {
                 out.push_str(&text);

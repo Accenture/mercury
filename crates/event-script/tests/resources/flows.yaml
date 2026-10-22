@@ -2,6 +2,7 @@ flows:
   - 'body-test.yml'
   - 'wildcard-conversion-test.yml'
   - 'header-and-json-path-test.yml'
+  - 'json-path-substitution-test.yml'
   - 'file-vault-test.yml'
   - 'simple-circuit-breaker.yml'
   - 'resilience-demo.yml'

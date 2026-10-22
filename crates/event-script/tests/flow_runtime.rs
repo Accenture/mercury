@@ -775,6 +775,50 @@ async fn flows_run_end_to_end_like_java() {
         "the error should name the key: {body}"
     );
 
+    // --- RFC-0010 WP4 (Java FlowTests.modelVariablesAreSubstitutedIntoJsonPathWithTheirChecks):
+    // a model variable is substituted before the JSONPath is parsed, checked where it lands - a key
+    // in a name, a quote escaped inside the author's literal, text quoted bare in a filter, and a
+    // numeric text value compared as the number it has always been in Event Script
+    let people = serde_json::json!([
+        {"name": "Ann", "team": "it's", "age": 30},
+        {"name": "Bob", "team": "blue", "age": 9}
+    ]);
+    let substitution = |key: &str| {
+        from_json(
+            &serde_json::json!({"body": {"data": {"item": "found"}, "people": people,
+            "key": key, "team": "it's", "min": "10"}, "header": {}}),
+        )
+    };
+    let reply = run_flow(
+        &platform,
+        "json-path-substitution-test",
+        substitution("item"),
+        "biz-cid-jsonpath",
+    )
+    .await;
+    assert_eq!(reply.status(), 200);
+    let body = json_body(&reply);
+    assert_eq!(body["by_key"], "found");
+    assert_eq!(body["in_literal"], serde_json::json!(["Ann"]));
+    assert_eq!(body["in_filter"], serde_json::json!(["Ann"]));
+    assert_eq!(body["older"], serde_json::json!(["Ann"]));
+    // a value that would add a wildcard to the query fails the mapping by name
+    let reply = run_flow(
+        &platform,
+        "json-path-substitution-test",
+        substitution("*"),
+        "biz-cid-jsonpath-refused",
+    )
+    .await;
+    assert_eq!(reply.status(), 400);
+    let body = json_body(&reply);
+    assert!(
+        body["message"].as_str().unwrap_or("").contains(
+            "Cannot substitute {model.key} into '$.input.body.data.{model.key}' - '*' is not a key path"
+        ),
+        "unexpected error: {body}"
+    );
+
     // --- dynamic RHS index above max.model.array.size is rejected at runtime
     // (increment 52, parity F4 — Java resolveModelIndex; default cap 1000)
     let reply = run_flow(
