@@ -5057,3 +5057,29 @@ one literal as written bare in a filter, and a name takes Mercury's dot-bracket 
   and a wildcard value end to end.
 
 Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`.
+
+## Increment 187 — The guides describe RFC 9535 JSONPath (RFC-0010 WP5) (2026-10-22)
+
+The twin of the Java engine's WP5 (mercury-composable `feature/minimalist-jsonpath`): the documentation of Increments 185 and 186.
+
+- **The Event Script syntax guide** (`docs/guides/event-script/syntax.md`, *JSON Path*) states the grammar (RFC 9535, the compliance
+  suite, type-strict comparisons, the hyphen extension), the result shape (Mercury's rule, formerly described as Jayway's), the
+  refusal before a flow or a graph runs, a table of Jayway-only forms with their RFC 9535 replacements - this engine answered those
+  forms with null - and the checks on a value substituted into a path. *Using Plugins* says that a `$` argument is one argument up to
+  the first comma outside its brackets and string literals, and follows the same rules.
+- **The knowledge graph's command reference** gains the substitution rule in a JSONPath source and "a reference never holds a JSONPath
+  query"; its `$.…` form names RFC 9535 and the deployment refusal. The flow grammar, the commands catalog
+  (`minigraph-commands.json`) and the AI agent guide's pre-send checklist follow.
+- **The claims registry.** `json-path-result-shape` and `mapping-source-dynamic-variables` are updated, and five claims are new
+  (`json-path-refused-before-it-runs`, `json-path-substitution-checked`, `json-path-graph-gate`, `reference-never-json-path`,
+  `json-path-substitution-graph`), each pinned to this engine's test; `json_path_source_takes_the_jayway_shape` is now
+  `json_path_source_takes_the_mercury_shape`, and the `mlm.rs` comments no longer say the Java engine uses Jayway.
+- **The Playground bundle**, deployed from the Java repo with `npm run release:all` after `npm ci` (Vite 8.3.5): the two edited help
+  pages (`help graph-data-mapper`, `help tutorial 8`) are mirrored, `index-CrqpNrFx.js` became `index-D5Sx-GL2.js`, and the vendor
+  chunks, the stylesheet, the favicon and the other 42 help pages are unchanged - every deployed file byte-identical with the Java
+  repo's.
+- **Checked.** `scripts/check-doc-claims.py` (55 claims pinned on both sides) and `scripts/check-llms-links.py`;
+  `cargo test -p mercury-knowledge-graph --test home_page` with the deployed bundle; in the Java repo, the webapp's own tests (60
+  files, 490 tests).
+
+Gates: `cargo test --workspace`, `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.

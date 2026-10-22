@@ -89,7 +89,7 @@ Every `input`/`output` entry is `'source -> target'` (one `->` per rule; a three
 | `model.*` | flow-instance state (dot/bracket/`{model.key}` dynamic keys) |
 | `model.parent.*` / `model.root.*` | parent-flow state (in sub-flows) |
 | `error.*` | exception context in a handler (`error.task/.code/.message`) |
-| `$.…` | a JSONPath expression |
+| `$.…` | an RFC 9535 JSONPath query ([JSON Path](syntax.md#json-path)) |
 | `result` / `input` / `header` / `status` / `datatype` | (in `output` rules) the function's result, the task input, response headers, status code, or result type name |
 | constants | `text(…)`, `int(…)`, `long(…)`, `float(…)`, `double(…)`, `boolean(…)`, `map(k=v,…)`, `file(text:/json:/binary:path)`, `classpath(…)` |
 | `f:fn(args)` | a simple plugin function |

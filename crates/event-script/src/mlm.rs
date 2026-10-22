@@ -22,7 +22,8 @@
 //! conversion, no query engine. A `$`-prefixed path is a **user-defined
 //! complex query** delegated to a real JSONPath engine (`serde_json_path`,
 //! RFC 9535) over an on-demand JSON view of the tree — exactly how the Java
-//! `MultiLevelMap` delegates `$` paths to the Jayway JsonPath library.
+//! `MultiLevelMap` delegates `$` paths to its RFC 9535 engine,
+//! `minimalist-jsonpath` (RFC-0010; Jayway JsonPath until 4.12.26).
 //!
 //! Path semantics mirror the platform-core (config) `MultiLevelMap` and the
 //! Java original: `get` of a missing/invalid path or explicit null is `None`;
@@ -131,7 +132,7 @@ impl MultiLevelMap {
     }
 
     /// Retrieve by composite path — or by JSONPath when the path starts with
-    /// `$`, in Jayway's result shape (see `json_path_query`). Explicit null
+    /// `$`, in Mercury's result shape (see `json_path_query`). Explicit null
     /// resolves to `None`.
     pub fn get_element(&self, composite_path: &str) -> Option<Value> {
         if composite_path.starts_with('$') {
@@ -156,13 +157,13 @@ impl MultiLevelMap {
 
     /// The `$.…` user-defined complex query (design E3 / maintainer decision):
     /// evaluated by `serde_json_path` over an on-demand JSON view, with the
-    /// result shaped the way Jayway shapes it for the Java engine - by the kind
-    /// of path, not by the number of matches. A definite path (child names and
+    /// result in Mercury's shape, the same on the Java engine (Jayway's rule,
+    /// kept by RFC-0010) - by the kind of path, not by the number of matches. A definite path (child names and
     /// single indexes only) yields the value, or `None` when it is absent. An
     /// indefinite path (a filter, a wildcard, a descendant segment, a slice or
     /// a union) always yields a list, one match being a one-element list and
     /// none an empty list - unless a member name before its first indefinite
-    /// step is missing, which Jayway reports as not found (`None`).
+    /// step is missing, which is not found (`None`).
     ///
     /// A path that is not RFC 9535 is an `Err` naming the reason and the
     /// position (RFC-0010), as the Java engine's `JsonPathException` does;
@@ -371,7 +372,8 @@ fn remove_in(current: &mut Value, segments: &[Segment]) {
 
 /// Rewrite dot-notation segments that are not valid RFC 9535 shorthand
 /// names (currently: names containing hyphens) into bracket notation —
-/// `$.fetcher-ext.result` becomes `$['fetcher-ext'].result` (Jayway parity).
+/// `$.fetcher-ext.result` becomes `$['fetcher-ext'].result` (Mercury's one
+/// RFC 9535 extension, the same on the Java engine).
 /// Compile a JSONPath query to RFC 9535 with Mercury's one extension, a
 /// hyphen in a dot-notation member name (`$.fetcher-ext.result`, which Jayway
 /// accepted): the strict parse first, then one retry with such names in
@@ -480,7 +482,7 @@ enum PathStep {
     Index(i64),
 }
 
-/// How Jayway shapes a path's result. A path is definite when every segment is a
+/// How Mercury shapes a path's result. A path is definite when every segment is a
 /// child member name or a single index (RFC 9535's singular query); otherwise it
 /// is indefinite, carrying the steps before its first indefinite segment.
 #[derive(Debug, PartialEq)]
@@ -650,7 +652,7 @@ fn hex4(chars: &[char], start: usize) -> Option<u32> {
     u32::from_str_radix(&text, 16).ok()
 }
 
-/// Jayway reports a path as not found ("Missing property in path") when a member
+/// A path is not found (Jayway's "Missing property in path") when a member
 /// name before the first indefinite step is absent, or is applied to a value that
 /// is not an object. A missing index there is not an error: the list is empty.
 fn misses_a_member_name(root: &serde_json::Value, prefix: &[PathStep]) -> bool {
@@ -753,8 +755,9 @@ mod tests {
         assert_eq!(m.get_element("$.shop.missing"), None);
     }
 
-    /// The Jayway shapes the Java engine returns (probed against Jayway 3.0.0):
-    /// the kind of path decides, never the number of matches.
+    /// Mercury's result shapes, probed against Jayway 3.0.0 (the Java engine's
+    /// library until 4.12.26) and kept by RFC-0010: the kind of path decides,
+    /// never the number of matches.
     #[test]
     fn json_path_result_shape_follows_jayway() {
         let mut m = MultiLevelMap::new();

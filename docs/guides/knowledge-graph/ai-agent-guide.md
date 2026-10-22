@@ -154,6 +154,9 @@ engines):
 >       `{table-node}.{model.key}`. Never hard-code it as a ladder of
 >       IF-THEN-ELSE in `graph.math` or inside a composable function: the table is more readable, and
 >       the product owner certifies it on the graph ([static decision table](skills-reference.md#task)).
+> - [ ] A `$` source is an **RFC 9535** JSONPath query, used only as a data mapping's source: no Jayway forms
+>       (`in`, `=~`, `.length()`), and no JSONPath inside a `{reference}`
+>       ([JSON Path](../event-script/syntax.md#json-path)).
 > - [ ] Multi-line commands (`create`/`update`/`instantiate`) are sent as one block; multi-line
 >       *values* use `'''…'''`.
 > - [ ] `instantiate graph` precedes `run`/`execute`/`inspect`.

@@ -121,8 +121,14 @@ It holds in `mapping[]` entries, `MAPPING:` statements, `for_each[]` entries, th
   (Event Script accepts `model.*` only). A **target** is a literal path; braces there are not resolved.
 - **Rendering.** Text and numbers go in as written, a boolean as `true` or `false`, a map or a list as
   compact JSON. A `!`, `<`, `>` or `==` inside a text constant does not make the source an expression,
-  so nothing is quoted. The one place a text value is quoted is a JSONPath filter, where it must read
-  as a string literal in the query: `$.input.body.people[?(@.team == {model.team})].name`.
+  so nothing is quoted. A JSONPath source is the exception: each value is checked where it lands, so that
+  it cannot change the query's structure - a key path in a name, an integer in an index, escaped inside a
+  string literal you wrote, and bare in a filter a number or a boolean as written and text as a string
+  literal: `$.input.body.people[?(@.team == {model.team})].name`. A value that fails is refused by name
+  (`Cannot substitute {model.key} into '...' - '*' is not a key path`), and a list or a map is never
+  substituted ([JSON Path](../event-script/syntax.md#json-path)).
+- **A reference never holds a JSONPath query.** `{$.input.body.amount}` is refused in a mapping source and in a
+  `graph.math` statement; map the value to a model variable first (`$.input.body.amount -> model.amount`).
 - **An unresolved reference renders the text `null`.** A composed key then misses
   (`census-2020.null`), so the null-source rule above applies, and a constant reads `null`
   (`text(state={model.x})` is `state=null`). A brace pair whose content holds a colon, a tab or a
@@ -156,7 +162,7 @@ skills share Event Script's mapping engine):
 | Form | Meaning |
 |---|---|
 | `f:plugin(args…)` | a [simple-plugin](../event-script/syntax.md#simple-plugins) invocation — the modern replacement for the deprecated `:type` suffixes. **Arguments accept any mapping source**: constants and any state-machine path — `model.*`, `input.*`, `output.*`, and node namespaces such as `{node}.result.{key}` (engine-verified). Examples: `f:concat(model.a, text(!))`, generators `f:uuid()` and `f:now(text(local))` (current date-time at execution: `iso`/`local`/`ms`), JSON dataset creation `f:json(text([]))` → empty list / `f:json(text({"a": [1, 2]}))` → nested map (parses JSON text from a constant or model variable), arithmetic `f:add(...)`, logic `f:ternary(...)`, and **list/map reshapers** `f:removeKey(list, text(key))` (strip fields from every map in a list), `f:listOfMap(...)` (maps-of-lists → list-of-maps, order-preserving) and `f:length(...)` (length by type: list → element count, string → **character** count, bytes → byte count, null → 0). **Full catalog** in the [Event Script syntax page](../event-script/syntax.md#simple-plugins) |
-| `$.…` | a JSONPath expression over the state machine (prefer plain dot-bracket keys; JSONPath only when the query needs it); a definite path yields the value and an indefinite one (a filter, a wildcard, a deep scan) always a list ([result shape](../event-script/syntax.md#json-path)) |
+| `$.…` | an RFC 9535 JSONPath query over the state machine (prefer plain dot-bracket keys; JSONPath only when the query needs it); a definite path yields the value and an indefinite one (a filter, a wildcard, a deep scan) always a list ([result shape](../event-script/syntax.md#json-path)). A graph whose JSONPath is outside the standard is rejected at deployment, in a data dictionary's default value too, and a simple plugin's `$` argument is checked the same way |
 
 ## Commands {#commands}
 

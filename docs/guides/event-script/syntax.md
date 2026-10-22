@@ -729,15 +729,72 @@ JSON-Path retrieval method in the left-hand-side for input/output data mapping.
 ```
 
 Note that the basic retrieval method is more efficient than the JSON-Path method. Therefore, you
-should apply JSON-Path only when the use case requires it. 
+should apply JSON-Path only when the use case requires it.
 
-**The result shape depends on the kind of path, not on the number of matches** (Jayway's rule, on both
+**The grammar is [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535), the IETF JSONPath standard, on both
+engines.** Each engine passes the standard's compliance suite (715 cases). A query has child and descendant
+(`..`) segments of names, the wildcard `*`, indexes (negative ones count from the end), slices and filters. A
+filter combines `||`, `&&`, `!` and parentheses over comparisons (`==`, `!=`, `<`, `<=`, `>`, `>=`), existence
+tests and the standard's five functions: `length`, `count`, `match`, `search` and `value`. Comparisons are
+type-strict: `1 == 1.0` is true, and `'5' == 5` is false. Mercury adds one extension: a dotted member name may
+hold a hyphen (`$.fetcher-ext.result`), because graph node names carry hyphens.
+
+**The result shape depends on the kind of path, not on the number of matches** (Mercury's rule, the same on both
 engines). A definite path, made of child member names and single indexes only (`$.input.body.people[1].name`),
 yields the value, or null when it is absent. An indefinite path, with a filter, a wildcard, a deep scan `..`, a
 slice or a union, always yields a list: one match is a one-element list and no match an empty list, so a
 target that expects a list gets one. The one exception is a missing member name before the path's first
 indefinite step (`$.input.body.missing[?(@.team == 'red')].name`): the result is null, as for an absent
 definite path, and the null-source rule applies.
+
+**A path outside the standard is refused before it runs.** The flow compiler parses every `$` source, and a task
+whose source is not RFC 9535 is dropped, as for any other invalid mapping entry, with an error that names the
+standard, the reason and the position:
+
+```text
+Skip invalid task greeting.test in my-flow.yml that has a JSONPath not compliant with RFC 9535 -
+$.input.body.items[?(@.code in ['a', 'b'])] -> model.codes (expected ')' at position 28 of '...')
+```
+
+A knowledge graph with such a source is rejected by CompileGraph and answers 404. Before 4.12.26 the Java engine
+used Jayway JsonPath, which predates the standard, and this engine answered Jayway's own forms with null; they
+are refused now, and the standard has a replacement for most of them:
+
+| Jayway form                                                | RFC 9535                                                             |
+|:-----------------------------------------------------------|:---------------------------------------------------------------------|
+| `@.code in ['a', 'b']`, `@.code nin ['a', 'b']`           | one comparison per value, joined (see below)                         |
+| `@.code =~ /a.*/`                                          | `match(@.code, 'a.*')` for the whole value, `search(@.code, 'a')` for a part |
+| `@.tags size 2`, `@.tags empty true`                       | `length(@.tags) == 2`, `length(@.tags) == 0`                         |
+| `$.items.first()`, `$.items.last()`                        | `$.items[0]`, `$.items[-1]`                                          |
+| `$.items.length()`                                         | `f:length($.items)`, a [simple plugin](#simple-plugins)              |
+| `.sum()`, `.min()`, `.max()`, `.avg()`, `.stddev()`, `.keys()` | none: select the values with JSONPath, then compute in a plugin or a function |
+| `subsetof`, `anyof`, `noneof`, an array literal in a filter | none: compare each value, joined the same way                        |
+
+A list of values becomes one comparison per value: `@.code in ['a', 'b']` is `@.code == 'a' || @.code == 'b'`,
+and `@.code nin ['a', 'b']` is `@.code != 'a' && @.code != 'b'`.
+
+**A reference in a path is replaced by its value before the query is parsed**, so `$.input.body.{model.key}` with
+`model.key` = `item` is the query `$.input.body.item`. Event Script substitutes `{model.key}` and `[model.i]`; a
+knowledge graph substitutes `{namespace.key}`. The value is checked where it lands, so that it cannot change the
+query's structure:
+
+| Where the reference stands         | Its value                                                                       | Example                                   |
+|:-----------------------------------|:--------------------------------------------------------------------------------|:------------------------------------------|
+| in a member name                   | a key path: names joined by dots, each optionally with `[n]` indexes             | `$.input.body.{model.path}`               |
+| in an index                        | an integer                                                                      | `$.input.body.items[{model.i}]`, `[model.i]` |
+| inside a string literal you wrote  | its text, with its quote, backslash and control characters escaped              | `[?(@.team == '{model.team}')]`           |
+| bare inside a filter               | a number, a boolean or null as written; text as a string literal                 | `[?(@.age > {model.min})]`                |
+
+A list or a map is never substituted. Event Script has always inserted a text value as written, so bare inside a
+filter it keeps text that is already one literal (`10`, `true`, `'abc'`) as written and quotes any other text; a
+knowledge graph quotes all text. A value that fails its check fails the mapping by name:
+
+```text
+Cannot substitute {model.key} into '$.input.body.{model.key}' - '*' is not a key path
+```
+
+A reference where no value can make a query, as in `${model.key}`, is refused when the flow is compiled. A
+simple plugin's `$` argument follows the same rules (see [Using Plugins in Event-Script](#using-plugins-in-event-script)).
 
 ### Simple type matching and conversion
 
@@ -1415,6 +1472,10 @@ one, set the value in a model variable first and pass the model variable as the 
 prevent execution loops.
 
 For model, input and output variables, you may also use JSON-Path syntax to extract value as argument to a plugin.
+A `$` argument is one argument up to the first comma outside its brackets and string literals, so a union
+(`f:length($.input.body['a','b'])`) or a filter on a text with a comma reaches the plugin whole. It follows the
+[JSON Path](#json-path) rules: RFC 9535, refused when the flow is compiled if it is outside the standard, and
+each reference in it checked where it lands.
 
 For example:
 
