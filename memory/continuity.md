@@ -60,14 +60,18 @@
   facade, `Platform::keep_running`, `group.protocol=auto`; 12 crates. Origin 2026-09-22-010413.md.) Prior: v4.12.12
   (2026-09-21 — the catch-up release 4.12.7 → 4.12.12 in one step, PR #296 → `983e7550`, tag → `1ef183cb`; Increments 118–124.)
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-10-11 | through 2026-10-11-034408.md (ON COMMAND — 8 sessions since the 2026-10-09 review and 14 live facts against a
-  cap of 30, neither trigger due: `refresh-metadata` refreshed 4 footers, tier changes 3 (→ archive-candidate:
-  `mock-upload-loads-every-member`, `graph-import-travels-like-command`, `graph-set-pack-and-deploy-rust`); no fact past the archive
-  window at the first lint, archived 0; the review's own log then pushed `conv-tests-remove-temp-files-rust` past the window and
-  step 6 KEPT it as a declaration gap (applied by the api-playground port's tests, 2026-10-11-003637, undeclared; re-affirmed in the
-  review's log); no open-thread files, swept 0; reactivated 0, superseded 0; archive-verify pass (lint clean before and after);
-  invariants not due (36 of 40); stalled threads none; contradictions none; Doc Gaps: no window log carries the section; live facts 14,
-  lines 389. Smoke test not run.)
+- **last_review:** 2026-10-24 | through 2026-10-24-040826.md (ON COMMAND + CADENCE — 17 sessions since the 2026-10-11 review:
+  `refresh-metadata` refreshed 5 footers, tier changes 2 (`mock-upload-loads-every-member` → active, `release-4-12-24` →
+  archive-candidate); archived 3 faded facts (`graph-import-travels-like-command`, `msgpack-nesting-limit-64-rust`,
+  `msgpack-hostile-header-vectors-rust`) after step 6 found no reliance (no window commit on the MsgPack paths; the import fact's
+  path commits, #394 and the tutorials set, did not rely on it); KEPT `mock-upload-loads-every-member` as a declaration gap
+  (Increment 181, 2026-10-21-010823, extended its every-member test undeclared; re-affirmed in the review's log); swept 0 threads
+  (`release-4-12-24` closed inside the window); reactivated 0, superseded 0; archive-verify pass; **the invariant re-verify is
+  due (53 of 40): gate [[reverify-invariants-20261024]] raised for Eric**; stalled threads none; contradictions none; Doc Gaps:
+  no window log carries the section; `memory/instructions.md`'s repository map corrected (five unpublished workspace members);
+  live facts 15 → 13, lines 348. Smoke test not run.)
+  Prior: 2026-10-11 | through 2026-10-11-034408.md (ON COMMAND — refreshed 4 footers, tier changes 3; archived 0 and KEPT
+  `conv-tests-remove-temp-files-rust` as a declaration gap; swept 0; invariants not due (36 of 40); live facts 14, lines 389)
   Prior: 2026-10-09 | through 2026-10-09-032244.md (CADENCE — 17 sessions since the 2026-10-06 review: `refresh-metadata` refreshed 9
   footers, tier changes 8 (3 → active, 5 → archive-candidate); archived 10 faded facts after step 6 found no reliance - the window's 82
   commits on their paths were RFC-0007's and ADR-0027's work, not the rules (`redis-restart-aware-retry` 28, `static-decision-table-is-
@@ -194,18 +198,7 @@ layers shipped; the two above have held through every re-verify.)*
   controls became three steps in the same round - Instantiate, Upload (optional; the form opens for the clicking session only, no console command) and Run - and the
   multi-select hint left the canvas; the UI lives in the Java repo and arrives here as the bundle `index-Bg13jQpc` ([[webapp-single-source-java-repo]]). Pinned by
   `mock_upload_loads_every_member_instance` in `tests/graph_runtime.rs`.
-  <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-09 | uses: 5 | tier: archive-candidate | origin: 2026-10-02-232252 -->
-
-- **A graph model imported from a file travels like a command: `POST /api/graph/import/{id}` makes it every member's draft (Eric's Playground usability sprint, 2026-10-03; PR #350 merge `dae6377d`, Increment 155; lock-step with mercury-composable #500 squash `856e084b`; both MERGED 2026-10-03 16:03Z).**
-  `commands::import_content` validates first (`validate_graph_model`: a JSON object whose only top-level sections are `nodes`, a mandatory list, and `connections`, an optional list; then
-  `MiniGraph::import_graph` on a scratch graph, so a node without alias or types is refused at the edge) and sends an `import` event to the command service; `handle_import` replaces the
-  draft when the session is the primary and replays it (`forwarded`) into every subscriber's draft, or forwards a subscriber's model to the primary; `import_graph_model` (shared with
-  `import graph from`) clears a graph instance and says `Graph model imported as draft` - the line the webapp refreshes on - and says `Graph model not imported - <reason>` for a model
-  the importer rejects instead of leaving an empty draft silently. An unknown session is 404. Simple validation only; CompileGraph stays the quality gate (Eric). The UI arrives as the
-  bundle `index-Cv2pdvxg` ([[webapp-single-source-java-repo]]): the Import Graph button, the `.json` file drop (a confirmation before replacing a loaded graph), the Download button
-  (`<graph-id>.json`, the root node named after the id as `export graph as` does) and the Raw tab. A dev-route addition touches the example, the starter template and the cache example
-  `rest.yaml`. Extends [[mock-upload-loads-every-member]]. Pinned by `graph_import_loads_every_member_draft` in `tests/graph_runtime.rs`.
-  <!-- id: graph-import-travels-like-command | created: 2026-10-03 | last_used: 2026-10-09 | uses: 3 | tier: archive-candidate | origin: 2026-10-03-153752 -->
+  <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-24 | uses: 6 | tier: active | origin: 2026-10-02-232252 -->
 
 - **Graph sets follow ADR-0027 in the Java repository's ledger (RFC-0005, promoted 2026-10-06): one or more graphs in a canonical
   `<set>.pack`, checked by the gate when packed and deployed all or none through a generated manifest; a set of one graph is how one graph
@@ -224,46 +217,7 @@ layers shipped; the two above have held through every re-verify.)*
   `a_single_graph_is_packed_alone_so_it_can_be_signed` and its Java twin: one 327-byte set, SHA-256 `c500281a…` in both engines. A change
   that alters those bytes breaks the signatures made over the old ones. Java twin fact `graph-set-pack-and-deploy`; the sprint thread is the
   Java repository's `graph-set-packaging`. Relates [[graph-null-property-filtered-rust]].
-  <!-- id: graph-set-pack-and-deploy-rust | created: 2026-10-06 | last_used: 2026-10-07 | uses: 8 | tier: archive-candidate | origin: 2026-10-06-012631 -->
-
-- **A MsgPack payload may nest at most 64 maps and lists, the outermost container being level 1, the same rule as the Java engine (Eric,
-  2026-10-06; Increment 160, PR #358 merge `49d599a0`, MERGED 2026-10-06 02:59Z; Java twin mercury-composable #514, fact
-  `msgpack-nesting-limit-64`).** This engine
-  decoded untrusted bytes with `rmp_serde::from_slice`: the envelope (`EventEnvelope::from_bytes`) and the Event API's compact-format
-  check. Measured with a throwaway test: rmp-serde's default of 1,024 counts the outermost container, so a release build decodes 1,023
-  levels, but a debug build's 2 MiB thread stack overflowed between 500 and 600 nested arrays and aborted the process. Now
-  `serializer::from_msgpack` is `from_slice` with `set_max_depth(MAX_DEPTH + 1)` (rmp-serde refuses the container that brings its counter
-  to zero) and reports `Nesting deeper than 64 levels`, which the Event API answers with HTTP 400. The envelope map is level 1, so a body
-  nests at most 63. The distributed-cache example's `unpack` decodes through it too; the canonical packager keeps its own bound. Pinned by
-  the `serializer` tests, `envelope_wire_format::an_envelope_nested_too_deep_is_a_decoding_error` and the claim `msgpack-nesting-limit`.
-  Lesson: measure a library's depth limit against the stack, not against its documentation. Relates [[graph-set-pack-and-deploy-rust]] (the
-  canonical packager's 64).
-  <!-- id: msgpack-nesting-limit-64-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 5 | tier: archive-candidate | origin: 2026-10-06-025704 -->
-
-- **The MsgPack decoders of both engines are pinned by one shared hostile-header vector file, and the canonical decoder now
-  refuses the never-used byte `0xc1` at the header (Eric's ask, 2026-10-06; branch `test/msgpack-hostile-header-vectors` commit
-  `80040d61`, Increment 163; PR #361 MERGED 2026-10-06 as merge `59c964ab`; the Java twin mercury-composable #519 MERGED the same day as squash `3543a65a`).** `tests/resources/msgpack-hostile-header-vectors.json`, byte-identical with the Java engine's
-  copy: 22 inputs every decoder must refuse (a str, bin or ext length or an array or map count beyond the remaining bytes, the
-  CVE-2026-90473 `map 32` shape among them; fixed-width values cut short; `0xc1`; 65-level nesting) and 9 controls that must decode
-  to exactly their JSON value. `msgpack_hostile_header_vectors` runs them through `serializer::from_msgpack`,
-  `EventEnvelope::from_bytes` and `canonical_packager::decode`; the claim `msgpack-hostile-header` sits beside
-  `msgpack-nesting-limit`. **The first run found the gap:** `rmpv` reads `0xc1` as nil, so the canonical decoder accepted `91 c1`
-  while `rmp-serde` and the Java reader refuse it; `check_markers` (iterative, allocation-free) now walks the markers before
-  decoding and refuses `0xc1` and any header that promises more than the input holds - the Java reader's rule - with `rmp`
-  declared as a direct dependency for `Marker`. **The empty-input disparity, RULED (Eric, 2026-10-06): Java is the reference implementation
-  and the Rust port follows** - Increment 164 (PR #362 merge `12702cc9`, MERGED 2026-10-06; the Java twin mercury-composable #520 squash `d755888d`, merged the same day): `from_msgpack` reads empty
-  input as an empty map and `EventEnvelope` carries a struct-level serde default (its `id` had none), so `from_bytes(&[])` is an
-  empty envelope with a fresh id as on Java and the Event API answers an empty body `400 Missing routing path`; the canonical
-  decoder keeps refusing empty input, and the shared file carries the case as the first `canonical: reject` control. Lesson: parity believed is not parity tested - the shared-file method caught a divergence
-  the first time it ran. Extends [[msgpack-nesting-limit-64-rust]]. **Exactly one value (Increment 165, branch `fix/msgpack-trailing-bytes` `14c0a687`, PR
-  #363 MERGED 2026-10-06 as merge `3cae9f63`; the Java twin mercury-composable #521 squash `5141330a`, merged the same day):** an independent correctness review of the Java codec found
-  that both engines' event codecs read one value and ignored what followed (`80 c1` decoded as an empty map) while both canonical
-  decoders refused it; the Java engine fixed it as the reference and this engine follows - `from_msgpack` probes for a `u8` after the
-  value (only a missing marker fails as `InvalidMarkerRead`/`UnexpectedEof`, since the probe reads at most nine bytes) and refuses the
-  rest as `Unexpected bytes after the value at offset N`, at no cost on a clean input; the shared file gains `80 c1` and `80 c0` (24
-  rejects), claim `msgpack-exactly-one-value`. Lesson: a probe for the end of the input must read a bounded number of bytes - an
-  `IgnoredAny` probe ends inside a trailing truncated container with the same error a clean end gives.
-  <!-- id: msgpack-hostile-header-vectors-rust | created: 2026-10-06 | last_used: 2026-10-06 | uses: 3 | tier: archive-candidate | origin: 2026-10-06-185502 -->
+  <!-- id: graph-set-pack-and-deploy-rust | created: 2026-10-06 | last_used: 2026-10-18 | uses: 9 | tier: archive-candidate | origin: 2026-10-06-012631 -->
 
 ## Conventions
 
@@ -340,7 +294,7 @@ layers shipped; the two above have held through every re-verify.)*
   of a Java webapp fix). `Cargo.toml` has no `exclude` any more; `cargo package --list` carries 214 files, the 42 help pages, the bundle and the entry page, no
   webapp path and no source map. The source maps stay gitignored here. Supersedes [[webapp-bundle-follows-help-edits]] (the rule that a help edit needs the rebuilt bundle still holds, now from the
   Java repo). Relates [[example-and-template-carry-their-flows]].
-  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-11 | uses: 13 | tier: active | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
+  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-22 | uses: 22 | tier: active | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
 
 - **Tests remove the temporary files they write when they complete, verified by measuring (Eric, 2026-10-06; Increment 162, PR
   #360 merge `acf767d7`, MERGED 2026-10-06 05:35Z).** A test binary runs its tests in parallel and has no after-all hook. Per-process files go under `test_support::temp_path`
@@ -351,7 +305,7 @@ layers shipped; the two above have held through every re-verify.)*
   of its own, because the cleanup removes the holding area. Verify per test binary: a marker file, each binary run from its package
   folder, then `find -newer` over the system temp folder and `/tmp`. Java twin fact `conv-tests-remove-temp-files`; the thread is the
   Java repository's `test-temp-file-housekeeping`.
-  <!-- id: conv-tests-remove-temp-files-rust | created: 2026-10-06 | last_used: 2026-10-11 | uses: 3 | tier: active | origin: 2026-10-06-053150 -->
+  <!-- id: conv-tests-remove-temp-files-rust | created: 2026-10-06 | last_used: 2026-10-24 | uses: 5 | tier: active | origin: 2026-10-06-053150 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 

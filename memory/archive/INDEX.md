@@ -132,3 +132,6 @@
 - reverify-invariants-20261004 — (re-verify) CLOSED 2026-10-04 — the never-decay facts and the Vision re-verified (45 sessi… — completed thread swept (older than archive_window) — 2026-Q4.md
 - rust-jsonpath-indefinite-list — (parity) CLOSED 2026-10-04 06:08Z — a `$.` JSONPath result takes Jayway's shape on both en… — completed thread swept (older than archive_window) — 2026-Q4.md
 - graph-null-property-filtered-rust — A graph holds no null property: `"key": null` is filtered out on deploy, pack and read, `"… — faded — 2026-Q4.md
+- graph-import-travels-like-command — A graph model imported from a file travels like a command: `POST /api/graph/import/{id}` m… — faded — 2026-Q4.md
+- msgpack-nesting-limit-64-rust — A MsgPack payload may nest at most 64 maps and lists, the outermost container being level… — faded — 2026-Q4.md
+- msgpack-hostile-header-vectors-rust — The MsgPack decoders of both engines are pinned by one shared hostile-header vector file,… — faded — 2026-Q4.md

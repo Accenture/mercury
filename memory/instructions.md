@@ -29,7 +29,8 @@ delivered increment become the next Current State (the VBDI loop — see `DECAY.
 ## Repository Structure
 
 Cargo workspace; twelve published crates (verified 12/12 on crates.io at v4.12.19) — the seven core
-crates under `crates/` and the optional add-ons under `extensions/` (one test double stays unpublished):
+crates under `crates/` and five add-ons under `extensions/`; five workspace members stay unpublished (`publish = false`:
+the test support, the Redis test double, the API playground, the graph packager and the benchmark reporter):
 
 ```
 crates/
@@ -41,6 +42,7 @@ crates/
   knowledge-graph-macros ← #[fetch_feature]
   minimalist-kafka       ← opt-in Kafka library: flow adapter (inbound) + notification (outbound),
                            with this engine's own Schema Registry codec (ported K1–K5, v4.12.14)
+  test-support           ← one temp folder per test process, removed at exit (dev-only, unpublished)
 extensions/
   redis-connection       ← the shared Redis client foundation (standalone or cluster, health probe)
   sync-over-async        ← the Redis rendezvous transport (streaming return route across pods)
@@ -48,12 +50,15 @@ extensions/
   minigraph-state-redis  ← pluggable suspend/resume state store
   opentelemetry-forwarder← the no-SDK OTLP trace forwarder, opt-in by otel.forwarding
   redis-test-double      ← test-only Redis double (publish = false)
+  api-playground         ← Swagger UI in a Mercury page, the Java extension's twin (publish = false)
 examples/<name>/         ← standalone workspace crates, never cargo examples in a library crate
                            (hello-world, hello-flow, minigraph-playground, sync-over-async-demo,
                            distributed-cache-example, kafka-demo)
 templates/<name>/        ← copy-out starter projects for the three layers (starter-function,
                            starter-flow, starter-graph — workspace-built; a copy drops the path keys)
 system/ai-contract-provider ← serves the version-matched AI documentation contract
+tools/graph-packager     ← packs, unpacks and inspects graph sets (RFC-0005; publish = false)
+benchmark/benchmark-reporter ← self-contained end-to-end performance reporter (publish = false)
 docs/ (guides, llms.txt, INCREMENTS.md)   draft-design-specs/   scripts/
 ```
 

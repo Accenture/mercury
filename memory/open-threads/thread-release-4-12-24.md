@@ -5,4 +5,4 @@
   under the same number ([[conv-ports-adopt-java-release-number]]). Next: nothing here; the field's acceptance is recorded in the Java repo.
   origin: 2026-10-12-222006; close 2026-10-12-223633.
   → serves: vision-mercury
-  <!-- id: release-4-12-24 | created: 2026-10-12 | last_used: 2026-10-12 | uses: 1 | tier: working | origin: 2026-10-12-222006 -->
+  <!-- id: release-4-12-24 | created: 2026-10-12 | last_used: 2026-10-12 | uses: 2 | tier: archive-candidate | origin: 2026-10-12-222006 -->
