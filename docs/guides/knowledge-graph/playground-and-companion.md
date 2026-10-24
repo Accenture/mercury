@@ -134,15 +134,17 @@ curl -sS -X POST "http://127.0.0.1:8085/api/companion/${SESSION}/sync" \
 ```
 
 `ok`
-:   Whether the command succeeded, derived from the console output with whole-output
-    context (a benign fallback, like `import` finding the model in the deployed location
-    after missing the temp folder, is correctly `true`).
+:   Whether the command succeeded, by the engine's own verdict: every line the engine prints
+    to refuse a command or to abort a run carries an error status, and `ok` is `false` when
+    one appears. A help page or an informational line is never a failure, whatever its
+    words (a benign fallback, like `import` finding the model in the deployed location
+    after missing the temp folder, is `true`).
 
 `output`
 :   The console lines the command produced — the same lines a human sees in the browser.
 
 `error`
-:   The first failing line — present only when `ok` is `false`.
+:   The first refusal — present only when `ok` is `false`.
 
 `result`
 :   Structured data when the command yields it — for example, a `run`'s traversal outcome

@@ -128,6 +128,18 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    not the backslash. The expression lexer reads a backslash as an escape, so `C:\temp` became a tab and a value that ended with `\`
    escaped the closing quote and failed the statement. The backslash is now escaped first; the Java engine has the same fix.
    **Upgrade note:** none - an expression that compared such a value read the wrong text or failed.
+2. **The companion endpoint reports every refusal as a failure, by the engine's own flag (Increment 188).** The twin of the Java
+   engine's fix (mercury-composable #586). The synchronous companion endpoint (`POST /api/companion/{id}/sync`) decided `ok` by
+   matching each console line against a list of error words, so a refusal worded otherwise came back `ok: true` and a driver that
+   trusted `ok` believed the command had worked: `create node` on a node the model already holds (`node {name} already exists`), an
+   `import graph` that the importer refused after resetting the draft, `import node` of a node the file does not hold, an `export`
+   refused for its root's name, a `delete connection` between nodes that are not connected, and `list` with an unknown kind. The
+   word list also failed commands that had worked: `help run`, `help schema` and seven tutorials answered `ok: false` for prose
+   that mentions an abort or a "not found". The command service now sends each refusal with an error status, as the traveler
+   already sent a traversal's abort, and the endpoint reports the first such line as its `error`, or the dispatch's own failure.
+   `import node` from a file that does not exist, and `session` with an unknown argument, now say so instead of printing nothing.
+   The WebSocket console shows the same lines. **Upgrade note:** a driver that sent `create node` to replace a node now sees the
+   failure it always was; `update node` replaces a node.
 
 ---
 ## Version 4.12.24, 10/12/2026

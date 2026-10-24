@@ -49,6 +49,11 @@ const TRY_HELP: &str = "Please try 'help' for details";
 const NODE_NAME: &str = "node ";
 const NOT_FOUND: &str = " not found";
 const SESSION_TAG: &str = "Session ";
+const INVALID_SESSION_COMMAND: &str = "Invalid session command";
+const GRAPH_NOT_FOUND: &str = "Graph model not found in ";
+/// A refusal's status: the WebSocket console ignores it, and the synchronous companion endpoint
+/// reports ok=false (Java `GraphCommandService.REFUSED`).
+const REFUSED: i32 = 400;
 const UNTYPED: &str = "untyped";
 const UNTITLED: &str = "untitled";
 const EXPIRY_MS: i64 = 20 * 1000;
@@ -191,6 +196,26 @@ async fn say_value(po: &PostOffice, out_route: &str, value: Value) {
         .await;
 }
 
+/// Print a refusal: the line that says why a command did nothing or failed (Java
+/// `GraphCommandService.refuse`). It carries an error status, which the WebSocket console ignores
+/// and the synchronous companion endpoint reports as ok=false, so a caller knows a refusal by its
+/// flag, never by its wording. An abort of a traversal carries one too (the traveler).
+async fn refuse(po: &PostOffice, out_route: &str, message: impl Into<String>) {
+    refuse_value(po, out_route, Value::from(message.into().as_str()), REFUSED).await;
+}
+
+/// A refusal whose body or status comes from elsewhere: a skill's error, relayed with its own status.
+async fn refuse_value(po: &PostOffice, out_route: &str, value: Value, status: i32) {
+    let _ = po
+        .send(
+            EventEnvelope::new()
+                .set_to(out_route)
+                .set_status(status)
+                .set_raw_body(value),
+        )
+        .await;
+}
+
 /// The service entry point (Java `handleEvent` + `handleRequest`).
 pub async fn handle(
     platform: &Platform,
@@ -229,7 +254,7 @@ pub async fn handle(
     .await;
     if let Err(e) = outcome {
         if !out_route.is_empty() {
-            say(&po, &out_route, format!("ERROR: {}", e.message())).await;
+            refuse(&po, &out_route, format!("ERROR: {}", e.message())).await;
         }
     }
     EventEnvelope::new().set_body("done")
@@ -420,7 +445,7 @@ async fn load_mock_content(
     namespace: &str,
 ) {
     let Some(instance) = model::get_instance(in_route) else {
-        say(
+        refuse(
             po,
             out_route,
             "Mock data not loaded - this session has no graph instance (instantiate first)",
@@ -657,13 +682,10 @@ async fn handle_single_line(
     let words = get_words(command);
     say(po, out_route, format!("> {command}")).await;
     if !words.is_empty() && words[0].eq_ignore_ascii_case("help") {
-        let help = get_help(&words);
-        say(
-            po,
-            out_route,
-            help.unwrap_or_else(|| format!("'{command}'{NOT_FOUND}")),
-        )
-        .await;
+        match get_help(&words) {
+            Some(help) => say(po, out_route, help).await,
+            None => refuse(po, out_route, format!("'{command}'{NOT_FOUND}")).await,
+        }
         Ok(())
     } else if words.len() > 1
         && (words[0].eq_ignore_ascii_case("create") || words[0].eq_ignore_ascii_case("instantiate"))
@@ -760,16 +782,12 @@ async fn handle_part_three(
                 // the uniform end-of-transmission line, carrying the reason, matching
                 // the traveler's failure shape so the sync companion's drain stays
                 // deterministic
-                let _ = po
-                    .send(
-                        EventEnvelope::new()
-                            .set_to(out_route)
-                            .set_status(400)
-                            .set_raw_body(Value::from(format!(
-                                "Graph traversal aborted: Unable to run - {reason}"
-                            ))),
-                    )
-                    .await;
+                refuse(
+                    po,
+                    out_route,
+                    format!("Graph traversal aborted: Unable to run - {reason}"),
+                )
+                .await;
                 return Ok(());
             }
         }
@@ -792,7 +810,7 @@ async fn handle_part_three(
             .await;
         Ok(())
     } else {
-        say(po, out_route, TRY_HELP).await;
+        refuse(po, out_route, TRY_HELP).await;
         Ok(())
     }
 }
@@ -858,7 +876,7 @@ async fn handle_session(
             say(po, out_route, "Session restarted").await;
         } else if words[1].eq_ignore_ascii_case("unsubscribe") {
             if me.is_primary() {
-                say(po, out_route, "Nothing to unsubscribe").await;
+                refuse(po, out_route, "Nothing to unsubscribe").await;
             } else {
                 let target_id = me.target_id();
                 unsubscribe_session(po, &me, out_route).await;
@@ -870,11 +888,13 @@ async fn handle_session(
                 )
                 .await;
             }
+        } else {
+            refuse(po, out_route, INVALID_SESSION_COMMAND).await;
         }
     } else if words.len() > 2 && words[1].eq_ignore_ascii_case("subscribe") {
         subscribe_session(po, &me, in_route, out_route, &words[2]).await?;
     } else {
-        say(po, out_route, "Invalid session command").await;
+        refuse(po, out_route, INVALID_SESSION_COMMAND).await;
     }
     Ok(())
 }
@@ -948,7 +968,7 @@ async fn subscribe_session(
     session_id: &str,
 ) -> Result<(), AppError> {
     if !me.is_primary() {
-        say(
+        refuse(
             po,
             out_route,
             format!(
@@ -961,7 +981,7 @@ async fn subscribe_session(
         return Ok(());
     }
     let Some(target) = session::get_session(&GraphSession::in_route_of(session_id)) else {
-        say(
+        refuse(
             po,
             out_route,
             format!("{SESSION_TAG}{session_id}{NOT_FOUND}"),
@@ -970,7 +990,7 @@ async fn subscribe_session(
         return Ok(());
     };
     if !target.is_primary() {
-        say(
+        refuse(
             po,
             out_route,
             format!("{session_id} is not a primary session"),
@@ -979,7 +999,7 @@ async fn subscribe_session(
         return Ok(());
     }
     if me.session_id() == target.session_id() {
-        say(po, out_route, "You cannot subscribe to yourself").await;
+        refuse(po, out_route, "You cannot subscribe to yourself").await;
         return Ok(());
     }
     synchronize_graph(po, me, &target, in_route, out_route).await
@@ -1081,7 +1101,9 @@ async fn handle_list(
     } else if kind.eq_ignore_ascii_case("flows") {
         list_flows()
     } else {
-        "Please use 'list nodes', 'list connections', 'list graphs' or 'list flows'".to_string()
+        let usage = "Please use 'list nodes', 'list connections', 'list graphs' or 'list flows'";
+        refuse(po, out_route, usage).await;
+        return Ok(());
     };
     say(po, out_route, text).await;
     Ok(())
@@ -1203,7 +1225,7 @@ async fn describe_deployed_graph(
     graph_id: &str,
 ) -> Result<(), AppError> {
     let Some(json) = deployed_model_json(graph_id) else {
-        say(
+        refuse(
             po,
             out_route,
             format!("Graph model '{graph_id}'{NOT_FOUND}"),
@@ -1354,13 +1376,10 @@ async fn handle_describe(
         describe_graph(po, in_route, out_route).await
     } else if words.len() == 3 && words[1].eq_ignore_ascii_case("skill") {
         let command = format!("help {}", words[2].replace('.', "-"));
-        let help = get_help(&split(&command, " "));
-        say(
-            po,
-            out_route,
-            help.unwrap_or_else(|| format!("'{command}'{NOT_FOUND}")),
-        )
-        .await;
+        match get_help(&split(&command, " ")) {
+            Some(help) => say(po, out_route, help).await,
+            None => refuse(po, out_route, format!("'{command}'{NOT_FOUND}")).await,
+        }
         Ok(())
     } else if words.len() == 3 && words[1].eq_ignore_ascii_case("node") {
         describe_node(po, in_route, out_route, &words[2]).await
@@ -1370,7 +1389,7 @@ async fn handle_describe(
     {
         describe_connection(po, in_route, out_route, &words[2], &words[4]).await
     } else {
-        say(po, out_route, TRY_HELP).await;
+        refuse(po, out_route, TRY_HELP).await;
         Ok(())
     }
 }
@@ -1427,7 +1446,7 @@ async fn describe_node(
             map.push((Value::from("node"), node_to_value(&node)));
             say_value(po, out_route, Value::Map(map)).await;
         }
-        None => say(po, out_route, format!("{NODE_NAME}{node_name}{NOT_FOUND}")).await,
+        None => refuse(po, out_route, format!("{NODE_NAME}{node_name}{NOT_FOUND}")).await,
     }
     Ok(())
 }
@@ -1509,7 +1528,7 @@ async fn valid_source_and_target(
     node_b: &str,
 ) -> Result<bool, AppError> {
     if node_a == node_b {
-        say(
+        refuse(
             po,
             out_route,
             "source and target node names cannot be the same",
@@ -1518,11 +1537,11 @@ async fn valid_source_and_target(
         return Ok(false);
     }
     if graph.find_node_by_alias(node_a)?.is_none() {
-        say(po, out_route, format!("{NODE_NAME}{node_a}{NOT_FOUND}")).await;
+        refuse(po, out_route, format!("{NODE_NAME}{node_a}{NOT_FOUND}")).await;
         return Ok(false);
     }
     if graph.find_node_by_alias(node_b)?.is_none() {
-        say(po, out_route, format!("{NODE_NAME}{node_b}{NOT_FOUND}")).await;
+        refuse(po, out_route, format!("{NODE_NAME}{node_b}{NOT_FOUND}")).await;
         return Ok(false);
     }
     Ok(true)
@@ -1755,8 +1774,11 @@ async fn handle_execute(
                 )
                 .await;
             }
-            Ok(response) => say_value(&po, &out_route, response.body().clone()).await,
-            Err(e) => say(&po, &out_route, e.message().to_string()).await,
+            // the skill's own error status keeps the line a refusal
+            Ok(response) => {
+                refuse_value(&po, &out_route, response.body().clone(), response.status()).await
+            }
+            Err(e) => refuse_value(&po, &out_route, Value::from(e.message()), e.status()).await,
         }
     });
     Ok(())
@@ -1792,7 +1814,7 @@ async fn handle_multi_line(
     {
         handle_instantiate(po, in_route, out_route, &lines).await
     } else {
-        say(po, out_route, TRY_HELP).await;
+        refuse(po, out_route, TRY_HELP).await;
         Ok(())
     }
 }
@@ -1811,7 +1833,7 @@ async fn handle_create_node(
         return Ok(());
     };
     if graph.find_node_by_alias(node_name)?.is_some() {
-        say(
+        refuse(
             po,
             out_route,
             format!("{NODE_NAME}{node_name} already exists"),
@@ -1850,7 +1872,7 @@ async fn handle_update_node(
         return Ok(());
     };
     let Some(node) = graph.find_node_by_alias(node_name)? else {
-        say(po, out_route, format!("{NODE_NAME}{node_name}{NOT_FOUND}")).await;
+        refuse(po, out_route, format!("{NODE_NAME}{node_name}{NOT_FOUND}")).await;
         return Ok(());
     };
     node.reset_types(node_type.as_deref().unwrap_or(UNTYPED))
@@ -1892,7 +1914,7 @@ async fn handle_delete(
     if words.len() == 3 && words[1].eq_ignore_ascii_case("node") {
         let node_name = &words[2];
         if graph.find_node_by_alias(node_name)?.is_none() {
-            say(po, out_route, format!("{NODE_NAME}{node_name}{NOT_FOUND}")).await;
+            refuse(po, out_route, format!("{NODE_NAME}{node_name}{NOT_FOUND}")).await;
         } else {
             graph.remove_node(node_name)?;
             say(po, out_route, format!("{NODE_NAME}{node_name} deleted")).await;
@@ -1914,9 +1936,15 @@ async fn handle_delete(
                 sb.push_str(&format!("{node_b} -> {node_a} removed\n"));
             }
             if sb.is_empty() {
-                sb.push_str(&format!("{node_a} has no connections with {node_b}\n"));
+                refuse(
+                    po,
+                    out_route,
+                    format!("{node_a} has no connections with {node_b}"),
+                )
+                .await;
+            } else {
+                say(po, out_route, sb).await;
             }
-            say(po, out_route, sb).await;
         }
         Ok(())
     } else if words.len() == 2 && words[1].eq_ignore_ascii_case("cache") {
@@ -1930,7 +1958,7 @@ async fn handle_delete(
         }
         Ok(())
     } else {
-        say(po, out_route, TRY_HELP).await;
+        refuse(po, out_route, TRY_HELP).await;
         Ok(())
     }
 }
@@ -1960,7 +1988,7 @@ async fn handle_connect(
         }
         Ok(())
     } else {
-        say(
+        refuse(
             po,
             out_route,
             "Syntax: connect {node-A} to {node-B} with {relation}",
@@ -1983,7 +2011,7 @@ async fn handle_export(
     filename: &str,
 ) -> Result<(), AppError> {
     if !valid_graph_file_name(filename) {
-        say(po, out_route, INVALID_GRAPH_NAME).await;
+        refuse(po, out_route, INVALID_GRAPH_NAME).await;
         return Ok(());
     }
     let Some(graph) = session::get_graph_model(in_route) else {
@@ -2002,7 +2030,7 @@ async fn handle_export(
                 .filter(|s| !s.is_empty());
             if let Some(declared) = declared {
                 if declared != filename && file.exists() {
-                    say(
+                    refuse(
                         po,
                         out_route,
                         format!(
@@ -2046,7 +2074,7 @@ async fn handle_import_graph(
     filename: &str,
 ) -> Result<(), AppError> {
     if !valid_graph_file_name(filename) {
-        say(po, out_route, INVALID_GRAPH_NAME).await;
+        refuse(po, out_route, INVALID_GRAPH_NAME).await;
         return Ok(());
     }
     if session::get_graph_model(in_route).is_none() {
@@ -2057,14 +2085,12 @@ async fn handle_import_graph(
         let json = std::fs::read_to_string(&file).map_err(|e| invalid(e.to_string()))?;
         import_graph_as_draft(po, in_route, out_route, &json).await
     } else {
-        say(
-            po,
-            out_route,
-            format!("Graph model not found in {}", file.display()),
-        )
-        .await;
+        // a deployed model of the same name is the fallback, so the missing temp copy is a
+        // refusal only when there is none
+        let not_found = format!("{GRAPH_NOT_FOUND}{}", file.display());
         match find_deployed_graph(filename) {
             Some((location, json)) => {
+                say(po, out_route, not_found).await;
                 say(
                     po,
                     out_route,
@@ -2073,7 +2099,10 @@ async fn handle_import_graph(
                 .await;
                 import_graph_as_draft(po, in_route, out_route, &json).await
             }
-            None => Ok(()),
+            None => {
+                refuse(po, out_route, not_found).await;
+                Ok(())
+            }
         }
     }
 }
@@ -2138,7 +2167,7 @@ async fn import_graph_model(po: &PostOffice, in_route: &str, out_route: &str, gr
     // and `import graph from` a file or a deployed model): a graph holds no null property, so a
     // "key": null is filtered out first, whatever serializer.null.transport let through
     if let Err(e) = graph.import_graph(&crate::model_gate::without_null_properties(graph_model)) {
-        say(
+        refuse(
             po,
             out_route,
             format!("Graph model not imported - {}", e.message()),
@@ -2161,7 +2190,7 @@ async fn handle_import_node(
     filename: &str,
 ) -> Result<(), AppError> {
     if !valid_graph_file_name(filename) {
-        say(po, out_route, INVALID_GRAPH_NAME).await;
+        refuse(po, out_route, INVALID_GRAPH_NAME).await;
         return Ok(());
     }
     let Some(graph) = session::get_graph_model(in_route) else {
@@ -2169,6 +2198,12 @@ async fn handle_import_node(
     };
     let file = temp_dir().join(format!("{filename}.json"));
     if !file.exists() {
+        refuse(
+            po,
+            out_route,
+            format!("{GRAPH_NOT_FOUND}{}", file.display()),
+        )
+        .await;
         return Ok(());
     }
     let json = std::fs::read_to_string(&file).map_err(|e| invalid(e.to_string()))?;
@@ -2179,7 +2214,7 @@ async fn handle_import_node(
         .import_graph(&event_script::conversions::from_json(&parsed))
         .map_err(|e| invalid(e.message()))?;
     let Some(another_node) = another_graph.find_node_by_alias(node_name)? else {
-        say(
+        refuse(
             po,
             out_route,
             format!("{NODE_NAME}{node_name} does not exist in {filename}"),

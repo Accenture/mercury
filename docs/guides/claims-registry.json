@@ -558,6 +558,16 @@
       "quote": "A dry run in the Playground validates the input exactly as a deployed run does",
       "test": "crates/knowledge-graph::graph_runtime::dry_run_validates_the_input_at_the_root",
       "since": "4.12.21+"
+    },
+    {
+      "id": "companion-ok-is-the-engine-verdict",
+      "claim": "The synchronous companion endpoint's ok flag is the engine's own verdict: every refusal and every traversal abort carries an error status, so a refusal is ok:false however it is worded and a help page is never a failure.",
+      "pages": [
+        "docs/guides/knowledge-graph/ai-agent-guide.md"
+      ],
+      "quote": "The \"ok\" flag is the engine's own verdict, never read from the wording of a line",
+      "test": "crates/knowledge-graph::playground::every_refusal_is_a_failure_whatever_its_wording",
+      "since": "4.12.26+"
     }
   ]
 }

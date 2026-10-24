@@ -50,10 +50,12 @@ can self-correct without a human relaying the console:
    - NULL FIELDS ARE OMITTED from the wire (serializer null-omission): a success carries no
      "error" key and, unless the command yields data, no "result" key. Treat ABSENT as null —
      do not require the keys.
-   - The "ok" flag is derived from the console lines with whole-output context (import's
-     normal "Graph model not found in /tmp/... Found deployed graph model" fallback is
-     correctly reported ok:true). When ok is false, the error field carries the first
-     failing line — still read the output for the full picture.
+   - The "ok" flag is the engine's own verdict, never read from the wording of a line: every
+     line the engine prints to refuse a command (it did nothing, or it failed) or to abort a
+     run carries an error status, and ok is false when one appears. A help page or an
+     informational line is never a failure, whatever its words: import's normal "Graph model
+     not found in /tmp/... Found deployed graph model" fallback is ok:true. When ok is false,
+     the error field carries the first refusal — still read the output for the full picture.
    - A malformed command answered with a "Syntax: ..." usage hint is a FAILURE: ok:false
      with the hint as the error (the command did nothing).
    - Repeating an identical command back-to-back is safe: /sync commands are never
