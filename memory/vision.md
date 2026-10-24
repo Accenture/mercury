@@ -17,20 +17,24 @@ re-delivered in Rust **step by step from the foundation up to the user interface
 
 ## Current-state context
 
-> Refreshed 2026-09-17 at the invariant re-verify ceremony (maintainer-confirmed; the north
-> star below is unchanged). Facts brought current 2026-09-28 by the memory smoke test (the
+> Refreshed 2026-10-24 at the invariant re-verify (maintainer-confirmed): releases catch up with the
+> Java engine's release number rather than ship in lock-step, and the audience line is current; the
+> north star below is unchanged. Refreshed before that 2026-09-17 at the invariant re-verify ceremony
+> (maintainer-confirmed; the north star below is unchanged). Facts brought current 2026-09-28 by the memory smoke test (the
 > runway items below had shipped) — a staleness fix, not a ceremony; the next invariant
 > re-verify confirms it. Previously refreshed 2026-07-21; the enable-time context is kept
 > for the record.
 
 All three core layers are ported, milestone-closed and **GRADUATED** (`github.com/Accenture/mercury`,
-2026-07-20; releases in lock-step with the Java engine — see `continuity.md` → `latest_release`).
+2026-07-20; a release adopts the Java engine's release number when this repository has changes — see
+`continuity.md` → `latest_release`).
 The "foundation → user interface" runway **closed 2026-09-17**: the UI is the Playground webapp kept
 in lock-step from Java, and future UI work arrives as concrete threads. The connector runway closed
 too: `sync-over-async` shipped 2026-09-13, `minimalist-kafka` in v4.12.14 (its thread closed
-2026-09-23), the OpenTelemetry forwarder as Increment 129. **Forward runway now:** lock-step
-releases with the Java engine, each increment a twin of a Java change; `twin-kafka` deferred; the
-Kafka service mesh stays out of scope (Non-goals).
+2026-09-23), the OpenTelemetry forwarder as Increment 129. **Forward runway now:** each increment
+a twin of a Java change, and a release adopts the Java engine's release number when this repository
+has changes (Eric, 2026-10-13: the port catches up with its next feature or fix); `twin-kafka`
+deferred; the Kafka service mesh stays out of scope (Non-goals).
 
 > Refreshed 2026-07-21 at the invariant re-verify ceremony (maintainer-confirmed; the
 > north star below is unchanged). Original enable-time context kept for the record.
@@ -74,8 +78,8 @@ treat the Java project as canonical rather than copying its docs here.
 
 ## For whom
 
-- The Accenture team porting mercury-composable to Rust — formerly rapid-prototyping in a private
-  repo (graduated to the official repo 2026-07-20) now, the wider audience once it moves to the official repo.
+- The Accenture team porting mercury-composable to Rust, now in the official repository (graduated
+  2026-07-20 from a private rapid-prototyping repo), and the wider audience it reaches there.
 - Ultimately the same audience mercury-composable (Java) serves: developers building
   composable, event-driven applications on the platform.
 

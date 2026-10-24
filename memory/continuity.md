@@ -107,11 +107,15 @@
   release priors condensed — lines 600 → ~520, facts 29 → 28; three facts re-tiered active → archive-candidate; one stale "Open" line in
   `connected-edge-spans` corrected to SHIPPED) · 2026-09-24 | through 2026-09-24-003204.md (advisory sweep at the v4.12.16 seam) ·
   2026-09-23 | 2026-09-23-014725.md.
-- **last_invariant_check:** 2026-10-04 | 2026-10-04-160854.md (COMPLETE — [[reverify-invariants-20261004]] closed: Eric CONFIRMED all
-  7 never-decay facts and the Vision (8 ids) — `inv-never-couple-functions`, `inv-telemetry-presentation-parity`, `port-bottom-up-faithful`,
-  `conventions-rust-baseline`, `conv-declare-consulted-references-rust` (after an elaboration), `conv-proposals-not-in-adr-ledger-rust` (its first
-  check), `eric-release-rhythm-rust`, `vision-mercury`; the team record REMOVED at his request (a public repository does not list its team in
-  memory). The next re-verify is due 40 sessions after 2026-10-04-160854.) Prior: 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, the team record (since removed), vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
+- **last_invariant_check:** 2026-10-24 | 2026-10-24-042748.md (COMPLETE — [[reverify-invariants-20261024]] closed: Eric CONFIRMED all
+  7 never-decay facts and the Vision against live-tree evidence — `inv-never-couple-functions`, `inv-telemetry-presentation-parity`,
+  `port-bottom-up-faithful` (wording refreshed: the runway closed, the port catches up), `conventions-rust-baseline` (the rule holds;
+  9 of 258 source files lacked the Apache header, fixed by a PR), `conv-declare-consulted-references-rust`,
+  `conv-proposals-not-in-adr-ledger-rust`, `eric-release-rhythm-rust`, `vision-mercury` (refreshed: a release adopts the Java release
+  number when this repository has changes, not lock-step; the audience line). Core stays 7. The next re-verify is due 40 sessions
+  after 2026-10-24-042748.)
+  Prior: 2026-10-04 | 2026-10-04-160854.md (all 7 never-decay facts and the Vision CONFIRMED; the team record removed at Eric's request) ·
+  Prior: 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, the team record (since removed), vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)
 - **vision:** `memory/vision.md` (north star, set at enable; both derived Blueprint gaps closed 2026-09-17 — none open, new gaps surface as `(blueprint)` threads)
 
@@ -184,10 +188,12 @@ layers shipped; the two above have held through every re-verify.)*
 
 ## Key Decisions
 
-- **Port bottom-up, faithfully to the Java original** — re-implement mercury-composable in
-  Rust layer by layer, foundation → UI (platform-core, then event-script, then active
-  knowledge graph), preserving the Java project's behavior. The Java repo is the canonical
-  spec (map, don't mirror).
+- **Port faithfully to the Java original** — mercury-composable's three layers were
+  re-implemented in Rust bottom-up, foundation → UI (platform-core, then event-script, then the
+  active knowledge graph; the runway closed 2026-09-17), and the port now catches up with each
+  Java change as its twin, preserving the Java project's behavior. The Java repo is the canonical
+  spec (map, don't mirror). (Wording refreshed 2026-10-24 at invariant re-verify, Eric-confirmed —
+  substance unchanged.)
   <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-30 | uses: 104 | tier: core | origin: 2026-07-15-215538.md -->
 
 - **A mock-data upload travels like a command: it loads every member's instance (Eric's design, 2026-10-02; PR #349 merge `278bb023`, Increment 154; lock-step with mercury-composable #498 squash `ce0e7155`; both MERGED 2026-10-03 06:00Z).**
