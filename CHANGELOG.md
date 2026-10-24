@@ -53,6 +53,16 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
 3. **The Playground engine has a favicon - the Mercury atom.** `resources/public/favicon.ico` holds 16, 32 and 48 px images of the white
    atom that the documentation site and the API playground use, on the API playground's deep purple. It is the same file as the Java
    engine's; every Playground page load used to answer `/favicon.ico` with 404. **Upgrade note:** none.
+4. **`f:addDays` and `f:daysBetween` - calendar-date arithmetic in a flow or a knowledge graph (Increment 189).** The twin of the
+   Java engine's plugins (mercury-composable #591): `f:addDays(date, days)` returns the date a whole number of days later (earlier
+   for a negative number), `f:addDays(text(2027-01-15), int(15))` being `2027-01-30`, and `f:daysBetween(from, to)` the whole days
+   between two dates as an integer, the earlier date excluded and the later one included, in either order: 2027-04-10 to
+   2027-05-11 gives 31, the same date twice 0. A date is an ISO-8601 calendar date written exactly as `YYYY-MM-DD`, with no time
+   and no time zone. A date of another shape, a day the calendar lacks (`2027-02-30`), a fractional number of days, a null
+   argument and a result outside the years 0000 to 9999 are refused with the Java engine's messages. Pinned by the shared
+   `date-plugin-vectors.json` (65 vectors, byte-identical with the Java repository) and the graph fixture
+   `unit-test-date-arithmetic-1`; the graph contract types the results (`string`, `integer`). The mirrored help page arrives with
+   the regenerated bundle: `index-D5Sx-GL2.js` became `index-MYdzjeK5.js`. **Upgrade note:** none - two new plugins.
 
 ### Changed
 
