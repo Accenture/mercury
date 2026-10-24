@@ -1520,6 +1520,8 @@ For example:
 | **Generator**       | uuid            | None                                                                                                                  |
 | **Generator**       | dateTime        | None.                                                                                                                 |
 | **Generator**       | now             | text(iso), text(local) or text(ms)                                                                                    |
+| **Date**            | addDays         | A date written as `YYYY-MM-DD` and a whole number of days (negative for an earlier date) — returns the date that many days later, written the same way: `(2027-01-15, 15)` gives `2027-01-30`. See *Date arithmetic plugins* below. |
+| **Date**            | daysBetween     | Two dates written as `YYYY-MM-DD`, in either order — returns the whole days between them as an integer, the earlier date excluded and the later one included: `(2027-04-10, 2027-05-11)` gives `31`, the same date twice gives `0`. |
 | **Logical**         | eq              | Two Objects, plus up to two optional modifiers: `text(ignoreCase)` compares two strings case-insensitively; `text(ignoreType)` compares the text forms of the two values, allowing relaxed comparison of numbers and booleans so that `"123" == 123`, `"123.456" == 123.456` and `"true" == true`; use both together for a case-insensitive text-form comparison. e.g. `f:eq(model.a, model.b, text(ignoreCase))` |
 | **Logical**         | ne              | Two Objects, plus the same optional `text(ignoreCase)` / `text(ignoreType)` modifiers as `eq` — returns the exact complement of `eq`                                                                  |
 | **Logical**         | isNull          | A single Object                                                                                                       |
@@ -1635,6 +1637,35 @@ Example for parsing a date string to milliseconds since epoch
 Example for parsing a date-time string to an ISO 3339 timestamp
 
 - f:parseDateTime(input.body.datetime, text(MM/dd/yyyy HH:mm:ss; iso))
+
+*Date arithmetic plugins*
+
+`f:addDays(date, days)` and `f:daysBetween(from, to)` compute with calendar dates — a due date from payment terms,
+the days between two events — without a composable function. A date is an ISO-8601 calendar date written exactly as
+`YYYY-MM-DD`, a plain day with **no time and no time zone** (not UTC, not a Unix timestamp), so the answer never depends
+on where the application runs, and the calendar is the Gregorian one with its leap days.
+
+- `f:addDays(date, days)` returns the date `days` later, written as `YYYY-MM-DD`. The days are a whole number — a
+  number or numeric text (`int(15)`, `text(15)`, a request field holding `15`) — and a negative number gives an
+  earlier date.
+- `f:daysBetween(from, to)` returns the whole days between the two dates as an integer. It counts the earlier date out
+  and the later one in: the same date twice gives `0`, `2027-03-01` to `2027-03-02` gives `1`, and `2027-04-10` to
+  `2027-05-11` gives `31`. The order of the arguments does not matter — the answer is never negative.
+
+```yaml
+- 'f:addDays(input.body.invoice_date, input.body.term_days) -> model.due_date'
+- 'f:daysBetween(model.due_date, input.body.paid_on) -> output.body.days_apart'
+- 'f:addDays(model.due_date, int(-1)) -> output.body.last_day_before_due'
+```
+
+With `invoice_date` `2027-01-15`, `term_days` `15` and `paid_on` `2027-02-02`, `model.due_date` is `2027-01-30`,
+`days_apart` is `3` and `last_day_before_due` is `2027-01-29`. `f:addDays(model.start, f:daysBetween(...))` is not
+valid — a plugin argument is never another plugin — so map the count to a model variable first.
+
+A date of another shape (`2027-01-15T10:00:00`, `2027-01-15Z`, `2027-1-5`, `01/15/2027`, surrounding spaces), a day the
+calendar lacks (`2027-02-29`, `2027-04-31`), a fractional or non-numeric number of days, a null argument, and a result
+outside the years `0000` to `9999` are refused by name, so the task fails rather than computing with a wrong date. A
+date-time from `f:now` is not a date; `f:dateTime(text(yyyy-MM-dd))` gives today's date in the application's time zone.
 
 *Simple Field Validation*
 

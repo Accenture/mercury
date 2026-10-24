@@ -68,6 +68,7 @@ pub mod mlm;
 pub mod mock;
 pub mod model;
 pub mod plugins;
+mod plugins_date;
 mod plugins_decimal;
 mod plugins_e8;
 pub mod resilience;

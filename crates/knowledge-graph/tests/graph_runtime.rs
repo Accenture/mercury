@@ -1983,6 +1983,80 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
     assert_eq!(None, mm.get_element("to_next_tier"));
     assert_eq!(Some(Value::from("legacy")), mm.get_element("product_line"));
 
+    // --- unit-test-date-arithmetic-1 (the Java GraphTaskTest twin):
+    // 'f:addDays(input.body.invoice_date, input.body.term_days)' gives the due
+    // date, and f:daysBetween counts the whole days between it and the payment
+    // date - the earlier date excluded, the later one included - with the same
+    // answer in either order; the terms may arrive as text
+    for (invoice, terms, paid, due, before_due, apart, check) in [
+        (
+            "2027-01-15",
+            serde_json::json!(15),
+            "2027-02-02",
+            "2027-01-30",
+            "2027-01-29",
+            3,
+            15,
+        ),
+        (
+            "2028-02-15",
+            serde_json::json!("14"),
+            "2028-02-28",
+            "2028-02-29",
+            "2028-02-28",
+            1,
+            14,
+        ),
+    ] {
+        let reply = run_graph(
+            &platform,
+            "unit-test-date-arithmetic-1",
+            serde_json::json!({"invoice_date": invoice, "term_days": terms, "paid_on": paid}),
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(200, reply.status(), "invoice {invoice}");
+        let mm = body_map(&reply);
+        assert_eq!(Some(Value::from(due)), mm.get_element("due_date"));
+        assert_eq!(
+            Some(Value::from(before_due)),
+            mm.get_element("last_day_before_due")
+        );
+        assert_eq!(Some(Value::from(apart)), mm.get_element("days_apart"));
+        assert_eq!(
+            Some(Value::from(apart)),
+            mm.get_element("days_apart_swapped")
+        );
+        assert_eq!(Some(Value::from(check)), mm.get_element("term_check"));
+    }
+    // a date is YYYY-MM-DD only, so a date-time aborts the run with the reason,
+    // and so does an absent request field, which reaches the plugin as Nil
+    for (body, message) in [
+        (
+            serde_json::json!({"invoice_date": "2027-01-15T00:00:00Z", "term_days": 15, "paid_on": "2027-02-02"}),
+            "Expected a date written as YYYY-MM-DD",
+        ),
+        (
+            serde_json::json!({"term_days": 15, "paid_on": "2027-02-02"}),
+            "Expected a date written as YYYY-MM-DD, with no time and no time zone, in addDays - got null",
+        ),
+        (
+            serde_json::json!({"invoice_date": "2027-01-15", "paid_on": "2027-02-02"}),
+            "The days of addDays must be a whole number - got null",
+        ),
+    ] {
+        let reply = run_graph(
+            &platform,
+            "unit-test-date-arithmetic-1",
+            body.clone(),
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(400, reply.status(), "{body}");
+        let text = event_script::conversions::to_json_string(reply.body());
+        assert!(text.contains(message), "{body}: {text}");
+    }
+
     // --- unit-test-math-1 (Java #453): the seed's overlay
     // 'input.body.threshold -> model.threshold' clears the model variable when
     // the input is absent and 'model.factor' is never set, so the COMPUTE over

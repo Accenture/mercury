@@ -156,6 +156,12 @@ engines):
 >       `{table-node}.{model.key}`. Never hard-code it as a ladder of
 >       IF-THEN-ELSE in `graph.math` or inside a composable function: the table is more readable, and
 >       the product owner certifies it on the graph ([static decision table](skills-reference.md#task)).
+> - [ ] **Date arithmetic is a plugin, not code.** A due date or a day count on dates written as `YYYY-MM-DD` is
+>       `f:addDays({date}, {days})` (a negative number of days goes back) or `f:daysBetween({from}, {to})` (whole days,
+>       the earlier date excluded and the later one included, in either order) in a `graph.data.mapper`
+>       ([dates](skills-reference.md#dates)). Never compute it in `graph.math`, in a composable function or through
+>       epoch milliseconds (`f:parseDate` with `ms`), which brings time zones back in; the request carries its dates as
+>       `YYYY-MM-DD` text, with no time and no time zone.
 > - [ ] A `$` source is an **RFC 9535** JSONPath query, used only as a data mapping's source: no Jayway forms
 >       (`in`, `=~`, `.length()`), and no JSONPath inside a `{reference}`
 >       ([JSON Path](../event-script/syntax.md#json-path)).

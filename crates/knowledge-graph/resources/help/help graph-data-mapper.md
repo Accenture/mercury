@@ -106,6 +106,23 @@ every band when it reads a table. A decimal bound
 stays text so that nothing is rounded; f:double(model.mid_to) in a second mapping converts it when a
 floating-point output value is wanted.
 
+Dates
+-----
+f:addDays(date, days) returns the date a whole number of days later (earlier for a negative number), and
+f:daysBetween(from, to) the whole days between two dates as an integer - the earlier date excluded and the
+later one included, whatever the order of the arguments, so the same date twice gives 0 and 2027-03-01 to
+2027-03-02 gives 1:
+
+```
+mapping[]=f:addDays(input.body.invoice_date, input.body.term_days) -> model.due_date
+mapping[]=f:daysBetween(model.due_date, input.body.paid_on) -> output.body.days_apart
+```
+
+An invoice of 2027-01-15 on 15-day terms is due 2027-01-30. A date is an ISO-8601 calendar date written
+exactly as YYYY-MM-DD, with no time and no time zone (not UTC, not a Unix timestamp); a date-time, a
+single-digit month, a day the calendar lacks (2027-02-29), a fractional number of days, a null argument
+and a result outside the years 0000 to 9999 abort the node by name. The days may be a number or numeric text.
+
 Dynamic keys
 ------------
 A {namespace.key} reference inside a source resolves before the source is read, and its value is

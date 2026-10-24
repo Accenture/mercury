@@ -218,6 +218,31 @@ ELSE: not-found
 '''
 ```
 
+### Dates — a due date and a day count {#dates}
+
+Two simple plugins compute with calendar dates in a mapper, with no function and no `graph.math` statement.
+`f:addDays(date, days)` returns the date a whole number of days later (earlier for a negative number), and
+`f:daysBetween(from, to)` the whole days between two dates as an integer, the earlier date excluded and the later one
+included, whatever the order of the arguments:
+
+```
+create node schedule
+with type Schedule
+with properties
+skill=graph.data.mapper
+mapping[]=f:addDays(input.body.invoice_date, input.body.term_days) -> model.due_date
+mapping[]=model.due_date -> output.body.due_date
+mapping[]=f:daysBetween(model.due_date, input.body.paid_on) -> output.body.days_apart
+```
+
+An invoice of `2027-01-15` on 15-day terms is due `2027-01-30`, and a payment on `2027-02-02` is `3` days apart from it;
+the same date twice gives `0`. A date is an ISO-8601 calendar date written exactly as `YYYY-MM-DD`, with **no time and
+no time zone** — the request must carry dates in that form, and a date-time, a single-digit month, a day the calendar
+lacks (`2027-02-29`) or a null argument aborts the node by name, as does a fractional number of days or a result
+outside the years 0000 to 9999. The days may be a number or numeric text, so a terms property read from a table node
+works as written. Pinned on both engines by `unit-test-date-arithmetic-1` and the shared `date-plugin-vectors.json`. The full rules are in the
+[Event Script syntax page](../event-script/syntax.md#simple-plugins) (*Date arithmetic plugins*).
+
 ## graph.math {#math}
 
 Fast inline math and boolean evaluation for computation and decision-making. This is **the** skill
