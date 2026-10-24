@@ -120,3 +120,6 @@ graphs:
   # the bounds of a range (RFC-free follow-up of rangeLookup): minRange and maxRange in a data mapper
   # and a graph.math node, the band read back through a dynamic key, an open end answering the default
   - 'unit-test-range-bounds-1'
+  # the date plugins: addDays and daysBetween in a data mapper - a due date from the payment terms and
+  # the days between it and the payment date, in either order
+  - 'unit-test-date-arithmetic-1'

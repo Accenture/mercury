@@ -5108,3 +5108,34 @@ matching console lines against a list of error words; the engine, which knows wh
 
 Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
 `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.
+
+## Increment 189 — `f:addDays` and `f:daysBetween`, calendar-date arithmetic (2026-10-24)
+
+The twin of the Java engine's `AddDays` and `DaysBetween` (mercury-composable #591, squash `ca2344ae`), plugins the field asked
+for so that a graph computes a due date or a day count without a composable function.
+
+- **`plugins_date.rs`.** `f:addDays(date, days)` answers the date a whole number of days later (earlier for a negative number) as
+  `YYYY-MM-DD`; `f:daysBetween(from, to)` answers the whole days between two dates as an integer, the earlier date excluded and
+  the later one included, whatever the order (`num_days().abs()`). A date is text of exactly the shape `YYYY-MM-DD` in ASCII
+  digits (the Java pattern `\d{4}-\d{2}-\d{2}`) and a real day (`NaiveDate::from_ymd_opt`, the proleptic Gregorian calendar,
+  year 0000 included); the days are read through `decimal::operand`, so an integer, canonical numeric text or a float whose
+  value is whole are whole numbers, and their magnitude is bounded by the span 0000-01-01 to 9999-12-31 (3,652,424 days) before
+  any date arithmetic; a result outside those years is refused, since `YYYY-MM-DD` cannot write it. A Nil argument is refused,
+  as the arithmetic and decimal plugins refuse one. Every message is the Java engine's, the value described as Java's
+  `String.valueOf` would, text quoted. `BUILTIN_PLUGIN_COUNT` is 62 (60 before).
+- **`contract.rs`.** The graph contract types `addDays` as `string` and `daysBetween` as `integer`.
+- **Tests.** The shared `date-plugin-vectors.json` (65 vectors, byte-identical with the Java repository) in
+  `tests/date_plugin_vectors.rs`, green on the first run; the in-module `add_days_matches_java_semantics`,
+  `days_between_matches_java_semantics` and `refusals_carry_the_java_messages`; and the graph fixture
+  `unit-test-date-arithmetic-1` (byte-identical) in `graph_runtime`: a due date from payment terms given as a number and as
+  text, the days apart in both orders, and three refusals with HTTP 400 and the plugin's message - a date-time, an absent
+  invoice date and absent days, an absent request field reaching the plugin as Nil. The manifest compiles 68 graphs.
+- **Docs and the Playground.** The Event Script syntax guide's plugin table and *Date arithmetic plugins*, the skills
+  reference's *Dates* (`{#dates}`) and the command reference's plugin examples. For a fresh agent, the AI agent guide's pre-send
+  checklist gains *Date arithmetic is a plugin, not code* and the commands catalog's plugin examples name the two plugins, so
+  a due date is never computed in `graph.math`, in a function or through epoch milliseconds (Eric's ask on review). The help page `help graph-data-mapper` gains
+  *Dates*; it and the bundle are deployed from the Java repo with `npm run release:rust` (Vite 8.3.5): `index-D5Sx-GL2.js`
+  became `index-MYdzjeK5.js`, and every deployed file and all 44 help pages are byte-identical with the Java repo's.
+
+Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
+`python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.

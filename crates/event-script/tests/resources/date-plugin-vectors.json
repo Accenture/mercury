@@ -1,0 +1,612 @@
+{
+ "format": "mercury-date-plugin-vectors",
+ "version": 1,
+ "note": "Shared conformance vectors for the addDays and daysBetween simple plugins: every engine that executes flows runs these. 'plugin' names the plugin, 'args' are the call's arguments, 'expect' the answer (a date as text written as YYYY-MM-DD, or a JSON integer of days), 'error' an engine-neutral code matched by each engine against its own message. A date is an ISO-8601 calendar date written exactly as YYYY-MM-DD, with no time and no time zone, and a real day of the proleptic Gregorian calendar; a result must fall within 0000-01-01 to 9999-12-31. The days of addDays are a whole number, negative for an earlier date: a JSON integer, numeric text, or a floating-point number whose value is whole. daysBetween counts from the earlier date (excluded) to the later date (included), whatever the order of its arguments, so it is never negative. A null argument is refused.",
+ "vectors": [
+  {
+   "id": "add-field-example",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    15
+   ],
+   "expect": "2027-01-30",
+   "note": "the field's example"
+  },
+  {
+   "id": "add-zero",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    0
+   ],
+   "expect": "2027-01-15"
+  },
+  {
+   "id": "add-month-end",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-31",
+    1
+   ],
+   "expect": "2027-02-01"
+  },
+  {
+   "id": "add-year-end",
+   "plugin": "addDays",
+   "args": [
+    "2027-12-31",
+    1
+   ],
+   "expect": "2028-01-01"
+  },
+  {
+   "id": "add-leap-day",
+   "plugin": "addDays",
+   "args": [
+    "2028-02-28",
+    1
+   ],
+   "expect": "2028-02-29",
+   "note": "2028 is a leap year"
+  },
+  {
+   "id": "add-no-leap-day",
+   "plugin": "addDays",
+   "args": [
+    "2027-02-28",
+    1
+   ],
+   "expect": "2027-03-01",
+   "note": "2027 is not"
+  },
+  {
+   "id": "add-century-no-leap",
+   "plugin": "addDays",
+   "args": [
+    "2100-02-28",
+    1
+   ],
+   "expect": "2100-03-01",
+   "note": "a century year is a leap year only when divisible by 400"
+  },
+  {
+   "id": "add-400-leap",
+   "plugin": "addDays",
+   "args": [
+    "2000-02-28",
+    1
+   ],
+   "expect": "2000-02-29"
+  },
+  {
+   "id": "add-leap-year-length",
+   "plugin": "addDays",
+   "args": [
+    "2028-01-15",
+    366
+   ],
+   "expect": "2029-01-15"
+  },
+  {
+   "id": "add-negative",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-30",
+    -15
+   ],
+   "expect": "2027-01-15",
+   "note": "a negative number of days gives an earlier date"
+  },
+  {
+   "id": "add-negative-year-start",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-01",
+    -1
+   ],
+   "expect": "2026-12-31"
+  },
+  {
+   "id": "add-negative-leap",
+   "plugin": "addDays",
+   "args": [
+    "2028-03-01",
+    -1
+   ],
+   "expect": "2028-02-29"
+  },
+  {
+   "id": "add-days-as-text",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    "15"
+   ],
+   "expect": "2027-01-30",
+   "note": "the days may be numeric text"
+  },
+  {
+   "id": "add-negative-days-as-text",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    "-1"
+   ],
+   "expect": "2027-01-14"
+  },
+  {
+   "id": "add-whole-float",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    15.0
+   ],
+   "expect": "2027-01-30",
+   "note": "a floating-point number whose value is whole is a whole number"
+  },
+  {
+   "id": "add-max-date",
+   "plugin": "addDays",
+   "args": [
+    "9999-12-30",
+    1
+   ],
+   "expect": "9999-12-31"
+  },
+  {
+   "id": "add-min-date",
+   "plugin": "addDays",
+   "args": [
+    "0000-01-02",
+    -1
+   ],
+   "expect": "0000-01-01"
+  },
+  {
+   "id": "add-short-year",
+   "plugin": "addDays",
+   "args": [
+    "0998-12-31",
+    1
+   ],
+   "expect": "0999-01-01",
+   "note": "a year below 1000 is written with four digits"
+  },
+  {
+   "id": "add-whole-span",
+   "plugin": "addDays",
+   "args": [
+    "0000-01-01",
+    3652424
+   ],
+   "expect": "9999-12-31",
+   "note": "the widest span between two writable dates"
+  },
+  {
+   "id": "between-field-example",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-04-10",
+    "2027-05-11"
+   ],
+   "expect": 31,
+   "note": "the field's example"
+  },
+  {
+   "id": "between-same-date",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-03-01",
+    "2027-03-01"
+   ],
+   "expect": 0,
+   "note": "the start date is excluded and the end date included"
+  },
+  {
+   "id": "between-consecutive",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-03-01",
+    "2027-03-02"
+   ],
+   "expect": 1
+  },
+  {
+   "id": "between-swapped",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-05-11",
+    "2027-04-10"
+   ],
+   "expect": 31,
+   "note": "the order of the arguments does not matter; never negative"
+  },
+  {
+   "id": "between-swapped-consecutive",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-03-02",
+    "2027-03-01"
+   ],
+   "expect": 1
+  },
+  {
+   "id": "between-february",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-02-28",
+    "2027-03-01"
+   ],
+   "expect": 1
+  },
+  {
+   "id": "between-leap-february",
+   "plugin": "daysBetween",
+   "args": [
+    "2028-02-28",
+    "2028-03-01"
+   ],
+   "expect": 2
+  },
+  {
+   "id": "between-year",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-01-01",
+    "2028-01-01"
+   ],
+   "expect": 365
+  },
+  {
+   "id": "between-leap-year",
+   "plugin": "daysBetween",
+   "args": [
+    "2028-01-01",
+    "2029-01-01"
+   ],
+   "expect": 366
+  },
+  {
+   "id": "between-whole-span",
+   "plugin": "daysBetween",
+   "args": [
+    "0000-01-01",
+    "9999-12-31"
+   ],
+   "expect": 3652424
+  },
+  {
+   "id": "add-arity-one",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15"
+   ],
+   "error": "arity"
+  },
+  {
+   "id": "add-arity-three",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    1,
+    2
+   ],
+   "error": "arity"
+  },
+  {
+   "id": "between-arity-one",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-01-15"
+   ],
+   "error": "arity"
+  },
+  {
+   "id": "between-arity-zero",
+   "plugin": "daysBetween",
+   "args": [],
+   "error": "arity"
+  },
+  {
+   "id": "add-date-time",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15T10:00:00",
+    1
+   ],
+   "error": "not-a-date",
+   "note": "no time"
+  },
+  {
+   "id": "add-utc",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15T00:00:00Z",
+    1
+   ],
+   "error": "not-a-date",
+   "note": "no time zone"
+  },
+  {
+   "id": "between-zone-suffix",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-01-15Z",
+    "2027-01-16"
+   ],
+   "error": "not-a-date"
+  },
+  {
+   "id": "between-offset-suffix",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-01-15",
+    "2027-01-16+02:00"
+   ],
+   "error": "not-a-date"
+  },
+  {
+   "id": "between-single-digit",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-1-5",
+    "2027-01-16"
+   ],
+   "error": "not-a-date"
+  },
+  {
+   "id": "between-us-order",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-01-16",
+    "01/15/2027"
+   ],
+   "error": "not-a-date"
+  },
+  {
+   "id": "add-empty-date",
+   "plugin": "addDays",
+   "args": [
+    "",
+    1
+   ],
+   "error": "not-a-date",
+   "note": "an empty string is not a date"
+  },
+  {
+   "id": "add-leading-space",
+   "plugin": "addDays",
+   "args": [
+    " 2027-01-15",
+    1
+   ],
+   "error": "not-a-date",
+   "note": "the text is exactly YYYY-MM-DD"
+  },
+  {
+   "id": "add-trailing-space",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15 ",
+    1
+   ],
+   "error": "not-a-date"
+  },
+  {
+   "id": "add-five-digit-year",
+   "plugin": "addDays",
+   "args": [
+    "+12027-01-15",
+    1
+   ],
+   "error": "not-a-date"
+  },
+  {
+   "id": "add-basic-format",
+   "plugin": "addDays",
+   "args": [
+    "20270115",
+    1
+   ],
+   "error": "not-a-date",
+   "note": "the basic ISO format has no separators and is not accepted"
+  },
+  {
+   "id": "add-number-date",
+   "plugin": "addDays",
+   "args": [
+    20270115,
+    1
+   ],
+   "error": "not-a-date",
+   "note": "a date is text"
+  },
+  {
+   "id": "add-unix-time",
+   "plugin": "addDays",
+   "args": [
+    1800000000000,
+    1
+   ],
+   "error": "not-a-date",
+   "note": "not a Unix timestamp"
+  },
+  {
+   "id": "add-null-date",
+   "plugin": "addDays",
+   "args": [
+    null,
+    1
+   ],
+   "error": "not-a-date",
+   "note": "a null argument is refused"
+  },
+  {
+   "id": "between-null-date",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-01-15",
+    null
+   ],
+   "error": "not-a-date"
+  },
+  {
+   "id": "add-feb-29-common-year",
+   "plugin": "addDays",
+   "args": [
+    "2027-02-29",
+    1
+   ],
+   "error": "not-a-calendar-date"
+  },
+  {
+   "id": "add-feb-30",
+   "plugin": "addDays",
+   "args": [
+    "2027-02-30",
+    1
+   ],
+   "error": "not-a-calendar-date",
+   "note": "February never has 30 days"
+  },
+  {
+   "id": "add-feb-29-century",
+   "plugin": "addDays",
+   "args": [
+    "2100-02-29",
+    1
+   ],
+   "error": "not-a-calendar-date"
+  },
+  {
+   "id": "between-april-31",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-04-31",
+    "2027-05-01"
+   ],
+   "error": "not-a-calendar-date"
+  },
+  {
+   "id": "between-month-13",
+   "plugin": "daysBetween",
+   "args": [
+    "2027-01-01",
+    "2027-13-01"
+   ],
+   "error": "not-a-calendar-date"
+  },
+  {
+   "id": "add-month-zero",
+   "plugin": "addDays",
+   "args": [
+    "2027-00-10",
+    1
+   ],
+   "error": "not-a-calendar-date"
+  },
+  {
+   "id": "add-day-zero",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-00",
+    1
+   ],
+   "error": "not-a-calendar-date"
+  },
+  {
+   "id": "add-fraction",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    1.5
+   ],
+   "error": "bad-days"
+  },
+  {
+   "id": "add-fraction-text",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    "1.5"
+   ],
+   "error": "bad-days"
+  },
+  {
+   "id": "add-word-days",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    "fifteen"
+   ],
+   "error": "bad-days"
+  },
+  {
+   "id": "add-boolean-days",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    true
+   ],
+   "error": "bad-days"
+  },
+  {
+   "id": "add-list-days",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    [
+     1
+    ]
+   ],
+   "error": "bad-days"
+  },
+  {
+   "id": "add-null-days",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    null
+   ],
+   "error": "bad-days"
+  },
+  {
+   "id": "add-after-max",
+   "plugin": "addDays",
+   "args": [
+    "9999-12-31",
+    1
+   ],
+   "error": "out-of-range",
+   "note": "the result must be writable as YYYY-MM-DD"
+  },
+  {
+   "id": "add-before-min",
+   "plugin": "addDays",
+   "args": [
+    "0000-01-01",
+    -1
+   ],
+   "error": "out-of-range"
+  },
+  {
+   "id": "add-beyond-span",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    3652425
+   ],
+   "error": "out-of-range"
+  },
+  {
+   "id": "add-huge-days",
+   "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    "100000000000000000000"
+   ],
+   "error": "out-of-range"
+  }
+ ]
+}

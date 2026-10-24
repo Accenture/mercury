@@ -1,0 +1,61 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Schedule"
+      ],
+      "alias": "schedule",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "purpose": "a payment due date from the invoice date and the payment terms, and how far the payment date is from it - ISO-8601 dates written as YYYY-MM-DD, with no time and no time zone",
+        "mapping": [
+          "f:addDays(input.body.invoice_date, input.body.term_days) -> model.due_date",
+          "model.due_date -> output.body.due_date",
+          "f:addDays(model.due_date, int(-1)) -> output.body.last_day_before_due",
+          "f:daysBetween(model.due_date, input.body.paid_on) -> output.body.days_apart",
+          "f:daysBetween(input.body.paid_on, model.due_date) -> output.body.days_apart_swapped",
+          "f:daysBetween(input.body.invoice_date, model.due_date) -> output.body.term_check"
+        ]
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "the addDays and daysBetween simple plugins in a data mapper: a date a number of days later, and the whole days between two dates in either order",
+        "name": "unit-test-date-arithmetic-1"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "schedule",
+          "properties": {}
+        }
+      ],
+      "target": "schedule"
+    },
+    {
+      "source": "schedule",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

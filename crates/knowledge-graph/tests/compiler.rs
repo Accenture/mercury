@@ -79,6 +79,8 @@ fn manifest_listed_graphs_are_compiled() {
     // manifest-reject's later copy is rejected and the id stays out);
     // + the range-bounds-1 fixture (a band's bounds through a dynamic key, typed
     // by the notation; a graph.math IF skips the distance when the end is open)
+    // + the date-arithmetic-1 fixture (f:addDays and f:daysBetween in a data mapper:
+    // a due date from payment terms, the days apart in either order)
     // the 17 deliberately-invalid fixtures
     // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias, schema-err1 with
     // an unknown schema keyword, schema-err2 with an inapplicable one, jsonpath-err1
@@ -88,7 +90,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        67,
+        68,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
