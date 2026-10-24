@@ -822,6 +822,239 @@ async fn playground_command_grammar_and_companion() {
     export_name_guard_accepts_missing_and_rejects_mismatch(&platform).await;
     import_graph_from_filters_a_null_property(&platform).await;
     a_graph_from_a_set_is_listed_with_its_set_and_imports(&platform).await;
+    create_on_an_existing_node_is_a_failure(&platform).await;
+    help_prose_is_never_a_failure(&platform).await;
+    every_refusal_is_a_failure_whatever_its_wording(&platform).await;
+}
+
+/// One command through the synchronous companion endpoint; the outcome as a map.
+async fn sync_command(po: &PostOffice, public_id: &str, command: &str) -> MultiLevelMap {
+    let request = platform_core::automation::AsyncHttpRequest::new()
+        .set_method("POST")
+        .set_target_host(&base_url())
+        .set_url(&format!("/api/companion/{public_id}/sync"))
+        .set_header("content-type", "text/plain")
+        .set_body(Value::from(command));
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(request.to_value()),
+            Duration::from_secs(35),
+        )
+        .await
+        .expect("sync request");
+    assert_eq!(
+        200,
+        reply.status(),
+        "the sync endpoint answers 200: {:?}",
+        reply.body()
+    );
+    MultiLevelMap::from_value(reply.body().clone())
+}
+
+fn is_ok(outcome: &MultiLevelMap) -> bool {
+    outcome.get_element("ok") == Some(Value::Boolean(true))
+}
+
+fn error_of(outcome: &MultiLevelMap) -> String {
+    outcome
+        .get_element("error")
+        .map(|error| display(&error))
+        .unwrap_or_default()
+}
+
+/// A command the engine refuses answers ok=false, with the refusal as its error.
+async fn assert_refused(po: &PostOffice, public_id: &str, command: &str, error: &str) {
+    let outcome = sync_command(po, public_id, command).await;
+    let output = outcome.get_element("output");
+    assert!(!is_ok(&outcome), "{command} -> ok:false: {output:?}");
+    assert!(
+        error_of(&outcome).starts_with(error),
+        "{command}: {}",
+        error_of(&outcome)
+    );
+}
+
+fn draft_property(in_route: &str, alias: &str, key: &str) -> Option<Value> {
+    knowledge_graph::session::get_graph_model(in_route)
+        .expect("a draft")
+        .find_node_by_alias(alias)
+        .expect("a lookup")
+        .expect("the node")
+        .get_property(key)
+}
+
+/// `create node` on a name the model already holds prints "node {name} already exists" and
+/// changes nothing, so the sync outcome is ok=false with that line as the error: a driver that
+/// trusted ok=true would believe it had changed the node. `update node` replaces a node and stays
+/// ok=true. (Java twin: CompanionSyncTest.createOnAnExistingNodeIsAFailure)
+async fn create_on_an_existing_node_is_a_failure(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let (_lines, in_route, _out_route) = open_console(platform, &po, "100017").await;
+    let public_id = "ws-100017-1";
+    let first = sync_command(
+        &po,
+        public_id,
+        "create node root\nwith type Root\nwith properties\npurpose=first",
+    )
+    .await;
+    assert!(
+        is_ok(&first),
+        "the first create -> ok:true: {}",
+        error_of(&first)
+    );
+    let again = sync_command(
+        &po,
+        public_id,
+        "create node root\nwith type Root\nwith properties\npurpose=changed",
+    )
+    .await;
+    assert!(!is_ok(&again), "a create on an existing node -> ok:false");
+    assert_eq!("node root already exists", error_of(&again));
+    assert_eq!(
+        Some(Value::from("first")),
+        draft_property(&in_route, "root", "purpose"),
+        "the refused create changed nothing"
+    );
+    let updated = sync_command(
+        &po,
+        public_id,
+        "update node root\nwith type Root\nwith properties\npurpose=changed",
+    )
+    .await;
+    assert!(
+        is_ok(&updated),
+        "update node -> ok:true: {}",
+        error_of(&updated)
+    );
+    assert_eq!(
+        Some(Value::from("changed")),
+        draft_property(&in_route, "root", "purpose"),
+        "update node replaced the node"
+    );
+}
+
+/// A help page is never a failure, whatever its prose says: the endpoint reads the engine's refusal
+/// flag, not the words of a line. The word list that the flag replaced answered ok=false for the
+/// pages whose prose mentions an abort, a "not found" or a "does not have" ("help run", "help
+/// schema" and seven tutorials). Every page is asked for, so a page added later is covered too. A
+/// topic that does not exist is a refusal. (Java twin: CompanionSyncTest.helpProseIsNeverAFailure)
+async fn help_prose_is_never_a_failure(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let _console = open_console(platform, &po, "100018").await;
+    let public_id = "ws-100018-1";
+    let mut topics: Vec<String> = std::fs::read_dir("resources/help")
+        .expect("the help pages")
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.file_name().to_string_lossy().to_string())
+        .filter_map(|name| name.strip_suffix(".md").map(str::to_string))
+        .collect();
+    topics.sort();
+    assert!(
+        topics.iter().any(|t| t == "help run"),
+        "the help pages are found: {topics:?}"
+    );
+    let mut failed = Vec::new();
+    for topic in &topics {
+        if !is_ok(&sync_command(&po, public_id, topic).await) {
+            failed.push(topic.clone());
+        }
+    }
+    assert_eq!(Vec::<String>::new(), failed, "every help page -> ok:true");
+    let unknown = sync_command(&po, public_id, "help no-such-topic").await;
+    assert!(!is_ok(&unknown), "an unknown topic -> ok:false");
+    assert_eq!("'help no-such-topic' not found", error_of(&unknown));
+}
+
+/// Every refusal is a failure, however it is worded. Each of these commands did nothing, or reset
+/// the draft and then refused, and the endpoint answered ok=true because no word of its line
+/// matched the error words. The command service now sends a refusal with an error status, and the
+/// endpoint reports the first such line. An answer is not a refusal: two nodes that are not
+/// connected is what "describe connection" found. (Java twins:
+/// CompanionSyncTest.everyRefusalIsAFailureWhateverItsWording, aMalformedJsonCommandIsAFailure
+/// and the export guard's ok)
+async fn every_refusal_is_a_failure_whatever_its_wording(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    let _console = open_console(platform, &po, "100019").await;
+    let public_id = "ws-100019-1";
+    let model = knowledge_graph::commands::temp_dir().join("refusal-test.json");
+    let broken = knowledge_graph::commands::temp_dir().join("refusal-broken.json");
+    std::fs::write(
+        &model,
+        r#"{"nodes": [
+          {"alias": "root", "types": ["Root"], "properties": {"purpose": "refusal test"}},
+          {"alias": "end", "types": ["End"], "properties": {}}],
+         "connections": []}"#,
+    )
+    .expect("a graph file");
+    std::fs::write(
+        &broken,
+        r#"{"nodes": [{"types": ["Root"], "properties": {}}]}"#,
+    )
+    .expect("a broken graph file");
+    sync_command(&po, public_id, "create node root\nwith type Root").await;
+    sync_command(&po, public_id, "create node end\nwith type End").await;
+    assert_refused(
+        &po,
+        public_id,
+        "import node fetcher from refusal-test",
+        "node fetcher does not exist in refusal-test",
+    )
+    .await;
+    assert_refused(
+        &po,
+        public_id,
+        "import node fetcher from no-such-graph",
+        "Graph model not found in ",
+    )
+    .await;
+    assert_refused(
+        &po,
+        public_id,
+        "delete connection root and end",
+        "root has no connections with end",
+    )
+    .await;
+    assert_refused(&po, public_id, "list everything", "Please use 'list nodes'").await;
+    assert_refused(
+        &po,
+        public_id,
+        "session everything",
+        "Invalid session command",
+    )
+    .await;
+    assert_refused(&po, public_id, "{not json}", "ERROR: ").await;
+    let answer = sync_command(&po, public_id, "describe connection root and end").await;
+    assert!(
+        is_ok(&answer),
+        "an answer is not a refusal: {}",
+        error_of(&answer)
+    );
+    // the refusal-test file exists, and this root declares another graph's name
+    sync_command(
+        &po,
+        public_id,
+        "update node root\nwith type Root\nwith properties\nname=another-graph",
+    )
+    .await;
+    assert_refused(
+        &po,
+        public_id,
+        "export graph as refusal-test",
+        "Expect root node name=refusal-test, Actual: another-graph",
+    )
+    .await;
+    // the importer resets the draft before it refuses, so this one goes last
+    assert_refused(
+        &po,
+        public_id,
+        "import graph from refusal-broken",
+        "Graph model not imported - ",
+    )
+    .await;
+    let _ = std::fs::remove_file(&model);
+    let _ = std::fs::remove_file(&broken);
 }
 
 /// Open a playground session and return its captured console (the .out route).

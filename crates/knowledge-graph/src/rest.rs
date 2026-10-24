@@ -161,12 +161,15 @@ async fn refuse_session_topology(
          command here, and manage subscriptions from a WebSocket-connected session"
     );
     let po = PostOffice::new(platform);
-    for line in [format!("> {command}"), error.clone()] {
+    let echo = format!("> {command}");
+    // the refusal carries an error status, as the command service's refusals do
+    for (line, status) in [(echo.as_str(), 200), (error.as_str(), 400)] {
         let _ = po
             .send(
                 EventEnvelope::new()
                     .set_to(out_route)
-                    .set_raw_body(Value::from(line.as_str())),
+                    .set_status(status)
+                    .set_raw_body(Value::from(line)),
             )
             .await;
     }
@@ -181,8 +184,15 @@ async fn refuse_session_topology(
 /// see the same output live. This is what makes the synchronous endpoint a
 /// **real-time human+AI collaboration** surface rather than an AI-only side
 /// channel. The internal sentinel is never teed.
+///
+/// It also remembers the first line the engine flagged as a **refusal**: the line
+/// that says why a command did nothing or failed carries an error status (the
+/// command service's `refuse`, the traveler's abort), so the outcome is a failure
+/// when the engine says so, never inferred from the wording of a line (Java
+/// `PostCompanionCommandSync.Capture`).
 struct CaptureSink {
     buffer: Arc<Mutex<Vec<Value>>>,
+    refusal: Arc<Mutex<Option<String>>>,
     tee_to: String,
 }
 
@@ -195,12 +205,23 @@ impl ComposableFunction for CaptureSink {
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
         let body = input.body().clone();
+        if input.has_error() {
+            let text = match &body {
+                Value::String(text) => text.as_str().unwrap_or_default().to_string(),
+                other => to_json_string(other),
+            };
+            self.refusal
+                .lock()
+                .expect("capture refusal poisoned")
+                .get_or_insert(text);
+        }
         if !self.tee_to.is_empty() && body.as_str() != Some(SYNC_SENTINEL) {
             let po = PostOffice::new(&Platform::get_instance());
             let _ = po
                 .send(
                     EventEnvelope::new()
                         .set_to(self.tee_to.as_str())
+                        .set_status(input.status())
                         .set_raw_body(body.clone()),
                 )
                 .await;
@@ -211,40 +232,6 @@ impl ComposableFunction for CaptureSink {
             .push(body);
         EventEnvelope::new().set_body("ok")
     }
-}
-
-fn is_error_line(line: &str) -> bool {
-    line.starts_with("ERROR:")
-        || line.contains("aborted")
-        || line.contains("does not have")
-        || line.starts_with("Invalid")
-        || line.contains("not found")
-        || line.contains("Please try 'help'")
-        // a usage hint is the engine's rejection of a malformed command — the
-        // command did nothing, so the caller must see ok:false (finding #63;
-        // no help page starts a line with "Syntax:", so no false positive)
-        || line.starts_with("Syntax:")
-}
-
-/// Whole-output-aware error classification. `import graph from {deployed}`
-/// legitimately prints "Graph model not found in /tmp/…" before falling back
-/// to the deployed classpath copy — a benign line that must not mark the
-/// command failed. It is forgiven **only** when the same output also carries
-/// the fallback's success marker; a genuine miss prints the not-found line
-/// alone and stays an error.
-fn first_error_line(lines: &[String]) -> Option<String> {
-    let deployed_fallback = lines
-        .iter()
-        .any(|l| l.contains("Found deployed graph model"));
-    lines
-        .iter()
-        .find(|line| {
-            if deployed_fallback && line.starts_with("Graph model not found in") {
-                return false;
-            }
-            is_error_line(line)
-        })
-        .cloned()
 }
 
 /// The Playground's only **asynchronous** command: `run` launches the traveler,
@@ -320,10 +307,12 @@ pub async fn post_companion_command_sync(
 
     let capture_route = format!("companion.sync.{}", uuid::Uuid::new_v4().simple());
     let buffer = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let refusal = Arc::new(Mutex::new(None::<String>));
     platform.register(
         &capture_route,
         Arc::new(CaptureSink {
             buffer: buffer.clone(),
+            refusal: refusal.clone(),
             // tee to the session's real WebSocket console so humans watch live
             tee_to: out_route,
         }),
@@ -333,7 +322,7 @@ pub async fn post_companion_command_sync(
     let po = PostOffice::new(platform);
     // RPC the command handler with the capture route as `out`; `handle()` awaits
     // all `say()` calls before replying, so this resolves once the command is done.
-    let _ = po
+    let dispatched = po
         .request(
             EventEnvelope::new()
                 .set_to(commands::SINGLETON_COMMAND_HANDLER)
@@ -350,6 +339,13 @@ pub async fn post_companion_command_sync(
             Duration::from_secs(30),
         )
         .await;
+    // the command service prints what it catches as a refusal; anything else fails
+    // the RPC, which the console never shows
+    let failure = match &dispatched {
+        Err(e) => Some(format!("ERROR: {}", e.message())),
+        Ok(reply) if reply.has_error() => Some(format!("ERROR: {}", display(reply.body()))),
+        Ok(_) => None,
+    };
 
     // Wait until the command's output is fully buffered, keyed to how the command
     // signals end-of-transmission:
@@ -416,8 +412,9 @@ pub async fn post_companion_command_sync(
     }
     platform.release(&capture_route);
 
-    // Build the structured outcome: collect the console lines first, then
-    // classify with whole-output context (see `first_error_line`).
+    // Build the structured outcome. The error is the first line the engine
+    // flagged as a refusal, else the dispatch's own failure, else a truncated
+    // capture.
     let items = buffer.lock().expect("capture buffer poisoned").clone();
     let mut lines: Vec<String> = Vec::new();
     let mut result: Vec<Value> = Vec::new();
@@ -432,7 +429,11 @@ pub async fn post_companion_command_sync(
             _ => result.push(v),
         }
     }
-    let mut error = first_error_line(&lines);
+    let mut error = refusal
+        .lock()
+        .expect("capture refusal poisoned")
+        .clone()
+        .or(failure);
     // when the safety net caught - the signal never arrived - the caller
     // must know: the capture is truncated and the command is still running,
     // so the outcome is a failure, never a silent success

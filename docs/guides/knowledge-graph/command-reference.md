@@ -182,6 +182,8 @@ with properties
 ```
 
 - `with properties` and the key lines are **optional** (properties act as defaults).
+- `create node` on a name the model already holds changes nothing and refuses with `node {name} already exists`;
+  the synchronous companion endpoint reports a refusal as its error, with `ok: false`. `update node` replaces a node.
 - A node has **zero or one** skill, set with `skill={route}`.
 - `{name}` is lowercase letters, digits and hyphen (`root`/`end` reserved); `{type}` is a descriptive label,
   conventionally **Capitalized** (`Root`, `Fetcher`, `Module` — see [lexical](#lexical)).

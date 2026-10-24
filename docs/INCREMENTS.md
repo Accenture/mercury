@@ -5083,3 +5083,28 @@ The twin of the Java engine's WP5 (mercury-composable `feature/minimalist-jsonpa
   files, 490 tests).
 
 Gates: `cargo test --workspace`, `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.
+
+## Increment 188 — The engine flags its refusals, and the companion endpoint reads that flag (2026-10-24)
+
+The twin of the Java engine's fix (mercury-composable #586, squash `356b5190`). The synchronous companion endpoint decided `ok` by
+matching console lines against a list of error words; the engine, which knows when it refuses, now says so on the message.
+
+- **`commands.rs`.** `refuse()` sends the line that says why a command did nothing or failed with an error status, 400
+  (`REFUSED`), and 35 call sites use it; `refuse_value()` relays a skill's error from `execute` with the skill's own status. The
+  pre-run gate's abort goes through `refuse()`. The import fallback's "Graph model not found in" line is a refusal only when no
+  deployed copy follows. Two commands that printed nothing now refuse: `import node` from a file that does not exist, and `session`
+  with an unknown argument.
+- **`rest.rs`.** `CaptureSink` records the first line with `has_error()` and tees each line with its status; the session-topology
+  refusal's line carries one too. The endpoint's `error` is the first flagged line, else the dispatch RPC's own failure, else a
+  truncated capture. `is_error_line` and `first_error_line` are removed.
+- **Tests** (`tests/playground.rs`, on the one booted server): `create_on_an_existing_node_is_a_failure` (the node unchanged, then
+  replaced), `help_prose_is_never_a_failure` (every page under `resources/help`, and an unknown topic) and
+  `every_refusal_is_a_failure_whatever_its_wording` (the misses, `{not json}` and the refused export). Against the original engine
+  each fails: the same nine help pages as the Java engine (`help run`, `help schema`, tutorials 3, 5, 6, 7, 10, 12 and 14), the
+  existing-node create, and `import node` of a missing node.
+- **Docs.** The AI agent guide, the commands catalog and *Playground and companion* (`ok`, `error`) say that `ok` is the engine's own
+  verdict; the command reference gains the create-on-an-existing-name bullet. A new claim, `companion-ok-is-the-engine-verdict`,
+  pins the guide's sentence to the refusal test (56 claims).
+
+Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
+`python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.
