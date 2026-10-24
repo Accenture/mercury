@@ -5131,7 +5131,9 @@ for so that a graph computes a due date or a day count without a composable func
   text, the days apart in both orders, and three refusals with HTTP 400 and the plugin's message - a date-time, an absent
   invoice date and absent days, an absent request field reaching the plugin as Nil. The manifest compiles 68 graphs.
 - **Docs and the Playground.** The Event Script syntax guide's plugin table and *Date arithmetic plugins*, the skills
-  reference's *Dates* (`{#dates}`) and the command reference's plugin examples. The help page `help graph-data-mapper` gains
+  reference's *Dates* (`{#dates}`) and the command reference's plugin examples. For a fresh agent, the AI agent guide's pre-send
+  checklist gains *Date arithmetic is a plugin, not code* and the commands catalog's plugin examples name the two plugins, so
+  a due date is never computed in `graph.math`, in a function or through epoch milliseconds (Eric's ask on review). The help page `help graph-data-mapper` gains
   *Dates*; it and the bundle are deployed from the Java repo with `npm run release:rust` (Vite 8.3.5): `index-D5Sx-GL2.js`
   became `index-MYdzjeK5.js`, and every deployed file and all 44 help pages are byte-identical with the Java repo's.
 
