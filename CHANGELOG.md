@@ -13,7 +13,20 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
-Each change merged to `main` after v4.12.24 is listed here; it moves under its release heading when the version is cut.
+Nothing yet. Each change merged to `main` after v4.12.26 is listed here; it moves under its release heading when the version is cut.
+
+---
+## Version 4.12.26, 10/26/2026
+
+The lock-step twin of Java 4.12.26, catching up from 4.12.24 (Java 4.12.25 closed the findings of the field's Sonar gate and had
+no counterpart here). A JSONPath outside RFC 9535 is refused instead of answered with null, and a substituted value can no longer
+change a query's structure (Changed 5 to 7, RFC-0010). Flows and graphs gain the date plugins `f:addDays` and `f:daysBetween`
+(Added 4), the companion endpoint reports every refusal by the engine's own flag (Fixed 2), and the Playground gains mock model
+variables, a PNG export, a favicon and the graph-set worked example. Three RustSec lockfile bumps are included: `rustls`,
+`rustls-webpki` and `tokio` (Security 1 to 3). The Java release's dependency changes and its live invocation observers for an APM
+agent have no counterpart in this engine. **Upgrade notes:** read Changed 5 and 6 before upgrading - a flow or a graph whose `$`
+path is not RFC 9535 now fails at startup, and a value that carried query syntax into a `$` path now fails the mapping. Changed 1
+and Fixed 2 concern the dev-mode Playground and its companion driver only.
 
 ### Security
 
@@ -136,6 +149,18 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    now `json_path_source_takes_the_mercury_shape`. The Playground bundle is redeployed from the Java repo with its help
    (`help graph-data-mapper`, `help tutorial 8`): `index-CrqpNrFx.js` became `index-D5Sx-GL2.js`, the vendor chunks, the stylesheet
    and the other 42 help pages are unchanged, and every deployed file is byte-identical with the Java repo's. **Upgrade note:** none.
+8. **The Playground example deploys tutorials 2 to 14 as a graph set, and an import from a deployed model prints one line less
+   (#387, the twin of the Java engine's #567).** The example is now the worked example of graph sets: `tutorial-1` and
+   `support-triage` stay loose graphs, and tutorials 2 to 14 deploy as the set `tutorials` (`resources/graph/tutorials.pack`,
+   version 1.0, byte-identical with the Java example's), unpacked into `file:/tmp/unpack`. When `import graph` falls back to a
+   deployed graph model, the Playground no longer adds "Please export an updated version and re-import to instantiate an instance
+   model" after "Found deployed graph model in {location}": the next line, "Graph model imported as draft", already says what
+   happened, and the five tutorial help pages that quote the output follow. The unpack examples in `help package`, the
+   starter-graph template's commented manifest and the AI agent guide used a folder under `/tmp/graph`, which the graph-set loader
+   refuses because it is the Playground's temporary folder (`location.graph.temp`); they now use `file:/tmp/unpack` and state the
+   rule, and the configuration reference's refusal sentence names a folder inside the temporary folder too. The help pages and the
+   bundle are deployed from the Java repo. **Upgrade note:** none - an example's deploy layout, one line of dev-mode output and the
+   docs.
 
 ### Fixed
 
