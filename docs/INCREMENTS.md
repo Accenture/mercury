@@ -5139,3 +5139,21 @@ for so that a graph computes a due date or a day count without a composable func
 
 Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
 `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.
+
+## Increment 190 — tokio 1.54.1 for RUSTSEC-2026-0386 (2026-10-26)
+
+The weekly `audit` run of 2026-10-26 failed on RUSTSEC-2026-0386 against `tokio` 1.52.3, published on 2026-10-13 and filed as
+*unsound*, not as a vulnerability: `AsyncFd::new`, `with_interest`, `try_new` and `try_with_interest` accept any `AsRawFd`
+without proof that the descriptor is owned, so a descriptor closed and reused while an `AsyncFd` is alive can lead to a
+use-after-free. Nothing in the workspace names `AsyncFd`, and none of the 293 locked registry crates with source on the build
+machine calls those constructors (the two without are the OpenSSL bindings, which do not use tokio). The run found no
+vulnerability; it failed because on a scheduled run `rustsec/audit-check` opens an issue for each advisory, informational ones
+included, and the job's token has no `issues: write`, so GitHub refused the call ("Resource not accessible by integration").
+The permissions are unchanged, so the next informational advisory will fail a scheduled run the same way. The patched
+releases are 1.51.6 and later on the 1.51 line and 1.53.3 and later; the 1.52 line has none. `cargo update -p tokio --precise
+1.54.1` also re-resolved two Windows-only edges, `errno` 0.3.14 and `winapi-util` 0.1.11, whose `windows-sys` ranges admit
+both locked versions, from 0.61.2 to 0.52.0; those two lines were restored, `cargo metadata --locked` accepts the lockfile,
+and the diff is tokio's version and checksum alone. No source changes. CHANGELOG Unreleased, a third `Security` item.
+
+Gates: `cargo build --workspace --locked`, `cargo test --workspace --locked` (732 passed, unchanged), a local
+`cargo audit` (no warnings), and the CI `audit` job on the pull request.

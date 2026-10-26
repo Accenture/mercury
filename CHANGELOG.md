@@ -29,6 +29,12 @@ Each change merged to `main` after v4.12.24 is listed here; it moves under its r
    lockfile moves that one crate; it sits behind `rustls` 0.23.46, whose dependents are `tokio-rustls` (the platform's HTTP client)
    and `redis` (the four Redis extensions). The workspace builds and its tests pass unchanged. **Upgrade note:** none - a lockfile
    bump, no API change.
+3. **tokio 1.54.1 (Increment 190).** The weekly `audit` run of 2026-10-26 reported RUSTSEC-2026-0386 against `tokio` 1.52.3,
+   published on 2026-10-13 and filed as *unsound*, not as a vulnerability: `AsyncFd::new` and three related constructors accept
+   any file descriptor without proof of ownership, so a descriptor closed and reused while an `AsyncFd` is alive can lead to a
+   use-after-free. No code in the workspace or its locked dependencies calls those constructors. The 1.52 line has no patched
+   release; 1.54.1 is patched. The lockfile moves that one crate, the runtime under every crate of the workspace. The workspace
+   builds and its tests pass unchanged. **Upgrade note:** none - a lockfile bump, no API change.
 
 ### Added
 
