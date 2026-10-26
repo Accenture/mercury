@@ -231,7 +231,11 @@ layers shipped; the two above have held through every re-verify.)*
 
 - **`cargo fmt` + `cargo clippy --all-targets` clean, and `cargo audit` clean** is part of "done" for every
   change (default settings, no custom rustfmt.toml yet; the RustSec audit runs in CI on every PR and weekly since
-  Increment 138, 2026-09-24 — its first run closed `rustls` RUSTSEC-2026-0285 with a lock refresh).
+  Increment 138, 2026-09-24 — its first run closed `rustls` RUSTSEC-2026-0285 with a lock refresh). **A red weekly
+  run can be a warning, not a vulnerability (2026-10-26):** on a schedule `rustsec/audit-check` opens an issue for each
+  advisory, informational ones included, and the job has no `issues: write`, so the refused call ("Resource not accessible
+  by integration") fails the run; read the JSON in the log before treating it as a vulnerability (RUSTSEC-2026-0386,
+  tokio *unsound*, Increment 190).
 - **Apache-2.0 header** comment on every source file (ported from the Java originals'
   header style). EXCEPTION ruled by Eric 2026-09-11: `templates/*` starter sources carry a
   ONE-LINE scaffold attribution instead — templates seed field applications that are not
