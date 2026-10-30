@@ -36,6 +36,19 @@ Each change merged to `main` after v4.12.26 is listed here; it moves under its r
    note:** a lookup against a registry that never answers now fails after four attempts and at most seven seconds of waiting, each
    attempt still bounded by its 10-second timeout; `max.retries: 0` in `schema-registry.yml` keeps the single attempt.
 
+2. **The schema caches follow the Confluent client's, and `schema.registry.cache.ttl` is retired (Increment 193).** The
+   twin of the Java engine's change (mercury-composable #598), which found that the Java codec's own cache in front of
+   Confluent's registry client saved no registry request: that client keeps every schema fetched by id for the life of
+   the process and caches a subject's `latest` version for `latest.cache.ttl.sec` (60 seconds). This engine has no
+   Confluent client, so its caches now do what that client does: a schema by id is cached for the life of the process
+   (bounded to 1000 ids) instead of 30 minutes after each fetch, and `latest` for `latest.cache.ttl.sec` in
+   `schema-registry.yml` (default 60; 0 = not cached). The pinned-version cache is unchanged. **Upgrade note:** with
+   neither key set, a newly registered `latest` version is picked up within 60 seconds instead of 30 minutes, and a
+   registry outage can affect only a schema id's first lookup after a start. An application that sets
+   `schema.registry.cache.ttl` (or `schema.registry.consumer.cache.ttl`) keeps its value for `latest`: it is passed on
+   as `latest.cache.ttl.sec`, with a warning at startup, unless the template sets that key; move it to
+   `schema-registry.yml` as `latest.cache.ttl.sec` (seconds).
+
 ### Fixed
 
 1. **The dead-letter copy keeps the record key (Increment 191).** The twin of the Java engine's fix (mercury-composable #597). The
@@ -49,8 +62,8 @@ Each change merged to `main` after v4.12.26 is listed here; it moves under its r
 1. **The Minimalist Kafka guide catches up with the Java guide's application-builder corrections (Increment 191).**
    `simple.kafka.notification` publishes without a key, so per-entity ordering takes an explicit `partition` header (the guide had
    implied keyed publishes); the dead-letter copy keeps the key; and a registry outage dead-letters a record once the client's
-   retries are spent - for the first record of each schema id after a start, and again each `schema.registry.cache.ttl` after an
-   id was fetched, so every `schema.enabled` binding should have a `dlq-topic`. The configuration reference, the bundled
+   retries are spent - for the first record of each schema id after a start (Changed 2) - so every `schema.enabled` binding
+   should have a `dlq-topic`. The configuration reference, the bundled
    `schema-registry.yml` and the port spec (§7 item 13) list the retry keys.
 
 ---

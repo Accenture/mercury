@@ -57,6 +57,12 @@
 # retries.wait.ms: 1000
 # retries.max.wait.ms: 20000
 
+# --- Caching (the Confluent client's key) ---
+# A schema fetched by id is cached for the life of the process. A subject's 'latest' resolution is cached for
+# latest.cache.ttl.sec (default 60): a newly registered version is picked up within that time; 0 re-resolves
+# 'latest' on every publish. (This replaces the retired schema.registry.cache.ttl application property.)
+# latest.cache.ttl.sec: 60
+
 # --- JSON Schema validation (Confluent's json.fail.invalid.schema; default off) ---
 # Validate JSON payloads against their registered schema on both produce and consume. Also
 # settable per application as schema.registry.serde.json.fail.invalid.schema in application.yml.

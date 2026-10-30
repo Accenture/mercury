@@ -332,9 +332,11 @@ return route's R4.
     aws-lc TLS; the workspace stays on ring). Wire-visible parity is exact: the frame
     `[0x00][4-byte big-endian global id][payload]`; a JSON Schema payload is the document; an
     Avro payload is the binary datum against the registered writer schema (no container header).
-    Subject/version resolution, the id→schema cache (positive results only, TTL
-    `schema.registry.cache.ttl`, cleared at startup) and the pinned-version cache
-    (`schema.registry.version.cache.ttl`, bounded) follow the Java `ManagedCacheSchemaRegistryClient`;
+    Subject/version resolution and the caches follow the Java `ManagedCacheSchemaRegistryClient`
+    over Confluent's `CachedSchemaRegistryClient` (positive results only, cleared at startup): a
+    schema by id for the life of the process (bounded to 1000), `latest` for `latest.cache.ttl.sec`
+    (default 60 s), and the pinned-version cache (`schema.registry.version.cache.ttl`, bounded)
+    (2026-10-30: `schema.registry.cache.ttl` retired on both engines, passed on as `latest.cache.ttl.sec`);
     the registry is reached through the platform's own `async.http.request` client. The parsed
     schema (an Avro schema with its named types, or a compiled JSON validator) is cached with the
     text, so per-record encode/decode never re-parses. Proven against hand-computed

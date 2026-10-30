@@ -19,16 +19,17 @@
 //! `(subject, version)` resolved to an id — over the platform's own
 //! `async.http.request` client, fronted by platform-core's `ManagedCache`.
 //!
-//! **Positive results only.** A global schema id is immutable (ids are
-//! content-addressed), so a resolved schema is cached by id and re-served on
-//! later lookups; a not-found id is never cached (the lookup fails before the
-//! cache write), so a schema registered while the application is running
+//! **The caches are the Confluent client's** (the Java module uses that client,
+//! and adds only the pinned-version cache it lacks). A global schema id is
+//! immutable (ids are content-addressed), so a resolved schema is cached by id
+//! for the life of the process, bounded to 1000 ids. A subject's `latest` is
+//! mutable (a new registration moves it), so its resolution is cached for
+//! `latest.cache.ttl.sec` (60 seconds by default; 0 = not cached). A pinned
+//! numeric version is immutable too and lives in the long-TTL version cache.
+//! **Positive results only:** a failed lookup is never cached (it fails before
+//! the cache write), so a schema registered while the application is running
 //! becomes visible on the very next lookup — no stale "not found" lingers
-//! until a TTL elapses or the pod restarts. A pinned numeric version is
-//! immutable too and lives in the long-TTL version cache; a subject's
-//! `latest` is mutable (a new registration moves it) and shares the short-TTL
-//! id cache under a `latest/`-namespaced key that cannot collide with the
-//! digit-only id keys.
+//! until a TTL elapses or the pod restarts.
 //!
 //! The parsed schema is cached with the text: parsing an Avro schema or
 //! compiling a JSON Schema validator once per id is what makes per-record
@@ -92,10 +93,11 @@ impl std::fmt::Debug for RegisteredSchema {
     }
 }
 
-/// The client: settings + the two caches + the bearer-token cache.
+/// The client: settings + the three lookup caches + the bearer-token cache.
 pub struct RegistryClient {
     settings: RegistrySettings,
     cache: Arc<ManagedCache>,
+    latest_cache: Option<Arc<ManagedCache>>,
     version_cache: Arc<ManagedCache>,
     strict_json: bool,
     token: TokenCache,
@@ -105,12 +107,14 @@ impl RegistryClient {
     pub(crate) fn new(
         settings: RegistrySettings,
         cache: Arc<ManagedCache>,
+        latest_cache: Option<Arc<ManagedCache>>,
         version_cache: Arc<ManagedCache>,
         strict_json: bool,
     ) -> Self {
         RegistryClient {
             settings,
             cache,
+            latest_cache,
             version_cache,
             strict_json,
             token: TokenCache::default(),
@@ -152,11 +156,11 @@ impl RegistryClient {
         let latest = version.is_empty() || version.eq_ignore_ascii_case(LATEST);
         let pinned = if latest { 0 } else { parse_version(version)? };
         let (key, name_cache) = if latest {
-            (format!("{LATEST}/{subject}"), &self.cache)
+            (subject.to_string(), self.latest_cache.as_ref())
         } else {
-            (format!("{subject}/{pinned}"), &self.version_cache)
+            (format!("{subject}/{pinned}"), Some(&self.version_cache))
         };
-        if let Some(cached) = name_cache.get_as::<ResolvedSchema>(&key) {
+        if let Some(cached) = name_cache.and_then(|c| c.get_as::<ResolvedSchema>(&key)) {
             return Ok(*cached);
         }
         let selector = if latest {
@@ -195,7 +199,9 @@ impl RegistryClient {
             id,
             schema_type: schema.schema_type,
         };
-        name_cache.put(&key, resolved);
+        if let Some(name_cache) = name_cache {
+            name_cache.put(&key, resolved);
+        }
         Ok(resolved)
     }
 

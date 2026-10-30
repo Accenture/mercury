@@ -5205,3 +5205,36 @@ source changes. CHANGELOG Unreleased, `Security` item 1.
 
 Gates: `cargo build --workspace --locked`, `cargo test -p mercury-minimalist-kafka --locked`, and the CI `audit` job on the
 pull request.
+
+## Increment 193 — The schema caches follow the Confluent client's, and `schema.registry.cache.ttl` is retired (2026-10-30)
+
+Eric's ruling on the Java engine (mercury-composable #598): its `ManagedCache` in front of Confluent's registry client
+saved no registry request, so the id override and the `latest` entries go, the pinned-version cache stays, and
+`schema.registry.cache.ttl` is retired and passed to the client as `latest.cache.ttl.sec`. Measured there against a
+counting registry: Confluent keeps every schema fetched by id for the life of the client (bounded by its 1000 capacity),
+caches `latest` for `latest.cache.ttl.sec` (60 s), and does not cache a pinned `getSchemaMetadata(subject, version)`.
+This engine is its own implementation, so it follows the same mechanism (Eric: "the Rust version is our own
+implementation so it needs to follow the same caching mechanism").
+
+- **`schema/mod.rs`.** The id cache `<prefix>` never expires (`ManagedCache`'s 100-year ceiling) and holds at most 1000
+  ids, the Java module's identity-map capacity. A new `<prefix>.latest` cache holds `latest` resolutions for
+  `latest.cache.ttl.sec` seconds, at most 1000; `0` builds none (each `latest` resolve asks the registry) and a negative
+  value never expires, as in Confluent's client. `latest_cache_ttl_sec` takes the template's key, else the retired
+  `<prefix>.cache.ttl` still set by an application (whole seconds, `0`/`0s` included through `retired_seconds`, a
+  `WARN` either way; a value that is not a duration keeps the default with a `WARN`), else 60. The startup line reports
+  `latestCacheTtlSec` in place of `ttlMs`.
+- **`schema/auth.rs`.** `latest.cache.ttl.sec` joins the interpreted keys (17): a whole number of seconds, any sign; any
+  other value fails startup naming the key.
+- **`schema/registry.rs`.** `resolve` keys `latest` by the subject in the `latest` cache (none when the TTL is 0) and a
+  pinned version in the version cache, as before; the `latest/`-namespaced entries in the id cache are gone.
+- **Tests.** `schema_codec` scenario 3 reads `latest` from `schema.registry.latest`; scenario 16 asserts the id cache's
+  bound and expiry, the 60 s default, a retired `0s` building no `latest` cache (a third `latest` resolve asks the
+  registry, a pinned one does not), a retired `30m` passed as 1800 s, and a template's `latest.cache.ttl.sec: 120`
+  winning over the retired key. Unit tests for the template key and for `retired_seconds`.
+- **Docs.** The guide's outage paragraph (an id's first lookup after a start is the only exposure now), the *Schema
+  cache* and *Subject→id resolution cache* notes, a *retired* note, the keys table and the consumer-identity keys; the
+  configuration reference; the bundled `schema-registry.yml`; the sync-over-async demo's `application.yml`; the port
+  spec §7 item 12.
+
+Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
+`python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.

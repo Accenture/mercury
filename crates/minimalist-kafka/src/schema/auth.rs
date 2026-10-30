@@ -33,6 +33,7 @@
 //! | `bearer.auth.logical.cluster`, `bearer.auth.identity.pool.id` | Confluent Cloud headers (`target-sr-cluster`, `Confluent-Identity-Pool-Id`) |
 //! | `basic.auth.credentials.source` | `USER_INFO` (`basic.auth.user.info` = `user:password`), `URL` (credentials in the registry URL), `SASL_INHERIT` (the Kafka template's `sasl.username` / `sasl.password`) |
 //! | `max.retries`, `retries.wait.ms`, `retries.max.wait.ms` | how a failed registry request is retried (defaults 3, 1000, 20000 — see [`RegistryRetry`]) |
+//! | `latest.cache.ttl.sec` | how long a subject's `latest` resolution is cached, in seconds (default 60; 0 = not cached, negative = no expiry) |
 //!
 //! The bearer token is fetched with the client-credentials grant exactly as
 //! Kafka's own retriever does — the client id and secret as HTTP Basic on the
@@ -76,8 +77,11 @@ const STRICT_JSON: &str = "json.fail.invalid.schema";
 const MAX_RETRIES: &str = "max.retries";
 const RETRIES_WAIT_MS: &str = "retries.wait.ms";
 const RETRIES_MAX_WAIT_MS: &str = "retries.max.wait.ms";
+/// Confluent's `latest.cache.ttl.sec`: how long a subject's latest version is
+/// cached, in seconds.
+pub const LATEST_CACHE_TTL_SEC: &str = "latest.cache.ttl.sec";
 
-const KNOWN_KEYS: [&str; 16] = [
+const KNOWN_KEYS: [&str; 17] = [
     BEARER_SOURCE,
     BEARER_ISSUER_URL,
     BEARER_CLIENT_ID,
@@ -93,6 +97,7 @@ const KNOWN_KEYS: [&str; 16] = [
     MAX_RETRIES,
     RETRIES_WAIT_MS,
     RETRIES_MAX_WAIT_MS,
+    LATEST_CACHE_TTL_SEC,
     "schema.registry.url",
 ];
 
@@ -294,6 +299,9 @@ pub struct RegistrySettings {
     pub extra_headers: Vec<(String, String)>,
     /// How a failed registry request is retried.
     pub retry: RegistryRetry,
+    /// The template's `latest.cache.ttl.sec`, when it sets one (seconds; 0 =
+    /// not cached, negative = no expiry, as in the Confluent client).
+    pub latest_cache_ttl_sec: Option<i64>,
 }
 
 /// How a failed registry request is retried: the policy of the Confluent
@@ -541,6 +549,15 @@ impl RegistrySettings {
             auth,
             extra_headers,
             retry: RegistryRetry::from_template(template)?,
+            latest_cache_ttl_sec: match get(LATEST_CACHE_TTL_SEC) {
+                None => None,
+                Some(text) => Some(text.trim().parse::<i64>().map_err(|_| {
+                    AppError::new(
+                        500,
+                        format!("{LATEST_CACHE_TTL_SEC} must be a whole number of seconds, got '{text}'"),
+                    )
+                })?),
+            },
         })
     }
 
@@ -793,6 +810,33 @@ mod tests {
                 error.message()
             );
         }
+    }
+
+    #[test]
+    fn latest_cache_ttl_is_read_as_whole_seconds() {
+        let ttl = |value: &str| {
+            RegistrySettings::from_template(
+                &template(&[(LATEST_CACHE_TTL_SEC, value)]),
+                "http://127.0.0.1:8081",
+            )
+        };
+        assert_eq!(
+            None,
+            RegistrySettings::from_template(&template(&[]), "http://127.0.0.1:8081")
+                .expect("settings")
+                .latest_cache_ttl_sec,
+            "unset: the codec applies Confluent's default"
+        );
+        assert_eq!(
+            Some(120),
+            ttl(" 120 ").expect("settings").latest_cache_ttl_sec
+        );
+        assert_eq!(Some(0), ttl("0").expect("settings").latest_cache_ttl_sec);
+        assert_eq!(Some(-1), ttl("-1").expect("settings").latest_cache_ttl_sec);
+        assert_eq!(
+            "latest.cache.ttl.sec must be a whole number of seconds, got '1m'",
+            ttl("1m").expect_err("refused").message()
+        );
     }
 
     #[test]

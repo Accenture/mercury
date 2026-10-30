@@ -36,8 +36,9 @@
 //! **What the Java module delegates to Confluent's own serializers, this port
 //! implements with the Apache Avro reference crate and a JSON Schema
 //! validator** — there is no Confluent client library for Rust. The frame,
-//! the subject/version resolution, the id-immutable positive-results-only
-//! cache (`ManagedCache`, TTL `schema.registry.cache.ttl`) and the registry
+//! the subject/version resolution, the positive-results-only caches (a schema
+//! by id for the life of the process, `latest` for `latest.cache.ttl.sec`, a
+//! pinned version for `schema.registry.version.cache.ttl`) and the registry
 //! client template (`schema-registry.yml`: OAuth 2.0 client credentials,
 //! static bearer, basic auth, SASL inheritance, the Confluent client's
 //! request retry) are the same. Stated deltas (port spec §7): the registry
@@ -79,7 +80,18 @@ pub const MAGIC_BYTE: u8 = 0x0;
 /// Magic byte + 4-byte big-endian global id.
 pub const FRAME_HEADER_LEN: usize = 5;
 
-const DEFAULT_CACHE_TTL: &str = "30m";
+/// The bound on each lookup cache, the capacity Confluent's
+/// `CachedSchemaRegistryClient` caches up to (the Java module passes 1000).
+const IDENTITY_MAP_CAPACITY: u64 = 1000;
+/// "Never expires" for a `ManagedCache` (clamped to its 100-year ceiling): a
+/// schema fetched by id is kept for the life of the process, as Confluent's
+/// client keeps it.
+const NO_EXPIRY_MS: u64 = u64::MAX;
+/// Confluent's `latest.cache.ttl.sec` default, in seconds.
+const DEFAULT_LATEST_CACHE_TTL_SEC: i64 = 60;
+/// The retired `<prefix>.cache.ttl`: a value still set is passed on as
+/// `latest.cache.ttl.sec` (Java `SchemaCodec.passRetiredCacheTtl`).
+const RETIRED_CACHE_TTL: &str = ".cache.ttl";
 /// A pinned subject + numeric version is immutable, so it can be cached
 /// effectively forever; a long TTL plus a bounded item count keeps it fresh
 /// enough while removing any unbounded-growth risk (Java parity).
@@ -169,10 +181,11 @@ impl SchemaCodec {
     /// Build a codec for a registry under a caller-selected key prefix — the
     /// reuse seam for a library whose second Kafka cluster has its own Schema
     /// Registry. Every key and cache name derives from the prefix (example
-    /// `secondary.schema.registry`): cache TTL keys `<prefix>.cache.ttl` /
-    /// `<prefix>.version.cache.ttl`; serde pass-through prefix
-    /// `<prefix>.serde.`; `ManagedCache` names `<prefix>` and
-    /// `<prefix>.version`; the client template location key
+    /// `secondary.schema.registry`): the pinned-version cache TTL key
+    /// `<prefix>.version.cache.ttl` (the retired `<prefix>.cache.ttl` is passed
+    /// on as `latest.cache.ttl.sec`); serde pass-through prefix
+    /// `<prefix>.serde.`; `ManagedCache` names `<prefix>` (by id),
+    /// `<prefix>.latest` and `<prefix>.version`; the client template location key
     /// `<prefix>.properties` with the default
     /// `classpath:/<prefix-with-dashes>.yml`. Distinct cache names per prefix
     /// are a correctness requirement: global ids are only unique within one
@@ -185,32 +198,46 @@ impl SchemaCodec {
         let Some(url) = registry_url.map(str::trim).filter(|u| !u.is_empty()) else {
             return Ok(None);
         };
-        let ttl_ms = duration_ms(
-            config,
-            &format!("{key_prefix}.cache.ttl"),
-            DEFAULT_CACHE_TTL,
-        )?;
         let version_ttl_ms = duration_ms(
             config,
             &format!("{key_prefix}.version.cache.ttl"),
             DEFAULT_VERSION_CACHE_TTL,
         )?;
-        // the schema cache is rebuildable from the registry, so it is cleared
-        // at startup - a stale entry left by an earlier run in this process
-        // (another test, a restart-in-place) is never served
-        let cache = ManagedCache::create_cache(key_prefix, ttl_ms);
+        // the registry client template: authentication and the optional
+        // installation headers, interpreted (Java passes it verbatim to the
+        // Confluent client; this client names what it honours)
+        let template = auth::load_template(config, key_prefix)?;
+        let settings = auth::RegistrySettings::from_template(&template, url)?;
+        let latest_ttl_sec =
+            latest_cache_ttl_sec(config, key_prefix, settings.latest_cache_ttl_sec);
+        // the caches of the Confluent client the Java module uses: every schema
+        // fetched by id for the life of the process, a subject's latest version
+        // for latest.cache.ttl.sec (0 = not cached), each bounded; plus the
+        // pinned subject+version, which the Java module caches itself because
+        // Confluent's client does not. All are rebuildable from the registry,
+        // so they are cleared at startup - a stale entry left by an earlier run
+        // in this process (another test, a restart-in-place) is never served
+        let cache =
+            ManagedCache::create_cache_with_limit(key_prefix, NO_EXPIRY_MS, IDENTITY_MAP_CAPACITY);
         cache.clear();
+        let latest_cache = (latest_ttl_sec != 0).then(|| {
+            // a negative TTL never expires, as in the Confluent client
+            let ttl_ms =
+                u64::try_from(latest_ttl_sec).map_or(NO_EXPIRY_MS, |s| s.saturating_mul(1000));
+            let latest = ManagedCache::create_cache_with_limit(
+                &format!("{key_prefix}.latest"),
+                ttl_ms,
+                IDENTITY_MAP_CAPACITY,
+            );
+            latest.clear();
+            latest
+        });
         let version_cache = ManagedCache::create_cache_with_limit(
             &format!("{key_prefix}.version"),
             version_ttl_ms,
             VERSION_CACHE_MAX_ITEMS,
         );
         version_cache.clear();
-        // the registry client template: authentication and the optional
-        // installation headers, interpreted (Java passes it verbatim to the
-        // Confluent client; this client names what it honours)
-        let template = auth::load_template(config, key_prefix)?;
-        let settings = auth::RegistrySettings::from_template(&template, url)?;
         // the serdes inherit the registry client template, then the
         // <prefix>.serde.* overrides apply on top (Java parity); the only
         // serde setting with an analog here is json.fail.invalid.schema
@@ -234,11 +261,11 @@ impl SchemaCodec {
         }
         let auth_label = settings.auth_label();
         let max_retries = settings.retry.max_retries;
-        let client = RegistryClient::new(settings, cache, version_cache, strict_json);
+        let client = RegistryClient::new(settings, cache, latest_cache, version_cache, strict_json);
         log::info!(
-            "Schema codec ready (registry={url}, cache={key_prefix}, ttlMs={ttl_ms}, types=[JSON, \
-             AVRO], strictJson={strict_json}, csfle=unsupported, auth={auth_label}, \
-             maxRetries={max_retries})"
+            "Schema codec ready (registry={url}, prefix={key_prefix}, \
+             latestCacheTtlSec={latest_ttl_sec}, types=[JSON, AVRO], strictJson={strict_json}, \
+             csfle=unsupported, auth={auth_label}, maxRetries={max_retries})"
         );
         Ok(Some(Arc::new(SchemaCodec {
             client,
@@ -314,8 +341,9 @@ impl SchemaCodec {
         &self.registry_url
     }
 
-    /// The `ManagedCache` name holding id→schema lookups (and `latest/<subject>`
-    /// resolutions); `<prefix>.version` holds the pinned-version resolutions.
+    /// The `ManagedCache` name holding id→schema lookups; `<prefix>.latest`
+    /// holds the `latest` resolutions and `<prefix>.version` the pinned-version
+    /// resolutions.
     pub fn cache_name(&self) -> &str {
         &self.key_prefix
     }
@@ -475,6 +503,62 @@ fn serde_overrides(config: &AppConfigReader, serde_prefix: &str) -> BTreeMap<Str
 }
 
 /// A duration setting (`30m`, `10d`, `5000` ms) in milliseconds.
+/// The `latest` cache TTL in seconds (Confluent's `latest.cache.ttl.sec`): the
+/// registry template's own value, else the retired `<prefix>.cache.ttl` an
+/// application still sets (Java `SchemaCodec.passRetiredCacheTtl` - what it
+/// still decides is how soon a new `latest` version is picked up), else 60.
+fn latest_cache_ttl_sec(
+    config: &AppConfigReader,
+    key_prefix: &str,
+    from_template: Option<i64>,
+) -> i64 {
+    let retired_key = format!("{key_prefix}{RETIRED_CACHE_TTL}");
+    let retired = config
+        .get_property(&retired_key)
+        .filter(|text| !text.trim().is_empty());
+    match (from_template, retired) {
+        (Some(seconds), Some(_)) => {
+            log::warn!(
+                "{retired_key} is retired and ignored - the registry client template sets {}",
+                auth::LATEST_CACHE_TTL_SEC
+            );
+            seconds
+        }
+        (Some(seconds), None) => seconds,
+        (None, Some(text)) => match retired_seconds(&text) {
+            Some(seconds) => {
+                log::warn!(
+                    "{retired_key} is retired - passed to the registry client as {}={seconds}; set {} in \
+                     the registry client template instead",
+                    auth::LATEST_CACHE_TTL_SEC,
+                    auth::LATEST_CACHE_TTL_SEC
+                );
+                seconds
+            }
+            None => {
+                log::warn!(
+                    "{retired_key} is retired, and '{text}' is not a duration - {} keeps its default",
+                    auth::LATEST_CACHE_TTL_SEC
+                );
+                DEFAULT_LATEST_CACHE_TTL_SEC
+            }
+        },
+        (None, None) => DEFAULT_LATEST_CACHE_TTL_SEC,
+    }
+}
+
+/// A retired TTL's value in whole seconds: a duration such as `30m`, or zero
+/// (`0`, `0s`), which leaves `latest` uncached, as Java passes it.
+fn retired_seconds(text: &str) -> Option<i64> {
+    let text = text.trim();
+    let number =
+        text.trim_end_matches(|c: char| matches!(c.to_ascii_lowercase(), 's' | 'm' | 'h' | 'd'));
+    if !number.is_empty() && number.bytes().all(|b| b == b'0') && text.len() <= number.len() + 1 {
+        return Some(0);
+    }
+    crate::adapter::parse_duration_ms(text).map(|ms| i64::try_from(ms / 1000).unwrap_or(i64::MAX))
+}
+
 fn duration_ms(config: &AppConfigReader, key: &str, default: &str) -> Result<u64, AppError> {
     let text = config.get_property_or(key, default);
     crate::adapter::parse_duration_ms(&text).ok_or_else(|| {
@@ -488,6 +572,15 @@ fn duration_ms(config: &AppConfigReader, key: &str, default: &str) -> Result<u64
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_retired_ttl_is_read_in_whole_seconds_zero_included() {
+        assert_eq!(Some(1800), retired_seconds("30m"));
+        assert_eq!(Some(0), retired_seconds("0s"));
+        assert_eq!(Some(0), retired_seconds(" 0 "));
+        assert_eq!(None, retired_seconds("soon"));
+        assert_eq!(None, retired_seconds("0ss"));
+    }
 
     #[test]
     fn schema_type_parses_the_registry_spelling() {

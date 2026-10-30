@@ -228,6 +228,20 @@ layers shipped; the two above have held through every re-verify.)*
   Java repository's `graph-set-packaging`. Relates [[graph-null-property-filtered-rust]].
   <!-- id: graph-set-pack-and-deploy-rust | created: 2026-10-06 | last_used: 2026-10-18 | uses: 9 | tier: archive-candidate | origin: 2026-10-06-012631 -->
 
+- **The Schema Registry client follows the mechanisms of the Confluent client the Java engine uses (Eric, 2026-10-30;
+  Increments 191 and 193, PR #399).** The Java `minimalist-kafka` gets its registry behaviour from Confluent's
+  `CachedSchemaRegistryClient` as a library; this engine's client is its own implementation, so it reproduces that
+  behaviour by name and default rather than inventing a policy: the request retry (`RetryExecutor`: `max.retries` 3,
+  `retries.wait.ms` 1000, `retries.max.wait.ms` 20000, the statuses 408, 429, 500, 502, 503 and 504, full jitter) and the
+  caching (a schema by id for the life of the process, bounded to 1000; `latest` for `latest.cache.ttl.sec`, 60 s; the
+  pinned-version cache the Java module adds because Confluent lacks it). **Why:** Eric's two rulings of that day - a
+  retry built only where the client lacks one, and "the Rust version is our own implementation so it needs to follow
+  the same caching mechanism". **How to apply:** before changing registry behaviour on either engine, read what
+  Confluent's client does (the 8.x sources jars in `~/.m2`: `CachedSchemaRegistryClient`, `RestService`,
+  `RetryExecutor`, `SchemaRegistryClientConfig`) and measure it against a counting registry; the Java repository's
+  thread `minimalist-kafka-schema-cache-ruling` holds the measurements. Applies [[port-bottom-up-faithful]].
+  <!-- id: confluent-client-parity-rust | created: 2026-10-30 | last_used: 2026-10-30 | uses: 1 | tier: working | origin: 2026-10-30-190735 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
