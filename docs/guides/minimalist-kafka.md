@@ -366,8 +366,9 @@ keeps the building blocks serializer-free; richer encodings layer on top via the
 > The library defaults the client's built-in `murmur2_random` partitioner: keyless records spread
 > uniformly at random, keyed records keep the **Java-producer-compatible murmur2 key hash** — so a key
 > maps to the same partition from either engine, which is what makes a mixed Java+Rust consumer group
-> behave. Records with an explicit `partition` header bypass it. Set `partitioner` in
-> `kafka-producer.yml` to override.
+> behave. Records with an explicit `partition` header bypass it. `simple.kafka.notification` publishes
+> without a key, so only a dead-letter copy of a keyed record is hashed (see
+> [partitioning strategies](#partitioning)). Set `partitioner` in `kafka-producer.yml` to override.
 
 > **Enterprise security is a template block.** SASL_SSL, SCRAM and OAUTHBEARER (`sasl.oauthbearer.method:
 > oidc` with the token endpoint, client id and secret) are librdkafka settings the bundled templates carry
@@ -419,10 +420,13 @@ On a **failure**, the message is retried up to `kafka.flow.max.retries` times (w
 - The DLQ write is **confirmed** (it awaits the broker acknowledgement, bounded by `kafka.dlq.timeout.ms`);
   on success the offset commits (or, in auto-commit mode, is left to Kafka's own timer as usual).
 - **DLQ topics must be pre-provisioned** (Kafka auto-creation is off in production). The original record's
-  headers are preserved, plus `dlq.origin.topic` and `dlq.error`.
+  key, value and headers are preserved, plus `dlq.origin.topic` and `dlq.error`, so a keyed record lands
+  on the DLQ partition its key hashes to and a reprocessor reads the key where the producer put it.
 - **A schema decode failure is a poison message** and skips the retry loop: on a
   [`schema.enabled`](#schema-consume) binding, a record that is not Confluent-framed or whose embedded id
-  cannot be resolved is dead-lettered at once with the raw record — retrying cannot help.
+  cannot be resolved is dead-lettered at once with the raw record — retrying cannot help. A registry that
+  cannot be reached fails the decode the same way, once the registry client's own retries are spent (see
+  [registry outage](#schema-consume)).
 
 > **When there is no DLQ, or the DLQ write itself fails (data loss).** A failed write to the DLQ is an
 > *exception of an exception* with no further fallback. Blocking the partition to retry forever would re-run
@@ -582,11 +586,17 @@ Three mechanisms decide which partition an outbound message lands on, in precede
 2. **A partitioner in the producer template** — the externalized `kafka-producer.yml` may set the
    client's `partitioner` to any of its built-ins (`murmur2_random`, `murmur2`, `consistent_random`,
    `consistent`, `random`, `fnv1a`, …); the library defaults it and never overrides a template's value.
-   A partitioner sees the record's key, not its headers or payload — header-based or content-based
-   partitioning belongs in the flow (below), on this engine as on Java.
+   A partitioner sees the record's key, which is absent on every record `simple.kafka.notification`
+   publishes, and not its headers or payload — header-based or content-based partitioning belongs in the
+   flow (below), on this engine as on Java.
 3. **`murmur2_random` — the library default**: keyless records spread uniformly at random (Kafka's own
    sticky default batches onto one partition, which starves multi-instance consumer groups at low
    volume); keyed records keep the Java-compatible murmur2 hashing.
+
+**No record key on a publish.** `simple.kafka.notification` publishes every record without a key, so
+Kafka's murmur2 key hashing never decides where it lands; only a [dead-letter](#reliability) copy, which
+keeps its original record's key, is hashed. Records that must stay in order for one entity (a customer, an
+account) take an explicit `partition` header computed from the entity, as below.
 
 **Content-based partitioning — the composable pattern.** When the partition must be derived from a
 record header or a payload key-value (a tenant, an entity id), compute it in the flow — where the
@@ -845,6 +855,24 @@ A **decode failure is a poison message** (retrying will not help), so the raw re
 immediately via the [DLQ path](#reliability) rather than retried — the `dlq.error` header names the cause
 (an unframed payload, an unresolvable id, a document that does not match its schema).
 
+**A registry outage is treated the same way, once the client's own retries are spent.** The adapter
+dead-letters a record on any failure inside the decode, and a decode can fail for a reason that is not the
+record's: a schema registry that cannot be reached. The registry client first retries a failed request — an
+answer of 408, 429, 500, 502, 503 or 504, or a network failure — three times, the policy of Confluent's own
+client, which the Java engine uses: before each retry it waits a random time up to a ceiling that starts at
+one second and doubles, so a lookup against a registry that never answers is tried four times with at most
+seven seconds of waiting. `max.retries`, `retries.wait.ms` and `retries.max.wait.ms` in `schema-registry.yml`
+tune it, with the Confluent client's keys and defaults (3, 1000 and 20000). A not-found id or a refused
+credential is not retried. The decode needs the registry only for a schema id that is not in the
+[schema cache](#schema-notes): the first record of each id after the instance starts, and again once
+`schema.registry.cache.ttl` (30 minutes by default) has passed since the id was fetched, because the cache
+expires an entry after it is written. So the exposure is a registry outage that outlasts those retries: each
+schema id due a lookup sends its next record to the `dlq-topic`, or, on a binding without one, drops it with
+an `ERROR` log. Give every `schema.enabled` binding a `dlq-topic`, so such records can be replayed once the
+registry is back; a global id is immutable, so a longer `schema.registry.cache.ttl` in production narrows the
+window. A publish with a `subject` header meets the same retries, then fails the task that sends it, and so
+its flow: a flow the adapter started is retried and then dead-lettered.
+
 ### Notes {#schema-notes}
 
 - **One subject-driven path, two formats.** The producer and consumer are type-generic; only the `subject`
@@ -905,6 +933,7 @@ The essentials:
 | `schema.registry.properties` | `classpath:/schema-registry.yml` | Registry client template location — authentication parameters interpreted by name (see [registry authentication](#schema-auth)). Set to an external file path (or explicit fallback list) to externalize. |
 | `schema.registry.cache.ttl` | `30m` | TTL for the in-memory schema cache (by id); positive results only; cleared at startup. |
 | `schema.registry.version.cache.ttl` | `10d` | TTL for the pinned subject+version resolutions (bounded to 3000 entries). |
+| `max.retries`, `retries.wait.ms`, `retries.max.wait.ms` | `3`, `1000`, `20000` | In `schema-registry.yml`: how a failed registry request is [retried](#schema-consume) (the Confluent client's keys and defaults). |
 | `schema.registry.serde.json.fail.invalid.schema` | `false` | Validate JSON documents against their schema on produce and consume. |
 | `schema.registry.consumer.properties` | — | Opt in to a [separate registry identity for the consumer side](#schema-consumer-identity): the flow adapter's own registry client template (the producer's file or a second one). Unset or blank = the adapter shares the producer's codec. |
 

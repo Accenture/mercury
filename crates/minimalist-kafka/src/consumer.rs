@@ -438,7 +438,8 @@ async fn deliver_record(
     // the body, decoded BEFORE routing so input.body rules see the decoded
     // value and the target receives it: schema.enabled decodes the Confluent
     // frame by its embedded id (a decode failure is a poison message -
-    // retrying cannot help - so the RAW record is dead-lettered at once, under
+    // retrying cannot help, and the registry client has already retried a
+    // failed lookup - so the RAW record is dead-lettered at once, under
     // the record's own topic, correct for literal and pattern bindings alike);
     // serializer: 'json' is the best-effort decode of a non-schema topic
     let (body, decoded) = if let Some(codec) = schema_codec {
@@ -613,8 +614,8 @@ fn raw_body(message: &BorrowedMessage<'_>) -> Value {
 }
 
 /// Park an un-processable message on the binding's `dlq-topic` with a
-/// **confirmed** write, preserving its headers + body and adding the origin
-/// facts. When no DLQ is configured — or the write fails — the message is
+/// **confirmed** write, preserving its key, headers + body and adding the
+/// origin facts. When no DLQ is configured — or the write fails — the message is
 /// dropped with a loud DATA-LOSS `ERROR` and the offset still commits:
 /// refusing would redeliver the same poison message forever (a
 /// self-sustaining recovery storm), so partition liveness deliberately wins.
@@ -663,9 +664,10 @@ async fn write_to_dead_letter(
     );
     let write = tokio::time::timeout(
         dlq_timeout,
-        publisher.publish(
+        publisher.publish_keyed(
             dlq_topic,
             None,
+            message.key(),
             dead_letter_headers,
             message.payload().map(<[u8]>::to_vec),
         ),

@@ -30,7 +30,8 @@
 //!   magic byte + id, looks up the registered schema's type, dispatches to the
 //!   matching decoder and hands the flow a map body instead of bytes. A decode
 //!   failure is a poison message and is dead-lettered at once (retrying cannot
-//!   help).
+//!   help) — a registry outage included, once the registry client's own
+//!   retries are spent.
 //!
 //! **What the Java module delegates to Confluent's own serializers, this port
 //! implements with the Apache Avro reference crate and a JSON Schema
@@ -38,8 +39,9 @@
 //! the subject/version resolution, the id-immutable positive-results-only
 //! cache (`ManagedCache`, TTL `schema.registry.cache.ttl`) and the registry
 //! client template (`schema-registry.yml`: OAuth 2.0 client credentials,
-//! static bearer, basic auth, SASL inheritance) are the same. Stated deltas
-//! (port spec §7): the registry template is **interpreted**, not passed
+//! static bearer, basic auth, SASL inheritance, the Confluent client's
+//! request retry) are the same. Stated deltas (port spec §7): the registry
+//! template is **interpreted**, not passed
 //! through verbatim — a key this client has no analog for is logged and
 //! ignored; TLS trust comes from the OS trust store (the platform's HTTP
 //! client); Confluent **CSFLE** (field-level encryption) and **schema
@@ -231,10 +233,12 @@ impl SchemaCodec {
             );
         }
         let auth_label = settings.auth_label();
+        let max_retries = settings.retry.max_retries;
         let client = RegistryClient::new(settings, cache, version_cache, strict_json);
         log::info!(
             "Schema codec ready (registry={url}, cache={key_prefix}, ttlMs={ttl_ms}, types=[JSON, \
-             AVRO], strictJson={strict_json}, csfle=unsupported, auth={auth_label})"
+             AVRO], strictJson={strict_json}, csfle=unsupported, auth={auth_label}, \
+             maxRetries={max_retries})"
         );
         Ok(Some(Arc::new(SchemaCodec {
             client,

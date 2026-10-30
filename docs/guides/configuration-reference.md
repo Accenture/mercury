@@ -665,8 +665,9 @@ switch for `schema.enabled` bindings and the `subject` header of `simple.kafka.n
 |---|---|
 | string (comma-separated locations) | `classpath:/schema-registry.yml, classpath:/schema-registry.properties` |
 
-The registry client template: authentication (`bearer.auth.*`, `basic.auth.*`) and the Confluent
-Cloud headers, interpreted by name; unknown keys are logged as ignored.
+The registry client template: authentication (`bearer.auth.*`, `basic.auth.*`), the Confluent
+Cloud headers and the request retry (`max.retries`, `retries.wait.ms`, `retries.max.wait.ms`, default
+3, 1000 and 20000, the Confluent client's), interpreted by name; unknown keys are logged as ignored.
 
 #### `schema.registry.cache.ttl`, `schema.registry.version.cache.ttl`
 

@@ -346,7 +346,10 @@ return route's R4.
     (`OAUTHBEARER`, `STATIC_TOKEN`, `SASL_OAUTHBEARER_INHERIT`), the client-credentials grant
     keys, `bearer.auth.token`, `bearer.auth.cache.expiry.buffer.seconds`, the Confluent Cloud
     headers `bearer.auth.logical.cluster` / `bearer.auth.identity.pool.id`,
-    `basic.auth.credentials.source` (`USER_INFO`, `URL`, `SASL_INHERIT`) — and logs every other
+    `basic.auth.credentials.source` (`USER_INFO`, `URL`, `SASL_INHERIT`), and the request retry
+    `max.retries` / `retries.wait.ms` / `retries.max.wait.ms` (2026-10-30: the Confluent client's
+    `RetryExecutor` ported with its defaults 3 / 1000 / 20000 — 408, 429, 500, 502, 503, 504 and
+    network failures retried with full jitter under a doubling ceiling) — and logs every other
     key at startup as ignored, never silently. The bearer token is fetched exactly as Kafka's
     own retriever does (client id/secret as HTTP Basic on the token request,
     `grant_type=client_credentials` + `scope` in the form body), cached and refreshed before

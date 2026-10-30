@@ -13,7 +13,35 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
-Nothing yet. Each change merged to `main` after v4.12.26 is listed here; it moves under its release heading when the version is cut.
+Each change merged to `main` after v4.12.26 is listed here; it moves under its release heading when the version is cut.
+
+### Changed
+
+1. **A failed Schema Registry request is retried, as the Java engine's Confluent client retries one (Increment 191).** The
+   registry client made one attempt per lookup, so a registry that was briefly unreachable dead-lettered the next record of every
+   schema id due a lookup, and failed a publish with a `subject` header. A request answered 408, 429, 500, 502, 503 or 504, or
+   failed by the network, is now tried again up to `max.retries` times; before retry `n` (from 0) the client waits a random time
+   from 1 ms to `min(retries.wait.ms × 2^n, retries.max.wait.ms)`, the policy of Confluent's `RetryExecutor`, with its keys and
+   defaults (3, 1000 and 20000) in `schema-registry.yml`. A not-found id and a refused credential still fail at once. **Upgrade
+   note:** a lookup against a registry that never answers now fails after four attempts and at most seven seconds of waiting, each
+   attempt still bounded by its 10-second timeout; `max.retries: 0` in `schema-registry.yml` keeps the single attempt.
+
+### Fixed
+
+1. **The dead-letter copy keeps the record key (Increment 191).** The twin of the Java engine's fix (mercury-composable #597). The
+   flow adapter wrote a failed record to its `dlq-topic` without its key, so a reprocessor lost the key and a keyed record landed
+   on a random dead-letter partition. `KafkaRequestPublisher::publish_keyed` takes the key, and the dead-letter write passes the
+   original record's key bytes. **Upgrade note:** none - a keyed record's dead-letter copy now lands on the partition its key
+   hashes to (murmur2, as the Java producer hashes it).
+
+### Documentation
+
+1. **The Minimalist Kafka guide catches up with the Java guide's application-builder corrections (Increment 191).**
+   `simple.kafka.notification` publishes without a key, so per-entity ordering takes an explicit `partition` header (the guide had
+   implied keyed publishes); the dead-letter copy keeps the key; and a registry outage dead-letters a record once the client's
+   retries are spent - for the first record of each schema id after a start, and again each `schema.registry.cache.ttl` after an
+   id was fetched, so every `schema.enabled` binding should have a `dlq-topic`. The configuration reference, the bundled
+   `schema-registry.yml` and the port spec (§7 item 13) list the retry keys.
 
 ---
 ## Version 4.12.26, 10/26/2026

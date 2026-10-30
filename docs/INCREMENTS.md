@@ -5157,3 +5157,37 @@ and the diff is tokio's version and checksum alone. No source changes. CHANGELOG
 
 Gates: `cargo build --workspace --locked`, `cargo test --workspace --locked` (732 passed, unchanged), a local
 `cargo audit` (no warnings), and the CI `audit` job on the pull request.
+
+## Increment 191 — The dead-letter copy keeps the record key, and a failed Schema Registry request is retried (2026-10-30)
+
+The twin of the Java engine's fix (mercury-composable #597, squash `08fc9900`), with the registry retry that the Java engine
+gets from Confluent's client and this engine's client lacked. Eric's rulings on the dead-letter path (2026-10-30): the DLQ
+keeps the original key; a registry lookup is retried before the record is given up on, built only where the client does not
+already retry (Confluent's does, so Java needed none; this client did not).
+
+- **`publisher.rs`.** `publish_keyed(topic, partition, key, headers, body)` (Java `publishSync` with a key); `publish`
+  delegates with no key, so `simple.kafka.notification` still publishes keyless records. The record's key type is `[u8]`, so
+  a dead-letter copy carries the key's bytes as they arrived.
+- **`consumer.rs`.** `write_to_dead_letter` passes `message.key()`: a keyed record's copy lands on the dead-letter partition
+  its key hashes to (`murmur2_random` hashes a key as the Java producer does) and a reprocessor reads the key.
+- **`schema/auth.rs`, `schema/registry.rs`.** `RegistryRetry` reads `max.retries`, `retries.wait.ms` and
+  `retries.max.wait.ms` from `schema-registry.yml` (defaults 3, 1000, 20000; a value that is not a whole number of zero or
+  more fails startup naming the key), the Confluent client's `RetryExecutor` ported: `RegistryClient::get` retries an
+  answer of 408, 429, 500, 502, 503 or 504 (`RestService.isRestClientExceptionRetriable`), which is also how the platform's
+  HTTP client reports a network failure (a timeout as 408, a refused or dropped connection as 500), and waits before retry
+  `n` a random 1 to `min(wait × 2^n, max wait)` ms (full jitter; the exponent stops at 30). The jitter's random bits come
+  from `uuid`'s v4, already a dependency. A debug line per retry, a `WARN` when the retries are spent; the codec's startup
+  line gains `maxRetries`.
+- **Tests.** `flow_adapter_e2e` scenarios 3 and 18 assert the dead-letter key (`k2`), failing before the fix
+  (`left: Some([107, 50]) right: None`). `schema_codec` scenario 15, against the registry double's new `fail_next(count,
+  status)` outage: two 503s ridden out in three lookups, three 503s failing with 503 after three, a 401 failing after one,
+  a 429 on a subject lookup ridden out, and a refused connection arriving as a 500; with the retry disabled the scenario
+  fails at its first step. Its template lives under `test_support::temp_path`, and `find -newer` after a passing and a
+  failing run found no file left behind. Unit tests for the keys and defaults, the jitter bounds and the retriable statuses.
+- **Docs.** The guide's random-partitioner note, *Retry and dead-letter*, *Partitioning strategies* (*No record key on a
+  publish*), *Consume* (*A registry outage is treated the same way*, including the id cache's expire-after-write TTL as the
+  second exposure) and the keys table; the configuration reference's `schema.registry.properties`; the bundled
+  `schema-registry.yml`; the port spec §7 item 13.
+
+Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
+`python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.

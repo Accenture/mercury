@@ -49,6 +49,14 @@
 # basic.auth.credentials.source: USER_INFO
 # basic.auth.user.info: '${SCHEMA_REGISTRY_BASIC_AUTH:}'
 
+# --- Request retry (the Confluent client's keys and defaults) ---
+# A request answered 408, 429, 500, 502, 503 or 504, or failed by the network, is tried again up to
+# max.retries times; before each retry the client waits a random time up to a ceiling that starts at
+# retries.wait.ms and doubles, capped at retries.max.wait.ms. A failed decode then dead-letters the record.
+# max.retries: 3
+# retries.wait.ms: 1000
+# retries.max.wait.ms: 20000
+
 # --- JSON Schema validation (Confluent's json.fail.invalid.schema; default off) ---
 # Validate JSON payloads against their registered schema on both produce and consume. Also
 # settable per application as schema.registry.serde.json.fail.invalid.schema in application.yml.

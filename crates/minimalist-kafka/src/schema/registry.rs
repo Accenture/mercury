@@ -33,6 +33,12 @@
 //! The parsed schema is cached with the text: parsing an Avro schema or
 //! compiling a JSON Schema validator once per id is what makes per-record
 //! encode/decode cheap.
+//!
+//! **A failed request is retried** the way the Confluent client retries one
+//! (its `RetryExecutor`): an answer of 408, 429, 500, 502, 503 or 504, or a
+//! network failure, is tried again up to `max.retries` times with a jittered,
+//! doubling wait ([`RegistryRetry`](super::auth::RegistryRetry)). Every other
+//! answer, a not-found id or a refused credential among them, fails at once.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -260,10 +266,50 @@ impl RegistryClient {
         })
     }
 
-    /// `GET <registry>/<path>` with the registry media type, the configured
-    /// authentication and the optional installation headers. A non-2xx answer
-    /// is an error carrying the registry's `message` (and `error_code`).
+    /// `GET <registry>/<path>`, retried by the template's
+    /// [`RegistryRetry`](super::auth::RegistryRetry) while the failure is
+    /// [retriable](is_retriable).
     async fn get(&self, path: &str) -> Result<serde_json::Value, AppError> {
+        let retry = self.settings.retry;
+        let mut retries = 0;
+        loop {
+            match self.get_once(path).await {
+                Ok(body) => return Ok(body),
+                Err(e) if is_retriable(e.status()) && retries < retry.max_retries => {
+                    // any 64 random bits will do for the jitter; uuid's v4 is
+                    // the crate's random source already
+                    let wait = retry.delay(retries, uuid::Uuid::new_v4().as_u64_pair().0);
+                    retries += 1;
+                    log::debug!(
+                        "Schema registry GET {path} failed with status {} (attempt {retries}/{}); \
+                         retrying in {} ms - {}",
+                        e.status(),
+                        retry.max_retries + 1,
+                        wait.as_millis(),
+                        e.message()
+                    );
+                    tokio::time::sleep(wait).await;
+                }
+                Err(e) => {
+                    if retries > 0 {
+                        log::warn!(
+                            "Schema registry GET {path} failed after {} attempts, status {} - {}",
+                            retries + 1,
+                            e.status(),
+                            e.message()
+                        );
+                    }
+                    return Err(e);
+                }
+            }
+        }
+    }
+
+    /// One `GET <registry>/<path>` with the registry media type, the
+    /// configured authentication and the optional installation headers. A
+    /// non-2xx answer is an error carrying the registry's `message` (and
+    /// `error_code`).
+    async fn get_once(&self, path: &str) -> Result<serde_json::Value, AppError> {
         let platform = Platform::get_instance();
         let mut request = AsyncHttpRequest::new()
             .set_method("GET")
@@ -293,6 +339,17 @@ impl RegistryClient {
         }
         Ok(body)
     }
+}
+
+/// Whether a failed registry request is tried again (Confluent
+/// `RestService.isRestClientExceptionRetriable`): a request timeout, too many
+/// requests, and the server errors 500, 502, 503 and 504. The platform's HTTP
+/// client reports a network failure as one of them - a connection or response
+/// timeout as 408 (as is a reply that outlasts the `po.request` deadline), a
+/// refused or dropped connection as 500 - which is how this client retries the
+/// failures the Confluent client retries as an `IOException`.
+fn is_retriable(status: i32) -> bool {
+    matches!(status, 408 | 429 | 500 | 502 | 503 | 504)
 }
 
 /// One HTTP round trip through the platform's `async.http.request` service:
@@ -413,6 +470,16 @@ fn url_encode_segment(segment: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn retriable_statuses_are_confluents() {
+        for status in [408, 429, 500, 502, 503, 504] {
+            assert!(is_retriable(status), "{status}");
+        }
+        for status in [200, 400, 401, 403, 404, 409, 422, 501, 505] {
+            assert!(!is_retriable(status), "{status}");
+        }
+    }
 
     #[test]
     fn version_grammar_is_latest_or_a_positive_integer() {
