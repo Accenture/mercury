@@ -5191,3 +5191,17 @@ already retry (Confluent's does, so Java needed none; this client did not).
 
 Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
 `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.
+
+## Increment 192 — libz-sys 1.1.31 for RUSTSEC-2026-0418 (2026-10-30)
+
+The `audit` job on PR #399 (Increment 191) failed on RUSTSEC-2026-0418 (GHSA-8p3x-q3q3-q3v5), published on 2026-10-28
+against `libz-sys` 1.1.29: to decide whether to link a system zlib, its build script compiles a probe and prints the command
+with `{:?}`, and `cc` 1.6.0 (released 2026-10-03) and later set every environment variable explicitly on that command, so the
+whole build environment, secrets included, is written to the build script's output under `target/`. Patched in 1.1.31, which
+no longer logs the command. `libz-sys` reaches the workspace only through `rdkafka-sys` 4.10.0 (`mercury-minimalist-kafka`,
+`kafka-demo`, `sync-over-async-demo`), and the locked `cc` is 1.2.67, so no build of this workspace wrote its environment.
+`cargo update -p libz-sys --precise 1.1.31` changed that crate's version and checksum alone; no other edge re-resolved. No
+source changes. CHANGELOG Unreleased, `Security` item 1.
+
+Gates: `cargo build --workspace --locked`, `cargo test -p mercury-minimalist-kafka --locked`, and the CI `audit` job on the
+pull request.

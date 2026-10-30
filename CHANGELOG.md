@@ -15,6 +15,16 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 Each change merged to `main` after v4.12.26 is listed here; it moves under its release heading when the version is cut.
 
+### Security
+
+1. **libz-sys 1.1.31 (Increment 192).** The `audit` gate failed on 2026-10-30 on RUSTSEC-2026-0418 (GHSA-8p3x-q3q3-q3v5),
+   published on 2026-10-28 against `libz-sys` 1.1.29 and patched in 1.1.31: its build script logs the compiler command it
+   probes with, and with `cc` 1.6.0 or later that command carries the whole build environment, so any secret in it lands in
+   the build script's output under `target/`. `libz-sys` reaches the workspace through `rdkafka-sys` (`minimalist-kafka` and
+   the two Kafka examples). The locked `cc` is 1.2.67, so this workspace's builds were not exposed. The lockfile moves that one
+   crate. **Upgrade note:** none - a lockfile bump; an application that builds `mercury-minimalist-kafka` with its own lockfile
+   and `cc` 1.6.0 or later updates `libz-sys` itself (`cargo update -p libz-sys`).
+
 ### Changed
 
 1. **A failed Schema Registry request is retried, as the Java engine's Confluent client retries one (Increment 191).** The
