@@ -14,16 +14,19 @@
 
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22). The current release is the `latest_release` field below (both engines release in lock-step, one number for the same content). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
-- **latest_release:** v4.12.26 (2026-10-26 17:02:09Z — **the lock-step twin of Java 4.12.26, catching up from 4.12.24 (Java 4.12.25 was
-  Java only): the RFC-0010 JSONPath refusals and substitution checks (Increments 185–187), the companion refusal flag (188), the date
-  plugins (189), the Playground round (181, 183, 184 and #387) and the `rustls`, `rustls-webpki` and `tokio` RustSec bumps (180, 182,
-  190)**: release PR #398 merge `9a205c06` = tag `v4.12.26`; `[workspace.package] version` 4.12.26 at the tag; the GitHub release is
-  published (not a draft), its notes the CHANGELOG section word for word; `rust`, `docs` and agent-memory CI green on the tag commit.
-  READ: a `$` path outside RFC 9535 fails at startup, and a substituted value that carries query syntax fails the mapping (Changed 5
-  and 6). 13 manifests / 24 occurrences, `cargo update -w` 27 lines; 142 suites / 732 passed / 0 failed / 9 ignored at the cut.
-  **Published and VERIFIED 2026-10-26:** the twelve crates on crates.io at 4.12.26 (17:00:07Z–17:00:16Z, by Eric's `cargo publish
-  --workspace` from `9a205c06` before the tag was pushed; none yanked; the platform-core tarball's checksum matches crates.io's and its
-  33 source files are identical to the tag's). Java: #593 open at this log. Origin 2026-10-26-170309.md.
+- **latest_release:** v4.12.27 (2026-10-30 23:15:12Z — **the lock-step twin of Java 4.12.27: the dead-letter copy keeps the record
+  key, the registry client retries as Confluent's does, the schema caches follow the Confluent client's (`schema.registry.cache.ttl`
+  retired) and the `libz-sys` 1.1.31 RustSec bump (Increments 191–193, #399)**: release PR #400 merge `03952aee` = tag `v4.12.27` =
+  the main head at the tag; `[workspace.package] version` 4.12.27 at the tag; the GitHub release is published (not a draft), its
+  notes the CHANGELOG section; `rust`, `docs` and agent-memory CI green on the tag commit. READ: a registry that never answers fails
+  a lookup after four attempts, `max.retries: 0` keeps one (Changed 1); a set `schema.registry.cache.ttl` is passed on as
+  `latest.cache.ttl.sec` with a warning (Changed 2). 13 manifests / 24 occurrences, `cargo update -w` 27 lines; 142 suites / 737
+  passed / 0 failed / 9 ignored at the cut. **Published and VERIFIED 2026-10-30:** the twelve crates on crates.io at 4.12.27
+  (23:17:18Z–23:17:31Z). Java: #600 squash `2929ea31` = tag, for the field to test (the Java repo records its result). Origin
+  2026-10-30-231959.md.
+  Prior: v4.12.26 (2026-10-26 17:02:09Z — the lock-step twin of Java 4.12.26, catching up from 4.12.24: the RFC-0010 JSONPath
+  refusals and substitution checks, the companion refusal flag, the date plugins, the Playground round and three RustSec bumps;
+  #398 merge `9a205c06` = tag; 142 suites / 732 passed; crates 12/12 at 17:00Z. Origin 2026-10-26-170309.md.)
   Prior: v4.12.24 (2026-10-12 22:29:09Z — the lock-step twin of Java 4.12.24, the range plugins' bounds and refinements, Increments
   177–179; #383 merge `de283537`, tag → `aa67a429`; 139 suites / 719 passed; crates 12/12 at 22:31Z; Java 4.12.24 also fixed a Guava
   resolution the field's Snyk gate rejected, with no counterpart here. Origin 2026-10-12-223633.md.)
