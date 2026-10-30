@@ -5157,3 +5157,84 @@ and the diff is tokio's version and checksum alone. No source changes. CHANGELOG
 
 Gates: `cargo build --workspace --locked`, `cargo test --workspace --locked` (732 passed, unchanged), a local
 `cargo audit` (no warnings), and the CI `audit` job on the pull request.
+
+## Increment 191 — The dead-letter copy keeps the record key, and a failed Schema Registry request is retried (2026-10-30)
+
+The twin of the Java engine's fix (mercury-composable #597, squash `08fc9900`), with the registry retry that the Java engine
+gets from Confluent's client and this engine's client lacked. Eric's rulings on the dead-letter path (2026-10-30): the DLQ
+keeps the original key; a registry lookup is retried before the record is given up on, built only where the client does not
+already retry (Confluent's does, so Java needed none; this client did not).
+
+- **`publisher.rs`.** `publish_keyed(topic, partition, key, headers, body)` (Java `publishSync` with a key); `publish`
+  delegates with no key, so `simple.kafka.notification` still publishes keyless records. The record's key type is `[u8]`, so
+  a dead-letter copy carries the key's bytes as they arrived.
+- **`consumer.rs`.** `write_to_dead_letter` passes `message.key()`: a keyed record's copy lands on the dead-letter partition
+  its key hashes to (`murmur2_random` hashes a key as the Java producer does) and a reprocessor reads the key.
+- **`schema/auth.rs`, `schema/registry.rs`.** `RegistryRetry` reads `max.retries`, `retries.wait.ms` and
+  `retries.max.wait.ms` from `schema-registry.yml` (defaults 3, 1000, 20000; a value that is not a whole number of zero or
+  more fails startup naming the key), the Confluent client's `RetryExecutor` ported: `RegistryClient::get` retries an
+  answer of 408, 429, 500, 502, 503 or 504 (`RestService.isRestClientExceptionRetriable`), which is also how the platform's
+  HTTP client reports a network failure (a timeout as 408, a refused or dropped connection as 500), and waits before retry
+  `n` a random 1 to `min(wait × 2^n, max wait)` ms (full jitter; the exponent stops at 30). The jitter's random bits come
+  from `uuid`'s v4, already a dependency. A debug line per retry, a `WARN` when the retries are spent; the codec's startup
+  line gains `maxRetries`.
+- **Tests.** `flow_adapter_e2e` scenarios 3 and 18 assert the dead-letter key (`k2`), failing before the fix
+  (`left: Some([107, 50]) right: None`). `schema_codec` scenario 15, against the registry double's new `fail_next(count,
+  status)` outage: two 503s ridden out in three lookups, three 503s failing with 503 after three, a 401 failing after one,
+  a 429 on a subject lookup ridden out, and a refused connection arriving as a 500; with the retry disabled the scenario
+  fails at its first step. Its template lives under `test_support::temp_path`, and `find -newer` after a passing and a
+  failing run found no file left behind. Unit tests for the keys and defaults, the jitter bounds and the retriable statuses.
+- **Docs.** The guide's random-partitioner note, *Retry and dead-letter*, *Partitioning strategies* (*No record key on a
+  publish*), *Consume* (*A registry outage is treated the same way*, including the id cache's expire-after-write TTL as the
+  second exposure) and the keys table; the configuration reference's `schema.registry.properties`; the bundled
+  `schema-registry.yml`; the port spec §7 item 13.
+
+Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
+`python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.
+
+## Increment 192 — libz-sys 1.1.31 for RUSTSEC-2026-0418 (2026-10-30)
+
+The `audit` job on PR #399 (Increment 191) failed on RUSTSEC-2026-0418 (GHSA-8p3x-q3q3-q3v5), published on 2026-10-28
+against `libz-sys` 1.1.29: to decide whether to link a system zlib, its build script compiles a probe and prints the command
+with `{:?}`, and `cc` 1.6.0 (released 2026-10-03) and later set every environment variable explicitly on that command, so the
+whole build environment, secrets included, is written to the build script's output under `target/`. Patched in 1.1.31, which
+no longer logs the command. `libz-sys` reaches the workspace only through `rdkafka-sys` 4.10.0 (`mercury-minimalist-kafka`,
+`kafka-demo`, `sync-over-async-demo`), and the locked `cc` is 1.2.67, so no build of this workspace wrote its environment.
+`cargo update -p libz-sys --precise 1.1.31` changed that crate's version and checksum alone; no other edge re-resolved. No
+source changes. CHANGELOG Unreleased, `Security` item 1.
+
+Gates: `cargo build --workspace --locked`, `cargo test -p mercury-minimalist-kafka --locked`, and the CI `audit` job on the
+pull request.
+
+## Increment 193 — The schema caches follow the Confluent client's, and `schema.registry.cache.ttl` is retired (2026-10-30)
+
+Eric's ruling on the Java engine (mercury-composable #598): its `ManagedCache` in front of Confluent's registry client
+saved no registry request, so the id override and the `latest` entries go, the pinned-version cache stays, and
+`schema.registry.cache.ttl` is retired and passed to the client as `latest.cache.ttl.sec`. Measured there against a
+counting registry: Confluent keeps every schema fetched by id for the life of the client (bounded by its 1000 capacity),
+caches `latest` for `latest.cache.ttl.sec` (60 s), and does not cache a pinned `getSchemaMetadata(subject, version)`.
+This engine is its own implementation, so it follows the same mechanism (Eric: "the Rust version is our own
+implementation so it needs to follow the same caching mechanism").
+
+- **`schema/mod.rs`.** The id cache `<prefix>` never expires (`ManagedCache`'s 100-year ceiling) and holds at most 1000
+  ids, the Java module's identity-map capacity. A new `<prefix>.latest` cache holds `latest` resolutions for
+  `latest.cache.ttl.sec` seconds, at most 1000; `0` builds none (each `latest` resolve asks the registry) and a negative
+  value never expires, as in Confluent's client. `latest_cache_ttl_sec` takes the template's key, else the retired
+  `<prefix>.cache.ttl` still set by an application (whole seconds, `0`/`0s` included through `retired_seconds`, a
+  `WARN` either way; a value that is not a duration keeps the default with a `WARN`), else 60. The startup line reports
+  `latestCacheTtlSec` in place of `ttlMs`.
+- **`schema/auth.rs`.** `latest.cache.ttl.sec` joins the interpreted keys (17): a whole number of seconds, any sign; any
+  other value fails startup naming the key.
+- **`schema/registry.rs`.** `resolve` keys `latest` by the subject in the `latest` cache (none when the TTL is 0) and a
+  pinned version in the version cache, as before; the `latest/`-namespaced entries in the id cache are gone.
+- **Tests.** `schema_codec` scenario 3 reads `latest` from `schema.registry.latest`; scenario 16 asserts the id cache's
+  bound and expiry, the 60 s default, a retired `0s` building no `latest` cache (a third `latest` resolve asks the
+  registry, a pinned one does not), a retired `30m` passed as 1800 s, and a template's `latest.cache.ttl.sec: 120`
+  winning over the retired key. Unit tests for the template key and for `retired_seconds`.
+- **Docs.** The guide's outage paragraph (an id's first lookup after a start is the only exposure now), the *Schema
+  cache* and *Subject→id resolution cache* notes, a *retired* note, the keys table and the consumer-identity keys; the
+  configuration reference; the bundled `schema-registry.yml`; the sync-over-async demo's `application.yml`; the port
+  spec §7 item 12.
+
+Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
+`python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.

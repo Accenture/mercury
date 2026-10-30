@@ -443,6 +443,11 @@ async fn inbound_adapter_end_to_end() {
         "poison-cid", parked_headers["cid"],
         "original headers preserved"
     );
+    assert_eq!(
+        Some(&b"k2"[..]),
+        parked.key(),
+        "the dead-letter copy keeps the original record key"
+    );
     // max.retries=2 -> 3 attempts total before parking
     assert_eq!(3, poison_attempts().load(Ordering::Acquire));
 
@@ -756,6 +761,11 @@ async fn inbound_adapter_end_to_end() {
     }
     assert_eq!("k5-schema-json", parked_headers["dlq.origin.topic"]);
     assert_eq!("k5-poison-cid", parked_headers["cid"]);
+    assert_eq!(
+        Some(&b"k2"[..]),
+        parked.key(),
+        "the raw record keeps its key"
+    );
     assert!(
         parked_headers["dlq.error"].contains("not Confluent schema-framed"),
         "the dead letter names the decode failure: {}",

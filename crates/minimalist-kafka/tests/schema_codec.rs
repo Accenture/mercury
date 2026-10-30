@@ -223,8 +223,8 @@ async fn schema_codec_end_to_end() {
         "a repeated pin is a cache hit"
     );
     assert!(
-        cached("schema.registry", &format!("latest/{subject}")),
-        "latest resolution cached in the id cache under a namespaced key"
+        cached("schema.registry.latest", subject),
+        "latest resolution cached in the latest cache (latest.cache.ttl.sec)"
     );
     assert!(
         cached("schema.registry.version", &format!("{subject}/1")),
@@ -587,4 +587,217 @@ async fn schema_codec_end_to_end() {
     );
     let _ = std::fs::remove_file(&consumer_template);
     overrides::clear("schema.registry.consumer.properties");
+
+    // --- 15. a failed registry request is retried as the Confluent client retries
+    //         one (the Java module's registry client): an outage shorter than the
+    //         retries is ridden out, a longer one fails with its status, and an
+    //         answer that is not retriable fails at once
+    // under the per-process test folder, removed at exit even when an assertion fails
+    let retry_template = test_support::temp_path("schema-registry-retry.yml");
+    std::fs::write(
+        &retry_template,
+        "max.retries: 2\nretries.wait.ms: 10\nretries.max.wait.ms: 40\n",
+    )
+    .expect("write template");
+    for prefix in ["schema.retry", "schema.refused"] {
+        overrides::set(
+            &format!("{prefix}.properties"),
+            &format!("file:{}", retry_template.display()),
+        );
+    }
+    let retrying = SchemaCodec::for_registry(config, Some(registry.base_url()), "schema.retry")
+        .expect("codec builds")
+        .expect("registry url given");
+    let ridden_out = registry.register(
+        "retry-outage-value",
+        "JSON",
+        r#"{"type":"object","properties":{"outage":{"type":"string"}},"additionalProperties":true}"#,
+    );
+    let before = registry.lookups();
+    registry.fail_next(2, 503);
+    assert_eq!(
+        "ridden out",
+        json_view(
+            &retrying
+                .decode(
+                    "retry",
+                    Some(&frame(ridden_out, br#"{"outage":"ridden out"}"#))
+                )
+                .await
+                .expect("two 503s ridden out")
+        )["outage"]
+    );
+    assert_eq!(
+        before + 3,
+        registry.lookups(),
+        "the first attempt and two retries"
+    );
+    let lasting = registry.register(
+        "retry-lasting-value",
+        "JSON",
+        r#"{"type":"object","properties":{"lasting":{"type":"string"}},"additionalProperties":true}"#,
+    );
+    let lasting_frame = frame(lasting, br#"{"lasting":"outage"}"#);
+    let before = registry.lookups();
+    registry.fail_next(3, 503);
+    let outage = retrying
+        .decode("retry", Some(&lasting_frame))
+        .await
+        .expect_err("the outage outlasts max.retries");
+    assert_eq!(503, outage.status());
+    assert!(
+        outage.message().contains("Injected registry outage"),
+        "{}",
+        outage.message()
+    );
+    assert_eq!(
+        before + 3,
+        registry.lookups(),
+        "max.retries 2 = three attempts"
+    );
+    let before = registry.lookups();
+    registry.fail_next(1, 401);
+    assert_eq!(
+        401,
+        retrying
+            .decode("retry", Some(&lasting_frame))
+            .await
+            .expect_err("a refused credential is not retried")
+            .status()
+    );
+    assert_eq!(before + 1, registry.lookups(), "one attempt, no retry");
+    let before = registry.lookups();
+    registry.fail_next(1, 429);
+    assert_eq!(
+        ridden_out,
+        retrying
+            .resolve("retry-outage-value", "latest")
+            .await
+            .expect("a 429 ridden out")
+            .id
+    );
+    assert_eq!(
+        before + 2,
+        registry.lookups(),
+        "the subject lookup twice; the id was cached by the decode above"
+    );
+    // a refused connection reaches the client as a 500, so it is retried too
+    let closed_port = std::net::TcpListener::bind("127.0.0.1:0")
+        .expect("bind")
+        .local_addr()
+        .expect("addr")
+        .port();
+    let refused = SchemaCodec::for_registry(
+        config,
+        Some(&format!("http://127.0.0.1:{closed_port}")),
+        "schema.refused",
+    )
+    .expect("codec builds")
+    .expect("registry url given")
+    .decode("refused", Some(&lasting_frame))
+    .await
+    .expect_err("nothing listens");
+    assert_eq!(500, refused.status(), "{}", refused.message());
+    assert!(
+        refused.message().contains("Unable to connect"),
+        "{}",
+        refused.message()
+    );
+    for prefix in ["schema.retry", "schema.refused"] {
+        overrides::clear(&format!("{prefix}.properties"));
+    }
+
+    // --- 16. the caching of the Confluent client the Java module uses: a schema by id
+    //         is kept for the life of the process (bounded to 1000), latest for
+    //         latest.cache.ttl.sec (60 s by default); the retired <prefix>.cache.ttl is
+    //         passed on as latest.cache.ttl.sec, and the template's own key wins
+    let ids = ManagedCache::get_instance("schema.registry").expect("the id cache");
+    assert_eq!(1000, ids.max_items());
+    assert!(
+        ids.expiry_ms() >= 10 * 365 * 86_400_000,
+        "a schema by id is effectively never expired: {} ms",
+        ids.expiry_ms()
+    );
+    let latest = ManagedCache::get_instance("schema.registry.latest").expect("the latest cache");
+    assert_eq!(
+        60_000,
+        latest.expiry_ms(),
+        "Confluent's latest.cache.ttl.sec default"
+    );
+    overrides::set("schema.zero.cache.ttl", "0s");
+    let zero = SchemaCodec::for_registry(config, Some(registry.base_url()), "schema.zero")
+        .expect("codec builds")
+        .expect("registry url given");
+    overrides::clear("schema.zero.cache.ttl");
+    assert!(
+        ManagedCache::get_instance("schema.zero.latest").is_none(),
+        "a zero TTL caches no latest resolution"
+    );
+    let zero_subject = "zero-ttl-value";
+    let zero_id = registry.register(
+        zero_subject,
+        "JSON",
+        r#"{"type":"object","properties":{"zero":{"type":"string"}},"additionalProperties":true}"#,
+    );
+    for _ in 0..2 {
+        assert_eq!(
+            zero_id,
+            zero.resolve(zero_subject, "latest")
+                .await
+                .expect("latest")
+                .id
+        );
+        assert_eq!(
+            zero_id,
+            zero.resolve(zero_subject, "1").await.expect("pinned").id
+        );
+    }
+    let before = registry.lookups();
+    assert_eq!(
+        zero_id,
+        zero.resolve(zero_subject, "latest")
+            .await
+            .expect("latest")
+            .id
+    );
+    assert_eq!(
+        zero_id,
+        zero.resolve(zero_subject, "1").await.expect("pinned").id
+    );
+    assert_eq!(
+        before + 1,
+        registry.lookups(),
+        "latest asked the registry again; the pinned version did not"
+    );
+    overrides::set("schema.halfhour.cache.ttl", "30m");
+    SchemaCodec::for_registry(config, Some(registry.base_url()), "schema.halfhour")
+        .expect("codec builds")
+        .expect("registry url given");
+    overrides::clear("schema.halfhour.cache.ttl");
+    assert_eq!(
+        1_800_000,
+        ManagedCache::get_instance("schema.halfhour.latest")
+            .expect("the latest cache")
+            .expiry_ms(),
+        "the retired key, passed on in seconds"
+    );
+    let latest_template = test_support::temp_path("schema-registry-latest.yml");
+    std::fs::write(&latest_template, "latest.cache.ttl.sec: 120\n").expect("write template");
+    overrides::set(
+        "schema.templated.properties",
+        &format!("file:{}", latest_template.display()),
+    );
+    overrides::set("schema.templated.cache.ttl", "30m");
+    SchemaCodec::for_registry(config, Some(registry.base_url()), "schema.templated")
+        .expect("codec builds")
+        .expect("registry url given");
+    overrides::clear("schema.templated.cache.ttl");
+    overrides::clear("schema.templated.properties");
+    assert_eq!(
+        120_000,
+        ManagedCache::get_instance("schema.templated.latest")
+            .expect("the latest cache")
+            .expiry_ms(),
+        "the template's latest.cache.ttl.sec wins over the retired key"
+    );
 }

@@ -665,17 +665,31 @@ switch for `schema.enabled` bindings and the `subject` header of `simple.kafka.n
 |---|---|
 | string (comma-separated locations) | `classpath:/schema-registry.yml, classpath:/schema-registry.properties` |
 
-The registry client template: authentication (`bearer.auth.*`, `basic.auth.*`) and the Confluent
-Cloud headers, interpreted by name; unknown keys are logged as ignored.
+The registry client template: authentication (`bearer.auth.*`, `basic.auth.*`), the Confluent
+Cloud headers, the request retry (`max.retries`, `retries.wait.ms`, `retries.max.wait.ms`, default
+3, 1000 and 20000) and the `latest` cache (`latest.cache.ttl.sec`, default 60), with the Confluent
+client's keys, interpreted by name; unknown keys are logged as ignored.
 
-#### `schema.registry.cache.ttl`, `schema.registry.version.cache.ttl`
+#### `schema.registry.version.cache.ttl`
 
 | Type | Default |
 |---|---|
-| duration | `30m` / `10d` |
+| duration | `10d` |
 
-TTLs of the id→schema cache (positive results only, cleared at startup) and of the pinned
-subject+version resolutions (bounded to 3000 entries).
+TTL of the pinned subject+version resolutions (positive results only, bounded to 3000 entries, cleared at
+startup). A schema fetched by id is cached for the life of the process, and a subject's `latest` for
+`latest.cache.ttl.sec` in the registry client template (60 seconds by default).
+
+#### `schema.registry.cache.ttl`
+
+| Type | Default |
+|---|---|
+| duration | — (retired) |
+
+**Retired**, as on the Java engine: it timed the cache of schemas by id and of `latest`. A value an
+application still sets is passed on as `latest.cache.ttl.sec` (in seconds, with a warning at startup) unless
+the registry client template sets that key itself; set `latest.cache.ttl.sec` in `schema-registry.yml`
+instead. The same holds for every prefix (`schema.registry.consumer.cache.ttl` included).
 
 #### `schema.registry.serde.json.fail.invalid.schema`
 
@@ -695,8 +709,8 @@ supported) and are logged as unsupported.
 
 Opt-in [separate Schema Registry identity for the consumer side](minimalist-kafka.md#schema-consumer-identity).
 When it names a registry client template, the Kafka flow adapter decodes with its own codec built under the
-`schema.registry.consumer` prefix — the same `schema.registry.url`, that template, its own
-`schema.registry.consumer.cache.ttl` — for an installation that grants registry access per direction
+`schema.registry.consumer` prefix — the same `schema.registry.url`, that template, its own caches
+(`schema.registry.consumer.version.cache.ttl` for pinned versions) — for an installation that grants registry access per direction
 (separate produce and consume identity pools). The consume identity lives in the template on this engine.
 Unset or blank: unchanged, one shared codec; `schema.registry.url` remains the feature switch.
 

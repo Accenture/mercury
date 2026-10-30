@@ -332,9 +332,11 @@ return route's R4.
     aws-lc TLS; the workspace stays on ring). Wire-visible parity is exact: the frame
     `[0x00][4-byte big-endian global id][payload]`; a JSON Schema payload is the document; an
     Avro payload is the binary datum against the registered writer schema (no container header).
-    Subject/version resolution, the id→schema cache (positive results only, TTL
-    `schema.registry.cache.ttl`, cleared at startup) and the pinned-version cache
-    (`schema.registry.version.cache.ttl`, bounded) follow the Java `ManagedCacheSchemaRegistryClient`;
+    Subject/version resolution and the caches follow the Java `ManagedCacheSchemaRegistryClient`
+    over Confluent's `CachedSchemaRegistryClient` (positive results only, cleared at startup): a
+    schema by id for the life of the process (bounded to 1000), `latest` for `latest.cache.ttl.sec`
+    (default 60 s), and the pinned-version cache (`schema.registry.version.cache.ttl`, bounded)
+    (2026-10-30: `schema.registry.cache.ttl` retired on both engines, passed on as `latest.cache.ttl.sec`);
     the registry is reached through the platform's own `async.http.request` client. The parsed
     schema (an Avro schema with its named types, or a compiled JSON validator) is cached with the
     text, so per-record encode/decode never re-parses. Proven against hand-computed
@@ -346,7 +348,10 @@ return route's R4.
     (`OAUTHBEARER`, `STATIC_TOKEN`, `SASL_OAUTHBEARER_INHERIT`), the client-credentials grant
     keys, `bearer.auth.token`, `bearer.auth.cache.expiry.buffer.seconds`, the Confluent Cloud
     headers `bearer.auth.logical.cluster` / `bearer.auth.identity.pool.id`,
-    `basic.auth.credentials.source` (`USER_INFO`, `URL`, `SASL_INHERIT`) — and logs every other
+    `basic.auth.credentials.source` (`USER_INFO`, `URL`, `SASL_INHERIT`), and the request retry
+    `max.retries` / `retries.wait.ms` / `retries.max.wait.ms` (2026-10-30: the Confluent client's
+    `RetryExecutor` ported with its defaults 3 / 1000 / 20000 — 408, 429, 500, 502, 503, 504 and
+    network failures retried with full jitter under a doubling ceiling) — and logs every other
     key at startup as ignored, never silently. The bearer token is fetched exactly as Kafka's
     own retriever does (client id/secret as HTTP Basic on the token request,
     `grant_type=client_credentials` + `scope` in the form body), cached and refreshed before

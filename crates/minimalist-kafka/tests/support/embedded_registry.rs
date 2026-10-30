@@ -81,6 +81,8 @@ struct State {
     issued_tokens: Mutex<HashSet<String>>,
     token_requests: AtomicUsize,
     lookups: AtomicUsize,
+    /// `(count, status)`: the next `count` lookups answer `status` (an outage).
+    failing: Mutex<(usize, u16)>,
 }
 
 /// A running embedded registry; dropping it leaves the server task to end
@@ -117,6 +119,7 @@ impl EmbeddedRegistry {
             issued_tokens: Mutex::new(HashSet::new()),
             token_requests: AtomicUsize::new(0),
             lookups: AtomicUsize::new(0),
+            failing: Mutex::new((0, 0)),
         });
         let served = state.clone();
         tokio::spawn(async move {
@@ -158,6 +161,13 @@ impl EmbeddedRegistry {
         self.state.lookups.load(Ordering::Acquire)
     }
 
+    /// Answer the next `count` lookups with `status` - a registry outage the
+    /// client's retry must ride out (or give up on). Each one still counts as
+    /// a lookup.
+    pub fn fail_next(&self, count: usize, status: u16) {
+        *self.state.failing.lock().expect("failing") = (count, status);
+    }
+
     /// The global id the next distinct registration will take.
     pub fn next_id(&self) -> i32 {
         self.state.store.lock().expect("store").next_id
@@ -187,6 +197,17 @@ impl EmbeddedRegistry {
 }
 
 impl State {
+    /// The injected outage answer for this lookup, while one is pending.
+    fn outage(&self) -> Option<Response<Full<Bytes>>> {
+        let mut failing = self.failing.lock().expect("failing");
+        if failing.0 == 0 {
+            return None;
+        }
+        failing.0 -= 1;
+        let status = failing.1;
+        Some(error(status, i64::from(status), "Injected registry outage"))
+    }
+
     fn register(
         &self,
         subject: &str,
@@ -367,6 +388,9 @@ async fn handle(
         }
         ("GET", ["", "subjects", subject, "versions", selector]) => {
             state.lookups.fetch_add(1, Ordering::AcqRel);
+            if let Some(outage) = state.outage() {
+                return Ok(outage);
+            }
             match state.version(&percent_decode(subject), selector) {
                 Ok(entity) => respond(200, entity),
                 Err((status, code, message)) => error(status, code, &message),
@@ -374,6 +398,9 @@ async fn handle(
         }
         ("GET", ["", "schemas", "ids", id]) => {
             state.lookups.fetch_add(1, Ordering::AcqRel);
+            if let Some(outage) = state.outage() {
+                return Ok(outage);
+            }
             match id.parse::<i32>().ok().and_then(|id| state.entity_by_id(id)) {
                 Some(entity) => respond(200, entity),
                 None => error(404, 40403, &format!("Schema {id} not found")),

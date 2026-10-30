@@ -32,6 +32,8 @@
 //! | `bearer.auth.cache.expiry.buffer.seconds` | refresh this long before the token expires (default 300) |
 //! | `bearer.auth.logical.cluster`, `bearer.auth.identity.pool.id` | Confluent Cloud headers (`target-sr-cluster`, `Confluent-Identity-Pool-Id`) |
 //! | `basic.auth.credentials.source` | `USER_INFO` (`basic.auth.user.info` = `user:password`), `URL` (credentials in the registry URL), `SASL_INHERIT` (the Kafka template's `sasl.username` / `sasl.password`) |
+//! | `max.retries`, `retries.wait.ms`, `retries.max.wait.ms` | how a failed registry request is retried (defaults 3, 1000, 20000 — see [`RegistryRetry`]) |
+//! | `latest.cache.ttl.sec` | how long a subject's `latest` resolution is cached, in seconds (default 60; 0 = not cached, negative = no expiry) |
 //!
 //! The bearer token is fetched with the client-credentials grant exactly as
 //! Kafka's own retriever does — the client id and secret as HTTP Basic on the
@@ -72,8 +74,14 @@ const BASIC_USER_INFO: &str = "basic.auth.user.info";
 /// A serde setting the template may carry because the serdes inherit it
 /// (Java parity); read by the codec, accepted silently here.
 const STRICT_JSON: &str = "json.fail.invalid.schema";
+const MAX_RETRIES: &str = "max.retries";
+const RETRIES_WAIT_MS: &str = "retries.wait.ms";
+const RETRIES_MAX_WAIT_MS: &str = "retries.max.wait.ms";
+/// Confluent's `latest.cache.ttl.sec`: how long a subject's latest version is
+/// cached, in seconds.
+pub const LATEST_CACHE_TTL_SEC: &str = "latest.cache.ttl.sec";
 
-const KNOWN_KEYS: [&str; 13] = [
+const KNOWN_KEYS: [&str; 17] = [
     BEARER_SOURCE,
     BEARER_ISSUER_URL,
     BEARER_CLIENT_ID,
@@ -86,6 +94,10 @@ const KNOWN_KEYS: [&str; 13] = [
     BASIC_SOURCE,
     BASIC_USER_INFO,
     STRICT_JSON,
+    MAX_RETRIES,
+    RETRIES_WAIT_MS,
+    RETRIES_MAX_WAIT_MS,
+    LATEST_CACHE_TTL_SEC,
     "schema.registry.url",
 ];
 
@@ -285,6 +297,81 @@ pub struct RegistrySettings {
     pub auth: RegistryAuth,
     /// Installation headers sent on every registry call.
     pub extra_headers: Vec<(String, String)>,
+    /// How a failed registry request is retried.
+    pub retry: RegistryRetry,
+    /// The template's `latest.cache.ttl.sec`, when it sets one (seconds; 0 =
+    /// not cached, negative = no expiry, as in the Confluent client).
+    pub latest_cache_ttl_sec: Option<i64>,
+}
+
+/// How a failed registry request is retried: the policy of the Confluent
+/// client the Java module uses (`io.confluent.kafka.schemaregistry.client.rest.RetryExecutor`),
+/// with its keys and defaults, so a Java template's tuning ports unchanged.
+/// A request answered 408, 429, 500, 502, 503 or 504, or failed by the network,
+/// is tried again up to `max_retries` times; before retry `n` (counting from 0)
+/// the client waits a random whole number of milliseconds from 1 to
+/// `min(wait_ms * 2^n, max_wait_ms)` (full jitter). With the defaults a lookup
+/// against a registry that never answers is tried four times in at most
+/// seven seconds of waiting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RegistryRetry {
+    /// `max.retries` — extra attempts after the first (0 = no retry).
+    pub max_retries: u32,
+    /// `retries.wait.ms` — the ceiling of the first wait.
+    pub wait_ms: u64,
+    /// `retries.max.wait.ms` — the cap on every wait's ceiling.
+    pub max_wait_ms: u64,
+}
+
+impl Default for RegistryRetry {
+    fn default() -> Self {
+        RegistryRetry {
+            max_retries: 3,
+            wait_ms: 1000,
+            max_wait_ms: 20_000,
+        }
+    }
+}
+
+impl RegistryRetry {
+    /// The wait before retry `retry` (0 for the first), drawn from `random`:
+    /// Confluent's full jitter, none when the ceiling is 0. The exponent stops
+    /// at 30, as Confluent's does.
+    pub fn delay(&self, retry: u32, random: u64) -> Duration {
+        let ceiling = self
+            .wait_ms
+            .saturating_mul(1u64 << retry.min(30))
+            .min(self.max_wait_ms);
+        if ceiling == 0 {
+            Duration::ZERO
+        } else {
+            Duration::from_millis(random % ceiling + 1)
+        }
+    }
+
+    fn from_template(template: &BTreeMap<String, String>) -> Result<RegistryRetry, AppError> {
+        fn number<T: std::str::FromStr>(
+            template: &BTreeMap<String, String>,
+            key: &str,
+            default: T,
+        ) -> Result<T, AppError> {
+            match template.get(key).filter(|v| !v.is_empty()) {
+                None => Ok(default),
+                Some(text) => text.trim().parse::<T>().map_err(|_| {
+                    AppError::new(
+                        500,
+                        format!("{key} must be a whole number of zero or more, got '{text}'"),
+                    )
+                }),
+            }
+        }
+        let defaults = RegistryRetry::default();
+        Ok(RegistryRetry {
+            max_retries: number(template, MAX_RETRIES, defaults.max_retries)?,
+            wait_ms: number(template, RETRIES_WAIT_MS, defaults.wait_ms)?,
+            max_wait_ms: number(template, RETRIES_MAX_WAIT_MS, defaults.max_wait_ms)?,
+        })
+    }
 }
 
 impl RegistrySettings {
@@ -461,6 +548,16 @@ impl RegistrySettings {
             registry,
             auth,
             extra_headers,
+            retry: RegistryRetry::from_template(template)?,
+            latest_cache_ttl_sec: match get(LATEST_CACHE_TTL_SEC) {
+                None => None,
+                Some(text) => Some(text.trim().parse::<i64>().map_err(|_| {
+                    AppError::new(
+                        500,
+                        format!("{LATEST_CACHE_TTL_SEC} must be a whole number of seconds, got '{text}'"),
+                    )
+                })?),
+            },
         })
     }
 
@@ -668,6 +765,105 @@ mod tests {
         assert_eq!(Some(("user".to_string(), "p@ss".to_string())), credentials);
         assert!(HttpTarget::parse("ftp://x").is_err());
         assert!(HttpTarget::parse("no-scheme").is_err());
+    }
+
+    #[test]
+    fn retry_takes_the_confluent_keys_and_defaults() {
+        let defaults = RegistrySettings::from_template(&template(&[]), "http://127.0.0.1:8081")
+            .expect("settings")
+            .retry;
+        assert_eq!(
+            RegistryRetry {
+                max_retries: 3,
+                wait_ms: 1000,
+                max_wait_ms: 20_000
+            },
+            defaults,
+            "Confluent's MAX_RETRIES_DEFAULT, RETRIES_WAIT_MS_DEFAULT, RETRIES_MAX_WAIT_MS_DEFAULT"
+        );
+        let tuned = RegistrySettings::from_template(
+            &template(&[
+                (MAX_RETRIES, "5"),
+                (RETRIES_WAIT_MS, " 200 "),
+                (RETRIES_MAX_WAIT_MS, "1500"),
+            ]),
+            "http://127.0.0.1:8081",
+        )
+        .expect("settings")
+        .retry;
+        assert_eq!(
+            RegistryRetry {
+                max_retries: 5,
+                wait_ms: 200,
+                max_wait_ms: 1500
+            },
+            tuned
+        );
+        for (key, value) in [(MAX_RETRIES, "-1"), (RETRIES_WAIT_MS, "1s")] {
+            let error = RegistrySettings::from_template(
+                &template(&[(key, value)]),
+                "http://127.0.0.1:8081",
+            )
+            .expect_err("refused");
+            assert_eq!(
+                format!("{key} must be a whole number of zero or more, got '{value}'"),
+                error.message()
+            );
+        }
+    }
+
+    #[test]
+    fn latest_cache_ttl_is_read_as_whole_seconds() {
+        let ttl = |value: &str| {
+            RegistrySettings::from_template(
+                &template(&[(LATEST_CACHE_TTL_SEC, value)]),
+                "http://127.0.0.1:8081",
+            )
+        };
+        assert_eq!(
+            None,
+            RegistrySettings::from_template(&template(&[]), "http://127.0.0.1:8081")
+                .expect("settings")
+                .latest_cache_ttl_sec,
+            "unset: the codec applies Confluent's default"
+        );
+        assert_eq!(
+            Some(120),
+            ttl(" 120 ").expect("settings").latest_cache_ttl_sec
+        );
+        assert_eq!(Some(0), ttl("0").expect("settings").latest_cache_ttl_sec);
+        assert_eq!(Some(-1), ttl("-1").expect("settings").latest_cache_ttl_sec);
+        assert_eq!(
+            "latest.cache.ttl.sec must be a whole number of seconds, got '1m'",
+            ttl("1m").expect_err("refused").message()
+        );
+    }
+
+    #[test]
+    fn retry_waits_are_full_jitter_under_a_doubling_ceiling() {
+        let retry = RegistryRetry::default();
+        // the ceiling doubles from retries.wait.ms: 1 s, 2 s, 4 s ... capped at 20 s
+        for (n, ceiling) in [
+            (0, 1000),
+            (1, 2000),
+            (2, 4000),
+            (4, 16_000),
+            (5, 20_000),
+            (40, 20_000),
+        ] {
+            assert_eq!(Duration::from_millis(1), retry.delay(n, 0), "retry {n}");
+            assert_eq!(
+                Duration::from_millis(ceiling),
+                retry.delay(n, ceiling - 1),
+                "retry {n}"
+            );
+            assert!(retry.delay(n, u64::MAX) <= Duration::from_millis(ceiling));
+        }
+        let no_wait = RegistryRetry {
+            wait_ms: 0,
+            ..RegistryRetry::default()
+        };
+        assert_eq!(Duration::ZERO, no_wait.delay(2, 12_345));
     }
 
     #[test]

@@ -99,9 +99,29 @@ impl KafkaRequestPublisher {
         headers: HashMap<String, Vec<u8>>,
         body: Option<Vec<u8>>,
     ) -> Result<(), AppError> {
-        let mut record: FutureRecord<'_, str, Vec<u8>> = FutureRecord::to(topic);
+        self.publish_keyed(topic, partition, None, headers, body)
+            .await
+    }
+
+    /// Publish one record with a key (Java `KafkaRequestPublisher.publishSync`
+    /// with a key): the dead-letter write passes the original record's key, so
+    /// a keyed record lands on the dead-letter partition its key hashes to
+    /// (murmur2, as the Java producer hashes it) and a reprocessor reads the key
+    /// where the producer put it. The key's bytes are copied as they arrived.
+    pub async fn publish_keyed(
+        &self,
+        topic: &str,
+        partition: Option<i32>,
+        key: Option<&[u8]>,
+        headers: HashMap<String, Vec<u8>>,
+        body: Option<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        let mut record: FutureRecord<'_, [u8], Vec<u8>> = FutureRecord::to(topic);
         if let Some(chosen) = partition {
             record = record.partition(chosen);
+        }
+        if let Some(bytes) = key {
+            record = record.key(bytes);
         }
         if let Some(payload) = &body {
             record = record.payload(payload);
