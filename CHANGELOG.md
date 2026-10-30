@@ -13,7 +13,19 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
-Each change merged to `main` after v4.12.26 is listed here; it moves under its release heading when the version is cut.
+Nothing yet. Each change merged to `main` after v4.12.27 is listed here; it moves under its release heading when the version is cut.
+
+---
+## Version 4.12.27, 10/30/2026
+
+The lock-step twin of Java 4.12.27. A dead-letter copy keeps its record's key (Fixed 1), a failed Schema Registry request is
+retried as Confluent's client retries one (Changed 1), and the schema caches follow the Confluent client's, which retires
+`schema.registry.cache.ttl` (Changed 2). One RustSec lockfile bump is included: `libz-sys` (Security 1). The Java release's
+dependency changes (Tomcat 11.0.27, Spring Boot 4.1.2 and the library round) and the mini-scheduler's job time zone have no
+counterpart in this engine. **Upgrade notes:** a lookup against a registry that never answers now fails after four attempts,
+and `max.retries: 0` keeps the single attempt (Changed 1). With `schema.registry.cache.ttl` unset, a newly registered `latest`
+schema version is picked up within 60 seconds instead of 30 minutes; a value still set is passed on as `latest.cache.ttl.sec`,
+with a warning (Changed 2). A dead-letter reprocessor reads the original key from the record (Fixed 1).
 
 ### Security
 
