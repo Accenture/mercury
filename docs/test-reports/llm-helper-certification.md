@@ -330,11 +330,11 @@ Start a helper with the credential exported in its environment, and each engine 
 
 ```bash
 # Python helper (8086) and Node.js helper (8087), from their repositories
-mercury-serve examples/llm-helper/llm_helper.py -Dlog.format=compact -Dllm.log.batches=true
-node dist/src/cli.js examples/llm-helper/llm-helper.mjs -Dlog.format=compact -Dllm.log.batches=true
+mercury-serve extensions/llm-helper/llm_helper.py -Dlog.format=compact -Dllm.log.batches=true
+node dist/src/cli.js extensions/llm-helper/llm-helper.mjs -Dlog.format=compact -Dllm.log.batches=true
 # AWS Bedrock instead of a key (Scenario 8): the AWS credential chain in the helper's environment, the surface the
 # account is enabled for, the model as the account lists it
-mercury-serve examples/llm-helper/llm_helper.py -Dllm.backend=bedrock -Dllm.aws.api=runtime \
+mercury-serve extensions/llm-helper/llm_helper.py -Dllm.backend=bedrock -Dllm.aws.api=runtime \
   -Dllm.model=us.anthropic.claude-haiku-4-5-20251001-v1:0
 
 # the engines, with the deploy folder of Appendix A (replace $DEPLOY; Rust takes one REST location)

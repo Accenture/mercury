@@ -60,7 +60,7 @@ impl ComposableFunction for LlmStreamRelay {
             let mut out = EventStreamWriter::from_request(&platform, &input)?;
             out.fail(&AppError::new(
                 503,
-                "AI streaming demo is not configured - start the LLM helper app (examples/llm-helper \
+                "AI streaming demo is not configured - start the LLM helper (extensions/llm-helper \
                  of mercury-python or mercury-nodejs) with ANTHROPIC_API_KEY in its environment and \
                  map llm.stream in event-over-http.yaml",
             ))

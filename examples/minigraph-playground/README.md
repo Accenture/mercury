@@ -88,8 +88,8 @@ that is a plain function on a polyglot wrapper host — the engine stays LLM-fre
   progressively out this application's edge as SSE.
 
 Both routes live on the LLM helper app — `resources/event-over-http.yaml` points them at the Node.js
-helper (mercury-nodejs `examples/llm-helper`, port 8087) by default; `-Dllm.peer.port=8086` selects the
-Python helper (mercury-python `examples/llm-helper`). Start one with `ANTHROPIC_API_KEY` exported in its
+helper (mercury-nodejs `extensions/llm-helper`, port 8087) by default; `-Dllm.peer.port=8086` selects the
+Python helper (mercury-python `extensions/llm-helper`). Start one with `ANTHROPIC_API_KEY` exported in its
 environment, then:
 
 ```bash
