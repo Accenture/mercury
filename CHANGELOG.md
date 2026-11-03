@@ -15,6 +15,15 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 
 Each change merged to `main` after v4.12.27 is listed here; it moves under its release heading when the version is cut.
 
+### Added
+
+1. **The envelope golden vector `standard-trace-context` (Increment 195).** The Java engine added it in mercury-composable
+   #213 (2026-07-21) after this engine's conformance review found that no vector carried `span_id`, the field that parents a
+   trace across languages; this repository's copy of `vectors.json` was never re-synced. The file is now byte-identical with
+   the Java engine's and the language packs' copies, seven vectors, and `envelope_wire_format` decodes and round-trips six
+   standard ones (the compact vector stays skipped). The codec passed the new vector unchanged. **Upgrade note:** none - a
+   test fixture; no shipped behaviour changes.
+
 ### Changed
 
 1. **The Playground's LLM relay names the helpers' new folder (Increment 194).** Both language packs moved their LLM helper

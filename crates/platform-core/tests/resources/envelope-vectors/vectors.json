@@ -92,6 +92,25 @@
       }
     },
     {
+      "name": "standard-trace-context",
+      "format": "standard",
+      "base64": "iqdoZWFkZXJzgaJrMaJ2Mah0cmFjZV9pZNkgMGFmNzY1MTkxNmNkNDNkZDg0NDhlYjIxMWM4MDMxOWOnc3Bhbl9pZLBiN2FkNmI3MTY5MjAzMzMxpGZyb22sY2FsbGVyLnJvdXRlomlkpWUwMDA3onRvrHRyYWNlZC5yb3V0Zap0cmFjZV9wYXRos1BVVCAvYXBpL3RyYWNlL2RlbW+kYm9kea10cmFjZSBjb250ZXh0o2NpZKhjaWQtMzAwM6ZzdGF0dXPMyA==",
+      "expect": {
+        "headers": {
+          "k1": "v1"
+        },
+        "trace_id": "0af7651916cd43dd8448eb211c80319c",
+        "span_id": "b7ad6b7169203331",
+        "from": "caller.route",
+        "id": "e0007",
+        "to": "traced.route",
+        "trace_path": "PUT /api/trace/demo",
+        "body": "trace context",
+        "cid": "cid-3003",
+        "status": 200
+      }
+    },
+    {
       "name": "compact-full-metadata",
       "format": "compact",
       "base64": "iqEwpWUwMDA2oXCtR0VUIC9hcGkvZGVtb6FSq3JlcGx5LnJvdXRloUKmbGVnYWN5oVPMyKFUrHRhcmdldC5yb3V0ZaF0qnRyYWNlLTIwMDKhRqxzb3VyY2Uucm91dGWhWKhjaWQtMTAwMaFIgaJrMaJ2MQ==",

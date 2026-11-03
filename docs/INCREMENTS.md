@@ -5256,3 +5256,23 @@ CHANGELOG Unreleased, `Changed` item 1 and `Documentation` item 1.
 
 Gates: `cargo test -p minigraph-playground`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --all --check`,
 `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.
+
+## Increment 195 — The envelope golden vector `standard-trace-context` re-synced from the Java engine (2026-11-03)
+
+Increment 59 sent the Java session a review finding: no envelope vector carried `span_id`, the field cross-language trace
+parenting rides on. The Java engine answered the same day in mercury-composable #213 (`176ac841`) with a seventh vector,
+`standard-trace-context` (`e0007`: `trace_id`, `span_id`, `trace_path`, `from`, `to`, `cid`, a string body and status 200),
+and asked this port to re-sync `vectors.json` and raise its count of standard vectors from 5 to 6. The copy here still held
+six vectors from Increment 59 (`7037ecb2`); the first invariant re-verify of the Python and Node.js language packs found it
+one short of the Java file, which both packs carry byte for byte.
+
+- **`tests/resources/envelope-vectors/vectors.json`.** Copied from the Java engine; the two files hash the same (SHA-256
+  `da95a775…`, the Java file's missing final newline included). Vectors `e0001`–`e0006` are unchanged.
+- **`tests/envelope_wire_format.rs`.** `standard_vectors_decode_and_round_trip` expects six standard vectors. Before the
+  count was raised, the run reached it with the new vector decoded and round-tripped, so `envelope.rs` needed no change.
+  A negative control, the vector's expected `span_id` altered by one digit, failed with `standard-trace-context: span_id`.
+
+CHANGELOG Unreleased, `Added` item 1.
+
+Gates: `cargo test -p mercury-platform-core` (33 suites, 291 passed, 0 failed, 2 ignored),
+`cargo clippy -p mercury-platform-core --all-targets -- -D warnings`, `cargo fmt --all --check`.
