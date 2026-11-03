@@ -106,7 +106,7 @@ fn standard_vectors_decode_and_round_trip() {
             .unwrap_or_else(|e| panic!("{name}: round-trip decode failed - {e}"));
         assert_matches(name, &round_tripped, &vector["expect"]);
     }
-    assert_eq!(standard, 5, "all five standard vectors exercised");
+    assert_eq!(standard, 6, "all six standard vectors exercised");
 }
 
 /// The spec's decoder rules beyond the vectors: absent body decodes as Nil
