@@ -33,7 +33,9 @@ in lock-step from Java, and future UI work arrives as concrete threads. The conn
 too: `sync-over-async` shipped 2026-09-13, `minimalist-kafka` in v4.12.14 (its thread closed
 2026-09-23), the OpenTelemetry forwarder as Increment 129. **Forward runway now:** each increment
 a twin of a Java change, and a release adopts the Java engine's release number when this repository
-has changes (Eric, 2026-10-13: the port catches up with its next feature or fix); `twin-kafka`
+has changes (Eric, 2026-10-13: the port catches up with its next feature or fix). It catches up closely once Java has
+a new release, because Java is the reference implementation; the python/node.js language packs catch up only when
+functionality crosses from the engine to them, so they may trail further (Eric, 2026-11-03); `twin-kafka`
 deferred; the Kafka service mesh stays out of scope (Non-goals).
 
 > Refreshed 2026-07-21 at the invariant re-verify ceremony (maintainer-confirmed; the

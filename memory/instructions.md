@@ -91,7 +91,8 @@ addressed only by its **route name**; the only thing passed between functions is
 ## Port Scope & Source Mapping
 
 Canonical source: `mercury-composable` (Java, `com.accenture.mercury`; a release here adopts the Java
-release number when this repository has changes — see `continuity.md` → Project State for the current version). The
+release number when this repository has changes, and catches up closely once Java has a new release, since Java is the
+reference implementation (Eric, 2026-11-03) — see `continuity.md` → Project State for the current version). The
 authoritative behavior spec is that repo + its `docs/guides/` — we **map, don't mirror**.
 
 **In scope** (the three layers → Rust):
