@@ -13,7 +13,7 @@
 ## Project State
 
 - **project:** mercury
-- **status:** **Rust port of `mercury-composable`** (canonical Java, released lock-step), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22). The current release is the `latest_release` field below (both engines release in lock-step, one number for the same content). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7.)
+- **status:** **Rust port of `mercury-composable`** (canonical Java; a release here adopts the Java release number it catches up to), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22). The current release is the `latest_release` field below (a release adopts the Java engine's release number when this repository has changes, one number for the same content — Eric, 2026-10-13; so a Java-only release, 4.12.25, has no twin here). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7; the lock-step clause corrected 2026-11-03 at review to the ruling the Vision has stated since the 2026-10-24 re-verify.)
 - **latest_release:** v4.12.27 (2026-10-30 23:15:12Z — **the lock-step twin of Java 4.12.27: the dead-letter copy keeps the record
   key, the registry client retries as Confluent's does, the schema caches follow the Confluent client's (`schema.registry.cache.ttl`
   retired) and the `libz-sys` 1.1.31 RustSec bump (Increments 191–193, #399)**: release PR #400 merge `03952aee` = tag `v4.12.27` =
@@ -66,16 +66,18 @@
   facade, `Platform::keep_running`, `group.protocol=auto`; 12 crates. Origin 2026-09-22-010413.md.) Prior: v4.12.12
   (2026-09-21 — the catch-up release 4.12.7 → 4.12.12 in one step, PR #296 → `983e7550`, tag → `1ef183cb`; Increments 118–124.)
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-10-24 | through 2026-10-24-040826.md (ON COMMAND + CADENCE — 17 sessions since the 2026-10-11 review:
-  `refresh-metadata` refreshed 5 footers, tier changes 2 (`mock-upload-loads-every-member` → active, `release-4-12-24` →
-  archive-candidate); archived 3 faded facts (`graph-import-travels-like-command`, `msgpack-nesting-limit-64-rust`,
-  `msgpack-hostile-header-vectors-rust`) after step 6 found no reliance (no window commit on the MsgPack paths; the import fact's
-  path commits, #394 and the tutorials set, did not rely on it); KEPT `mock-upload-loads-every-member` as a declaration gap
-  (Increment 181, 2026-10-21-010823, extended its every-member test undeclared; re-affirmed in the review's log); swept 0 threads
-  (`release-4-12-24` closed inside the window); reactivated 0, superseded 0; archive-verify pass; **the invariant re-verify is
-  due (53 of 40): gate [[reverify-invariants-20261024]] raised for Eric**; stalled threads none; contradictions none; Doc Gaps:
-  no window log carries the section; `memory/instructions.md`'s repository map corrected (five unpublished workspace members);
-  live facts 15 → 13, lines 348. Smoke test not run.)
+- **last_review:** 2026-11-03 | through 2026-11-03-005834.md (CADENCE — 10 sessions since the 2026-10-24 review:
+  `refresh-metadata` refreshed 6 footers, tier changes 4 (`release-4-12-26` and `release-4-12-27` → active,
+  `mock-upload-loads-every-member` and `reverify-invariants-20261024` → archive-candidate); archived 0 facts (none faded, none
+  superseded), so step 6's declaration-gap check had none to examine; swept 1 completed thread (`release-4-12-24`, 22 sessions
+  since its close); the three closed threads left are stubs inside the window; reactivated 0, superseded 0; archive-verify pass;
+  invariants not due (9 of 40 since 2026-10-24-042748); stalled threads none (no unchecked thread); contradictions none, one
+  stale statement corrected (the `status` line's and `memory/instructions.md`'s "released lock-step", to Eric's 2026-10-13
+  ruling as the Vision states it); Doc Gaps: no window log carries the section; next to cross the window:
+  `graph-set-pack-and-deploy-rust` (20 sessions with this log); live facts 16 → 15. Smoke test not run.)
+  Prior: 2026-10-24 | through 2026-10-24-040826.md (ON COMMAND + CADENCE — refreshed 5 footers, tier changes 2; archived 3 faded
+  facts and KEPT `mock-upload-loads-every-member` as a declaration gap; swept 0; the invariant re-verify gate raised (53 of 40);
+  live facts 15 → 13, lines 348)
   Prior: 2026-10-11 | through 2026-10-11-034408.md (ON COMMAND — refreshed 4 footers, tier changes 3; archived 0 and KEPT
   `conv-tests-remove-temp-files-rust` as a declaration gap; swept 0; invariants not due (36 of 40); live facts 14, lines 389)
   Prior: 2026-10-09 | through 2026-10-09-032244.md (CADENCE — 17 sessions since the 2026-10-06 review: `refresh-metadata` refreshed 9
@@ -210,7 +212,7 @@ layers shipped; the two above have held through every re-verify.)*
   controls became three steps in the same round - Instantiate, Upload (optional; the form opens for the clicking session only, no console command) and Run - and the
   multi-select hint left the canvas; the UI lives in the Java repo and arrives here as the bundle `index-Bg13jQpc` ([[webapp-single-source-java-repo]]). Pinned by
   `mock_upload_loads_every_member_instance` in `tests/graph_runtime.rs`.
-  <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-24 | uses: 6 | tier: active | origin: 2026-10-02-232252 -->
+  <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-24 | uses: 6 | tier: archive-candidate | origin: 2026-10-02-232252 -->
 
 - **Graph sets follow ADR-0027 in the Java repository's ledger (RFC-0005, promoted 2026-10-06): one or more graphs in a canonical
   `<set>.pack`, checked by the gate when packed and deployed all or none through a generated manifest; a set of one graph is how one graph
@@ -324,7 +326,7 @@ layers shipped; the two above have held through every re-verify.)*
   of a Java webapp fix). `Cargo.toml` has no `exclude` any more; `cargo package --list` carries 214 files, the 42 help pages, the bundle and the entry page, no
   webapp path and no source map. The source maps stay gitignored here. Supersedes [[webapp-bundle-follows-help-edits]] (the rule that a help edit needs the rebuilt bundle still holds, now from the
   Java repo). Relates [[example-and-template-carry-their-flows]].
-  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-22 | uses: 22 | tier: active | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
+  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-24 | uses: 23 | tier: active | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
 
 - **Tests remove the temporary files they write when they complete, verified by measuring (Eric, 2026-10-06; Increment 162, PR
   #360 merge `acf767d7`, MERGED 2026-10-06 05:35Z).** A test binary runs its tests in parallel and has no after-all hook. Per-process files go under `test_support::temp_path`
@@ -335,7 +337,7 @@ layers shipped; the two above have held through every re-verify.)*
   of its own, because the cleanup removes the holding area. Verify per test binary: a marker file, each binary run from its package
   folder, then `find -newer` over the system temp folder and `/tmp`. Java twin fact `conv-tests-remove-temp-files`; the thread is the
   Java repository's `test-temp-file-housekeeping`.
-  <!-- id: conv-tests-remove-temp-files-rust | created: 2026-10-06 | last_used: 2026-10-24 | uses: 5 | tier: active | origin: 2026-10-06-053150 -->
+  <!-- id: conv-tests-remove-temp-files-rust | created: 2026-10-06 | last_used: 2026-10-30 | uses: 6 | tier: active | origin: 2026-10-06-053150 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 

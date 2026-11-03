@@ -135,3 +135,4 @@
 - graph-import-travels-like-command — A graph model imported from a file travels like a command: `POST /api/graph/import/{id}` m… — faded — 2026-Q4.md
 - msgpack-nesting-limit-64-rust — A MsgPack payload may nest at most 64 maps and lists, the outermost container being level… — faded — 2026-Q4.md
 - msgpack-hostile-header-vectors-rust — The MsgPack decoders of both engines are pinned by one shared hostile-header vector file,… — faded — 2026-Q4.md
+- release-4-12-24 — Release v4.12.24 — SHIPPED 2026-10-12: the lock-step twin of Java 4.12.24 (Increments 177–… — completed thread swept (older than archive_window) — 2026-Q4.md

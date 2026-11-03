@@ -5,4 +5,4 @@
   the Java PR #600 and the field's result are recorded in the Java repo.
   origin: 2026-10-30-230441; close 2026-10-30-231959.
   → serves: vision-mercury
-  <!-- id: release-4-12-27 | created: 2026-10-30 | last_used: 2026-10-30 | uses: 1 | tier: working | origin: 2026-10-30-230441 -->
+  <!-- id: release-4-12-27 | created: 2026-10-30 | last_used: 2026-10-30 | uses: 2 | tier: active | origin: 2026-10-30-230441 -->
