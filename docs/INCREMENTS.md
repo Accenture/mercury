@@ -5238,3 +5238,21 @@ implementation so it needs to follow the same caching mechanism").
 
 Gates: `cargo test --workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
 `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.
+
+## Increment 194 — The Playground's LLM relay names the helpers' `extensions/` folder (2026-11-03)
+
+Both language packs graduated their LLM helper from an example to an extension, in lockstep: mercury-python #46 and
+mercury-nodejs #114 moved it from `examples/llm-helper/` to `extensions/llm-helper/`. The Playground told a user to start a
+helper from a folder that no longer exists. The lock-step twin of mercury-composable #601.
+
+- **`examples/minigraph-playground/src/lib.rs`.** The 503 that `/api/llm/stream` answers when `llm.stream` is neither local
+  nor mapped reads "start the LLM helper (extensions/llm-helper of mercury-python or mercury-nodejs)"; the route, the
+  status and the rest of the message are unchanged. `tests/llm_stream_twin.rs` still finds "not configured" in it.
+- **The Playground's README and `resources/event-over-http.yaml`.** The helpers' folder and the commented start commands.
+- **`docs/test-reports/llm-helper-certification.md`.** The Reproduce commands; the environment rows keep the folder of the
+  2026-10-01 drive. Its earlier increment (above) keeps the old path as history too.
+
+CHANGELOG Unreleased, `Changed` item 1 and `Documentation` item 1.
+
+Gates: `cargo test -p minigraph-playground`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --all --check`,
+`python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.
