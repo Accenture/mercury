@@ -1,8 +1,8 @@
 - [ ] **Catch up the Java engine's common features since 4.12.27, the mini-scheduler excepted (Eric, 2026-11-05).** Java
   4.12.28 and 4.12.29 were Java-only releases because their headline work was the mini-scheduler, which this port does
   not have (no number without content). Eric: everything else the Java repo shipped since comes across this sprint.
-  Items, one PR and Increment each, in Java's order: (1) #610's abort record (Increment 196, branch
-  `fix/flow-abort-log`); (2) #605/#606, the agent loop `llm.run` with the ask row, as `extensions/agent-loop`, passing
+  Items, one PR and Increment each, in Java's order: (1) #610's abort record (Increment 196, PR #403
+  MERGED `46a62855`); (2) #605/#606, the agent loop `llm.run` with the ask row, as `extensions/agent-loop`, passing
   the shared `llm-run-vectors.json`; (3) #609, the asynchronous `graph.extension` and its CompileGraph rule; (4) #611,
   progress events, the `x-return-path` relays, the graph-run WebSocket entry, `llm.run`'s progress events, the
   streaming single-shot reply and the Kafka progress publisher; (5) #617, `playground.panel.name` in `get_index_html`,
