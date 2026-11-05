@@ -28,8 +28,8 @@ delivered increment become the next Current State (the VBDI loop — see `DECAY.
 
 ## Repository Structure
 
-Cargo workspace; twelve published crates (verified 12/12 on crates.io at v4.12.19) — the seven core
-crates under `crates/` and five add-ons under `extensions/`; five workspace members stay unpublished (`publish = false`:
+Cargo workspace; thirteen published crates (verified 13/13 on crates.io at v4.12.30) — the seven core
+crates under `crates/` and six add-ons under `extensions/`; five workspace members stay unpublished (`publish = false`:
 the test support, the Redis test double, the API playground, the graph packager and the benchmark reporter):
 
 ```
@@ -49,7 +49,7 @@ extensions/
   distributed-cache      ← v1.cache.redis — one action function over opaque bytes, Java byte-compatible
   minigraph-state-redis  ← pluggable suspend/resume state store
   opentelemetry-forwarder← the no-SDK OTLP trace forwarder, opt-in by otel.forwarding
-  agent-loop             ← llm.run, the agent loop of RFC-0011 (Increment 198; first published at the next release)
+  agent-loop             ← llm.run, the agent loop of RFC-0011 (Increment 198; published since 4.12.30)
   redis-test-double      ← test-only Redis double (publish = false)
   api-playground         ← Swagger UI in a Mercury page, the Java extension's twin (publish = false)
 examples/<name>/         ← standalone workspace crates, never cargo examples in a library crate

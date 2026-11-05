@@ -14,16 +14,21 @@
 
 - **project:** mercury
 - **status:** **Rust port of `mercury-composable`** (canonical Java; a release here adopts the Java release number it catches up to), delivered bottom-up; all three in-scope layers (platform-core, event-script, active knowledge graph + Playground) ported and milestone-closed, **GRADUATED to github.com/Accenture/mercury 2026-07-20** (docs at accenture.github.io/mercury; regular PR process). Kafka service mesh + Spring out of scope; `minimalist-kafka` is ported (K1–K5 under `ot-minimalist-kafka-port`, the Schema Registry included) and so is the OpenTelemetry forwarder (`extensions/opentelemetry-forwarder`, Increment 129, #307 merged 2026-09-22). The current release is the `latest_release` field below (a release adopts the Java engine's release number when this repository has changes, one number for the same content — Eric, 2026-10-13; so a Java-only release, 4.12.25, has no twin here; and the port catches up closely once Java has a new release, because Java is the reference implementation — Eric, 2026-11-03). History lives in `docs/INCREMENTS.md`, session logs, and CHANGELOG — not this line. (Condensed 2026-09-04 when the smoke test flagged this line for carrying version history against its own rule; re-condensed 2026-09-21 when the release clause had gone stale at v4.12.7; the lock-step clause corrected 2026-11-03 at review to the ruling the Vision has stated since the 2026-10-24 re-verify.)
-- **latest_release:** v4.12.27 (2026-10-30 23:15:12Z — **the lock-step twin of Java 4.12.27: the dead-letter copy keeps the record
-  key, the registry client retries as Confluent's does, the schema caches follow the Confluent client's (`schema.registry.cache.ttl`
-  retired) and the `libz-sys` 1.1.31 RustSec bump (Increments 191–193, #399)**: release PR #400 merge `03952aee` = tag `v4.12.27` =
-  the main head at the tag; `[workspace.package] version` 4.12.27 at the tag; the GitHub release is published (not a draft), its
-  notes the CHANGELOG section; `rust`, `docs` and agent-memory CI green on the tag commit. READ: a registry that never answers fails
-  a lookup after four attempts, `max.retries: 0` keeps one (Changed 1); a set `schema.registry.cache.ttl` is passed on as
-  `latest.cache.ttl.sec` with a warning (Changed 2). 13 manifests / 24 occurrences, `cargo update -w` 27 lines; 142 suites / 737
-  passed / 0 failed / 9 ignored at the cut. **Published and VERIFIED 2026-10-30:** the twelve crates on crates.io at 4.12.27
-  (23:17:18Z–23:17:31Z). Java: #600 squash `2929ea31` = tag, for the field to test (the Java repo records its result). Origin
-  2026-10-30-231959.md.
+- **latest_release:** v4.12.30 (2026-11-05 23:38:02Z — **the lock-step twin of Java 4.12.30, catching up from 4.12.27 with
+  every common feature since: the agent loop `llm.run` in the new crate `mercury-agent-loop`, the asynchronous
+  `graph.extension`, progress events and `/ws/graph-run`, the aborted-flow record, `playground.panel.name` with the bundle and
+  help, the AI companion broker (Increments 194–201, #401–#408)**; no number for Java 4.12.28/4.12.29 (the mini-scheduler, no
+  number without content): release PR #409 merge `852c2977` = tag `v4.12.30` = the main head at the tag (the memory records
+  held until after the tag); `[workspace.package] version` 4.12.30 at the tag; the GitHub release published (not a draft), its
+  notes the CHANGELOG section; `rust`, `docs` and agent-memory green on the tag. READ: CompileGraph refuses a blank `progress`
+  and an input mapping to `header.x-return-path`; `graph.progress.*`, `graph.run.socket.reply` and, once linked, `llm.run` are
+  reserved; the broker is `templates/starter-graph/scripts/ai-companion-broker.mjs`. 14 manifests / 25 occurrences, 28 lock
+  lines; 149 suites / 767 passed / 0 failed / 9 ignored at the cut. **Published and VERIFIED 2026-11-05: THIRTEEN crates on
+  crates.io at 4.12.30 (23:40:28Z–23:40:37Z), `mercury-agent-loop`'s first publish.** Java: #620 squash `ea06d6bc` = tag.
+  Origin 2026-11-05-234236.md.
+  Prior: v4.12.27 (2026-10-30 23:15:12Z — the lock-step twin of Java 4.12.27: the dead-letter key, the registry client's retries,
+  the schema caches, `libz-sys` 1.1.31; #400 merge `03952aee` = tag; 142 suites / 737 passed; crates 12/12 at 23:17Z. Origin
+  2026-10-30-231959.md.)
   Prior: v4.12.26 (2026-10-26 17:02:09Z — the lock-step twin of Java 4.12.26, catching up from 4.12.24: the RFC-0010 JSONPath
   refusals and substitution checks, the companion refusal flag, the date plugins, the Playground round and three RustSec bumps;
   #398 merge `9a205c06` = tag; 142 suites / 732 passed; crates 12/12 at 17:00Z. Origin 2026-10-26-170309.md.)
