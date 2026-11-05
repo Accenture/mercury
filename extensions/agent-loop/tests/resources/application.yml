@@ -1,0 +1,12 @@
+#
+# agent-loop tests (Java parity: the module's own src/test/resources/application.properties)
+#
+application.name: 'agent-loop-test'
+info.app:
+  version: '1.0.0'
+  description: 'Agent loop (llm.run) tests'
+log.format: 'text'
+#
+# One global default set here, to show a configured default reaches the loop; the others stay built in.
+#
+llm.run.result.limit: '32768'

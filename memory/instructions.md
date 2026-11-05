@@ -49,6 +49,7 @@ extensions/
   distributed-cache      ← v1.cache.redis — one action function over opaque bytes, Java byte-compatible
   minigraph-state-redis  ← pluggable suspend/resume state store
   opentelemetry-forwarder← the no-SDK OTLP trace forwarder, opt-in by otel.forwarding
+  agent-loop             ← llm.run, the agent loop of RFC-0011 (Increment 198; first published at the next release)
   redis-test-double      ← test-only Redis double (publish = false)
   api-playground         ← Swagger UI in a Mercury page, the Java extension's twin (publish = false)
 examples/<name>/         ← standalone workspace crates, never cargo examples in a library crate

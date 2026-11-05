@@ -101,7 +101,9 @@ is likewise reserved: it is the **generic exception context namespace** (`error.
 extension crate reserves **`v1.cache.redis`** and the health route **`redis.health`** when an
 application links it and sets `redis.cache.enabled=true`; the `sync-over-async` extension
 crate's health route is **`soa.redis.health`** — the two coexist, each reporting on its own
-`redis.*` / `soa.redis.*` server. See [Distributed Cache](distributed-cache.md).
+`redis.*` / `soa.redis.*` server. See [Distributed Cache](distributed-cache.md). The `agent-loop` extension crate
+reserves **`llm.run`**, the agent loop (model turns through `llm.chat`, tools by route), when an
+application links it.
 
 Routes marked * — and the whole Playground developer surface below — are gated by
 `#[optional_service("app.env=dev")]` and exist only when `app.env` is `dev`:
