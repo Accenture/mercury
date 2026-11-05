@@ -1,0 +1,140 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "unit-test-async-6",
+        "purpose": "an asynchronous extension to a flow, under the flow's own ttl"
+      }
+    },
+    {
+      "alias": "start",
+      "types": [
+        "Extension"
+      ],
+      "properties": {
+        "skill": "graph.extension",
+        "async": "true",
+        "exception": "failed",
+        "extension": "flow://async-recorder",
+        "input": [
+          "input.body.item -> item",
+          "input.body.delay -> delay"
+        ]
+      }
+    },
+    {
+      "alias": "advice",
+      "types": [
+        "Advice"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "int(202) -> output.status",
+          "text(advice) -> output.body.type",
+          "text(You will receive a notification once it is complete.) -> output.body.message"
+        ],
+        "purpose": "the 202 advice the caller gets while the target runs"
+      }
+    },
+    {
+      "alias": "island",
+      "types": [
+        "Island"
+      ],
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "anchors the handler"
+      }
+    },
+    {
+      "alias": "failed",
+      "types": [
+        "Handler"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "error.source -> output.body.source",
+          "error.code -> output.body.code",
+          "error.message -> output.body.message",
+          "text(not started) -> output.body.stage"
+        ],
+        "purpose": "a failure to start routes here"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "start"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "island"
+    },
+    {
+      "source": "island",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "failed"
+    },
+    {
+      "source": "start",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "advice"
+    },
+    {
+      "source": "advice",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "failed",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

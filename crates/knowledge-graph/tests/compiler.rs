@@ -90,7 +90,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        68,
+        75,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
@@ -150,6 +150,11 @@ fn invalid_manifest_graphs_are_not_compiled() {
         "unit-test-error-alias",
         // a Jayway-only filter operator in a data mapping's JSONPath (RFC-0010)
         "unit-test-jsonpath-err1",
+        // 'async' on graph.task, a value other than true or false, and an output
+        // mapping on an asynchronous graph.extension (RFC-0011 section 8.1)
+        "unit-test-async-err1",
+        "unit-test-async-err2",
+        "unit-test-async-err3",
     ] {
         assert!(
             !graphs::graph_exists(id),
@@ -455,5 +460,49 @@ fn static_validator_rejects_a_task_without_its_skill_in_both_directions() {
             error.contains(expected) && error.contains("node worker"),
             "{id}: {error}"
         );
+    }
+}
+
+/// Java parity (CompileGraphTest.anAsynchronousExtensionIsValidated, RFC-0011 section 8.1):
+/// 'async' starts a graph.extension target and returns at once - err1 puts 'async' on
+/// graph.task, err2 gives it a value that is neither true nor false, err3 maps an output on an
+/// asynchronous node, which would read a result that never arrives.
+#[test]
+fn an_asynchronous_extension_is_validated() {
+    compile_once();
+    for id in [
+        "unit-test-async-sub",
+        "unit-test-async-1",
+        "unit-test-async-2",
+        "unit-test-async-5",
+    ] {
+        assert!(graphs::graph_exists(id), "{id} must compile");
+    }
+    let import = |id: &str| {
+        let reader =
+            ConfigReader::load(&format!("classpath:/graph/{id}.json")).expect("fixture loads");
+        let json = ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
+        let model = event_script::conversions::from_json(&json);
+        let graph = MiniGraph::new();
+        graph.import_graph(&model).expect("fixture is importable");
+        graph
+    };
+    for (id, expected) in [
+        (
+            "unit-test-async-err1",
+            "node start - 'async' is only applicable to a node with skill graph.extension",
+        ),
+        (
+            "unit-test-async-err2",
+            "node start - 'async' must be true or false",
+        ),
+        (
+            "unit-test-async-err3",
+            "node start - an asynchronous graph.extension returns nothing, so it takes no 'output'",
+        ),
+    ] {
+        assert!(!graphs::graph_exists(id), "{id} must fail the gate");
+        let error = model_validator::validate(&import(id)).expect_err(id);
+        assert_eq!(expected, error, "{id}");
     }
 }

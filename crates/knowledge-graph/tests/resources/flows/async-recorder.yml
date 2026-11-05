@@ -1,0 +1,17 @@
+flow:
+  id: 'async-recorder'
+  description: 'The flow target of an asynchronous graph.extension (unit-test-async-5)'
+  ttl: 45s
+
+first.task: 'v1.async.recorder'
+
+tasks:
+  - input:
+      - 'input.body.item -> item'
+      - 'input.body.delay -> delay'
+      - 'model.ttl -> ttl'
+    process: 'v1.async.recorder'
+    output:
+      - 'result -> output.body'
+    description: 'record the run'
+    execution: end

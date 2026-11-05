@@ -123,3 +123,17 @@ graphs:
   # the date plugins: addDays and daysBetween in a data mapper - a due date from the payment terms and
   # the days between it and the payment date, in either order
   - 'unit-test-date-arithmetic-1'
+  # asynchronous graph.extension (RFC-0011 section 8.1, Java #609): start a target and answer at once - a
+  # subgraph, a fan-out, a graph and a flow that are not deployed, a flow target under the node's ttl or its
+  # own; the err graphs put 'async' on graph.task, give it a value other than true or false, and map an
+  # output on an asynchronous node, and the gate must reject them
+  - 'unit-test-async-sub'
+  - 'unit-test-async-1'
+  - 'unit-test-async-2'
+  - 'unit-test-async-3'
+  - 'unit-test-async-4'
+  - 'unit-test-async-5'
+  - 'unit-test-async-6'
+  - 'unit-test-async-err1'
+  - 'unit-test-async-err2'
+  - 'unit-test-async-err3'
