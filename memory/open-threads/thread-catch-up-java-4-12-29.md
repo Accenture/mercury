@@ -1,17 +1,10 @@
-- [ ] **Catch up the Java engine's common features since 4.12.27, the mini-scheduler excepted (Eric, 2026-11-05).** Java
-  4.12.28 and 4.12.29 were Java-only releases because their headline work was the mini-scheduler, which this port does
-  not have (no number without content). Eric: everything else the Java repo shipped since comes across this sprint.
-  Items, one PR and Increment each, in Java's order: (1) #610's abort record (Increment 196, PR #403
-  MERGED `46a62855`); (2) #605/#606, the agent loop `llm.run` with the ask row, as `extensions/agent-loop`, passing
-  the shared `llm-run-vectors.json` (Increment 198, PR #405 MERGED `21c9f150`; a new published crate); (3) #609, the asynchronous `graph.extension` and its CompileGraph rule (Increment 197, PR #404
-  MERGED `a121210e`, done before (2) because the two are independent); (4) #611,
-  progress events, the `x-return-path` relays, the graph-run WebSocket entry, `llm.run`'s progress events, the
-  streaming single-shot reply and the Kafka progress publisher (Increment 199, branch `feat/progress-events` stacked on
-  `feat/agent-loop`; Eric's ruling: an engine-opened stream allows the flow's TTL plus 5 seconds); (5) #617, `playground.panel.name` in `get_index_html`,
-  with the Playground bundle and help mirror deployed last, once the help's async and progress sections are true here
-  (Increment 200, branch `feat/panel-name-bundle` stacked on `feat/progress-events`).
-  Not ported: #607 (this engine's mock peer already binds port 0), the RFC notes #602/#608, the Java Sonar round #614.
-  Next: the release at the Java number once the items are merged.
-  origin: 2026-11-05-181529.
+- [x] **Catch up the Java engine's common features since 4.12.27, the mini-scheduler excepted (Eric, 2026-11-05) —
+  DONE 2026-11-05.** Five items, one PR and Increment each, all merged the same day: #610's abort record (PR #403
+  `46a62855`, Increment 196), the asynchronous `graph.extension` (#404 `a121210e`, 197), the agent loop `llm.run` as the
+  new crate `mercury-agent-loop` (#405 `21c9f150`, 198), progress events and `/ws/graph-run` (#406 `9c0aa84a`, 199;
+  Eric's ruling: an engine-opened stream allows the flow's TTL plus 5 seconds), `playground.panel.name` with the bundle
+  and help deployed (#407 `826d550c`, 200). Lesson: dependent PRs stack cleanly on a merge-commit repo, but a thread
+  edited on main conflicts with a stacked branch's edit of the same paragraph, so record a stacked item's merge in its
+  session log and let the close carry it. Next: the release at 4.12.29. origin: 2026-11-05-181529.
   → serves: vision-mercury
   <!-- id: catch-up-java-4-12-29 | created: 2026-11-05 | last_used: 2026-11-05 | uses: 1 | tier: working | origin: 2026-11-05-181529 -->
