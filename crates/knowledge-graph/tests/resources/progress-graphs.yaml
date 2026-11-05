@@ -1,0 +1,11 @@
+# Progress events from a graph run (RFC-0011 section 8.4, Java #611): manifest for the
+# tests/progress_events.rs binary only - loaded via a process-local 'graph.model.automation'
+# override. graphs.yaml lists the same graphs for the CompileGraph tests in compiler.rs.
+# No 'location' entry: the default classpath:/graph resolves to tests/resources/graph/.
+graphs:
+  - 'unit-test-progress-1'
+  - 'unit-test-progress-2'
+  - 'unit-test-progress-3'
+  - 'unit-test-progress-4'
+  - 'unit-test-progress-err1'
+  - 'unit-test-progress-err2'

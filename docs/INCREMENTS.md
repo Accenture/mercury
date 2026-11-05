@@ -5381,3 +5381,58 @@ CHANGELOG Unreleased, `Added` item 3.
 Gates: `cargo test -p mercury-agent-loop` (3 binaries, 14 passed, 0 failed), `cargo clippy -p mercury-agent-loop -p mercury-platform-core --all-targets -- -D warnings`,
 `cargo fmt --all --check`, `RUSTDOCFLAGS='-D warnings' cargo doc -p mercury-agent-loop --no-deps`, `python3 scripts/check-doc-claims.py`,
 `python3 scripts/check-llms-links.py`.
+
+## Increment 199 — Progress events from a graph run, and the WebSocket entry `/ws/graph-run/{graph_id}` (2026-11-05)
+
+The twin of mercury-composable #611 (RFC-0011 section 8.4, build plan step 3). A caller that watches a run gets
+progress events while it goes on, then one terminal event, `result` or `error`: on a REST endpoint with `stream: true`
+as server-sent events (a run that sends none still answers single-shot), on the new WebSocket entry as text frames, or,
+for any other entry, at the route its `x-return-path` header names when `return.path.routes` declares it. A node opts in
+with `progress=<text>`: the engine sends `node.start`, a `graph.task` function gets the node's relay route as
+`x-return-path`, and a synchronous subgraph returns its events through it, so `llm.run`'s events (Increment 198) reach
+the caller through the node that called it.
+
+- **`crates/knowledge-graph/src/progress/`.** `return_paths.rs` (`ReturnPaths`: exact entries and `*`-ended
+  prefixes, a bare `*` or a malformed entry refused at startup by name), `return_channel.rs` (`ReturnChannel`: the
+  transport per entry, the engine's events numbered by `seq`, a relayed event keeping its sender's numbering and
+  gaining `graph`, `node` and `cid` only when absent, the relays drained before the terminal event, the relays
+  released on close) and `relay.rs` (`ProgressRelay`: one private instance per node, so a drain is answered after
+  every event queued before it; only `progress` events pass).
+- **The engine.** `executor.rs` opens the channel from the entry (`open_channel`, `channel_for`; an inbound HTTP
+  `x-return-path` has no effect), announces `node.start` before a node that carries `progress` runs, the root included,
+  and sends the terminal event before the response at all six reply sites (`reply`). The housekeeper ends the channel
+  of a run that ended without one (a flow timeout). `skills.rs` passes the relay to a `graph.task` call and to every
+  request of a fan-out; `extension.rs` to a synchronous graph target only (a `flow://` target and an asynchronous run
+  get none). `model_validator.rs`: `validate_progress`, Java's two messages (a blank `progress`, an input mapping to
+  `header.x-return-path`).
+- **`ws_graph_run.rs`.** `GraphRunSocket` (`#[websocket_service("graph-run")]`) and `GraphRunReply`
+  (`graph.run.socket.reply`), both off unless `graph.websocket.enabled=true`; `graph.websocket.ttl` (30m) is the run's
+  TTL. The session's first text frame is the input; the session closes after the terminal event.
+- **`crates/platform-core/src/automation/server.rs`.** A single-shot reply that reaches a stream whose head is sent is
+  dropped with Java's warning ("Single-shot reply to ... dropped - its streaming response has already started"),
+  where it was logged as an invalid stream signal.
+- **`examples/kafka-demo`.** `kafka.progress.publisher` publishes each event to a Kafka topic, one run per partition by
+  a Java-compatible `String.hashCode` of the cid, so both engines pick the same partition.
+- **Differences from Java.** (1) Eric's ruling: the Rust HTTP edge times a stream's idle allowance exactly, where
+  Java's checks every 10 seconds, so a stream the engine opens declares the flow's TTL plus 5 seconds
+  (`STREAM_IDLE_MARGIN_SECONDS`) and the run's own terminal event always arrives first. A negative control could not
+  show the race in these tests (a few milliseconds wide); the reason is stated in the code and the skills reference.
+  (2) A drain request runs in a spawned task, so it is untraced, as Java's `EventEmitter.eRequest` is: a traced drain
+  recorded a span per relay per run. (3) An engine event takes its `seq` inside the channel's lock, so the engine's
+  events are delivered in `seq` order.
+- **Tests.** Java's six fixtures (`unit-test-progress-*.json`). `tests/progress_events.rs`, its own binary with its own
+  manifests: Java's fourteen `ProgressEventTest` cases, the WebSocket entry with a real client included.
+  `return_paths.rs`: Java's `ReturnPathsTest` (4). `tests/compiler.rs`: 79 graphs, the two refusals with Java's
+  messages. `event_stream.rs`: a `single-after-stream` reply. kafka-demo: the partition of `run-7` and three hash
+  values confirmed against Java. Negative controls: without the drain the burst case received 9 and 10 of 5000 events
+  before the terminal event; a return-path check that accepts any route failed the undeclared case.
+- **Docs.** The skills reference's *Progress events* section, `progress` in the command reference and the catalogue,
+  `return.path.routes`, `graph.websocket.enabled` and `graph.websocket.ttl` in the configuration reference, the
+  reserved routes and the `x-return-path` header, the HTTP-streaming page's link, the kafka-demo README, and the
+  agent-loop README (the engine now passes `x-return-path`).
+
+CHANGELOG Unreleased, `Added` item 4 and `Changed` item 3.
+
+Gates: `cargo test -p mercury-knowledge-graph -p mercury-platform-core -p ai-contract-provider -p kafka-demo -p mercury-agent-loop`
+(64 binaries, 431 passed, 0 failed; `progress_events` three more times), `cargo clippy --workspace --all-targets -- -D warnings`,
+`cargo fmt --all --check`, `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.

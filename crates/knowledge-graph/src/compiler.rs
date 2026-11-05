@@ -76,6 +76,8 @@ const CLASSPATH_PREFIX: &str = "classpath:/";
 /// Compile and register every graph model listed by `graph.model.automation`.
 /// Returns the ids of all graphs in the registry (Java logs the same count).
 pub fn compile_graphs() -> Vec<String> {
+    // the declared return paths are read once here, so a refused entry is logged at startup, by name
+    crate::progress::ReturnPaths::get_instance();
     crate::graph_set_loader::reset();
     let config = AppConfigReader::get_instance();
     if !config

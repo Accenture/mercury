@@ -1,0 +1,61 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "unit-test-progress-err1",
+        "purpose": "a blank 'progress' has no text for its event"
+      }
+    },
+    {
+      "alias": "work",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.progress.sender",
+        "input": [
+          "input.body.item -> item",
+          "input.body.mode -> mode"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "progress": " "
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "work"
+    },
+    {
+      "source": "work",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

@@ -33,7 +33,8 @@ log = "0.4"
 rmpv = { version = "1", features = ["with-serde"] }
 serde_json = "1"
 serde_yaml = { package = "yaml_serde", version = "0.10" }
-tokio = { version = "1", features = ["rt", "time", "macros"] }
+# sync: a watched run's return channel holds its stream writer under an async lock (RFC-0011 section 8.4)
+tokio = { version = "1", features = ["rt", "time", "macros", "sync"] }
 # fork-join batches (graph.task / graph.api.fetcher / graph.extension for_each)
 # are awaited CONCURRENTLY ON THE CALLING TASK with join_all, so the worker's
 # task-local trace bracket stays in scope for every child call (tokio::spawn
@@ -50,7 +51,10 @@ thiserror = "1"
 [dev-dependencies]
 # compile-fail guards for the macro surfaces (tests/ui)
 trybuild = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util"] }
 serde = { version = "1", features = ["derive"] }
+# the WebSocket client of the progress-event tests (/ws/graph-run/{graph_id}), at platform-core's version
+tokio-tungstenite = "0.24"
+futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
 # one temporary folder per test process, removed when the process exits (dev-only)
 mercury-test-support = { path = "../test-support" }

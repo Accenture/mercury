@@ -41,6 +41,7 @@ use platform_core::post_office::BUSINESS_CID_TAG;
 use platform_core::{AppError, EventEnvelope, Platform, PostOffice};
 use rmpv::Value;
 
+use crate::common::return_path_for;
 use crate::common::{
     fill_fetcher_api_parameters, get_effective_ttl, get_entries, get_for_each_mapping,
     get_model_array_size, get_model_ttl, get_next_model_param_set, invalid, join_batch,
@@ -48,6 +49,7 @@ use crate::common::{
     NODE_NAME, RESULT, SKILL, STATUS, TARGET,
 };
 use crate::model::GraphInstance;
+use crate::progress::X_RETURN_PATH;
 
 pub const ROUTE: &str = "graph.extension";
 /// The node property that starts the target and returns at once (RFC-0011 section 8.1).
@@ -172,6 +174,7 @@ async fn call_extension(
     log::info!("Call extension {extension}, ttl={ttl}");
     po.annotate_trace("extension", extension);
     let business_cid = get_business_cid(instance);
+    let return_path = return_path_for(instance, node).await;
     // a single delegation has no iteration index - its store key stays two-segment
     let forward = build_forward(
         &node_name,
@@ -180,6 +183,7 @@ async fn call_extension(
         Some(ttl),
         business_cid.as_deref(),
         None,
+        return_path.as_deref(),
     )?;
     let response = call_flow(po, forward, ttl).await;
     let mut state = instance.state.lock().expect("graph state machine");
@@ -225,6 +229,7 @@ async fn call_extension_with_fork_join(
     let concurrency = concurrency_of(node);
     po.annotate_trace("extension", extension);
     let business_cid = get_business_cid(instance);
+    let return_path = return_path_for(instance, node).await;
     let forwards = {
         let mut state = instance.state.lock().expect("graph state machine");
         let api_params = state
@@ -262,6 +267,7 @@ async fn call_extension_with_fork_join(
                 Some(timeout),
                 business_cid.as_deref(),
                 Some(i),
+                return_path.as_deref(),
             )?);
         }
         state
@@ -453,6 +459,7 @@ async fn start_runs(
             node_ttl,
             business_cid.as_deref(),
             indexed.then_some(i),
+            None,
         )?);
     }
     if let Some((status, reason)) =
@@ -702,6 +709,12 @@ fn get_business_cid(instance: &Arc<GraphInstance>) -> Option<String> {
 /// `flow://` target gets no index (Java parity): the flow hop carries no graph
 /// iteration identity, which is why parent → `for_each` → flow → suspending
 /// graph is a declared non-goal rather than a supported shape.
+///
+/// `return_path` is the relay a synchronous subgraph returns its progress
+/// events through (RFC-0011 section 8.4): a graph target gets it as its
+/// `x-return-path` header and names itself in its events, which reach this
+/// run's caller through this node's relay; a `flow://` target gets none.
+#[allow(clippy::too_many_arguments)]
 fn build_forward(
     node_name: &str,
     extension: &str,
@@ -709,18 +722,25 @@ fn build_forward(
     ttl: Option<i64>,
     business_cid: Option<&str>,
     iteration_index: Option<usize>,
+    return_path: Option<&str>,
 ) -> Result<EventEnvelope, AppError> {
     let body = match parameters {
         v @ Value::Map(_) => v,
         _ => Value::Map(vec![]),
     };
-    let header = match iteration_index {
-        Some(i) if !extension.starts_with(FLOW_PROTOCOL) => Value::Map(vec![(
-            Value::from(ITERATION_INDEX_HEADER),
-            Value::from(i.to_string()),
-        )]),
-        _ => Value::Map(vec![]),
-    };
+    let mut header_entries: Vec<(Value, Value)> = Vec::new();
+    if !extension.starts_with(FLOW_PROTOCOL) {
+        if let Some(i) = iteration_index {
+            header_entries.push((
+                Value::from(ITERATION_INDEX_HEADER),
+                Value::from(i.to_string()),
+            ));
+        }
+        if let Some(return_path) = return_path {
+            header_entries.push((Value::from(X_RETURN_PATH), Value::from(return_path)));
+        }
+    }
+    let header = Value::Map(header_entries);
     let mut dataset: Vec<(Value, Value)> =
         vec![(Value::from("body"), body), (Value::from("header"), header)];
     // no ttl: the target runs under its own (an asynchronous run without a node ttl)

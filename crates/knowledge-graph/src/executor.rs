@@ -45,6 +45,7 @@ use crate::common::{
 };
 use crate::graphs;
 use crate::model::{self, GraphInstance};
+use crate::progress::{ReturnChannel, ReturnPaths, RETURN_PATH_ROUTES, X_RETURN_PATH};
 
 pub const ROUTE: &str = "graph.executor";
 pub const HOUSEKEEPER_ROUTE: &str = "graph.housekeeper";
@@ -121,6 +122,7 @@ async fn execute_graph(
     let trace_id = event.trace_id().map(str::to_string);
     let reply_to = event.reply_to().unwrap_or_default().to_string();
     let cid = event.correlation_id().unwrap_or_default().to_string();
+    let channel = open_channel(headers);
     let outcome = start_traversal(
         platform,
         po,
@@ -129,6 +131,7 @@ async fn execute_graph(
         &cid,
         &trace_id,
         &parent_span,
+        &channel,
     )
     .await;
     if let Err(e) = outcome {
@@ -140,10 +143,129 @@ async fn execute_graph(
         if let Some(span) = &parent_span {
             error = error.set_span_id(span);
         }
+        if let Some(channel) = &channel {
+            channel.finish(&error).await;
+            channel.close().await;
+        }
         let _ = po.send(error).await;
     }
 }
 
+/// The way back to a caller that watches the run (RFC-0011 section 8.4; Java
+/// `GraphExecutor.openChannel`), decided by the entry: a WebSocket session
+/// names itself; a REST request with `stream: true` replies through its own
+/// lane; a plain REST request takes the final result alone, so an inbound HTTP
+/// `x-return-path` has no effect; any other entry may name a return route in
+/// its `x-return-path` header, which the application must declare in
+/// `return.path.routes` (or which is the relay of a parent run, for a
+/// synchronous subgraph). None when nobody watches the run.
+fn open_channel(headers: &HashMap<String, String>) -> Option<Arc<ReturnChannel>> {
+    let flow_instance = event_script::flows::get_flow_instance(headers.get(INSTANCE)?)?;
+    let graph_id = headers.get(GRAPH)?;
+    let input = flow_instance
+        .dataset
+        .lock()
+        .expect("flow dataset")
+        .get_element("input");
+    let channel = channel_for(&flow_instance, graph_id, input.as_ref())?;
+    channel.set_cid(&flow_instance.business_correlation_id);
+    Some(channel)
+}
+
+fn channel_for(
+    flow_instance: &event_script::instance::FlowInstance,
+    graph_id: &str,
+    input: Option<&Value>,
+) -> Option<Arc<ReturnChannel>> {
+    if let Some(socket) = ReturnChannel::take_socket(&flow_instance.internal_correlation_id) {
+        return Some(ReturnChannel::socket(&socket, &flow_instance.id, graph_id));
+    }
+    if let Some(reply_to) = &flow_instance.reply_to {
+        let route = match reply_to.find('@') {
+            Some(at) if at > 0 => &reply_to[..at],
+            _ => reply_to.as_str(),
+        };
+        let lane_prefix = format!(
+            "{}.",
+            platform_core::automation::ASYNC_HTTP_RESPONSE_STREAM_POOL
+        );
+        if route.starts_with(&lane_prefix) {
+            return Some(ReturnChannel::stream(
+                reply_to,
+                &flow_instance.internal_correlation_id,
+                &flow_instance.id,
+                graph_id,
+                flow_instance.ttl_ms(),
+            ));
+        }
+        if route == platform_core::automation::ASYNC_HTTP_RESPONSE {
+            return None;
+        }
+    }
+    let return_path = return_path_header(input)?;
+    if ReturnChannel::is_live_relay(&return_path)
+        || ReturnPaths::get_instance().is_declared(&return_path)
+    {
+        return Some(ReturnChannel::event(
+            &return_path,
+            &flow_instance.id,
+            graph_id,
+        ));
+    }
+    log::warn!(
+        "Graph {graph_id} ignores x-return-path '{return_path}' - it is not declared in \
+         {RETURN_PATH_ROUTES}, so the run sends no progress"
+    );
+    None
+}
+
+/// The run's `x-return-path` header, matched without regard to case (Java
+/// `GraphExecutor.returnPathHeader`).
+fn return_path_header(input: Option<&Value>) -> Option<String> {
+    let Some(Value::Map(entries)) = input else {
+        return None;
+    };
+    let (_, header) = entries
+        .iter()
+        .find(|(k, _)| k.as_str() == Some(common::HEADER))?;
+    let Value::Map(header) = header else {
+        return None;
+    };
+    header.iter().find_map(|(key, value)| {
+        if !display(key).eq_ignore_ascii_case(X_RETURN_PATH) || value.is_nil() {
+            return None;
+        }
+        let text = display(value);
+        if text.trim().is_empty() {
+            None
+        } else {
+            Some(common::java_trim(&text).to_string())
+        }
+    })
+}
+
+/// Answer the run's caller: the terminal event to a watching caller first,
+/// then the response (Java `GraphExecutor.reply`).
+async fn reply(po: &PostOffice, instance: &Arc<GraphInstance>, response: EventEnvelope) {
+    if let Some(channel) = instance.get_return_channel() {
+        channel.finish(&response).await;
+    }
+    let _ = po.send(response).await;
+    instance.set_complete();
+}
+
+/// The engine's progress event for a node that carries a `progress` property:
+/// `node.start`, with the property's text as its message (Java
+/// `GraphExecutor.announce`).
+async fn announce(instance: &Arc<GraphInstance>, node: &SimpleNode) {
+    if let Some(channel) = instance.get_return_channel() {
+        if let Some(text) = common::progress_text(node) {
+            channel.node_start(node.get_alias(), &text).await;
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 async fn start_traversal(
     platform: &Platform,
     po: &PostOffice,
@@ -152,8 +274,10 @@ async fn start_traversal(
     cid: &str,
     trace_id: &Option<String>,
     parent_span: &Option<String>,
+    channel: &Option<Arc<ReturnChannel>>,
 ) -> Result<(), AppError> {
     let instance = create_instance(headers, reply_to, cid)?;
+    instance.set_return_channel(channel.clone());
     if let Some(trace) = trace_id {
         instance.set_trace_id(trace);
     }
@@ -313,8 +437,7 @@ async fn input_validated(
             if let Some(span) = parent_span {
                 event = event.set_span_id(span);
             }
-            let _ = po.send(event).await;
-            instance.set_complete();
+            reply(po, instance, event).await;
             log_aborted(instance, &message);
         }
         Some(handler) => {
@@ -438,8 +561,7 @@ async fn handle_skill_response(platform: &Platform, po: &PostOffice, response: &
         if let Some(span) = &parent_span {
             event = event.set_span_id(span);
         }
-        let _ = po.send(event).await;
-        instance.set_complete();
+        reply(po, &instance, event).await;
     } else if !instance.is_complete() {
         if matches!(
             (&process_status, &result_error),
@@ -553,6 +675,7 @@ fn walk<'a>(
                     )
                 );
             }
+            announce(instance, &node).await;
             walk_to(platform, po, skill, instance, node, from, parent_span).await?;
         }
         Ok(())
@@ -748,8 +871,7 @@ async fn execution_complete(
             response = response.set_header(k.as_str().unwrap_or_default(), &display(v));
         }
     }
-    let _ = po.send(response.set_raw_body(body)).await;
-    instance.set_complete();
+    reply(po, instance, response.set_raw_body(body)).await;
     if traversal_log() {
         let elapsed = crate::session::now_ms() - instance.start_time_ms();
         log::info!(
@@ -944,8 +1066,7 @@ async fn handle_error_response(
     if let Some(span) = parent_span {
         error = error.set_span_id(span);
     }
-    let _ = po.send(error).await;
-    instance.set_complete();
+    reply(po, instance, error).await;
     log_aborted(instance, &display(response.body()));
 }
 
@@ -963,8 +1084,7 @@ async fn send_error(
     if let Some(span) = parent_span {
         error = error.set_span_id(span);
     }
-    let _ = po.send(error).await;
-    instance.set_complete();
+    reply(po, instance, error).await;
     log_aborted(instance, message);
 }
 

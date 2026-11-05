@@ -119,6 +119,25 @@ impl ComposableFunction for MockEventStream {
             "error-first" => {
                 out.fail(&AppError::new(503, "no backend")).await?;
             }
+            "single-after-stream" => {
+                // a single-shot reply reaches a stream whose head is out, then the stream ends
+                // itself (Java MockEventStreamService parity)
+                out.first(200, "text/event-stream");
+                out.write("one").await?;
+                tokio::time::sleep(Duration::from_millis(PACE_MS)).await;
+                let po = PostOffice::new(&self.platform);
+                po.send(
+                    EventEnvelope::new()
+                        .set_to(input.reply_to().unwrap_or_default())
+                        .set_correlation_id(input.correlation_id().unwrap_or_default())
+                        .set_status(408)
+                        .set_body("late")?,
+                )
+                .await?;
+                tokio::time::sleep(Duration::from_millis(PACE_MS)).await;
+                out.write("two").await?;
+                out.close().await?;
+            }
             "stall" => {
                 // one-second idle allowance, then silence - the edge must
                 // fail the stream in-band
@@ -480,6 +499,30 @@ async fn mid_stream_failure_arrives_as_in_band_error_event() {
     assert!(
         !body.contains(&"event: done".to_string()),
         "a failed stream has no done event"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_single_shot_reply_after_the_head_is_dropped_and_the_stream_goes_on() {
+    test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
+    let port = server().await;
+    let (status, _, lines) = stream_request(
+        port,
+        "/api/hello/stream?mode=single-after-stream",
+        "text/event-stream",
+    )
+    .await;
+    assert_eq!(status, 200);
+    let body = plain(&lines);
+    assert!(body.contains(&"data: one".to_string()), "{body:?}");
+    assert!(
+        body.contains(&"data: two".to_string()),
+        "the stream goes on after the dropped reply: {body:?}"
+    );
+    assert!(body.contains(&"event: done".to_string()), "{body:?}");
+    assert!(
+        !body.join("\n").contains("late"),
+        "a single-shot reply cannot write to a started stream: {body:?}"
     );
 }
 

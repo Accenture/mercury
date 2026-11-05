@@ -892,6 +892,69 @@ connect person-name to mdm-profile with provider
 connect person-address to mdm-profile with provider
 ```
 
+## Progress events — watching a run {#progress}
+
+A caller that watches a run gets **progress events** while it goes on, then **one terminal event**: `result` (the
+run's response, a suspension's advice included) or `error`. A caller that waits for the result alone gets nothing
+new. The entry decides the transport:
+
+| Entry | Return route | Receives |
+| --- | --- | --- |
+| REST, a plain response | the REST automation's response route | the final result only, as before |
+| REST with `stream: true` | the request's ordered reply lane | progress events, then the result, as server-sent events (`event:` names the type); a run that sends no progress answers single-shot |
+| WebSocket, `/ws/graph-run/{graph_id}` | the session | one text frame per event; the session closes after the result ([`graph.websocket.enabled`](../configuration-reference.md#graph-websocket-enabled)) |
+| any event (Kafka, Event-over-HTTP, another flow) | the route its [`x-return-path`](../reserved-names-and-headers.md#x-return-path) names | progress events, then the result, when [`return.path.routes`](../configuration-reference.md#return-path-routes) declares the route |
+
+**A node opts in with `progress={text}`.** The engine sends `node.start` with the text when it reaches the node.
+On a `graph.task` node the function also gets `x-return-path` for its own events - `llm.run` sends `run.start`,
+`turn.start`, `turn.end`, `tool.start`, `tool.end`, `approval.wait` and `run.end` - and a synchronous
+`graph.extension` subgraph returns its events the same way, naming itself. A node without the property sends
+nothing and passes nothing, so a function that forwards its headers cannot leak a caller's return path.
+CompileGraph refuses a blank `progress` and an input mapping to `header.x-return-path`.
+
+```
+create node investigate
+with type Task
+with properties
+skill=graph.task
+task=llm.run
+progress=Investigating the order
+input[]=f:json(credit-tools.tools) -> tools
+input[]=input.body.question -> prompt
+```
+
+Every event is one JSON object:
+
+```json
+{ "type": "progress", "event": "tool.start", "seq": 4, "time": "2026-11-04T23:30:11.120Z",
+  "cid": "6f1e0c2a8b4d4f7e9a3c5d2b1e0f4a7c", "graph": "credit-review", "node": "investigate",
+  "data": { "turn": 1, "id": "c1", "name": "credit_limit", "route": "credit.limit.lookup" } }
+```
+
+- `seq` counts from 1 for each sender - the engine, or one `llm.run` call - which `graph` and `node` identify, so a
+  receiver orders a sender's events by `seq` and finds a gap the same way. A transport may not keep order.
+- `message` (on `node.start`, the property's text) and `data` carry names, routes, counts and statuses only: never
+  model output, a tool's input or a tool's result.
+- The terminal event carries `status`, and `body` on a `result` or `message` on an `error`.
+
+**How it works.** The function of a node with `progress` is given the node's **relay** (`graph.progress.*`, a
+private route of the run), not the caller's route: the relay names the sender's graph and node, frames each event
+for the transport, and is drained before the terminal event, so every event a sender sent arrives before the end.
+The engine sends and never waits: delivery belongs to the route (a Kafka wrapper gives durability), and a failing
+return route never fails the run. Progress events are sent untraced (`PostOffice::send_untraced`). A run that ends
+without a terminal event of its own - a flow timeout - still ends its caller's channel with an `error`. A run that
+suspends sends its advice as the `result`; a resume is a new run, watched or not.
+
+On a `stream: true` endpoint the engine opens the stream with its own idle allowance, the flow's TTL plus a few
+seconds, because this engine's HTTP edge times a stream's idle allowance exactly: the engine's own terminal event -
+an `error` when the flow times out after the run streamed progress - and the `done` event always reach the client
+before the edge would time the stream out.
+
+**The generic return path.** `x-return-path` names any composable function: a local function, a route another
+application serves over Event-over-HTTP, or a wrapper that publishes each event to a Kafka topic - the
+`kafka.progress.publisher` sample in `examples/kafka-demo` computes the partition from the event's `cid`, so one
+run's events stay in order on one partition. A new transport is a new wrapper function, never an engine change.
+
 ## See also {#see-also}
 
 - [MiniGraph command grammar](command-reference.md) — the full command language, the

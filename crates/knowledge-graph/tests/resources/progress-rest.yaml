@@ -1,0 +1,30 @@
+#
+# REST automation for the tests/progress_events.rs binary only - loaded via a process-local
+# 'yaml.rest.automation' override (Java test rest.yaml parity for the progress-event cases).
+#
+rest:
+  # deployed graph execution: a plain REST request takes the final result alone
+  - service: 'http.flow.adapter'
+    methods: ['POST', 'GET']
+    url: '/api/graph/{graph_id}'
+    flow: 'graph-executor'
+    timeout: 30s
+    tracing: true
+
+  # a watched graph run (RFC-0011 section 8.4): progress events, then the result, as server-sent events
+  - service: 'http.flow.adapter'
+    methods: ['POST']
+    url: '/api/stream/graph/{graph_id}'
+    flow: 'graph-executor'
+    timeout: 30s
+    stream: true
+    tracing: true
+
+  # the same, with a flow ttl shorter than a slow task: the run ends on the flow's timeout mid-stream
+  - service: 'http.flow.adapter'
+    methods: ['POST']
+    url: '/api/stream/short/{graph_id}'
+    flow: 'graph-executor'
+    timeout: 2s
+    stream: true
+    tracing: true

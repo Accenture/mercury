@@ -48,6 +48,20 @@ Each change merged to `main` after v4.12.27 is listed here; it moves under its r
    loop cases, 29 schema cases) is byte-identical with the Java engine's. `PostOffice::send_untraced` in platform-core
    is now public, the send a progress event uses. The twin of mercury-composable #605 and #606. **Upgrade note:** none;
    nothing changes until an application links the crate, and `llm.run` is a reserved route name once it does.
+4. **Progress events from a graph run, and the WebSocket entry `/ws/graph-run/{graph_id}` (Increment 199).** A caller
+   that watches a run gets progress events while it goes on, then one terminal event, `result` or `error`: on a REST
+   endpoint with `stream: true` as server-sent events (a run that sends none still answers single-shot), on the new
+   WebSocket entry `/ws/graph-run/{graph_id}` as text frames (off by default, `graph.websocket.enabled`;
+   `graph.websocket.ttl`, 30m), or, for any other entry, to the route its `x-return-path` header names when
+   `return.path.routes` declares it (a prefix entry ends with `*`; a bare `*` is refused at startup). A node opts in
+   with `progress=<text>`: the engine sends `node.start`, a `graph.task` function gets the node's relay route as
+   `x-return-path`, and a synchronous subgraph returns its events through it, so `llm.run`'s events reach the caller.
+   Events carry names, routes, counts and statuses only, and are not traced. A stream the engine opens allows the
+   flow's TTL plus 5 seconds of idle, so the run's own terminal event always arrives first. A plain REST request is
+   unchanged, and an inbound HTTP `x-return-path` header has no effect. `examples/kafka-demo` adds
+   `kafka.progress.publisher`, a return route that publishes each event to a Kafka topic, one run per partition. The
+   twin of mercury-composable #611. **Upgrade note:** CompileGraph refuses a blank `progress` and an input mapping to
+   `header.x-return-path`; `graph.progress.*` and `graph.run.socket.reply` are reserved route names.
 
 ### Changed
 
@@ -62,6 +76,11 @@ Each change merged to `main` after v4.12.27 is listed here; it moves under its r
    ended such a flow, but recorded nothing; it now logs `Flow <id>:<instance> aborted with status <status> - <reason>`,
    followed by `. Unable to tell <route> - <cause>` when the callback route is gone. The twin of mercury-composable
    #610, where the same abort had left the flow open. **Upgrade note:** none; one error line per such abort.
+3. **A single-shot reply that reaches a streaming HTTP response whose head is already sent is logged as such
+   (Increment 199).** The warning reads "Single-shot reply to ... dropped - its streaming response has already
+   started", Java's text, where it read as an invalid stream signal; a graph run whose flow timed out after it had
+   streamed progress does this on every such timeout. What the client receives is unchanged. The twin of
+   mercury-composable #611's Changed item. **Upgrade note:** none.
 
 ### Documentation
 

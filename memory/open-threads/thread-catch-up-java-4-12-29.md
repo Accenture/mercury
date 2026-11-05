@@ -6,7 +6,8 @@
   the shared `llm-run-vectors.json` (Increment 198, branch `feat/agent-loop`; a new published crate); (3) #609, the asynchronous `graph.extension` and its CompileGraph rule (Increment 197, PR #404
   MERGED `a121210e`, done before (2) because the two are independent); (4) #611,
   progress events, the `x-return-path` relays, the graph-run WebSocket entry, `llm.run`'s progress events, the
-  streaming single-shot reply and the Kafka progress publisher; (5) #617, `playground.panel.name` in `get_index_html`,
+  streaming single-shot reply and the Kafka progress publisher (Increment 199, branch `feat/progress-events` stacked on
+  `feat/agent-loop`; Eric's ruling: an engine-opened stream allows the flow's TTL plus 5 seconds); (5) #617, `playground.panel.name` in `get_index_html`,
   with the Playground bundle and help mirror deployed last, once the help's async and progress sections are true here.
   Not ported: #607 (this engine's mock peer already binds port 0), the RFC notes #602/#608, the Java Sonar round #614.
   Next: the release at the Java number once the items are merged.

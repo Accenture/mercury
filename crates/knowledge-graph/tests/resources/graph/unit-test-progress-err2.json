@@ -1,0 +1,60 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "unit-test-progress-err2",
+        "purpose": "an input mapping that sets the return path only the engine passes"
+      }
+    },
+    {
+      "alias": "work",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.progress.sender",
+        "input": [
+          "input.header.x-return-path -> header.X-Return-Path"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "progress": "Working"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "work"
+    },
+    {
+      "source": "work",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

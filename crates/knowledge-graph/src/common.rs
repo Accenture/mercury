@@ -648,6 +648,34 @@ pub fn schema_validator_route() -> &'static str {
     })
 }
 
+/// The text of a node's `progress` property (RFC-0011 section 8.4), trimmed
+/// the Java way; None when the node does not opt in to progress events (no
+/// property, a blank one, or one that is not text).
+pub fn progress_text(node: &SimpleNode) -> Option<String> {
+    match node.get_property(crate::progress::PROGRESS) {
+        Some(Value::String(text)) => {
+            let text = text.as_str().unwrap_or_default();
+            if text.trim().is_empty() {
+                None
+            } else {
+                Some(java_trim(text).to_string())
+            }
+        }
+        _ => None,
+    }
+}
+
+/// The return path a node passes to its function or synchronous subgraph: the
+/// relay route of a watched run, for a node that carries `progress` (RFC-0011
+/// section 8.4; Java `GraphLambdaFunction.returnPathFor`). A node without the
+/// property never passes one, so a function that forwards its headers cannot
+/// leak a caller's return path.
+pub async fn return_path_for(instance: &GraphInstance, node: &SimpleNode) -> Option<String> {
+    let channel = instance.get_return_channel()?;
+    progress_text(node)?;
+    channel.relay_for(node.get_alias()).await
+}
+
 /// Arm the assumed validation step of a run that begins at this root: the
 /// walker takes the flag on its first visit to the root and validates the
 /// input before the root's own skill, or anything else, runs. A root without

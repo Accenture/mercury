@@ -46,6 +46,7 @@ pub mod model;
 pub mod model_gate;
 pub mod model_validator;
 pub mod openapi;
+pub mod progress;
 pub mod rest;
 pub mod schema;
 pub mod services;
@@ -53,6 +54,7 @@ pub mod session;
 pub mod skills;
 pub mod suspend;
 pub mod traveler;
+pub mod ws_graph_run;
 pub mod ws_ui;
 
 // The #[fetch_feature] macro expands to `::knowledge_graph::...` paths; the

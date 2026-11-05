@@ -81,6 +81,9 @@ fn manifest_listed_graphs_are_compiled() {
     // by the notation; a graph.math IF skips the distance when the end is open)
     // + the date-arithmetic-1 fixture (f:addDays and f:daysBetween in a data mapper:
     // a due date from payment terms, the days apart in either order)
+    // + the 4 progress fixtures (progress-1..4: node.start for a node with 'progress', a
+    // function's own events through the node's relay, a failing run, a synchronous subgraph
+    // reporting through its parent - RFC-0011 section 8.4)
     // the 17 deliberately-invalid fixtures
     // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias, schema-err1 with
     // an unknown schema keyword, schema-err2 with an inapplicable one, jsonpath-err1
@@ -90,7 +93,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        75,
+        79,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
@@ -155,6 +158,10 @@ fn invalid_manifest_graphs_are_not_compiled() {
         "unit-test-async-err1",
         "unit-test-async-err2",
         "unit-test-async-err3",
+        // a blank 'progress', and an input mapping to header.x-return-path (RFC-0011
+        // section 8.4)
+        "unit-test-progress-err1",
+        "unit-test-progress-err2",
     ] {
         assert!(
             !graphs::graph_exists(id),
@@ -499,6 +506,46 @@ fn an_asynchronous_extension_is_validated() {
         (
             "unit-test-async-err3",
             "node start - an asynchronous graph.extension returns nothing, so it takes no 'output'",
+        ),
+    ] {
+        assert!(!graphs::graph_exists(id), "{id} must fail the gate");
+        let error = model_validator::validate(&import(id)).expect_err(id);
+        assert_eq!(expected, error, "{id}");
+    }
+}
+
+/// Java parity (CompileGraphTest.theProgressPropertyAndTheReturnPathAreValidated, RFC-0011
+/// section 8.4): 'progress' is the text of a node's progress event, and only the engine passes a
+/// function its x-return-path - err1 a blank 'progress', err2 an input mapping to
+/// header.x-return-path.
+#[test]
+fn the_progress_property_and_the_return_path_are_validated() {
+    compile_once();
+    for id in [
+        "unit-test-progress-1",
+        "unit-test-progress-2",
+        "unit-test-progress-3",
+    ] {
+        assert!(graphs::graph_exists(id), "{id} must compile");
+    }
+    let import = |id: &str| {
+        let reader =
+            ConfigReader::load(&format!("classpath:/graph/{id}.json")).expect("fixture loads");
+        let json = ConfigValue::Map(reader.get_map().clone().into_map()).to_json();
+        let model = event_script::conversions::from_json(&json);
+        let graph = MiniGraph::new();
+        graph.import_graph(&model).expect("fixture is importable");
+        graph
+    };
+    for (id, expected) in [
+        (
+            "unit-test-progress-err1",
+            "node work - 'progress' is the text of the node's progress event, so it cannot be blank",
+        ),
+        (
+            "unit-test-progress-err2",
+            "node work - input 'input.header.x-return-path -> header.X-Return-Path' sets \
+             x-return-path, which only the engine passes",
         ),
     ] {
         assert!(!graphs::graph_exists(id), "{id} must fail the gate");

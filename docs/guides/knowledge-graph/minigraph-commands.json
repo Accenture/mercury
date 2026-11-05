@@ -658,7 +658,8 @@
         "concurrency",
         "ttl (call deadline; overrides the propagated model.ttl for the delegated sub-graph/flow call, making its timeout exception=-routable)",
         "exception",
-        "async"
+        "async",
+        "progress"
       ],
       "notes": [
         "extension={graph-id} for a sub-graph, or flow://{flow-id} for an Event Script flow",
@@ -668,6 +669,7 @@
         "NO whole-body '*' target on graph.extension - map named keys (the '*' merge idiom is graph.task-only); the same contract applies to flow:// targets (named keys feed the flow's input.body; result.* is the flow's output.body)",
         "the delegated graph or flow INHERITS the caller's business correlation ID (model.cid), like an Event Script sub-flow - a delegated subgraph that suspends persists under the shared cid scoped by its own graph id, so re-invoking with the same cid resumes it (the orchestrator pattern: a parent graph delegates independently resumable subgraph paths)",
         "exception={handler-node}: error.source is the extension node in THIS graph; failures inside the delegated subgraph or flow route to that graph's own handlers (suspension and error handling are self-contained per graph)",
+        "progress={text}: a watched run sends node.start with the text, and a synchronous subgraph returns its own progress events through the node's relay, naming itself; an asynchronous target never inherits the return path",
         "async=true starts the target and continues at once: no output[] (the gate refuses one); the target inherits the business correlation ID and runs under its own TTL (the node's ttl when declared); exception= covers only a failure to start - a target that does not exist (404) or an input the target graph's root schema refuses (400); with for_each, one run per element, concurrency bounding the active runs, every element checked before any starts"
       ],
       "example": "skill=graph.extension\nextension=evaluate-sales-performance\ninput[]=input.body.department_id -> id\noutput[]=result -> output.body"
@@ -684,10 +686,12 @@
         "for_each[]",
         "concurrency",
         "ttl (call deadline; overrides the propagated model.ttl for this node's call)",
-        "exception"
+        "exception",
+        "progress"
       ],
       "notes": [
         "task={route} of a composable function (TypedLambdaFunction registered with @PreLoad)",
+        "progress={text}: a watched run sends node.start with the text, and the function gets x-return-path (the node's relay) for its own progress events - llm.run sends them; header.x-return-path cannot be mapped",
         "input[] entries apply in order; RHS '*' merges the mapped value into the request body, 'header.{name}' sets a request header, 'model.{key}' stages a state-machine variable that later entries reference as a dynamic variable e.g. text(/api/mdm/profile/{model.person_id}) - engine-managed model metadata rejected, any other key sets a body field",
         "request body auto-converts when the function declares a PoJo input; concurrency 1-30 (default 3)",
         "any registered route is callable - e.g. task=async.http.request drives the platform AsyncHttpClient by configuration with body keys host/url/method/headers.{name}/body (tutorial-13); node/model ttl bounds only the event call, so set the HTTP timeout explicitly via headers.x-ttl in MILLISECONDS (also propagates the deadline on the wire)",
