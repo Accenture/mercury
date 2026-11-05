@@ -137,3 +137,13 @@ graphs:
   - 'unit-test-async-err1'
   - 'unit-test-async-err2'
   - 'unit-test-async-err3'
+  # progress events (RFC-0011 section 8.4, Java #611): node.start for a node with 'progress', the function's own
+  # events through the node's relay, and the terminal result or error - to a declared x-return-path, a REST stream
+  # or a WebSocket; the err graphs are deliberately invalid (a blank 'progress', an input mapping to
+  # header.x-return-path)
+  - 'unit-test-progress-1'
+  - 'unit-test-progress-2'
+  - 'unit-test-progress-3'
+  - 'unit-test-progress-4'
+  - 'unit-test-progress-err1'
+  - 'unit-test-progress-err2'

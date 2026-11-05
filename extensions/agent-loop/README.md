@@ -214,9 +214,9 @@ conversation.
 ## Progress events
 
 When its caller passes `x-return-path`, the loop sends its progress events there, in order and before its own
-response. A caller that passes none gets none. The Java graph engine passes it to a `graph.task` node that carries
-`progress=<text>` (the MiniGraph skills reference, *Progress events*); the Rust graph engine does not relay progress
-events yet, so here a caller names its own return route.
+response. The graph engine passes it to a `graph.task` node that carries `progress=<text>` (the MiniGraph skills
+reference, [*Progress events*](../../docs/guides/knowledge-graph/skills-reference.md#progress)), and any other caller
+may pass its own route. A caller that passes none gets none.
 
 | `event` | `data` |
 | --- | --- |

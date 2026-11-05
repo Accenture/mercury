@@ -29,13 +29,23 @@ use crate::common::invalid;
 use crate::model;
 
 /// Java `GraphHousekeeper` (`graph.housekeeper`, zero-tracing): registered
-/// as an end-flow listener; clears the traversal state for the flow.
+/// as an end-flow listener; clears the traversal state for the flow, and ends
+/// the return channel of a watched run that ended without a terminal event
+/// (RFC-0011 section 8.4).
 pub async fn housekeeper(
     headers: HashMap<String, String>,
-    _event: EventEnvelope,
+    event: EventEnvelope,
 ) -> Result<EventEnvelope, AppError> {
     if headers.get("type").map(String::as_str) == Some("end") {
         if let Some(instance_id) = headers.get("instance_id") {
+            if let Some(instance) = model::get_instance(instance_id) {
+                // a run that ended without a terminal event (a flow timeout, for example) still
+                // ends its channel
+                if let Some(channel) = instance.get_return_channel() {
+                    channel.abandon(event.body()).await;
+                    channel.close().await;
+                }
+            }
             if let Some(instance) = model::remove_instance(instance_id) {
                 log::info!(
                     "Graph instance {instance_id} for model '{}' cleared",

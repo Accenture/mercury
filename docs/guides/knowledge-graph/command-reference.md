@@ -384,8 +384,8 @@ and examples; this is the at-a-glance contract.
 | `graph.math` | `statement[]` (`COMPUTE`/`IF`/`MAPPING`/`EXECUTE`/`RESET`) | `for_each[]`, `NEXT:`, `DELAY:`, `BEGIN`/`END` |
 | ~~`graph.js`~~ | ⚠️ **retired in this Rust port** (security) — use `graph.math` or `graph.task` | — |
 | `graph.api.fetcher` | `dictionary[]` (+ `input[]` whenever its dictionaries declare parameters — the usual case) | `output[]` (the result set always lands at `{node}.result` for a later mapper), `for_each[]` (see [Iterative fetching](#for-each)), `concurrency` (1–30, def 3), `ttl` (call deadline), `exception` |
-| `graph.extension` | `extension` (`{graph-id}` or `flow://{flow-id}`), `input[]` | `output[]`, `for_each[]`, `concurrency`, `ttl` (call deadline), `exception`, `async` (start and continue; then no `output[]`) |
-| `graph.task` | `task` (a composable function's route name) | `input[]`, `output[]`, `for_each[]`, `concurrency`, `ttl` (call deadline), `exception` |
+| `graph.extension` | `extension` (`{graph-id}` or `flow://{flow-id}`), `input[]` | `output[]`, `for_each[]`, `concurrency`, `ttl` (call deadline), `exception`, `async` (start and continue; then no `output[]`), `progress` |
+| `graph.task` | `task` (a composable function's route name) | `input[]`, `output[]`, `for_each[]`, `concurrency`, `ttl` (call deadline), `exception`, `progress` (see [Progress events](skills-reference.md#progress)) |
 | `graph.join` | — | — |
 | `graph.island` | — | — |
 

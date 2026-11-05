@@ -139,7 +139,8 @@ impl PostOffice {
     /// Send WITHOUT stamping the current trace, for a high-volume message that
     /// must not open a span per message: a stream's data segments (a stream is
     /// traced at its head and its tail, never per token) and progress events
-    /// (the agent loop's `llm.run` events to its caller's return route). One
+    /// (a graph run's events to its caller, and the agent loop's `llm.run`
+    /// events to its caller's return route). One
     /// span per message would flood a tracing backend. Same routing as
     /// [`send`](Self::send) — a mapped route still forwards over Event-over-HTTP.
     pub async fn send_untraced(&self, event: EventEnvelope) -> Result<(), AppError> {

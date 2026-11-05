@@ -1,0 +1,62 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "unit-test-progress-1",
+        "progress": "Started",
+        "purpose": "progress events: the engine's node.start for each node with 'progress', then the function's own"
+      }
+    },
+    {
+      "alias": "work",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.progress.sender",
+        "input": [
+          "input.body.item -> item",
+          "input.body.mode -> mode"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "progress": "Working on it"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "work"
+    },
+    {
+      "source": "work",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

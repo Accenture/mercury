@@ -27,6 +27,8 @@ use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use event_script::mlm::MultiLevelMap;
 use platform_core::graph::MiniGraph;
 
+use crate::progress::ReturnChannel;
+
 /// Loop-detection counters for one node (Java `Visits`).
 #[derive(Clone, Copy, Default)]
 pub struct Visits {
@@ -69,6 +71,9 @@ pub struct GraphInstance {
     pub pending_input_validation: AtomicBool,
     metadata: Mutex<Metadata>,
     start_time_ms: std::sync::atomic::AtomicI64,
+    /// The way back to a caller that watches the run (RFC-0011 section 8.4); None for a caller
+    /// that waits for the result. (Java `GraphInstance.returnChannel`.)
+    return_channel: Mutex<Option<Arc<ReturnChannel>>>,
 }
 
 impl GraphInstance {
@@ -84,7 +89,17 @@ impl GraphInstance {
             pending_input_validation: AtomicBool::new(false),
             metadata: Mutex::new(Metadata::default()),
             start_time_ms: std::sync::atomic::AtomicI64::new(now_epoch_ms()),
+            return_channel: Mutex::new(None),
         }
+    }
+
+    /// The run's return channel, when a caller watches it.
+    pub fn get_return_channel(&self) -> Option<Arc<ReturnChannel>> {
+        self.return_channel.lock().expect("return channel").clone()
+    }
+
+    pub fn set_return_channel(&self, channel: Option<Arc<ReturnChannel>>) {
+        *self.return_channel.lock().expect("return channel") = channel;
     }
 
     pub fn reset_start_time(&self) {

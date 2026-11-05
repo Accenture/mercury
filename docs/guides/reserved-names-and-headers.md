@@ -86,6 +86,8 @@ Registered whenever the knowledge-graph crate is part of the application:
 | `graph.exception.handler` | Graph failure routing |
 | `graph.housekeeper` | Graph instance cleanup |
 | `graph.health` | Health probe for the graph engine |
+| `graph.progress.*` | The relay of one node of a watched graph run: its progress events to the caller ([Progress events](knowledge-graph/skills-reference.md#progress)) |
+| `graph.run.socket.reply` | The flow reply of a graph run started from a WebSocket session (`/ws/graph-run/{graph_id}`), registered when `graph.websocket.enabled=true` |
 | `get.index.html` | The home page (the Playground page when `app.env=dev`, the plain service page otherwise) |
 
 The knowledge graph additionally reserves the node **alias** `suspend` (bound to the
@@ -157,6 +159,21 @@ Both are part of the telemetry plumbing and are never themselves traced.
 :   Engine-internal headers on events addressed to `event.script.manager` (flow selection
     and the business correlation-id handoff). Application code never sets these — the flow
     adapter and the task executor own them.
+
+### `x-return-path` - the return route for progress events {#x-return-path}
+
+An event that starts a graph run - a Kafka message, an Event-over-HTTP call, another flow - may name a composable
+function route in its `x-return-path` header (the run's `input.header`). The graph engine sends the run's progress
+events and its final result to that route only when the application declares it in
+[`return.path.routes`](configuration-reference.md#return-path-routes); an undeclared route is ignored with one
+warning. On a REST entry the REST automation sets the return route itself, so an inbound HTTP `x-return-path` header
+has no effect there.
+
+The engine also passes `x-return-path` to the function of a `graph.task` node that carries `progress`, and to a
+synchronous subgraph: the value is the node's relay route (`graph.progress.*`), never the caller's route. A node
+without `progress` never sees the header, and a graph cannot map it (`header.x-return-path` fails CompileGraph).
+`llm.run` sends its own progress events to the route the header names. See
+[Progress events](knowledge-graph/skills-reference.md#progress).
 
 ## Reserved envelope tags
 

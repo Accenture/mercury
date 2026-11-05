@@ -1527,7 +1527,17 @@ async fn render_stream(
             None => match next_stream_event(&mut rx, &body_tx, sse, idle).await {
                 Waited::Event(event) => match stream_marker(&event) {
                     Ok(Some(marker)) => (event, marker),
-                    Ok(None) | Err(()) => {
+                    Ok(None) => {
+                        // a single-shot reply after the stream committed the head (a flow's
+                        // timeout after its run streamed progress, for example): the head cannot
+                        // change, and the stream's own terminal ends the response (Java
+                        // AsyncHttpResponse parity)
+                        log::warn!(
+                            "Single-shot reply to {context_id} dropped - its streaming response has already started"
+                        );
+                        continue;
+                    }
+                    Err(()) => {
                         log::warn!(
                             "Dropping event for {context_id} - invalid {} signal",
                             event_stream::X_EVENT_STREAM

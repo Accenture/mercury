@@ -32,6 +32,9 @@
 //!
 //! The functions below are the only code; none knows the others exist, and
 //! nothing here publishes — the flow YAML does (`event-script-over-code`).
+//! The one exception is `kafka.progress.publisher`, a return route for a
+//! watched graph run's progress events (RFC-0011), which publishes each event
+//! through `simple.kafka.notification`.
 //! Each function derives its trace context from the read-only `my_*` headers
 //! the engine injects, so every one is directly unit-testable (see the tests).
 //!
@@ -50,8 +53,8 @@ use minimalist_kafka::headers::CORRELATION_ID;
 use platform_core::automation::MY_CORRELATION_ID;
 use platform_core::trace::iso8601_utc_now;
 use platform_core::{
-    main_application, preload, w3c_trace, AppError, ComposableFunction, EntryPoint, EventEnvelope,
-    TypedFunction,
+    main_application, preload, w3c_trace, AppConfigReader, AppError, ComposableFunction,
+    EntryPoint, EventEnvelope, Platform, PostOffice, TypedFunction,
 };
 use rmpv::Value;
 
@@ -280,6 +283,90 @@ impl ComposableFunction for CatchAllProcessor {
     }
 }
 
+// ---------------------------------------------------------------------------
+// progress events from a graph run - the generic return path
+// ---------------------------------------------------------------------------
+
+const NOTIFICATION_ROUTE: &str = "simple.kafka.notification";
+
+/// A return route that publishes a graph run's progress events to a Kafka
+/// topic (RFC-0011 section 8.4): the generic return path in one small
+/// function. A caller names `kafka.progress.publisher` in its
+/// `x-return-path`, the graph application declares it in
+/// `return.path.routes`, and each event the engine or `llm.run` sends arrives
+/// here as a map, which this function publishes through
+/// `simple.kafka.notification` (twin of the Java `ProgressPublisher`).
+///
+/// One run's events stay in order on one partition:
+/// `simple.kafka.notification` publishes without a record key, so the
+/// partition is computed from the event's `cid` - the content-based
+/// partitioning the minimalist-kafka guide describes - with the Java engine's
+/// `String.hashCode`, so both engines put a run on the same partition. A
+/// consumer orders a run's events by `seq` and finds a gap the same way.
+/// Delivery belongs to Kafka: the engine sends each event and never waits.
+///
+/// Settings: `progress.kafka.topic` (default `demo.progress`) and
+/// `progress.kafka.partitions`, the topic's partition count (default 10, as
+/// the demo creates its topics).
+#[preload(route = "kafka.progress.publisher", instances = 10)]
+#[derive(Default)]
+struct ProgressPublisher;
+
+#[async_trait]
+impl ComposableFunction for ProgressPublisher {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let config = AppConfigReader::get_instance();
+        let topic = config.get_property_or("progress.kafka.topic", "demo.progress");
+        let partitions =
+            event_script::util::str2int(&config.get_property_or("progress.kafka.partitions", "10"));
+        let platform = Platform::get_instance();
+        PostOffice::new(&platform)
+            .send(progress_notification(input.body(), &topic, partitions))
+            .await?;
+        Ok(EventEnvelope::new())
+    }
+}
+
+/// The notification that publishes one event: the topic, the run's partition
+/// and its correlation id as headers, the event as the body (published as
+/// JSON).
+fn progress_notification(event: &Value, topic: &str, partitions: i32) -> EventEnvelope {
+    // Java String.valueOf: an event without a cid reads "null"
+    let cid = match event {
+        Value::Map(entries) => entries
+            .iter()
+            .find(|(k, _)| k.as_str() == Some("cid"))
+            .map(|(_, v)| match v {
+                Value::String(text) => text.as_str().unwrap_or_default().to_string(),
+                Value::Nil => "null".to_string(),
+                other => other.to_string(),
+            })
+            .unwrap_or_else(|| "null".to_string()),
+        _ => "null".to_string(),
+    };
+    // Java Math.floorMod(cid.hashCode(), Math.max(1, partitions))
+    let partition = java_string_hash(&cid).rem_euclid(partitions.max(1));
+    EventEnvelope::new()
+        .set_to(NOTIFICATION_ROUTE)
+        .set_header("topic", topic)
+        .set_header("partition", &partition.to_string())
+        .set_header("cid", &cid)
+        .set_raw_body(event.clone())
+}
+
+/// Java `String.hashCode`: `s[0]*31^(n-1) + ... + s[n-1]` over the UTF-16 code
+/// units, in wrapping 32-bit arithmetic.
+fn java_string_hash(text: &str) -> i32 {
+    text.encode_utf16().fold(0i32, |hash, unit| {
+        hash.wrapping_mul(31).wrapping_add(i32::from(unit))
+    })
+}
+
 /// A decoded map or list body as JSON (the rendering the outbound message
 /// carries).
 fn as_json(value: &Value) -> serde_json::Value {
@@ -428,6 +515,65 @@ mod tests {
         assert_eq!("refund recorded", ack["status"]);
         assert_eq!("abc123", ack["refund"]["orderId"]);
         assert_eq!("refund-001", ack["cid"]);
+    }
+
+    /// `kafka.progress.publisher` turns each progress event into one
+    /// `simple.kafka.notification`: one run's events go to one partition,
+    /// computed from the run's cid, and the event itself is the record's body
+    /// (Java `ProgressPublisherTest`).
+    #[test]
+    fn one_runs_events_go_to_one_partition() {
+        let start = rmpv::ext::to_value(
+            serde_json::json!({"type": "progress", "event": "node.start", "seq": 1, "cid": "run-7"}),
+        )
+        .expect("event");
+        let end = rmpv::ext::to_value(
+            serde_json::json!({"type": "result", "seq": 9, "cid": "run-7", "status": 200}),
+        )
+        .expect("event");
+        let first = progress_notification(&start, "demo.progress", 10);
+        let last = progress_notification(&end, "demo.progress", 10);
+        assert_eq!(Some("simple.kafka.notification"), first.to());
+        assert_eq!(Some("demo.progress"), first.header("topic"));
+        assert_eq!(Some("run-7"), first.header("cid"));
+        assert_eq!(
+            first.header("partition"),
+            last.header("partition"),
+            "one run, one partition"
+        );
+        // the Java engine's partition for the same cid: "run-7".hashCode() is 108874101
+        assert_eq!(Some("1"), first.header("partition"));
+        assert_eq!(&start, first.body());
+        // String.hashCode over UTF-16 code units, a negative hash included
+        assert_eq!(99162322, java_string_hash("hello"));
+        assert_eq!(61885637, java_string_hash("\u{e9}\u{1d11e}x"));
+        assert_eq!(
+            -405539814,
+            java_string_hash("6f1e0c2a8b4d4f7e9a3c5d2b1e0f4a7c")
+        );
+    }
+
+    #[test]
+    fn runs_spread_over_the_partitions() {
+        let mut partitions = std::collections::HashSet::new();
+        for i in 0..100 {
+            let event = rmpv::ext::to_value(
+                serde_json::json!({"type": "progress", "cid": format!("run-{i}")}),
+            )
+            .expect("event");
+            let notification = progress_notification(&event, "demo.progress", 10);
+            let partition = notification
+                .header("partition")
+                .expect("partition")
+                .to_string();
+            let n: i32 = partition.parse().expect("a number");
+            assert!((0..10).contains(&n), "{partition}");
+            partitions.insert(partition);
+        }
+        assert!(
+            partitions.len() > 5,
+            "runs spread over the topic: {partitions:?}"
+        );
     }
 
     #[tokio::test]

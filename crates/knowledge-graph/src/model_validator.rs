@@ -41,6 +41,7 @@ use rmpv::Value;
 use std::sync::Arc;
 
 use crate::common::{assert_mutable_model_target, get_entries, EXCEPTION, NODE_NAME, SKILL};
+use crate::progress::{PROGRESS, X_RETURN_PATH};
 use crate::suspend::{get_valid_ttl_seconds, RESUME_ROUTE, SUSPEND_ALIAS, SUSPEND_ROUTE};
 
 const TASK: &str = "task";
@@ -48,6 +49,7 @@ const TTL: &str = "ttl";
 const JS_ROUTE: &str = "graph.js";
 const MAP_TO: &str = "->";
 const MAPPING_TAG: &str = "mapping:";
+const HEADER_PREFIX: &str = "header.";
 /// Skills whose `ttl` node parameter is the child-call DEADLINE override.
 /// Deliberate divergence from Java (maintainer-ruled): this engine does not
 /// carry graph.js, so the set — and the rejection message — names THREE
@@ -69,6 +71,7 @@ pub fn validate(graph: &MiniGraph) -> Result<(), String> {
     validate_suspend_resume(graph)?;
     validate_node_ttl(graph)?;
     validate_async_extension(graph)?;
+    validate_progress(graph)?;
     validate_model_metadata_immutability(graph)?;
     validate_json_paths(graph)?;
     validate_schemas(graph)
@@ -297,6 +300,41 @@ fn validate_async_extension(graph: &MiniGraph) -> Result<(), String> {
             return Err(format!(
                 "{NODE_NAME}{alias} - an asynchronous graph.extension returns nothing, so it takes no 'output'"
             ));
+        }
+    }
+    Ok(())
+}
+
+/// A node opts in to progress events with `progress=<text>` (RFC-0011 section
+/// 8.4; Java `validateProgress`): the text is the message of the engine's
+/// `node.start` event, so it is required. The engine alone gives a function
+/// its return path, and only on a node that opts in, so an input mapping to
+/// `header.x-return-path` is refused: it would pass a caller's route to a
+/// function the graph did not opt in, or a route the application never
+/// declared.
+fn validate_progress(graph: &MiniGraph) -> Result<(), String> {
+    let header_target = format!("{HEADER_PREFIX}{X_RETURN_PATH}");
+    for node in graph.get_nodes() {
+        let alias = node.get_alias();
+        let progress = node.get_property(PROGRESS);
+        if node.get_property(SKILL).is_some()
+            && progress.is_some()
+            && without_text(progress.as_ref())
+        {
+            return Err(format!(
+                "{NODE_NAME}{alias} - 'progress' is the text of the node's progress event, so it cannot be blank"
+            ));
+        }
+        for entry in get_entries(node.get_property("input")) {
+            let target = match entry.rfind(MAP_TO) {
+                Some(sep) => entry[sep + MAP_TO.len()..].trim(),
+                None => "",
+            };
+            if target.eq_ignore_ascii_case(&header_target) {
+                return Err(format!(
+                    "{NODE_NAME}{alias} - input '{entry}' sets {X_RETURN_PATH}, which only the engine passes"
+                ));
+            }
         }
     }
     Ok(())

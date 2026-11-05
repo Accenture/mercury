@@ -487,6 +487,7 @@ pub async fn task(
                 .map_err(invalid)?;
             build_task_request(&node_name, &route, &mapping, &mut state)?
         };
+        let request = with_return_path(request, &instance, &node).await;
         log::info!("Call task {route}, ttl={ttl}");
         po.annotate_trace("task", &route);
         let response = call_task(&po, request, ttl).await;
@@ -533,6 +534,12 @@ pub async fn task(
             .map_err(invalid)?;
         (requests, concurrency)
     };
+    // every request of the fan-out reports through the node's one relay
+    let mut with_relay = Vec::with_capacity(requests.len());
+    for request in requests {
+        with_relay.push(with_return_path(request, &instance, &node).await);
+    }
+    let requests = with_relay;
     for batch in requests.chunks(concurrency) {
         let responses = run_batch(batch.to_vec(), ttl).await;
         let mut state = instance.state.lock().expect("graph state machine");
@@ -547,6 +554,20 @@ pub async fn task(
         next_path(&node_name, &node, &state)
     };
     EventEnvelope::new().set_body(next)
+}
+
+/// The node's relay as the request's `x-return-path`, for a node that carries
+/// `progress` in a watched run (RFC-0011 section 8.4; Java
+/// `GraphTask.withReturnPath`); any other request is unchanged.
+async fn with_return_path(
+    request: EventEnvelope,
+    instance: &GraphInstance,
+    node: &SimpleNode,
+) -> EventEnvelope {
+    match crate::common::return_path_for(instance, node).await {
+        Some(return_path) => request.set_header(crate::progress::X_RETURN_PATH, &return_path),
+        None => request,
+    }
 }
 
 /// One fork-join batch: requests run concurrently ON THE CALLING TASK and the
