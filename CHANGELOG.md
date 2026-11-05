@@ -32,6 +32,11 @@ Each change merged to `main` after v4.12.27 is listed here; it moves under its r
    mercury-python or mercury-nodejs)". The Playground README and the commented start commands in its
    `event-over-http.yaml` follow. The lock-step twin of mercury-composable #601. **Upgrade note:** none - the route, its
    status and the rest of the message are unchanged.
+2. **An aborted flow whose caller cannot be told is recorded in the log (Increment 196).** A flow launched with no
+   callback, or whose callback route is no longer served, has nobody to tell when it aborts. The executor already
+   ended such a flow, but recorded nothing; it now logs `Flow <id>:<instance> aborted with status <status> - <reason>`,
+   followed by `. Unable to tell <route> - <cause>` when the callback route is gone. The twin of mercury-composable
+   #610, where the same abort had left the flow open. **Upgrade note:** none; one error line per such abort.
 
 ### Documentation
 

@@ -312,6 +312,11 @@ fn flow_error_map(status: i32, message: Value) -> Value {
     ])
 }
 
+/// Abort a flow: tell the calling party, when there is one, and end the flow (Java
+/// `TaskExecutor.abortFlow`). The abort always ends the flow, or the instance and its task
+/// references would stay in memory. A flow launched with no callback has no calling party, and
+/// a callback route that is no longer served cannot take the error, so in both cases the log
+/// line is the record of the abort.
 async fn abort_flow(
     platform: &Platform,
     instance: &Arc<FlowInstance>,
@@ -320,6 +325,7 @@ async fn abort_flow(
     parent_span: Option<String>,
 ) {
     if instance.claim_response() {
+        let reason = display(&message);
         let result = flow_error_map(status, message);
         instance.set_error_reference(result.clone());
         if let Some(reply_to) = &instance.reply_to {
@@ -335,7 +341,20 @@ async fn abort_flow(
                 error = error.set_trace(trace_id, path);
             }
             let po = PostOffice::new(platform);
-            let _ = po.send(error).await;
+            if let Err(e) = po.send(error).await {
+                log::error!(
+                    "Flow {}:{} aborted with status {status} - {reason}. Unable to tell {reply_to} - {}",
+                    instance.template.id,
+                    instance.id,
+                    e.message()
+                );
+            }
+        } else {
+            log::error!(
+                "Flow {}:{} aborted with status {status} - {reason}",
+                instance.template.id,
+                instance.id
+            );
         }
     }
     end_flow(platform, instance, false).await;
