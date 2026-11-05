@@ -1179,6 +1179,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "mercury-agent-loop"
+version = "4.12.27"
+dependencies = [
+ "async-trait",
+ "futures-util",
+ "log",
+ "mercury-platform-core",
+ "mercury-test-support",
+ "regex",
+ "rmpv",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "mercury-distributed-cache"
 version = "4.12.27"
 dependencies = [

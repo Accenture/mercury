@@ -136,12 +136,13 @@ impl PostOffice {
         self.dispatch(apply_current_trace(event)).await
     }
 
-    /// Send WITHOUT stamping the current trace — the stream writer's data
-    /// segments: a stream is traced at its head and its tail, never per token
-    /// (one span per token would flood a tracing backend). Same routing as
+    /// Send WITHOUT stamping the current trace, for a high-volume message that
+    /// must not open a span per message: a stream's data segments (a stream is
+    /// traced at its head and its tail, never per token) and progress events
+    /// (the agent loop's `llm.run` events to its caller's return route). One
+    /// span per message would flood a tracing backend. Same routing as
     /// [`send`](Self::send) — a mapped route still forwards over Event-over-HTTP.
-    /// Crate-visible: user code has no untraced send.
-    pub(crate) async fn send_untraced(&self, event: EventEnvelope) -> Result<(), AppError> {
+    pub async fn send_untraced(&self, event: EventEnvelope) -> Result<(), AppError> {
         self.dispatch(event).await
     }
 

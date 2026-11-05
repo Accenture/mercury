@@ -25,6 +25,9 @@ members = [
     # the ready-made OpenTelemetry OTLP/HTTP trace forwarder (distributed.trace.forwarder),
     # opt-in by otel.forwarding=true
     "extensions/opentelemetry-forwarder",
+    # the agent loop of RFC-0011 (llm.run): model turns through a language pack's llm.chat, tool calls
+    # through the catalog's routes - the twin of the Java extensions/agent-loop
+    "extensions/agent-loop",
     # the API playground: Swagger UI in a Mercury page, loading a graph's OpenAPI document from a
     # MiniGraph application - the twin of the Java extensions/api-playground (publish = false)
     "extensions/api-playground",

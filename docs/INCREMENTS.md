@@ -5337,3 +5337,47 @@ CHANGELOG Unreleased, `Added` item 2.
 
 Gates: `cargo test -p mercury-knowledge-graph -p ai-contract-provider` (25 binaries, 110 passed, 0 failed), `cargo clippy -p mercury-knowledge-graph --all-targets -- -D warnings`,
 `cargo fmt --all --check`, `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.
+
+## Increment 198 — The agent loop, `llm.run`, in the new crate `mercury-agent-loop` (2026-11-05)
+
+The twin of mercury-composable #605 and #606 (RFC-0011, build plan step 2, and section 7.3). A graph node calls `llm.run`
+with `graph.task`, giving it a tool catalog held on the graph, a prompt and its settings. The loop sends each model turn
+to `llm.chat`, the LLM helper of a language pack, and calls the route each tool's name maps to. It checks the whole
+catalog before the first turn, validates each input against the row's schema, applies the node's mode (`write`,
+`auto`, `manual`, `unattended`), holds a call that waits for a person (an approval, or a row with `ask: true`), resumes
+from the approval block, and answers with the envelope a decision node routes on. When its caller names a return route
+in `x-return-path`, it sends its progress events there (the loop half of mercury-composable #611).
+
+- **`extensions/agent-loop`, crate `mercury-agent-loop`, lib `agent_loop`.** One module per Java class:
+  `agent_loop.rs` (`AgentLoop`), `tool_schema.rs` (`ToolSchema`, with a private exact decimal in place of
+  `BigDecimal`), `tool_catalog.rs` (`ToolCatalog`), `settings.rs` (`LoopSettings` and its `Defaults` from
+  `llm.run.*`), `gateway.rs` (`LoopGateway`), `platform_gateway.rs` (`PlatformGateway`), `json.rs` (`Json`) and
+  `function.rs` (`LlmRun`, `#[preload]` on `llm.run`, 50 instances, `worker.instances.llm.run`). `value.rs` holds what
+  Java gets from `Map` and `String`: nil read as absent, the last of a repeated key, `String.trim` and `isBlank`, and
+  the UTF-16 order of a `TreeSet<String>`, where the Rust defaults differ at the edges. The crate is opt-in: linking it
+  registers the route.
+- **Differences from Java.** A request answers `Result<EventEnvelope, AppError>`, so a timeout (408) or an unserved
+  route (404) becomes the call's error result through `failure`. A progress event is awaited until the return route's
+  mailbox accepts it, where Java's event bus enqueues it synchronously; the events still arrive in order and before
+  the loop's response. A turn's tool calls run concurrently on the function's own task (`FuturesOrdered`), because a
+  spawned task would lose the task-local trace, so every request still carries the `llm.run` span as its parent.
+  "Reachable" is a local route or an Event-over-HTTP target: this port has no Kafka service mesh.
+- **`crates/platform-core/src/post_office.rs`.** `PostOffice::send_untraced` is public: a progress event, like a
+  stream's data segment, must not open a span per message.
+- **Tests.** `tests/resources/vectors/llm-run-vectors.json`, byte-identical with the Java copy: `tests/llm_run_vectors.rs`
+  runs its 105 loop cases (seven pin the progress events) and 29 schema cases, each failure named by its case, against
+  a scripted `llm.chat`, scripted tools and a clock the script advances. `tests/llm_run_platform.rs`: the eleven
+  `LlmRunPlatformTest` scenarios through the platform, registered by the preload inventory, with real routes, a route
+  that fails and one that times out. Negative controls: a write in `write` mode that no longer waits failed 12 loop
+  cases by name; `additionalProperties: false` no longer enforced failed a schema case and a loop case; a `put` that
+  replaced the first of a repeated key failed `put_replaces_the_entry_get_reads`.
+- **Docs.** The crate's README (Java's, with the Rust linking note and the port's reachability), the workspace
+  README's crate list, and `llm.run` among the reserved routes. The Rust graph engine does not yet pass
+  `x-return-path` to a `graph.task` node (Increment 199, mercury-composable #611), so the README says a caller names
+  its own return route.
+
+CHANGELOG Unreleased, `Added` item 3.
+
+Gates: `cargo test -p mercury-agent-loop` (3 binaries, 14 passed, 0 failed), `cargo clippy -p mercury-agent-loop -p mercury-platform-core --all-targets -- -D warnings`,
+`cargo fmt --all --check`, `RUSTDOCFLAGS='-D warnings' cargo doc -p mercury-agent-loop --no-deps`, `python3 scripts/check-doc-claims.py`,
+`python3 scripts/check-llms-links.py`.

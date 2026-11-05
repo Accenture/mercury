@@ -32,6 +32,22 @@ Each change merged to `main` after v4.12.27 is listed here; it moves under its r
    node starts one run per element, `concurrency` bounding how many are active, and checks every element's input
    before any run starts. The end of each run is logged with its status. The twin of mercury-composable #609.
    **Upgrade note:** none; a node without `async` runs as before.
+3. **The agent loop, `llm.run`, in the new opt-in crate `mercury-agent-loop` (Increment 198).** A graph node calls
+   `llm.run` with `graph.task`, giving it a tool catalog held on the graph, a prompt and its settings. The loop sends
+   each model turn to `llm.chat`, served by the LLM helper of mercury-python or mercury-nodejs
+   (`extensions/llm-helper`, with a transcript store configured), and calls the route each tool's name maps to. Before
+   the first turn it checks the whole catalog and that every route is served, so a bad catalog fails before a token is
+   spent. It validates each input against the row's schema (a closed JSON Schema subset), applies the node's mode to
+   each tool call (`write`, the default, holds a tool marked `write: true` for a person; `auto` runs every call;
+   `manual` holds every call; `unattended` refuses a marked write), lets a row with `ask: true` and no route put a
+   question to a person, resumes from the approval block with one decision per waiting call, and stops at
+   `max_turns`, at its `timeout`, at a refusal or at a cut-off turn. It answers with an envelope a decision node routes
+   on. When its caller names a return route in `x-return-path`, it sends its progress events there. Settings and their
+   global defaults: `llm.run.max.turns` (10), `llm.run.result.limit` (65536), `llm.run.transcript.ttl` (7d),
+   `llm.run.transcript.retention` (0) and `llm.run.timeout` (25s). The shared vector file `llm-run-vectors.json` (105
+   loop cases, 29 schema cases) is byte-identical with the Java engine's. `PostOffice::send_untraced` in platform-core
+   is now public, the send a progress event uses. The twin of mercury-composable #605 and #606. **Upgrade note:** none;
+   nothing changes until an application links the crate, and `llm.run` is a reserved route name once it does.
 
 ### Changed
 

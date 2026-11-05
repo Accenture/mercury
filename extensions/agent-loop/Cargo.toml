@@ -1,0 +1,31 @@
+[package]
+name = "mercury-agent-loop"
+description = "The agent loop of RFC-0011 for Mercury: the llm.run function runs model turns through a language pack's llm.chat route and calls a composable-function route for each tool the model asks for, from a tool catalog fixed on the graph (opt-in: linking the crate registers the route)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["llm", "agent", "tool-use", "composable", "mercury"]
+categories = ["asynchronous"]
+
+[lib]
+name = "agent_loop"
+
+[dependencies]
+mercury-platform-core = { version = "4.12.27", path = "../../crates/platform-core" }
+async-trait = "0.1"
+# the turn's tool calls run concurrently on the function's own task, so every request carries the llm.run span
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+log = "0.4"
+# a tool input schema's pattern
+regex = "1"
+rmpv = { version = "1", features = ["with-serde"] }
+# a tool catalog given as JSON text
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+# one temporary folder per test process, removed when the process exits (dev-only)
+mercury-test-support = { path = "../../crates/test-support" }

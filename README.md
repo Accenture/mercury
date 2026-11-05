@@ -46,7 +46,8 @@ the Redis suspend/resume state store, `mercury-distributed-cache` for the opt-in
 cache (`v1.cache.redis`), `mercury-sync-over-async` for the cross-pod streaming return
 route — the last two share the `mercury-redis-connection` client foundation — or
 `mercury-opentelemetry-forwarder` to export the engine's distributed traces over OTLP/HTTP,
-off until `otel.forwarding=true`.)
+off until `otel.forwarding=true`, or `mercury-agent-loop` for `llm.run`, the agent loop that runs
+model turns through a language pack's `llm.chat` and calls a route for each tool.)
 
 ## Quick start
 
