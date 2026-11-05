@@ -1,0 +1,35 @@
+#
+# A flow that aborts when its caller cannot be told: no callback, or a callback route that is gone
+# (FlowAbortWithoutCallbackTest; the Rust twin is tests/flow_abort_without_callback.rs).
+#
+# The probe records the flow instance id from model.instance, then does what input.body.mode asks:
+# - fail:  throw, and the flow has no exception handler, so it aborts
+# - stall: sleep past the flow ttl (the caller sets a short ttl in the dataset), so the flow times out
+# - pass:  return, so the flow moves on to a task whose function is not deployed and aborts there
+#
+flow:
+  id: 'abort-without-callback-test'
+  description: 'Pin - an aborted flow is closed whether or not its caller can be told'
+  ttl: 10s
+
+first.task: 'abort.probe'
+
+tasks:
+  - input:
+      - 'model.instance -> instance'
+      - 'input.body.token -> token'
+      - 'input.body.mode -> mode'
+    process: 'abort.probe'
+    output: []
+    description: 'Record the flow instance id, then fail, stall or pass as the caller asks'
+    execution: sequential
+    next:
+      - 'missing.route'
+
+  - name: 'missing.route'
+    input: []
+    process: 'abort.probe.not.deployed'
+    output:
+      - 'result -> output.body'
+    description: 'A task whose function is not deployed'
+    execution: end

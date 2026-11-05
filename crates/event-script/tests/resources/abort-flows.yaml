@@ -1,0 +1,8 @@
+#
+# The one flow of the flow_abort_without_callback test binary - its own manifest, so the shared
+# flows.yaml (and the exact-set assertions over it in other binaries) stays as it is
+#
+flows:
+  - 'abort-without-callback-test.yml'
+
+location: 'classpath:/flows/'

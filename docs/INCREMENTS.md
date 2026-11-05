@@ -5276,3 +5276,26 @@ CHANGELOG Unreleased, `Added` item 1.
 
 Gates: `cargo test -p mercury-platform-core` (33 suites, 291 passed, 0 failed, 2 ignored),
 `cargo clippy -p mercury-platform-core --all-targets -- -D warnings`, `cargo fmt --all --check`.
+
+## Increment 196 — An aborted flow whose caller cannot be told is recorded in the log (2026-11-05)
+
+The twin of mercury-composable #610. There, a flow that aborted with no reply-to address, or with a callback route that
+was no longer served, stayed open: `TaskExecutor.abortFlow` threw on the send before `endFlow`, so a timed-out flow ran
+on and a flow aborted by a missing task route stayed until its TTL. This engine never had the leak - `abort_flow` sends
+only when there is a `reply_to`, discards a failed send and always reaches `end_flow` - but it recorded nothing in
+either case, and with nobody to tell, the log is the only record of the abort.
+
+- **`crates/event-script/src/executor.rs`.** `abort_flow` logs `Flow <id>:<instance> aborted with status <status> -
+  <reason>` for a flow launched with no callback, and the same line followed by `. Unable to tell <route> - <cause>`
+  when the send to the callback fails - Java's two messages. It still always ends the flow.
+- **`tests/flow_abort_without_callback.rs`**, its own binary with its own manifest (`tests/resources/abort-flows.yaml`),
+  so the shared `flows.yaml` and the exact-set assertions over it stay as they are; the flow
+  `tests/resources/flows/abort-without-callback-test.yml` is Java's. Java's seven cases in one platform: a task
+  failure, a timeout and a missing task route, each with no callback and with a callback route that no function
+  serves, each closed within 2.5 seconds; and the control, a timeout with a callback that receives status 408. A
+  negative control that skipped `end_flow` for a flow with no callback failed at the first case.
+
+CHANGELOG Unreleased, `Changed` item 2.
+
+Gates: `cargo test -p mercury-event-script` (16 binaries, 88 passed, 0 failed), `cargo clippy -p mercury-event-script --all-targets -- -D warnings`,
+`cargo fmt --all --check`.
