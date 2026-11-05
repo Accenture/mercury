@@ -1,0 +1,6 @@
+# The flow target of an asynchronous graph.extension, for the tests/async_extension.rs binary only -
+# loaded beside the engine's own flows.yaml through a process-local 'yaml.flow.automation' override.
+flows:
+  - 'async-recorder.yml'
+
+location: 'classpath:/flows/'

@@ -68,6 +68,7 @@ pub fn validate(graph: &MiniGraph) -> Result<(), String> {
     validate_working_node_has_skill(graph)?;
     validate_suspend_resume(graph)?;
     validate_node_ttl(graph)?;
+    validate_async_extension(graph)?;
     validate_model_metadata_immutability(graph)?;
     validate_json_paths(graph)?;
     validate_schemas(graph)
@@ -260,6 +261,41 @@ fn validate_node_ttl(graph: &MiniGraph) -> Result<(), String> {
                 crate::extension::ROUTE,
                 crate::fetcher::ROUTE,
                 crate::skills::TASK_ROUTE
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// The 'async' node parameter starts a `graph.extension` target and returns at
+/// once (RFC-0011 section 8.1; Java `validateAsyncExtension`). On any other
+/// skilled node it is rejected rather than silently ignored, and its value is
+/// true or false. An asynchronous node returns nothing, so an 'output' mapping
+/// on it would read a result that never arrives: the check is complete,
+/// because the mapping is on the node itself.
+fn validate_async_extension(graph: &MiniGraph) -> Result<(), String> {
+    for node in graph.get_nodes() {
+        let alias = node.get_alias();
+        let skill = node.get_property(SKILL).map(|v| display(&v));
+        let (Some(skill), Some(value)) = (skill, node.get_property(crate::extension::ASYNC)) else {
+            continue;
+        };
+        if skill != crate::extension::ROUTE {
+            return Err(format!(
+                "{NODE_NAME}{alias} - 'async' is only applicable to a node with skill {}",
+                crate::extension::ROUTE
+            ));
+        }
+        let value = display(&value);
+        if value != "true" && value != "false" {
+            return Err(format!(
+                "{NODE_NAME}{alias} - 'async' must be true or false"
+            ));
+        }
+        if crate::extension::is_async(&node) && !get_entries(node.get_property("output")).is_empty()
+        {
+            return Err(format!(
+                "{NODE_NAME}{alias} - an asynchronous graph.extension returns nothing, so it takes no 'output'"
             ));
         }
     }

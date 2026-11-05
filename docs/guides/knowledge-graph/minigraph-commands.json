@@ -657,7 +657,8 @@
         "for_each[]",
         "concurrency",
         "ttl (call deadline; overrides the propagated model.ttl for the delegated sub-graph/flow call, making its timeout exception=-routable)",
-        "exception"
+        "exception",
+        "async"
       ],
       "notes": [
         "extension={graph-id} for a sub-graph, or flow://{flow-id} for an Event Script flow",
@@ -666,7 +667,8 @@
         "the node's result.* namespace IS the sub-graph's output.body: 'result' (bare) = the whole response body, 'result.{key}' = a field of it",
         "NO whole-body '*' target on graph.extension - map named keys (the '*' merge idiom is graph.task-only); the same contract applies to flow:// targets (named keys feed the flow's input.body; result.* is the flow's output.body)",
         "the delegated graph or flow INHERITS the caller's business correlation ID (model.cid), like an Event Script sub-flow - a delegated subgraph that suspends persists under the shared cid scoped by its own graph id, so re-invoking with the same cid resumes it (the orchestrator pattern: a parent graph delegates independently resumable subgraph paths)",
-        "exception={handler-node}: error.source is the extension node in THIS graph; failures inside the delegated subgraph or flow route to that graph's own handlers (suspension and error handling are self-contained per graph)"
+        "exception={handler-node}: error.source is the extension node in THIS graph; failures inside the delegated subgraph or flow route to that graph's own handlers (suspension and error handling are self-contained per graph)",
+        "async=true starts the target and continues at once: no output[] (the gate refuses one); the target inherits the business correlation ID and runs under its own TTL (the node's ttl when declared); exception= covers only a failure to start - a target that does not exist (404) or an input the target graph's root schema refuses (400); with for_each, one run per element, concurrency bounding the active runs, every element checked before any starts"
       ],
       "example": "skill=graph.extension\nextension=evaluate-sales-performance\ninput[]=input.body.department_id -> id\noutput[]=result -> output.body"
     },

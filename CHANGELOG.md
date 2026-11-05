@@ -23,6 +23,15 @@ Each change merged to `main` after v4.12.27 is listed here; it moves under its r
    the Java engine's and the language packs' copies, seven vectors, and `envelope_wire_format` decodes and round-trips six
    standard ones (the compact vector stays skipped). The codec passed the new vector unchanged. **Upgrade note:** none - a
    test fixture; no shipped behaviour changes.
+2. **An asynchronous `graph.extension` (Increment 197).** `async=true` starts the target, a deployed graph or a flow,
+   and continues to the next node at once, so a graph whose work runs longer than a caller waits can answer with an
+   advice (an HTTP 202) while the target runs. The target inherits the business correlation id and runs under its own
+   TTL, or the node's `ttl` when it declares one; nothing comes back, so the deployment gate refuses an `output[]` on
+   the node, and refuses `async` on any other skill. `exception=` covers only a failure to start: a target that does
+   not exist, or an input the target graph's root `schema` refuses, checked before the run starts. With `for_each` the
+   node starts one run per element, `concurrency` bounding how many are active, and checks every element's input
+   before any run starts. The end of each run is logged with its status. The twin of mercury-composable #609.
+   **Upgrade note:** none; a node without `async` runs as before.
 
 ### Changed
 

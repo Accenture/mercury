@@ -1,0 +1,12 @@
+# The asynchronous graph.extension (RFC-0011 section 8.1, Java #609): manifest for the
+# tests/async_extension.rs binary only - loaded via a process-local 'graph.model.automation'
+# override, so graphs.yaml and its exact-count assertion in compiler.rs are untouched.
+# No 'location' entry: the default classpath:/graph resolves to tests/resources/graph/.
+graphs:
+  - 'unit-test-async-sub'
+  - 'unit-test-async-1'
+  - 'unit-test-async-2'
+  - 'unit-test-async-3'
+  - 'unit-test-async-4'
+  - 'unit-test-async-5'
+  - 'unit-test-async-6'

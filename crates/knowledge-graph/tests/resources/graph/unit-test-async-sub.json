@@ -1,0 +1,77 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "unit-test-async-sub",
+        "purpose": "the target of an asynchronous extension: a contract at the root, one recorded step",
+        "schema": {
+          "body": {
+            "type": "object",
+            "required": [
+              "item"
+            ],
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "delay": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "alias": "record",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.async.recorder",
+        "input": [
+          "input.body.item -> item",
+          "input.body.delay -> delay",
+          "model.iteration_index -> index"
+        ],
+        "output": [
+          "result -> output.body"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "record"
+    },
+    {
+      "source": "record",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

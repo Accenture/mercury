@@ -5299,3 +5299,41 @@ CHANGELOG Unreleased, `Changed` item 2.
 
 Gates: `cargo test -p mercury-event-script` (16 binaries, 88 passed, 0 failed), `cargo clippy -p mercury-event-script --all-targets -- -D warnings`,
 `cargo fmt --all --check`.
+
+## Increment 197 — An asynchronous `graph.extension`: `async=true` starts the target and continues (2026-11-05)
+
+The twin of mercury-composable #609 (RFC-0011 section 8.1). A graph whose work runs longer than a caller waits answers
+at once while its target runs: the node starts the target - a deployed graph or a `flow://` flow - and continues to its
+next node. Nothing comes back. The target inherits the business correlation id and runs under its own TTL (a flow's,
+or the `graph-executor` flow's for a graph), or the node's `ttl` when it declares one. `exception=` covers only a
+failure to start: a target that does not exist (404), or an input the target graph's root `schema` refuses (400),
+checked before any run starts. With `for_each`, one run per element, at most `concurrency` active; each run's end is
+logged with its status.
+
+- **`crates/knowledge-graph/src/extension.rs`.** `ASYNC` and `is_async`; `start_extension` and `start_extensions`
+  stage the input as the synchronous paths do, and `start_runs` checks the target (`target_ttl`), checks every run's
+  input against the target's root schema through the schema validator (`refused_input`, `for_each element <i> - `
+  before a fan-out's reason), stages a failure to start as the node's error (`start_failure`) and starts the runs.
+  `start_in_background` is Java's `BackgroundRuns`: a sliding window (`for_each_concurrent`) that waits on each run
+  for its TTL plus 5 seconds and logs its end. `build_forward` takes an optional TTL, so a run without a node `ttl`
+  sends none and the target's own applies. **One difference from Java:** the trace bracket is a tokio task-local, so a
+  run started after the node returned has none; each run carries the node's trace, its span as the parent and the
+  business correlation id (`my_cid`) explicitly. Java sets only the span. `concurrency_of` is shared with the
+  synchronous fan-out.
+- **`crates/knowledge-graph/src/model_validator.rs`.** `validate_async_extension`, Java's three rules and messages:
+  `async` only on `graph.extension`, `true` or `false` only, and no `output[]` on an asynchronous node.
+- **Tests.** Java's ten fixtures (`tests/resources/graph/unit-test-async-*.json`) and its recorder flow
+  (`tests/resources/flows/async-recorder.yml`). `tests/compiler.rs`: the seven valid ones compile (75 graphs), the
+  three err ones are rejected with Java's messages. `tests/async_extension.rs`, its own binary with its own manifests:
+  Java's eight `AsyncExtensionTest` cases - the parent answers 202 before its target ends; a fan-out of five with
+  `concurrency=2` keeps two runs active and carries each position; a flow target under the node's `ttl` (20000) and
+  under its own (45000); a graph and a flow that do not exist; an input the target refuses, and one refused element
+  of a fan-out, each starting nothing. Negative controls: without the explicit business correlation id and trace the
+  target's run was recorded under another id; without the input check a refused input started the run.
+- **Docs.** The skills reference's *Asynchronous* section (Java's text), the command reference's `async` and the
+  command catalogue's `async` entry and note.
+
+CHANGELOG Unreleased, `Added` item 2.
+
+Gates: `cargo test -p mercury-knowledge-graph -p ai-contract-provider` (25 binaries, 110 passed, 0 failed), `cargo clippy -p mercury-knowledge-graph --all-targets -- -D warnings`,
+`cargo fmt --all --check`, `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.

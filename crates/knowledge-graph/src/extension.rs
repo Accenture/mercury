@@ -20,29 +20,50 @@
 //! Input mapping stages the delegated body; `for_each` fans the delegation
 //! out with clamped concurrency; the delegate's response lands in the node's
 //! `result` (`[]`-appended per fork-join call) for the output mapping.
+//!
+//! `async=true` (RFC-0011 section 8.1, Java mercury-composable #609) starts the
+//! target and continues at once: nothing comes back, the target inherits the
+//! business correlation id and runs under its own TTL (or the node's `ttl`),
+//! and only a failure to start - a target that does not exist, or an input the
+//! target graph's root `schema` refuses - reaches the node's `exception` route.
+//! With `for_each`, one run per element, at most `concurrency` active at once.
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use event_script::conversions::display;
 use event_script::mlm::MultiLevelMap;
 use event_script::util::str2int;
+use futures_util::StreamExt;
 use platform_core::graph::SimpleNode;
+use platform_core::post_office::BUSINESS_CID_TAG;
 use platform_core::{AppError, EventEnvelope, Platform, PostOffice};
 use rmpv::Value;
 
 use crate::common::{
     fill_fetcher_api_parameters, get_effective_ttl, get_entries, get_for_each_mapping,
-    get_model_array_size, get_next_model_param_set, invalid, join_batch,
+    get_model_array_size, get_model_ttl, get_next_model_param_set, invalid, join_batch,
     perform_fetcher_output_mapping, ERROR, EXCEPTION, HEADER, ITERATION_INDEX_HEADER, NEXT,
     NODE_NAME, RESULT, SKILL, STATUS, TARGET,
 };
 use crate::model::GraphInstance;
 
 pub const ROUTE: &str = "graph.extension";
+/// The node property that starts the target and returns at once (RFC-0011 section 8.1).
+pub const ASYNC: &str = "async";
 const FLOW_PROTOCOL: &str = "flow://";
 const GRAPH_EXECUTOR_FLOW: &str = "graph-executor";
+// an asynchronous run is waited on (to start the next element of a fan-out and to log its end)
+// for its own TTL plus this margin; the target answers 408 itself when its TTL expires
+const ASYNC_MARGIN_MS: i64 = 5000;
+const DEFAULT_CONCURRENCY: i32 = 3;
+const MAX_CONCURRENCY: i32 = 30;
+
+/// Whether a `graph.extension` node starts its target and returns at once (`async=true`).
+pub fn is_async(node: &SimpleNode) -> bool {
+    node.get_property(ASYNC).map(|v| display(&v)).as_deref() == Some("true")
+}
 
 /// The skill entry point (Java `handleEvent`).
 pub async fn handle(
@@ -80,8 +101,13 @@ pub async fn handle(
         state.remove_element(&format!("{node_name}.{RESULT}"));
         state.remove_element(&format!("{node_name}.{HEADER}"));
     }
+    let asynchronous = is_async(&node);
     if for_each.is_empty() {
-        return call_extension(&po, &node, &instance, &extension).await;
+        return if asynchronous {
+            start_extension(platform, &po, &node, &instance, &extension).await
+        } else {
+            call_extension(&po, &node, &instance, &extension).await
+        };
     }
     // iterative delegation with an array of parameters (fork-join)
     let (size, timeout) = {
@@ -105,6 +131,9 @@ pub async fn handle(
         }
         (size, get_effective_ttl(&mut state, &node)?)
     };
+    if asynchronous {
+        return start_extensions(platform, &po, &instance, &node, &extension, size).await;
+    }
     call_extension_with_fork_join(&po, &instance, &node, &extension, size, timeout).await?;
     let state = instance.state.lock().expect("graph state machine");
     EventEnvelope::new().set_body(next_path(node_name, &node, &state))
@@ -148,7 +177,7 @@ async fn call_extension(
         &node_name,
         extension,
         parameters,
-        ttl,
+        Some(ttl),
         business_cid.as_deref(),
         None,
     )?;
@@ -193,10 +222,7 @@ async fn call_extension_with_fork_join(
     timeout: i64,
 ) -> Result<(), AppError> {
     let node_name = node.get_alias().to_string();
-    let given = str2int(&display(
-        &node.get_property("concurrency").unwrap_or(Value::Nil),
-    ));
-    let concurrency = if given < 0 { 3 } else { given }.clamp(1, 30) as usize;
+    let concurrency = concurrency_of(node);
     po.annotate_trace("extension", extension);
     let business_cid = get_business_cid(instance);
     let forwards = {
@@ -233,7 +259,7 @@ async fn call_extension_with_fork_join(
                 &node_name,
                 extension,
                 Value::Map(parameters),
-                timeout,
+                Some(timeout),
                 business_cid.as_deref(),
                 Some(i),
             )?);
@@ -283,6 +309,363 @@ async fn call_extension_with_fork_join(
     Ok(())
 }
 
+/// A fan-out's concurrency: the node's `concurrency`, default 3, clamped to 1-30 (Java parity).
+fn concurrency_of(node: &SimpleNode) -> usize {
+    let given = str2int(&display(
+        &node.get_property("concurrency").unwrap_or(Value::Nil),
+    ));
+    if given < 0 {
+        DEFAULT_CONCURRENCY
+    } else {
+        given
+    }
+    .clamp(1, MAX_CONCURRENCY) as usize
+}
+
+/// Start the target with the node's input mapping and return at once (Java `startExtension`).
+/// Nothing comes back: the target runs under its own TTL, and only a failure to start reaches
+/// this node's exception route.
+async fn start_extension(
+    platform: &Platform,
+    po: &PostOffice,
+    node: &Arc<SimpleNode>,
+    instance: &Arc<GraphInstance>,
+    extension: &str,
+) -> Result<EventEnvelope, AppError> {
+    let node_name = node.get_alias().to_string();
+    let mapping = get_entries(node.get_property("input"));
+    if mapping.is_empty() {
+        return Err(invalid(format!(
+            "{NODE_NAME}{node_name} does not have 'input' entries"
+        )));
+    }
+    let parameters = {
+        let mut state = instance.state.lock().expect("graph state machine");
+        for entry in &mapping {
+            fill_fetcher_api_parameters(&node_name, entry, &mut state, false)?;
+        }
+        let parameters = state
+            .get_element(&format!("{node_name}.fetch"))
+            .unwrap_or(Value::Map(vec![]));
+        state.remove_element(&format!("{node_name}.fetch"));
+        parameters
+    };
+    start_runs(
+        platform,
+        po,
+        instance,
+        node,
+        extension,
+        vec![parameters],
+        false,
+    )
+    .await
+}
+
+/// Start one run of the target per element of the `for_each` list and return at once (Java
+/// `startExtensions`). The runs go in the background, at most `concurrency` of them active.
+async fn start_extensions(
+    platform: &Platform,
+    po: &PostOffice,
+    instance: &Arc<GraphInstance>,
+    node: &Arc<SimpleNode>,
+    extension: &str,
+    size: usize,
+) -> Result<EventEnvelope, AppError> {
+    let node_name = node.get_alias().to_string();
+    let elements = {
+        let mut state = instance.state.lock().expect("graph state machine");
+        let staged = state
+            .get_element(&format!("{node_name}.each"))
+            .unwrap_or(Value::Map(vec![]));
+        let Value::Map(param_arrays) = &staged else {
+            return Err(invalid(format!(
+                "{NODE_NAME}{node_name} - no staged for_each parameters"
+            )));
+        };
+        let elements: Vec<Value> = (0..size)
+            .map(|i| {
+                Value::Map(
+                    param_arrays
+                        .iter()
+                        .filter_map(|(key, values)| match values {
+                            Value::Array(items) => items.get(i).map(|v| (key.clone(), v.clone())),
+                            _ => None,
+                        })
+                        .collect(),
+                )
+            })
+            .collect();
+        state.remove_element(&format!("{node_name}.fetch"));
+        state.remove_element(&format!("{node_name}.each"));
+        elements
+    };
+    start_runs(platform, po, instance, node, extension, elements, true).await
+}
+
+/// Check, then start, the runs of an asynchronous node (Java `startRuns`).
+async fn start_runs(
+    platform: &Platform,
+    po: &PostOffice,
+    instance: &Arc<GraphInstance>,
+    node: &Arc<SimpleNode>,
+    extension: &str,
+    elements: Vec<Value>,
+    indexed: bool,
+) -> Result<EventEnvelope, AppError> {
+    let node_name = node.get_alias().to_string();
+    {
+        let mut state = instance.state.lock().expect("graph state machine");
+        state
+            .set_element(&format!("{node_name}.{TARGET}"), Value::from(extension))
+            .map_err(invalid)?;
+    }
+    po.annotate_trace("extension", extension);
+    po.annotate_trace(ASYNC, elements.len().to_string());
+    let Some(target_ttl) = target_ttl(extension) else {
+        return start_failure(
+            &node_name,
+            node,
+            instance,
+            404,
+            Value::from(format!(
+                "{NODE_NAME}{node_name} - {extension} does not exist"
+            )),
+        );
+    };
+    // the node's own ttl, when it declares one, is the target's TTL; otherwise the target's own applies
+    let (node_ttl, model_ttl) = {
+        let mut state = instance.state.lock().expect("graph state machine");
+        let node_ttl = match node.get_property("ttl") {
+            Some(_) => Some(get_effective_ttl(&mut state, node)?),
+            None => None,
+        };
+        (node_ttl, get_model_ttl(&mut state))
+    };
+    let business_cid = get_business_cid(instance);
+    let mut runs = Vec::with_capacity(elements.len());
+    for (i, parameters) in elements.into_iter().enumerate() {
+        // an asynchronous target reports to nobody: it never inherits this run's return path
+        runs.push(build_forward(
+            &node_name,
+            extension,
+            parameters,
+            node_ttl,
+            business_cid.as_deref(),
+            indexed.then_some(i),
+        )?);
+    }
+    if let Some((status, reason)) =
+        refused_input(platform, po, extension, &runs, indexed, model_ttl).await
+    {
+        return start_failure(&node_name, node, instance, status, reason);
+    }
+    // a run started after this node returned is outside the worker's trace bracket (a tokio
+    // task-local), so each run carries this node's trace, its span as the parent and the business
+    // correlation id explicitly - what the bracket gives a synchronous delegation
+    let trace = po.my_trace_id().zip(po.my_trace_path());
+    let span = po.my_span_id();
+    let runs: Vec<EventEnvelope> = runs
+        .into_iter()
+        .map(|mut run| {
+            if let Some((trace_id, trace_path)) = &trace {
+                run = run.set_trace(trace_id, trace_path);
+            }
+            if let Some(span) = &span {
+                run = run.set_span_id(span);
+            }
+            if let Some(cid) = &business_cid {
+                run = run.add_tag(BUSINESS_CID_TAG, cid);
+            }
+            run
+        })
+        .collect();
+    let ttl = node_ttl.unwrap_or(target_ttl);
+    let concurrency = if indexed { concurrency_of(node) } else { 1 };
+    log::info!(
+        "Start extension {extension}, async, runs={}, concurrency={concurrency}, ttl={ttl}",
+        runs.len()
+    );
+    start_in_background(
+        extension.to_string(),
+        runs,
+        concurrency,
+        ttl + ASYNC_MARGIN_MS,
+    );
+    EventEnvelope::new().set_body(NEXT)
+}
+
+/// The TTL a target runs under when the node declares none: a flow's own, and for a deployed
+/// graph the TTL of the flow that runs graphs. None when the target does not exist.
+fn target_ttl(extension: &str) -> Option<i64> {
+    if let Some(flow_id) = extension.strip_prefix(FLOW_PROTOCOL) {
+        return event_script::flows::get_flow(flow_id).map(|flow| flow.ttl as i64);
+    }
+    if !crate::graphs::graph_exists(extension) {
+        return None;
+    }
+    event_script::flows::get_flow(GRAPH_EXECUTOR_FLOW).map(|flow| flow.ttl as i64)
+}
+
+/// A map value's entry by key.
+fn entry<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
+    match value {
+        Value::Map(entries) => entries
+            .iter()
+            .find(|(k, _)| k.as_str() == Some(key))
+            .map(|(_, v)| v),
+        _ => None,
+    }
+}
+
+/// The `schema` of a deployed graph's root node, when it declares one as a map.
+fn root_schema(graph_id: &str) -> Option<Value> {
+    let model = crate::graphs::get_graph(graph_id)?;
+    let Some(Value::Array(nodes)) = entry(&model, "nodes") else {
+        return None;
+    };
+    let root = nodes
+        .iter()
+        .find(|node| entry(node, "alias").and_then(Value::as_str) == Some("root"))?;
+    match entry(root, "properties").and_then(|p| entry(p, crate::common::SCHEMA)) {
+        Some(schema @ Value::Map(_)) => Some(schema.clone()),
+        _ => None,
+    }
+}
+
+/// A deployed graph with a contract validates its input at its root. An asynchronous run cannot
+/// tell this node, so the input of every run is validated here before any run starts, the way the
+/// target's root will validate it: a refused input is a failure to start (Java `refusedInput`).
+async fn refused_input(
+    platform: &Platform,
+    po: &PostOffice,
+    extension: &str,
+    runs: &[EventEnvelope],
+    indexed: bool,
+    timeout_ms: i64,
+) -> Option<(i32, Value)> {
+    if extension.starts_with(FLOW_PROTOCOL) {
+        return None;
+    }
+    let schema = root_schema(extension)?;
+    let route = crate::common::schema_validator_route();
+    if !platform.has_route(route)
+        && platform_core::automation::event_api::get_event_http_target(route).is_none()
+    {
+        return Some((
+            500,
+            Value::from(format!("Schema validator '{route}' does not exist")),
+        ));
+    }
+    for (i, run) in runs.iter().enumerate() {
+        let dataset = run.body();
+        let body = entry(dataset, "body")
+            .cloned()
+            .unwrap_or(Value::Map(vec![]));
+        let header = entry(dataset, "header")
+            .cloned()
+            .unwrap_or(Value::Map(vec![]));
+        let request = EventEnvelope::new()
+            .set_to(route)
+            .set_correlation_id(&uuid::Uuid::new_v4().simple().to_string())
+            .set_raw_body(Value::Map(vec![
+                (Value::from("body"), body),
+                (Value::from("header"), header),
+                (Value::from(crate::common::SCHEMA), schema.clone()),
+            ]));
+        let refusal = match po
+            .request(request, Duration::from_millis(timeout_ms.max(0) as u64))
+            .await
+        {
+            Ok(response) if response.has_error() => {
+                Some((response.status(), response.body().clone()))
+            }
+            Ok(_) => None,
+            Err(e) => Some((e.status(), Value::from(e.message()))),
+        };
+        if let Some((status, reason)) = refusal {
+            let reason = match (&reason, indexed) {
+                (Value::String(text), true) => Value::from(format!(
+                    "for_each element {i} - {}",
+                    text.as_str().unwrap_or_default()
+                )),
+                _ => reason,
+            };
+            return Some((status, reason));
+        }
+    }
+    None
+}
+
+/// Stage a failure to start as the node's error: its status, then the error and its route
+/// (Java `startFailure`).
+fn start_failure(
+    node_name: &str,
+    node: &Arc<SimpleNode>,
+    instance: &Arc<GraphInstance>,
+    status: i32,
+    message: Value,
+) -> Result<EventEnvelope, AppError> {
+    let mut state = instance.state.lock().expect("graph state machine");
+    state
+        .set_element(&format!("{node_name}.{STATUS}"), Value::from(status))
+        .map_err(invalid)?;
+    let response = FlowResponse {
+        status,
+        headers: HashMap::new(),
+        body: message,
+    };
+    let next = set_error(node_name, node, &mut state, &response)?;
+    drop(state);
+    EventEnvelope::new().set_body(next)
+}
+
+/// The runs of an asynchronous node after it returned (Java `BackgroundRuns`): a sliding window
+/// that keeps at most `concurrency` runs active and starts the next as an earlier one ends. Each
+/// run's end is logged with its status, the only record of an outcome nobody waits for.
+fn start_in_background(
+    extension: String,
+    runs: Vec<EventEnvelope>,
+    concurrency: usize,
+    wait_ms: i64,
+) {
+    let total = runs.len();
+    let wait = Duration::from_millis(wait_ms.max(0) as u64);
+    tokio::spawn(async move {
+        let platform = Platform::get_instance();
+        let po = PostOffice::new(&platform);
+        let (po, extension) = (&po, &extension);
+        futures_util::stream::iter(runs.into_iter().enumerate())
+            .for_each_concurrent(concurrency, |(i, run)| async move {
+                let begin = Instant::now();
+                let outcome = po.request(run, wait).await;
+                let elapsed = begin.elapsed().as_millis();
+                let position = i + 1;
+                match outcome {
+                    Err(e) if e.status() == 408 => log::warn!(
+                        "Extension {extension} run {position} of {total} not completed in {elapsed} ms - {}",
+                        e.message()
+                    ),
+                    Err(e) => log::warn!(
+                        "Extension {extension} run {position} of {total} ended with status {} in {elapsed} ms - {}",
+                        e.status(),
+                        e.message()
+                    ),
+                    Ok(response) if response.has_error() => log::warn!(
+                        "Extension {extension} run {position} of {total} ended with status {} in {elapsed} ms - {}",
+                        response.status(),
+                        display(response.body())
+                    ),
+                    Ok(response) => log::info!(
+                        "Extension {extension} run {position} of {total} ended with status {} in {elapsed} ms",
+                        response.status()
+                    ),
+                }
+            })
+            .await;
+    });
+}
+
 /// The caller's business correlation-id (model.cid), trimmed — `None` when
 /// absent or blank. Both engines trim identically so the store key space
 /// stays one key per business transaction per graph.
@@ -323,7 +706,7 @@ fn build_forward(
     node_name: &str,
     extension: &str,
     parameters: Value,
-    ttl: i64,
+    ttl: Option<i64>,
     business_cid: Option<&str>,
     iteration_index: Option<usize>,
 ) -> Result<EventEnvelope, AppError> {
@@ -338,11 +721,12 @@ fn build_forward(
         )]),
         _ => Value::Map(vec![]),
     };
-    let mut dataset: Vec<(Value, Value)> = vec![
-        (Value::from("body"), body),
-        (Value::from("header"), header),
-        (Value::from("ttl"), Value::from(ttl)),
-    ];
+    let mut dataset: Vec<(Value, Value)> =
+        vec![(Value::from("body"), body), (Value::from("header"), header)];
+    // no ttl: the target runs under its own (an asynchronous run without a node ttl)
+    if let Some(ttl) = ttl {
+        dataset.push((Value::from("ttl"), Value::from(ttl)));
+    }
     let flow_id = if let Some(flow_id) = extension.strip_prefix(FLOW_PROTOCOL) {
         if event_script::flows::get_flow(flow_id).is_none() {
             return Err(invalid(format!(

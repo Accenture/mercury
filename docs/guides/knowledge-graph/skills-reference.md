@@ -585,6 +585,42 @@ output[]=result.sales_performance -> output.body.sales_performance
   under the shared cid scoped by its own graph id, and re-invoking with the same cid resumes it
   ([the orchestrator pattern](workflow-suspension.md#orchestrator-pattern)).
 
+### Asynchronous — start the target and continue {#extension-async}
+
+`async=true` starts the target and continues to the next node at once. A graph whose work runs longer
+than a caller waits (an agent loop, a long review) answers the caller while the target runs: the parent
+maps an advice into its output, and the generic endpoint returns it as the graph's response.
+
+```
+create node start-review
+with type Extension
+with properties
+skill=graph.extension
+extension=credit-review
+async=true
+input[]=input.body.application -> application
+```
+
+- **Nothing comes back.** The node takes no `output[]`, and the deployment gate refuses one. It also
+  refuses `async` on any other skill, and a value other than `true` or `false`.
+- **The target inherits the business correlation ID**, so its suspensions resume under that ID and its
+  trace continues. It runs under its **own TTL** — a flow's `ttl`, or the TTL of the flow that runs graphs —
+  not the parent's. The node's `ttl`, when it declares one, becomes the target's TTL.
+- **`exception=` covers only a failure to start**: a target that does not exist (a graph id or a `flow://`
+  id, both staged as `404`), or an input the target graph's root `schema` refuses (`400`, checked before
+  the run starts, as the target's root would check it). A failure inside the target routes to the target's
+  own handlers. The end of each run is logged with its status, the only record of an outcome nobody waits
+  for.
+- **With `for_each`, one run per element.** The node still continues at once; `concurrency` (1-30,
+  default 3) bounds how many runs are active, and the next starts as an earlier one ends. Each run has its
+  own TTL and its own end, and a run that suspends keeps its own record, keyed by its position in the list.
+  Every element's input is checked before any run starts, so a refused element starts none. The
+  [`for_each` suspension rules](workflow-suspension.md) apply unchanged: freeze a derived array into
+  `model` before fanning out, and a suspending graph is never reached through a flow launched by
+  `for_each`.
+- **One notification for the whole set** is ONE asynchronous subgraph that fans out inside with a
+  synchronous `for_each` and notifies at its end. A parent cannot join runs it does not wait for.
+
 This is the seam between the semantic layer and the composable (Event Script) layer beneath it —
 authoring the target flow: [Event Script AI agent guide](../event-script/ai-agent-guide.md) +
 [flow grammar](../event-script/flow-grammar.md).
