@@ -78,11 +78,20 @@ Note that `session reset` resets *subscriptions*, not your work: it does **not**
 draft graph — the UI restores the draft on reconnect. To start clean, delete the nodes
 explicitly. The full rules are in the [command grammar](command-reference.md#session).
 
-**An AI agent asked to host a session** should run the shipped session broker
-(`scripts/playground-session-broker.mjs` in the `minigraph-playground` example) rather than
-hand-roll a WebSocket client — the session contract includes a keep-alive (ping every ~20 s)
-that hand-rolled clients typically miss, and a client without it dies silently at the idle
-timeout. See [Hosting the session yourself](ai-agent-guide.md#hosting).
+Joining copies the draft: subscribing to a primary that holds a graph replaces yours with it, and
+subscribing to an empty primary hands it yours. Leaving keeps it: when a primary session closes (its
+tab closed, or timed out at the idle timeout, `websocket.idle.timeout`, 60 seconds by default), each
+of its subscribers becomes a primary of its own, keeping its graph. So the work-in-progress survives
+as long as any member holds it, and a member who dropped recovers it by subscribing again.
+
+**To start a collaboration with an AI agent**, the recommended way is that the agent hosts the
+session with the AI companion broker (`scripts/ai-companion-broker.mjs`, in the `starter-graph`
+template) and the human subscribes to it: the human starts the application in a terminal to see its
+log, the agent hands over `session subscribe {id}`, and the session never times out because the
+broker keeps it alive. The broker also lets an agent subscribe to a session a human opened first. It
+replaces a hand-rolled WebSocket client, which typically misses the session contract's keep-alive
+(ping every ~20 s) and dies silently at the idle timeout. See
+[Start a collaboration](ai-agent-guide.md#start).
 
 ## The companion endpoints
 

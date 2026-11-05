@@ -78,7 +78,7 @@ Run the Java example against the same Redis (its port is 8305 too — start one 
 
 `app.env=dev` (the default here; `APP_ENV=prod` turns it off) registers the Playground and companion
 services, so the Playground UI is at `http://localhost:8305/` and an agent can host a session with
-`scripts/playground-session-broker.mjs` (see `scripts/README.md`). What promotes to production is the
+the AI companion broker, `templates/starter-graph/scripts/ai-companion-broker.mjs` (see `scripts/README.md`). What promotes to production is the
 graph; the authoring surface is switched off behind it.
 
 ## Test it
