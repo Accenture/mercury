@@ -34,14 +34,52 @@ related:
 This guide is about the **companion** flow — co-authoring a graph with a human watching the
 Playground.
 
+## Start a collaboration {#start}
+
+The recommended way to start human–AI collaboration, settled over many demos with team members and
+field engineers, is that **the agent hosts the session and the human subscribes to it**:
+
+1. **The human starts the MiniGraph application in a terminal**, so they can see the application log
+   as the work goes on.
+2. **The human asks the agent to start a persistent WebSocket connection with the AI companion
+   broker** ([below](#hosting)). The agent starts the broker, reads the session id from its
+   `GET /session` and hands the human one line to type in the Playground's console:
+   `session subscribe {session-id}`.
+3. **Once the human has subscribed** (the broker's `GET /session` lists them under `subscribers`),
+   the two collaborate on the next step: the human explains the intent of the business use case, the
+   agent starts prototyping through [`/sync`](#contract) while the human watches the graph grow in the
+   Playground, then they dry-run it together, and so on.
+
+**Why the agent holds the primary session:** the broker keeps its connection alive, so the session
+never times out. A browser tab is not so steady: when the browser throttles a background tab, the web
+UI's keep-alive pings stop, and the server closes that tab's session at its idle timeout
+(`websocket.idle.timeout`, 60 seconds by default). Nothing is lost when it happens: the human reloads
+the page, types `session subscribe {session-id}` again, and the work-in-progress graph syncs back in
+full, so the collaboration continues where it was.
+
+### When the human's session came first {#human-first}
+
+If the human opened the Playground first and handed their own session id to the agent, the agent
+still starts the broker, then calls its `POST /subscribe` with that id: the broker's session becomes a
+subscriber of the human's and holds a copy of the shared draft. Drive `/sync` through the **broker's**
+session id — a subscriber forwards each command to the primary, so everyone sees it, and the id keeps
+working if the human's session goes away. If the human closes the browser by accident, the engine
+frees every subscriber of the closed session as a primary of its own that keeps its copy of the draft:
+the broker logs it, and `GET /session` shows `subscribedTo: null`. The agent then hands its own session
+id to the human, who subscribes from a new tab and recovers the work-in-progress.
+
+Both paths work, but the first — the agent owning the primary session from the start — is easier for
+both the agent and the human.
+
 ## The companion contract {#contract}
 
 An **AI agent should use the synchronous `/sync` endpoint** so it sees every outcome in-band and
 can self-correct without a human relaying the console:
 
 ```
-1. A human opens the Playground (ws://{host}/ws/graph); the first WebSocket frame carries the
-   session id (ws-<6 digits>-<counter>, e.g. ws-384729-17). Get this id from the human.
+1. Get the session id (ws-<6 digits>-<counter>, e.g. ws-384729-17): from the AI companion broker's
+   GET /session when you host the session (recommended, see "Start a collaboration"), or from a
+   human whose Playground (ws://{host}/ws/graph) announced it in its first WebSocket frame.
 2. For each command:  POST /api/companion/{session-id}/sync   Content-Type: text/plain,
    exactly ONE command in the body.
 3. The HTTP response returns the outcome IN-BAND as JSON:
@@ -76,38 +114,44 @@ Status codes: `200` executed (read `ok`/`error` in the body); `400` missing/empt
 > `/sync`.
 
 **Rules of engagement:** one command per POST (multi-line commands are fine — see the grammar);
-the session must already be open (over the companion endpoint you do not create it — but see
-[Hosting the session yourself](#hosting)); take turns — co-editing with humans is the design
+the session must already be open (over the companion endpoint you do not create it — the AI
+companion broker does: [Start a collaboration](#start)); take turns — co-editing with humans is the design
 intent, just don't POST in the same instant a human is mid-keystroke; never expose this beyond a
 trusted dev host.
 **Session topology is off-limits over HTTP:** a companion is an *assistant to* the session in the
 URL, not a WebSocket session of its own — the companion endpoint rejects `session subscribe` /
 `session unsubscribe` / `session reset` (the read-only `session` status query is allowed).
-Subscriptions are managed from WebSocket-connected sessions only.
+Subscriptions are managed from WebSocket-connected sessions only — a browser, or the AI companion
+broker, whose `POST /subscribe` sends the command over its own WebSocket.
 **Session sync is symmetric:** when sessions are joined by `session subscribe`, **every command
 except the `session` topology commands propagates to the primary and all subscribers alike** —
 AI and humans are equal co-authors of one shared model, and anyone's command (typos included) is
 seen by everyone. It is collaboration, not a one-way broadcast.
 
-## Hosting the session yourself {#hosting}
+## The AI companion broker {#hosting}
 
-The flow above borrows a human's browser session. The stronger topology is the inverse: **the
-agent hosts the session and humans subscribe to it.** If a human's tab drops (backgrounded past
-the idle timeout, laptop lid closed), they simply re-subscribe and the current work-in-progress
-graph syncs back to them — nothing lives in anyone's browser.
-
-**Use the shipped session broker — do not hand-roll a WebSocket client.** The session contract
+**Use the AI companion broker — do not hand-roll a WebSocket client.** The session contract
 carries a keep-alive obligation, and a hand-rolled client that misses it appears to work, then
 dies silently at the server's idle timeout — typically mid-collaboration. The zero-dependency
-reference broker, `scripts/playground-session-broker.mjs` (Node ≥ 22), ships in the
-`minigraph-playground` example and in the `starter-graph` template, and the
-[scaffolding manifest](#scaffolding) carries it into projects derived from either. It holds the session, keeps it alive with the web UI's own ping cadence,
-auto-reconnects across app restarts, and exposes a localhost control API (`GET /session`,
-`GET /console`, `POST /start`, `POST /stop`) so the agent reads the session id over HTTP, hands
-it to the humans (`session subscribe {id}` in their browsers), and keeps driving commands
-through `/sync` as usual — the broker owns the session's lifecycle, never its commands. See
-`scripts/README.md` next to the script, and pass `--target` for your app's port (the broker's
-default is the example's `http://127.0.0.1:8085`).
+broker, `scripts/ai-companion-broker.mjs` (Node ≥ 22), ships in the `starter-graph` template, the
+one copy the examples run too (`templates/starter-graph/scripts/`), and the
+[scaffolding manifest](#scaffolding) carries it into projects derived from either. It holds the
+session, keeps it alive with the web UI's own ping cadence, auto-reconnects across app restarts, and
+exposes a localhost control API:
+
+| Call | Effect |
+|---|---|
+| `GET /session` | `sessionId`, connection state, `previousSessionIds`, `subscribedTo` (the primary session this one mirrors, or `null`) and `subscribers` (the sessions that mirror this one) |
+| `GET /console?lines=50` | Recent console lines teed to the session (ping/pong filtered) |
+| `POST /subscribe` | Body `{"sessionId": "ws-..."}`: the broker's session subscribes to that primary session; answers `{sessionId, subscribedTo}`, or the engine's refusal (`409`) |
+| `POST /start` | Close any current session, open a fresh one, return its id |
+| `POST /stop` | Close the session; auto-reconnect stays off until `/start` |
+| `POST /shutdown` | Stop the broker |
+
+The broker owns the session's lifecycle and its place in a shared session, never its commands: the
+agent keeps driving commands through `/sync`. See `scripts/README.md` next to the script, and pass
+`--target` for your app's port (e.g. `--target http://127.0.0.1:8303` for the starter template's
+default).
 
 For reference, the WebSocket contract the broker implements (identical in the Java and Rust
 engines):
@@ -120,7 +164,7 @@ engines):
    any console you render. **Skipping this step is the classic hand-rolled-client failure — the
    session dies at the idle timeout.**
 5. A restart of the app destroys the session (and any unexported graph — export first);
-   reconnect and parse the **new** id. The shipped broker does this for you: after a restart,
+   reconnect and parse the **new** id. The AI companion broker does this for you: after a restart,
    `GET /session` returns the new `sessionId` with the old one under `previousSessionIds`.
    Re-import the exported graph into the new session (`import graph from {name}`) **before**
    handing the id to the humans, so the model syncs back to them on `session subscribe`.
@@ -275,7 +319,7 @@ Two rules to read before relying on it:
   takes the bundled graphs down.
 - **A deployment is still a restart.** `CompileGraph` runs once at startup; there is no runtime
   reload. Export before the restart, and follow the broker choreography in
-  [Hosting the session yourself](#hosting): the broker reconnects and reports a new session id;
+  [The AI companion broker](#hosting): the broker reconnects and reports a new session id;
   `import graph from {name}` into it, then re-invite the humans.
 
 The same two manifests are how to **iterate on a graph that is already deployed** without a rebuild:
@@ -409,7 +453,7 @@ watcher (and any `session subscribe`d session) follows along live.
 
 **Start from `templates/starter-graph`.** It is the copy-out starter for Layer 3 and it already
 ships the whole `playground-enabled` surface below — the dev-mode endpoints, `app.env: dev`, the
-home page route, and the session broker script — so a fresh project can be co-authored with an AI
+home page route, and the AI companion broker — so a fresh project can be co-authored with an AI
 agent from the first run. Copy the directory, rename the ids, replace the graph model, and you are
 done; the manifest and route list here are then a **checklist for what you must not delete**, not
 a trimming exercise.
@@ -431,7 +475,7 @@ the browser notices).
 | `resources/flows/flow-11.yml` and its `flows.yaml` entry (the example only) | Tutorial 11's echo flow, the `graph.extension` target | drop unless used |
 | Your `resources/graph/*.json` models | Deployed graph models | yours |
 | `src/main.rs` | App entry point | keep (adapt) |
-| `scripts/` (session broker + README) | Lets an AI agent **host** the Playground session — keep-alive, auto-reconnect, control API (see [hosting](#hosting)) | keep |
+| `scripts/` (the AI companion broker + README) | Lets an AI agent **host** the Playground session — keep-alive, auto-reconnect, control API (see [the broker](#hosting)); the example points to the template's copy, so a project derived from the example copies `templates/starter-graph/scripts/` | keep |
 
 (The template and the example carry the flows, as the Java ones do. The engine ships the same
 `graph-executor` flow as its default, so the pair is not what makes graphs servable — it is

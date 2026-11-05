@@ -181,12 +181,10 @@ Location of the REST endpoint configuration file. Read by `crates/platform-core`
 |---|---|
 | int (seconds) | `60` |
 
-Idle expiry for websocket connections (floor 10 seconds). A connection with no traffic for
-this long is closed with code 1003. Read by `crates/platform-core` (websocket server).
-
-!!! note "Rust port"
-    The unit is **seconds** in this port (verified against the websocket server source);
-    the Java reference documents its key in minutes.
+Idle expiry for websocket connections, in seconds (floor 10). A connection with no traffic for
+this long is closed with code 1003. Read by `crates/platform-core` (websocket server). The
+Playground web UI pings every 20 seconds to stay inside it, and the AI companion broker does the
+same; a browser that throttles a background tab stops the pings, so that tab's session closes here.
 
 ## HTTP client
 

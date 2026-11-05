@@ -69,6 +69,13 @@ Each change merged to `main` after v4.12.27 is listed here; it moves under its r
    playground keep their titles. The Playground bundle and help pages are redeployed from the Java repository
    (`index-CXcJLB42.js`), so the help now covers `async=true` and `progress`. The twin of mercury-composable #617.
    **Upgrade note:** none; without the property the panel reads as before.
+6. **The AI companion broker can subscribe to a session a human opened first (Increment 201).** `POST /subscribe` with
+   `{"sessionId": "ws-..."}` makes the broker's own session a subscriber of that primary session, as `session subscribe`
+   typed in a browser would; the companion endpoint still refuses topology commands. The broker's session then holds a
+   copy of the shared draft, and when the human's session closes, the engine frees it as a primary that keeps the
+   work-in-progress, so the agent hands its id over and the human recovers the work by subscribing to it. `GET /session`
+   now also reports `subscribedTo` and `subscribers`, read from the engine's own topology lines. The twin of
+   mercury-composable #618. **Upgrade note:** none; the other calls are unchanged.
 
 ### Changed
 
@@ -88,12 +95,28 @@ Each change merged to `main` after v4.12.27 is listed here; it moves under its r
    started", Java's text, where it read as an invalid stream signal; a graph run whose flow timed out after it had
    streamed progress does this on every such timeout. What the client receives is unchanged. The twin of
    mercury-composable #611's Changed item. **Upgrade note:** none.
+4. **The Playground session broker is the AI companion broker, and only the starter template carries it (Increment
+   201).** `scripts/playground-session-broker.mjs` is now `scripts/ai-companion-broker.mjs`, named for what it is rather
+   than for a word that also means a Kafka or message broker. The `minigraph-playground` and `distributed-cache-example`
+   examples no longer carry copies: their `scripts/README.md` runs the template's
+   (`node ../../templates/starter-graph/scripts/ai-companion-broker.mjs --target ...`), and the distributed-cache
+   example's points the broker at its own port, 8305, since it serves the Playground in dev mode (its README said it
+   did not). The twin of mercury-composable #618. **Upgrade note:** a command or a note that names the old file names
+   the new one; a project copied from the template earlier keeps its own copy, which works as before.
 
 ### Documentation
 
 1. **The LLM helper certification report's reproduce commands start the helpers from `extensions/llm-helper/`
    (Increment 194).** The report's environment rows, which record the drive of 2026-10-01, keep the folder the helpers lived
    in then.
+2. **How to start a human-AI collaboration (Increment 201).** The AI agent guide's new *Start a collaboration*: the
+   human starts the application in a terminal to see its log, the agent starts a persistent WebSocket connection with
+   the AI companion broker and hands over `session subscribe {id}`, and the two collaborate with the agent holding the
+   primary session, which never times out; a tab the browser throttles in the background is closed at the idle timeout
+   (`websocket.idle.timeout`, 60 seconds) and recovers by subscribing again. A second path covers a session the human
+   opened first. The session grammar and *Playground and companion* state what the topology does to the draft. The
+   configuration reference's `websocket.idle.timeout` drops its note that the Java engine counts minutes: both count
+   seconds. The twin of mercury-composable #618.
 
 ---
 ## Version 4.12.27, 10/30/2026

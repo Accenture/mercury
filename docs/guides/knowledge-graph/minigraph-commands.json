@@ -335,7 +335,10 @@
       "help": "help session.md",
       "syntax": "session | session subscribe {id} | session unsubscribe | session reset",
       "notes": [
-        "topology subcommands (subscribe/unsubscribe/reset) work only from a WebSocket-connected session — the companion REST endpoints reject them (a companion is an assistant to a session, not a session of its own); only the read-only 'session' status query is available there"
+        "topology subcommands (subscribe/unsubscribe/reset) work only from a WebSocket-connected session — a browser, or the AI companion broker, whose POST /subscribe sends 'session subscribe {id}' over its own WebSocket; the companion REST endpoints reject them (a companion is an assistant to a session, not a session of its own); only the read-only 'session' status query is available there",
+        "joining copies the draft: subscribing to a primary that holds a graph replaces yours with it; subscribing to an empty primary hands it yours",
+        "leaving keeps it: when a primary session closes (tab closed, or timed out at websocket.idle.timeout, 60 seconds by default), each subscriber becomes a primary of its own and keeps its graph ('Session {id} has closed'); recovery is subscribing again to a session that still holds the work-in-progress",
+        "recommended start: the agent hosts the session with the AI companion broker and the human subscribes to it (ai-agent-guide, Start a collaboration)"
       ],
       "example": "session subscribe ws-178443-2"
     },

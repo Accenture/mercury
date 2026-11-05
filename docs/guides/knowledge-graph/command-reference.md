@@ -337,9 +337,21 @@ session reset
 ```
 
 The topology subcommands (`subscribe`/`unsubscribe`/`reset`) work only from a
-**WebSocket-connected session**. The companion REST endpoints reject them (a companion is an
-assistant to a session, not a session of its own) — only the read-only `session` status query is
-available there.
+**WebSocket-connected session**: a browser, or the AI companion broker, whose `POST /subscribe` sends
+`session subscribe {id}` over its own WebSocket. The companion REST endpoints reject them (a
+companion is an assistant to a session, not a session of its own) — only the read-only `session`
+status query is available there.
+
+What the topology does to the draft:
+
+- **Joining copies it.** Subscribing to a primary that holds a graph replaces yours with it;
+  subscribing to an empty primary hands it yours.
+- **Leaving keeps it.** When a primary session closes (its tab closed, or timed out at the server's
+  idle timeout, `websocket.idle.timeout`, 60 seconds by default), each subscriber becomes a primary
+  of its own and keeps its graph (`Session {id} has closed`). `session unsubscribe` keeps yours too.
+- **Recovery is subscribing again.** A member who dropped opens a new session and subscribes to a
+  session that still holds the work-in-progress: the agent's, when it hosts the session (the
+  recommended way — [Start a collaboration](ai-agent-guide.md#start)).
 
 ### help {#help}
 

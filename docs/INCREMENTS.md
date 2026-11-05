@@ -5468,3 +5468,36 @@ CHANGELOG Unreleased, `Added` item 5.
 Gates: `cargo test -p mercury-knowledge-graph -p ai-contract-provider -p minigraph-playground` (32 binaries, 124 passed, 0 failed),
 `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all --check`, `python3 scripts/check-doc-claims.py`,
 `python3 scripts/check-llms-links.py`.
+
+## Increment 201 — The AI companion broker: `POST /subscribe`, one copy, the recommended collaboration start (2026-11-05)
+
+The twin of mercury-composable #618. The maintainer's guidance from demos with team members and field engineers: the
+human starts the MiniGraph application in a terminal, the agent hosts the session with the broker and hands over
+`session subscribe {id}`, and the two collaborate; the agent's session never times out, and a human whose background
+tab was closed at the idle timeout reloads and subscribes again. A second path, the human's session first, needs the
+agent's session to subscribe, which the broker could not do and `/sync` refuses.
+
+- **`templates/starter-graph/scripts/ai-companion-broker.mjs`** (renamed from `playground-session-broker.mjs`,
+  byte-identical with the Java repository's): `POST /subscribe {sessionId}` sends `session subscribe <id>` over the
+  broker's own WebSocket and answers on the engine's `Subscribed to <id>` or its exact refusal (409), 504 after 5
+  seconds; `GET /session` adds `subscribedTo` and `subscribers`, tracked from the engine's topology lines, and a
+  closing primary frees the broker's session with a logged handover hint. This engine's `reset_session` frees each
+  subscriber of a closing primary as a primary that keeps its graph, as Java's does, and sends the same lines.
+- **One copy.** The `minigraph-playground` and `distributed-cache-example` copies are removed; each example's
+  `scripts/README.md` runs the template's. The distributed-cache example's pointed the broker at 8085 and said the
+  example serves no Playground; it does (dev mode, port 8305, as in Java), so it now points at 8305. Every Playground
+  and broker port matches the Java repository: 8085, 8303, 8305, control API 8765.
+- **Docs.** The AI agent guide's *Start a collaboration* (`#start`, `#human-first`) and *The AI companion broker*
+  (`#hosting` kept); the session grammar (`command-reference.md`, `minigraph-commands.json`) and *Playground and
+  companion*; the template's README, AGENTS.md and scripts README; the distributed-cache README; the configuration
+  reference's `websocket.idle.timeout` (seconds in both engines; the note claiming Java counts minutes is removed).
+- **Verification.** Live against this engine's Playground (port 8097) with the broker and a browser as the human: the
+  human subscribed and saw the agent's node, a reload closed their session and a re-subscribe recovered it; then the
+  broker subscribed to the human's session, an agent command through the broker's own id reached both drafts, the
+  human's reload closed the primary, the broker logged it held both nodes, and the human's new session recovered them.
+  Refusals (an unknown id, its own id) answered with the engine's words.
+
+CHANGELOG Unreleased: `Added` 6, `Changed` 4, `Documentation` 2.
+
+Gates: `cargo test -p ai-contract-provider` (12 passed), `cargo test -p mercury-knowledge-graph --test playground`,
+`python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`, `node --check` on the broker.
