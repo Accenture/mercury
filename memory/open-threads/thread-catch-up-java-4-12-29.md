@@ -8,7 +8,8 @@
   progress events, the `x-return-path` relays, the graph-run WebSocket entry, `llm.run`'s progress events, the
   streaming single-shot reply and the Kafka progress publisher (Increment 199, branch `feat/progress-events` stacked on
   `feat/agent-loop`; Eric's ruling: an engine-opened stream allows the flow's TTL plus 5 seconds); (5) #617, `playground.panel.name` in `get_index_html`,
-  with the Playground bundle and help mirror deployed last, once the help's async and progress sections are true here.
+  with the Playground bundle and help mirror deployed last, once the help's async and progress sections are true here
+  (Increment 200, branch `feat/panel-name-bundle` stacked on `feat/progress-events`).
   Not ported: #607 (this engine's mock peer already binds port 0), the RFC notes #602/#608, the Java Sonar round #614.
   Next: the release at the Java number once the items are merged.
   origin: 2026-11-05-181529.

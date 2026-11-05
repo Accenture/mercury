@@ -45,7 +45,13 @@ Optional:
 for_each[]={array-source} -> model.{var}   (iterate over a runtime list)
 concurrency={1-30}                         (parallel fan-out, default 3)
 exception={error-handler-node}             (jump on failure instead of abort)
+async=true                                 (start the target and continue at once)
+progress={text}                            (a node.start event for a watching caller)
 ```
+
+With progress, a synchronous subgraph returns its own progress events to the
+watching caller through this node, naming itself; an asynchronous target never
+inherits the caller's return path.
 
 Result set
 ----------
@@ -72,6 +78,46 @@ output[]=result.sales_performance -> output.body.sales_performance
 Here input.body.department_id feeds the sub-graph's input.body.id, and the
 sub-graph's output.body.sales_performance comes back as
 result.sales_performance.
+
+Asynchronous
+------------
+With async=true the node starts the target and continues to its next
+node at once. Use it for work that runs longer than a caller waits: the
+parent graph answers (an HTTP 202 advice, for example) while the target
+runs to its end, and the target's last node notifies through a route
+the use case chooses.
+
+```
+create node start-review
+with type Extension
+with properties
+skill=graph.extension
+extension=credit-review
+async=true
+input[]=input.body.application -> application
+```
+
+- Nothing comes back, so the node takes no output[]. The deployment gate
+  refuses one, and refuses async on any other skill.
+- The target inherits the business correlation ID, so its suspensions
+  resume under that ID and its trace continues. It runs under its own
+  TTL (a flow's ttl, or the TTL of the flow that runs graphs), not the
+  parent's; the node's ttl, when declared, becomes the target's TTL.
+- exception= covers only a failure to start: a target that does not
+  exist (a graph id or a flow), or an input the target graph's root
+  schema refuses. A failure inside the target routes to the target's
+  own handlers, and the end of each run is logged with its status.
+- With for_each, the node starts one run per element and continues at
+  once; concurrency bounds how many runs are active, and the next starts
+  as an earlier one ends. Each run has its own TTL and its own end, and
+  a run that suspends keeps its own record, keyed by its position. Every
+  element's input is checked before any run starts. Freeze a derived
+  array into model before fanning out (inserting, removing or
+  reordering breaks the positions); a suspending graph is never reached
+  through a flow launched by for_each.
+- One notification for the whole set: start ONE asynchronous subgraph,
+  fan out inside it with a synchronous for_each, and notify at its end.
+  A parent cannot join runs it does not wait for.
 
 Notes
 -----

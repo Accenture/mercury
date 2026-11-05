@@ -20,11 +20,14 @@
 //! shows the Playground UI. The Playground page lives outside the static folder, and
 //! the static `resources/public/index.html` is the same plain page — so an
 //! application that does not route `get.index.html` never serves the Playground by
-//! accident either (Java `GetIndexHtml` parity).
+//! accident either (Java `GetIndexHtml` parity). `playground.panel.name` renames the
+//! Minigraph panel through the Playground page's panel-name tag (Java `GetIndexHtmlTest`).
 //!
 //! Its own test binary on purpose: it flips the process-wide `app.env` override.
 
-use knowledge_graph::rest::{get_index_html, PLAIN_PAGE, PLAYGROUND_PAGE};
+use knowledge_graph::rest::{
+    get_index_html, PANEL_NAME, PANEL_NAME_TAG, PLAIN_PAGE, PLAYGROUND_PAGE,
+};
 use platform_core::{overrides, EventEnvelope};
 
 const PLAYGROUND_TITLE: &str = "<title>Minigraph Playground</title>";
@@ -66,6 +69,23 @@ async fn home_page_follows_the_dev_mode_gate() {
         "prod must serve the plain page: {page}"
     );
     assert!(!page.contains(PLAYGROUND_TITLE));
+    // playground.panel.name renames the Minigraph panel in the served Playground page only
+    overrides::set(PANEL_NAME, "  My Awesome Dev Dashboard ");
+    let page = home_page().await;
+    assert!(!page.contains("playground-panel-name"), "prod: {page}");
+    overrides::set("app.env", "dev");
+    let page = home_page().await;
+    assert!(
+        page.contains(r#"<meta name="playground-panel-name" content="My Awesome Dev Dashboard">"#),
+        "the served page must carry the panel name: {page}"
+    );
+    assert!(page.contains(PLAYGROUND_TITLE));
+    overrides::clear(PANEL_NAME);
+    let page = home_page().await;
+    assert!(
+        page.contains(PANEL_NAME_TAG),
+        "without the property the tag stays empty: {page}"
+    );
     overrides::clear("app.env");
 }
 

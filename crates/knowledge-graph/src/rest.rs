@@ -75,6 +75,12 @@ fn request_view(event: &EventEnvelope) -> (HashMap<String, String>, Value, Strin
 pub const PLAYGROUND_PAGE: &str = "/template/playground.html";
 /// The plain service page: the home page outside dev mode.
 pub const PLAIN_PAGE: &str = "/template/index.html";
+/// The application property that renames the Minigraph panel (Java `GetIndexHtml.PANEL_NAME`).
+pub const PANEL_NAME: &str = "playground.panel.name";
+const PANEL_NAME_META: &str = "<meta name=\"playground-panel-name\" content=\"";
+/// The tag the web app reads the panel name from, as the bundle ships it: empty keeps the
+/// built-in title (Java `GetIndexHtml.PANEL_NAME_TAG`).
+pub const PANEL_NAME_TAG: &str = "<meta name=\"playground-panel-name\" content=\"\">";
 
 /// Java `GetIndexHtml` (`get.index.html`): the home page. The Playground web app
 /// is served ONLY when `app.env=dev` - the same gate as every Playground service;
@@ -82,19 +88,67 @@ pub const PLAIN_PAGE: &str = "/template/index.html";
 /// production deployment never shows the Playground UI. The static
 /// `resources/public/index.html` is that same plain page, so an application that
 /// does not route this function never serves the Playground by accident either.
+/// The Playground page carries the panel name from `playground.panel.name`
+/// ([`with_panel_name`]).
 pub async fn get_index_html(_event: EventEnvelope) -> Result<EventEnvelope, AppError> {
     let config = AppConfigReader::get_instance();
-    let resource = if config.get_property("app.env").as_deref() == Some("dev") {
+    let playground = config.get_property("app.env").as_deref() == Some("dev");
+    let resource = if playground {
         PLAYGROUND_PAGE
     } else {
         PLAIN_PAGE
     };
     let resolved = platform_core::resources::resolve_classpath(resource)
         .ok_or_else(|| AppError::new(404, format!("{resource} not found")))?;
-    let content = std::fs::read_to_string(resolved).map_err(|e| invalid(e.to_string()))?;
+    let page = std::fs::read_to_string(resolved).map_err(|e| invalid(e.to_string()))?;
+    let content = if playground {
+        with_panel_name(&page, config.get_property(PANEL_NAME).as_deref())
+    } else {
+        page
+    };
     Ok(EventEnvelope::new()
         .set_header("Content-Type", "text/html; charset=utf-8")
         .set_raw_body(Value::from(content.as_str())))
+}
+
+/// The Playground page with its panel renamed (Java `GetIndexHtml.withPanelName`): the name
+/// goes into the page's empty panel-name tag, escaped for an HTML attribute, and the web app
+/// shows it in place of its built-in title. No name, or a blank one, leaves the page as the
+/// bundle built it, and so does a page without the tag, with a warning. The page is read on
+/// every request, where Java reads it once, so the name or the warning is logged once.
+pub fn with_panel_name(page: &str, name: Option<&str>) -> String {
+    static LOGGED: std::sync::Once = std::sync::Once::new();
+    let Some(name) = name.filter(|name| !name.trim().is_empty()) else {
+        return page.to_string();
+    };
+    if !page.contains(PANEL_NAME_TAG) {
+        LOGGED.call_once(|| {
+            log::warn!("{PANEL_NAME} is ignored - the Playground page has no panel-name tag")
+        });
+        return page.to_string();
+    }
+    let panel_name = crate::common::java_trim(name);
+    LOGGED.call_once(|| log::info!("Playground panel name - {panel_name}"));
+    page.replace(
+        PANEL_NAME_TAG,
+        &format!("{PANEL_NAME_META}{}\">", escape_attribute(panel_name)),
+    )
+}
+
+/// Escape text for a double- or single-quoted HTML attribute (Java `GetIndexHtml.escapeAttribute`).
+fn escape_attribute(text: &str) -> String {
+    let mut escaped = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '&' => escaped.push_str("&amp;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&#39;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            _ => escaped.push(c),
+        }
+    }
+    escaped
 }
 
 /// Java `GetWsHtml` (`get.ws.html`): the raw websocket workbench pages.
@@ -1021,4 +1075,44 @@ pub async fn unpack_graph_set(event: EventEnvelope) -> Result<EventEnvelope, App
             (Value::from("manifest"), Value::Map(manifest)),
             (Value::from("graphs"), Value::Map(graphs)),
         ])))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PAGE: &str = "<head><meta name=\"playground-panel-name\" content=\"\"><title>Minigraph Playground</title></head>";
+
+    #[test]
+    fn the_deployed_page_carries_the_empty_tag_once() {
+        let page = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/resources/template/playground.html"
+        ))
+        .expect("the deployed Playground page");
+        assert_eq!(page.matches(PANEL_NAME_TAG).count(), 1);
+    }
+
+    #[test]
+    fn a_name_is_escaped_and_trimmed() {
+        let page = with_panel_name(PAGE, Some("  Tom & Jerry's \"<Dev>\" Board \t"));
+        assert!(page.contains(
+            "<meta name=\"playground-panel-name\" content=\"Tom &amp; Jerry&#39;s &quot;&lt;Dev&gt;&quot; Board\">"
+        ));
+        assert!(!page.contains(PANEL_NAME_TAG));
+        assert!(page.contains("<title>Minigraph Playground</title>"));
+    }
+
+    #[test]
+    fn no_name_or_a_blank_one_leaves_the_page_as_built() {
+        assert_eq!(with_panel_name(PAGE, None), PAGE);
+        assert_eq!(with_panel_name(PAGE, Some("")), PAGE);
+        assert_eq!(with_panel_name(PAGE, Some(" \t ")), PAGE);
+    }
+
+    #[test]
+    fn a_page_without_the_tag_is_served_unchanged() {
+        let page = "<head><title>Minigraph Playground</title></head>";
+        assert_eq!(with_panel_name(page, Some("My Dashboard")), page);
+    }
 }

@@ -14,7 +14,9 @@ a trusted development host. Their `rest.yaml` entries are skipped at load in any
 `app.env` other than `dev`, including none. The Playground page lives outside the static folder
 (`resources/template/playground.html`), so an application that does not route `get.index.html` gets
 the plain page at `/` in both modes — never the Playground by accident. Deployed graphs still run in
-production through `POST /api/graph/{graph-id}`.
+production through `POST /api/graph/{graph-id}`. `playground.panel.name` renames the panel's heading,
+for example `-Dplayground.panel.name='My Awesome Dev Dashboard'`; without it the panel reads
+`Minigraph Playground` ([Configuration Reference](../configuration-reference.md#playground-panel-name)).
 
 ## The workbench
 

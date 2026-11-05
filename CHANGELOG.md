@@ -62,6 +62,13 @@ Each change merged to `main` after v4.12.27 is listed here; it moves under its r
    `kafka.progress.publisher`, a return route that publishes each event to a Kafka topic, one run per partition. The
    twin of mercury-composable #611. **Upgrade note:** CompileGraph refuses a blank `progress` and an input mapping to
    `header.x-return-path`; `graph.progress.*` and `graph.run.socket.reply` are reserved route names.
+5. **`playground.panel.name` renames the Minigraph Playground panel (Increment 200).** Set it in `application.yml` or at
+   launch, for example `-Dplayground.panel.name='My Awesome Dev Dashboard'`, and the heading in the panel's top-left
+   corner reads that name; without it, or with a blank value, it reads `Minigraph Playground`. `get.index.html` writes
+   the name, escaped for HTML, into the Playground page's panel-name tag in dev mode; the browser tab and the JSON-Path
+   playground keep their titles. The Playground bundle and help pages are redeployed from the Java repository
+   (`index-CXcJLB42.js`), so the help now covers `async=true` and `progress`. The twin of mercury-composable #617.
+   **Upgrade note:** none; without the property the panel reads as before.
 
 ### Changed
 
