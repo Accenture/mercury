@@ -3,7 +3,7 @@
   not have (no number without content). Eric: everything else the Java repo shipped since comes across this sprint.
   Items, one PR and Increment each, in Java's order: (1) #610's abort record (Increment 196, PR #403
   MERGED `46a62855`); (2) #605/#606, the agent loop `llm.run` with the ask row, as `extensions/agent-loop`, passing
-  the shared `llm-run-vectors.json` (Increment 198, branch `feat/agent-loop`; a new published crate); (3) #609, the asynchronous `graph.extension` and its CompileGraph rule (Increment 197, PR #404
+  the shared `llm-run-vectors.json` (Increment 198, PR #405 MERGED `21c9f150`; a new published crate); (3) #609, the asynchronous `graph.extension` and its CompileGraph rule (Increment 197, PR #404
   MERGED `a121210e`, done before (2) because the two are independent); (4) #611,
   progress events, the `x-return-path` relays, the graph-run WebSocket entry, `llm.run`'s progress events, the
   streaming single-shot reply and the Kafka progress publisher; (5) #617, `playground.panel.name` in `get_index_html`,
