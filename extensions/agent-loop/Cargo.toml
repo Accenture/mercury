@@ -13,7 +13,7 @@ categories = ["asynchronous"]
 name = "agent_loop"
 
 [dependencies]
-mercury-platform-core = { version = "4.12.27", path = "../../crates/platform-core" }
+mercury-platform-core = { version = "4.12.30", path = "../../crates/platform-core" }
 async-trait = "0.1"
 # the turn's tool calls run concurrently on the function's own task, so every request carries the llm.run span
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
