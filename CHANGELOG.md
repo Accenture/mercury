@@ -13,7 +13,23 @@ the design rationale in [`draft-design-specs/`](draft-design-specs/).
 ---
 ## Unreleased
 
-Each change merged to `main` after v4.12.27 is listed here; it moves under its release heading when the version is cut.
+Nothing yet. Each change merged to `main` after v4.12.30 is listed here; it moves under its release heading when the version is cut.
+
+---
+## Version 4.12.30, 11/5/2026
+
+The lock-step twin of Java 4.12.30, catching up from 4.12.27 with every common feature the Java engine shipped since. Java
+4.12.28 and 4.12.29 were Java only because their headline work was the mini-scheduler, which this engine does not have, so
+this port takes no number for them. The agent loop `llm.run` arrives in the new opt-in crate `mercury-agent-loop`, the
+thirteenth published crate (Added 3); a graph run gains an asynchronous `graph.extension` (Added 2) and progress events for
+a caller that watches it, with the WebSocket entry `/ws/graph-run/{graph_id}` (Added 4); the Playground panel takes its name
+from `playground.panel.name` and the Playground bundle and help are redeployed (Added 5); the AI companion broker, renamed
+from the Playground session broker and kept once in the starter template, can subscribe to a session a human opened first
+(Added 6, Changed 4); an aborted flow whose caller cannot be told is recorded in the log (Changed 2). **Upgrade notes:**
+CompileGraph refuses a blank `progress` and an input mapping to `header.x-return-path`, and `graph.progress.*`,
+`graph.run.socket.reply` and, once an application links `mercury-agent-loop`, `llm.run` are reserved route names (Added 3
+and 4). A command or a note that names `scripts/playground-session-broker.mjs` names `scripts/ai-companion-broker.mjs`, run
+from `templates/starter-graph` (Changed 4).
 
 ### Added
 
