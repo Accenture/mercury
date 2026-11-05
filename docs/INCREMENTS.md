@@ -5436,3 +5436,35 @@ CHANGELOG Unreleased, `Added` item 4 and `Changed` item 3.
 Gates: `cargo test -p mercury-knowledge-graph -p mercury-platform-core -p ai-contract-provider -p kafka-demo -p mercury-agent-loop`
 (64 binaries, 431 passed, 0 failed; `progress_events` three more times), `cargo clippy --workspace --all-targets -- -D warnings`,
 `cargo fmt --all --check`, `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`.
+
+## Increment 200 — `playground.panel.name` renames the Minigraph Playground panel; the Playground bundle and help deployed (2026-11-05)
+
+The twin of mercury-composable #617, the last item of the catch-up sprint. A field installation asked to name its
+Playground panel through the application's configuration: `playground.panel.name` (for example
+`-Dplayground.panel.name='My Awesome Dev Dashboard'`) renames the heading in the panel's top-left corner. Without it,
+or with a blank value, the panel reads `Minigraph Playground` as before.
+
+- **`crates/knowledge-graph/src/rest.rs`.** `get_index_html` fills the Playground page's empty
+  `<meta name="playground-panel-name" content="">` from the property in dev mode (`with_panel_name`, Java
+  `GetIndexHtml.withPanelName`): trimmed, escaped for an HTML attribute (`&`, `"`, `'`, `<`, `>`), and a page without
+  the tag served unchanged with a warning. The page is read on every request, where Java reads it once at startup, so
+  the name or the warning is logged once (`Once`). The plain page outside dev mode is never touched.
+- **The Playground bundle and help, deployed from the Java repo** (`npm run release:rust` after `npm ci`):
+  `index-MYdzjeK5.js` became `index-CXcJLB42.js`, the bundle that reads the tag; every deployed file and all 44 help
+  pages are byte-identical with the Java repo's. The mirror brings `help graph-extension` (`async=true` and its
+  *Asynchronous* section, Increment 197; `progress` through a synchronous subgraph) and `help graph-task` (*Progress*,
+  Increment 199), both true here now.
+- **Tests.** `rest::tests` (Java's `GetIndexHtmlTest`): the deployed page carries the empty tag exactly once; a name is
+  escaped and trimmed; no name or a blank one leaves the page as built; a page without the tag is unchanged.
+  `tests/home_page.rs`: the property renames the served Playground page and leaves the plain page alone, and the tag
+  stays empty once it is cleared. Negative control: serving the page without `with_panel_name` failed the served-page
+  assertion. Live: the Playground example on port 8097 with the property logged `Playground panel name - My Awesome Dev
+  Dashboard`, its header read the name while the browser tab kept `Minigraph Playground`, and the console's
+  `help graph-task` showed the mirrored *Progress* section.
+- **Docs.** `playground.panel.name` in the configuration reference, and a sentence in *Playground and companion*.
+
+CHANGELOG Unreleased, `Added` item 5.
+
+Gates: `cargo test -p mercury-knowledge-graph -p ai-contract-provider -p minigraph-playground` (32 binaries, 124 passed, 0 failed),
+`cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all --check`, `python3 scripts/check-doc-claims.py`,
+`python3 scripts/check-llms-links.py`.

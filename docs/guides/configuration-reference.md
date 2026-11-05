@@ -732,6 +732,19 @@ value (e.g. `${APP_ENV:dev}` resolved to `prod`) runs graphs only through
 `app.env` yields the plain page too, so a production deployment never shows the Playground UI.
 Read by `crates/knowledge-graph`.
 
+#### `playground.panel.name` {#playground-panel-name}
+
+| Type | Default |
+|---|---|
+| string | none - the panel shows `Minigraph Playground` |
+
+Renames the Minigraph Playground panel, the heading in its top-left corner. It applies in dev mode
+(`app.env=dev`), where the engine serves the Playground; the browser tab's title and the JSON-Path
+playground keep theirs. A blank value keeps the default. Set it in `application.yml` or at launch,
+`-Dplayground.panel.name='My Awesome Dev Dashboard'`. The engine writes the name, escaped for HTML,
+into the page it serves, and the web app shows it in place of its built-in title. Read by
+`crates/knowledge-graph` (`get.index.html`).
+
 #### `graph.model.automation`
 
 | Type | Default |

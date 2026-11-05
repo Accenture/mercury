@@ -42,7 +42,18 @@ Optional properties
 for_each[]={map an array parameter for iterative function execution}
 concurrency={controls parallel function calls for an "iterative task request". Default 3, max 30}
 exception={error-handler-node-name}
+progress={text for the node's progress event}
 ```
+
+Progress
+--------
+A caller that watches the run (a REST endpoint with stream: true, a WebSocket
+session, or an event with a declared x-return-path) gets a node.start event
+with the progress text when the run reaches the node. The function also gets
+an x-return-path header naming the node's relay route, and may send its own
+progress events there: llm.run does. A node without progress passes no header,
+and a graph cannot map header.x-return-path itself. See the skills reference,
+"Progress events".
 
 Input data mapping
 ------------------
