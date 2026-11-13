@@ -71,15 +71,18 @@
   facade, `Platform::keep_running`, `group.protocol=auto`; 12 crates. Origin 2026-09-22-010413.md.) Prior: v4.12.12
   (2026-09-21 — the catch-up release 4.12.7 → 4.12.12 in one step, PR #296 → `983e7550`, tag → `1ef183cb`; Increments 118–124.)
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-11-03 | through 2026-11-03-005834.md (CADENCE — 10 sessions since the 2026-10-24 review:
-  `refresh-metadata` refreshed 6 footers, tier changes 4 (`release-4-12-26` and `release-4-12-27` → active,
-  `mock-upload-loads-every-member` and `reverify-invariants-20261024` → archive-candidate); archived 0 facts (none faded, none
-  superseded), so step 6's declaration-gap check had none to examine; swept 1 completed thread (`release-4-12-24`, 22 sessions
-  since its close); the three closed threads left are stubs inside the window; reactivated 0, superseded 0; archive-verify pass;
-  invariants not due (9 of 40 since 2026-10-24-042748); stalled threads none (no unchecked thread); contradictions none, one
-  stale statement corrected (the `status` line's and `memory/instructions.md`'s "released lock-step", to Eric's 2026-10-13
-  ruling as the Vision states it); Doc Gaps: no window log carries the section; next to cross the window:
-  `graph-set-pack-and-deploy-rust` (20 sessions with this log); live facts 16 → 15. Smoke test not run.)
+- **last_review:** 2026-11-13 | through 2026-11-13-023344.md (ON COMMAND + CADENCE — 12 sessions since the 2026-11-03
+  review, this log included: `refresh-metadata` refreshed 6 footers, tier changes 6 (`catch-up-java-4-12-29` and
+  `release-4-12-30` → active; `confluent-client-parity-rust`, `conv-tests-remove-temp-files-rust`, `release-4-12-26` and
+  `release-4-12-27` → archive-candidate); archived 2 faded facts (`mock-upload-loads-every-member` 22 sessions,
+  `graph-set-pack-and-deploy-rust` 31) after step 6 found no reliance; swept 1 completed thread
+  (`reverify-invariants-20261024`, 21); `catch-up-java-4-12-29` condensed to a stub, its stale "Next: the release at 4.12.29"
+  corrected (shipped in 4.12.30); reactivated 0, superseded 0; archive-verify pass; invariants not due (22 of 40 since
+  2026-10-24-042748); stalled threads none (no unchecked thread); contradictions none; Doc Gaps: none in the window; next to
+  cross the window: `webapp-single-source-java-repo` (20), a likely declaration gap (Increment 200 deployed the bundle and
+  help from the Java repo); live facts 18 → 15. Smoke test not run.)
+  Prior: 2026-11-03 | through 2026-11-03-005834.md (CADENCE — refreshed 6 footers, tier changes 4; archived 0; swept 1 thread
+  (`release-4-12-24`); one stale statement corrected (the "released lock-step" wording); live facts 16 → 15)
   Prior: 2026-10-24 | through 2026-10-24-040826.md (ON COMMAND + CADENCE — refreshed 5 footers, tier changes 2; archived 3 faded
   facts and KEPT `mock-upload-loads-every-member` as a declaration gap; swept 0; the invariant re-verify gate raised (53 of 40);
   live facts 15 → 13, lines 348)
@@ -209,35 +212,6 @@ layers shipped; the two above have held through every re-verify.)*
   substance unchanged.)
   <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-30 | uses: 104 | tier: core | origin: 2026-07-15-215538.md -->
 
-- **A mock-data upload travels like a command: it loads every member's instance (Eric's design, 2026-10-02; PR #349 merge `278bb023`, Increment 154; lock-step with mercury-composable #498 squash `ce0e7155`; both MERGED 2026-10-03 06:00Z).**
-  `commands::upload_content` (REST `POST /api/mock/{id}`) no longer writes the uploader's instance alone: it sends an `upload` event to the command service,
-  `handle_upload` loads the payload when the session is the primary and replays it (`forwarded`) into every subscriber's instance, or forwards a subscriber's payload to
-  the primary (which replays it back), and `load_mock_content` sets `input.body` and confirms in that member's console (`Mock data loaded into 'input.body' namespace`);
-  a session without an instance is refused at the REST edge. **Why:** another member's replayed `run` executed without the data and aborted. The Playground's run
-  controls became three steps in the same round - Instantiate, Upload (optional; the form opens for the clicking session only, no console command) and Run - and the
-  multi-select hint left the canvas; the UI lives in the Java repo and arrives here as the bundle `index-Bg13jQpc` ([[webapp-single-source-java-repo]]). Pinned by
-  `mock_upload_loads_every_member_instance` in `tests/graph_runtime.rs`.
-  <!-- id: mock-upload-loads-every-member | created: 2026-10-02 | last_used: 2026-10-24 | uses: 6 | tier: archive-candidate | origin: 2026-10-02-232252 -->
-
-- **Graph sets follow ADR-0027 in the Java repository's ledger (RFC-0005, promoted 2026-10-06): one or more graphs in a canonical
-  `<set>.pack`, checked by the gate when packed and deployed all or none through a generated manifest; a set of one graph is how one graph
-  is signed (Eric, 2026-10-06; Increment 159, PR #357 merge `60e59aeb`, MERGED 2026-10-06 01:27Z).** This engine's homes: `knowledge_graph::model_gate` (the shared
-  gate), `knowledge_graph::graph_set` (the set rules), `tools/graph-packager` (`publish = false`) and the loader
-  `knowledge_graph::graph_set_loader` (WP3, Increment 161, PR #359 merge `42f6cf81`, MERGED 2026-10-06 04:46Z; Java twin mercury-composable
-  #515): `sets` + `unpack` in `graphs.yaml`, each set unpacked into `<unpack>/<id>.json`, gated and registered all or none, and a generated
-  `<unpack>/graphs.yaml` whose `graphs` lists what deployed and `generated` every file written, which the next start removes. WP4, the endpoints
-  (`rest::pack_graph_set` and `rest::unpack_graph_set`, `POST /api/graph-set/pack` and `/api/graph-set/unpack` - moved there from
-  `/api/graph/...` by Increment 167, PR #365 merge `b12931f5`, MERGED 2026-10-06 23:26Z, because the first paths collided with the executor's `/api/graph/{graph_id}` - the set
-  name as `manifest.set`;
-  Increment 166, PR #364 merge `f89c0997`, MERGED 2026-10-06 23:03Z; Java twin #524), shipped; WP5, the Playground's "Graph set packaging" panel, shipped in PR #366 (merge `82aa3c86`, Increment 168; Java twin #526 squash
-  `f84c40cb`), MERGED 2026-10-07 00:26Z - the bundle deployed from the Java repository, packing on the engine through
-  `/api/graph-set/pack`; WP6, the docs, shipped in PR #367 (merge `daa493ba`, Increment 169; Java twin #527), MERGED 2026-10-07 00:49Z - the guide
-  pages, `help package` with the mirrored help, five loader claims; the sprint's engine work and docs are complete here. The one-graph rule is pinned by `tests/cli.rs`
-  `a_single_graph_is_packed_alone_so_it_can_be_signed` and its Java twin: one 327-byte set, SHA-256 `c500281a…` in both engines. A change
-  that alters those bytes breaks the signatures made over the old ones. Java twin fact `graph-set-pack-and-deploy`; the sprint thread is the
-  Java repository's `graph-set-packaging`. Relates [[graph-null-property-filtered-rust]].
-  <!-- id: graph-set-pack-and-deploy-rust | created: 2026-10-06 | last_used: 2026-10-18 | uses: 9 | tier: archive-candidate | origin: 2026-10-06-012631 -->
-
 - **The Schema Registry client follows the mechanisms of the Confluent client the Java engine uses (Eric, 2026-10-30;
   Increments 191 and 193, PR #399).** The Java `minimalist-kafka` gets its registry behaviour from Confluent's
   `CachedSchemaRegistryClient` as a library; this engine's client is its own implementation, so it reproduces that
@@ -250,7 +224,7 @@ layers shipped; the two above have held through every re-verify.)*
   Confluent's client does (the 8.x sources jars in `~/.m2`: `CachedSchemaRegistryClient`, `RestService`,
   `RetryExecutor`, `SchemaRegistryClientConfig`) and measure it against a counting registry; the Java repository's
   thread `minimalist-kafka-schema-cache-ruling` holds the measurements. Applies [[port-bottom-up-faithful]].
-  <!-- id: confluent-client-parity-rust | created: 2026-10-30 | last_used: 2026-10-30 | uses: 1 | tier: working | origin: 2026-10-30-190735 -->
+  <!-- id: confluent-client-parity-rust | created: 2026-10-30 | last_used: 2026-10-30 | uses: 1 | tier: archive-candidate | origin: 2026-10-30-190735 -->
 
 ## Conventions
 
@@ -342,7 +316,7 @@ layers shipped; the two above have held through every re-verify.)*
   of its own, because the cleanup removes the holding area. Verify per test binary: a marker file, each binary run from its package
   folder, then `find -newer` over the system temp folder and `/tmp`. Java twin fact `conv-tests-remove-temp-files`; the thread is the
   Java repository's `test-temp-file-housekeeping`.
-  <!-- id: conv-tests-remove-temp-files-rust | created: 2026-10-06 | last_used: 2026-10-30 | uses: 6 | tier: active | origin: 2026-10-06-053150 -->
+  <!-- id: conv-tests-remove-temp-files-rust | created: 2026-10-06 | last_used: 2026-10-30 | uses: 6 | tier: archive-candidate | origin: 2026-10-06-053150 -->
 
 - **The Java Mercury's releases v1.12.8 to v3.0.19 live here as tags and GitHub releases; their branches are gone (Eric,
   2026-11-13).** This repository held the Java Mercury (1.x to 3.x) before the Rust port graduated into it, and tags

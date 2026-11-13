@@ -136,3 +136,6 @@
 - msgpack-nesting-limit-64-rust — A MsgPack payload may nest at most 64 maps and lists, the outermost container being level… — faded — 2026-Q4.md
 - msgpack-hostile-header-vectors-rust — The MsgPack decoders of both engines are pinned by one shared hostile-header vector file,… — faded — 2026-Q4.md
 - release-4-12-24 — Release v4.12.24 — SHIPPED 2026-10-12: the lock-step twin of Java 4.12.24 (Increments 177–… — completed thread swept (older than archive_window) — 2026-Q4.md
+- mock-upload-loads-every-member — A mock-data upload travels like a command: it loads every member's instance (Eric's design… — faded — 2026-Q4.md
+- graph-set-pack-and-deploy-rust — Graph sets follow ADR-0027 in the Java repository's ledger (RFC-0005, promoted 2026-10-06)… — faded — 2026-Q4.md
+- reverify-invariants-20261024 — Re-verify invariants: Eric walked the 7 `core` facts and the Vision on 2026-10-24; all con… — completed thread swept (older than archive_window) — 2026-Q4.md

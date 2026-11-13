@@ -4,4 +4,4 @@
   Lesson: holding the memory records until after the tag kept tag = merge on both engines (Java #620 squash = tag too).
   origin: 2026-11-05-205957; close 2026-11-05-234236.
   → serves: vision-mercury
-  <!-- id: release-4-12-30 | created: 2026-11-05 | last_used: 2026-11-05 | uses: 1 | tier: working | origin: 2026-11-05-205957 -->
+  <!-- id: release-4-12-30 | created: 2026-11-05 | last_used: 2026-11-05 | uses: 2 | tier: active | origin: 2026-11-05-205957 -->

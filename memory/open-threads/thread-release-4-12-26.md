@@ -5,4 +5,4 @@
   the field's acceptance are recorded in the Java repo.
   origin: 2026-10-26-164333; close 2026-10-26-170309.
   → serves: vision-mercury
-  <!-- id: release-4-12-26 | created: 2026-10-26 | last_used: 2026-10-26 | uses: 2 | tier: active | origin: 2026-10-26-164333 -->
+  <!-- id: release-4-12-26 | created: 2026-10-26 | last_used: 2026-10-26 | uses: 2 | tier: archive-candidate | origin: 2026-10-26-164333 -->
