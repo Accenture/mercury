@@ -109,7 +109,7 @@ and `graph.task` cover its use cases.
 
 This repository previously hosted the original Java implementation of Mercury (up to
 v3.0.19); it was repurposed as the home of the Rust version on 2026-07-20. Versions 1.13.0
-and 2.1.0–2.7.0 remain available as release branches in this repository. All known field
+and 2.1.0–2.7.0 remain available as tagged releases in this repository. All known field
 installations have been upgraded to version 4.x using the
 [mercury-composable](https://github.com/Accenture/mercury-composable) repo — the canonical
 Java implementation this port follows.
