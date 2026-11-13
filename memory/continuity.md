@@ -344,6 +344,18 @@ layers shipped; the two above have held through every re-verify.)*
   Java repository's `test-temp-file-housekeeping`.
   <!-- id: conv-tests-remove-temp-files-rust | created: 2026-10-06 | last_used: 2026-10-30 | uses: 6 | tier: active | origin: 2026-10-06-053150 -->
 
+- **The Java Mercury's releases v1.12.8 to v3.0.19 live here as tags and GitHub releases; their branches are gone (Eric,
+  2026-11-13).** This repository held the Java Mercury (1.x to 3.x) before the Rust port graduated into it, and tags
+  began at `v4.9.0`. Each `release/*` branch tip (and `akka/v1-13-0`, the 1.13.0 release) now has an annotated tag
+  `vX.Y.Z`, the tagger date the release commit's, and a GitHub release titled with the tag, its notes the version's
+  CHANGELOG section after a line saying it was published retroactively, not marked latest: 41 tags and releases, 81 of
+  each in all, `v4.12.30` still Latest. 2.9.0 was never released (`release/v2-9-0` pointed at 2.8.6), so it has no tag.
+  The 43 branches were then deleted; GitHub keeps only `main` and `gh-pages`. Three v3 sections are mis-headed at their
+  own tags (3.0.17, 3.0.18, 3.0.19), and their notes carry the right heading and say so. Java twin
+  `historical-releases-tags-and-pages`. **How to apply:** find an old release by its tag or release page, never a
+  branch; a release published after the fact passes `--latest=false`.
+  <!-- id: historical-releases-tags-and-pages-rust | created: 2026-11-13 | last_used: 2026-11-13 | uses: 1 | tier: working | origin: 2026-11-13-022524 -->
+
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 
 > The `(blueprint)` items live one-per-file in `memory/open-threads/` (v4.39.0). This section is
