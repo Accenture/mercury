@@ -123,13 +123,15 @@
   release priors condensed — lines 600 → ~520, facts 29 → 28; three facts re-tiered active → archive-candidate; one stale "Open" line in
   `connected-edge-spans` corrected to SHIPPED) · 2026-09-24 | through 2026-09-24-003204.md (advisory sweep at the v4.12.16 seam) ·
   2026-09-23 | 2026-09-23-014725.md.
-- **last_invariant_check:** 2026-10-24 | 2026-10-24-042748.md (COMPLETE — [[reverify-invariants-20261024]] closed: Eric CONFIRMED all
-  7 never-decay facts and the Vision against live-tree evidence — `inv-never-couple-functions`, `inv-telemetry-presentation-parity`,
-  `port-bottom-up-faithful` (wording refreshed: the runway closed, the port catches up), `conventions-rust-baseline` (the rule holds;
-  9 of 258 source files lacked the Apache header, fixed by a PR), `conv-declare-consulted-references-rust`,
-  `conv-proposals-not-in-adr-ledger-rust`, `eric-release-rhythm-rust`, `vision-mercury` (refreshed: a release adopts the Java release
-  number when this repository has changes, not lock-step; the audience line). Core stays 7. The next re-verify is due 40 sessions
-  after 2026-10-24-042748.)
+- **last_invariant_check:** 2026-11-13 | 2026-11-13-032326.md (COMPLETE, on command — Eric walked the 7 never-decay facts and the
+  Vision against live-tree evidence at `7d60d9db`; ALL CONFIRMED. `inv-telemetry-presentation-parity` holds with Increment
+  197's recorded difference (a tokio task-local trace, so each async run carries the node's trace, span and cid explicitly
+  where Java sets only the span; the parent edges match); `conventions-rust-baseline` holds (every `.rs` file carries the
+  header but the six `templates/*` sources, which carry the one-line attribution Eric ruled 2026-09-11); `vision-mercury`
+  refreshed: the agent loop `mercury-agent-loop` recorded as the Rust side of the Java Vision's Track 2. Core stays 7. The
+  next re-verify is due 40 sessions after this log.)
+  Prior: 2026-10-24 | 2026-10-24-042748.md (all 7 never-decay facts and the Vision CONFIRMED at [[reverify-invariants-20261024]];
+  `port-bottom-up-faithful` and the Vision reworded; 9 missing Apache headers fixed by a PR) ·
   Prior: 2026-10-04 | 2026-10-04-160854.md (all 7 never-decay facts and the Vision CONFIRMED; the team record removed at Eric's request) ·
   Prior: 2026-09-17 | 2026-09-17-004239.md (all 7 never-decay facts + the Vision (8 ids) CONFIRMED by Eric after an evidence walkthrough — inv-never-couple-functions, inv-telemetry-presentation-parity, port-bottom-up-faithful, conventions-rust-baseline, conv-declare-consulted-references-rust, eric-release-rhythm-rust, the team record (since removed), vision-mercury; the Vision's current-state context refreshed, both Blueprint gaps having closed at the same review's closure gate; thread-reverify-invariants-20260917 closed. Prior: 2026-09-02 | 2026-09-02-184705.md (5 ids) and 2026-07-26 | 2026-07-26-014908.md)
 - **repo:** github.com/Accenture/mercury (official home; graduated 2026-07-20 from the private R&D repo acn-ericlaw/mercury)

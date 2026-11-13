@@ -17,6 +17,8 @@ re-delivered in Rust **step by step from the foundation up to the user interface
 
 ## Current-state context
 
+> Refreshed 2026-11-13 at the invariant re-verify (maintainer-confirmed): the agent loop recorded as the Rust side of
+> the Java Vision's Track 2; the north star below is unchanged.
 > Refreshed 2026-10-24 at the invariant re-verify (maintainer-confirmed): releases catch up with the
 > Java engine's release number rather than ship in lock-step, and the audience line is current; the
 > north star below is unchanged. Refreshed before that 2026-09-17 at the invariant re-verify ceremony
@@ -37,6 +39,8 @@ has changes (Eric, 2026-10-13: the port catches up with its next feature or fix)
 a new release, because Java is the reference implementation; the python/node.js language packs catch up only when
 functionality crosses from the engine to them, so they may trail further (Eric, 2026-11-03); `twin-kafka`
 deferred; the Kafka service mesh stays out of scope (Non-goals).
+The agent loop `llm.run` (RFC-0011) is ported as `mercury-agent-loop` (Increment 198, first published in 4.12.30): the Rust
+side of the Java Vision's Track 2, the graph as AI SDLC.
 
 > Refreshed 2026-07-21 at the invariant re-verify ceremony (maintainer-confirmed; the
 > north star below is unchanged). Original enable-time context kept for the record.
