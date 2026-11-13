@@ -80,7 +80,7 @@
   corrected (shipped in 4.12.30); reactivated 0, superseded 0; archive-verify pass; invariants not due (22 of 40 since
   2026-10-24-042748); stalled threads none (no unchecked thread); contradictions none; Doc Gaps: none in the window; next to
   cross the window: `webapp-single-source-java-repo` (20), a likely declaration gap (Increment 200 deployed the bundle and
-  help from the Java repo); live facts 18 → 15. Smoke test not run.)
+  help from the Java repo), KEPT the same day as one (2026-11-13-032326); live facts 18 → 15. Smoke test not run.)
   Prior: 2026-11-03 | through 2026-11-03-005834.md (CADENCE — refreshed 6 footers, tier changes 4; archived 0; swept 1 thread
   (`release-4-12-24`); one stale statement corrected (the "released lock-step" wording); live facts 16 → 15)
   Prior: 2026-10-24 | through 2026-10-24-040826.md (ON COMMAND + CADENCE — refreshed 5 footers, tier changes 2; archived 3 faded
@@ -307,7 +307,7 @@ layers shipped; the two above have held through every re-verify.)*
   of a Java webapp fix). `Cargo.toml` has no `exclude` any more; `cargo package --list` carries 214 files, the 42 help pages, the bundle and the entry page, no
   webapp path and no source map. The source maps stay gitignored here. Supersedes [[webapp-bundle-follows-help-edits]] (the rule that a help edit needs the rebuilt bundle still holds, now from the
   Java repo). Relates [[example-and-template-carry-their-flows]].
-  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-10-24 | uses: 23 | tier: archive-candidate | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
+  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-11-13 | uses: 24 | tier: active | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
 
 - **Tests remove the temporary files they write when they complete, verified by measuring (Eric, 2026-10-06; Increment 162, PR
   #360 merge `acf767d7`, MERGED 2026-10-06 05:35Z).** A test binary runs its tests in parallel and has no after-all hook. Per-process files go under `test_support::temp_path`
