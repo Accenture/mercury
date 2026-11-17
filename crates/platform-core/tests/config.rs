@@ -207,6 +207,36 @@ fn override_registry_beats_the_file_value() {
 }
 
 #[test]
+fn override_value_resolves_references_like_a_file_value() {
+    setup();
+    // -Dkey='${ENV_VAR}' keeps a credential out of the process list: the value is resolved in
+    // the application with the same rule as a file value - an environment variable with a
+    // default, and another configuration key (the Java engine's change of the same day)
+    let app = AppConfigReader::get_instance();
+    overrides::set(
+        "override.ref",
+        "${NO_SUCH_ENV_VARIABLE_FOR_TEST:from-default}",
+    );
+    assert_eq!(
+        app.get_property("override.ref").as_deref(),
+        Some("from-default")
+    );
+    overrides::set("override.ref", "http://127.0.0.1:${server.port}/api");
+    assert_eq!(
+        app.get_property("override.ref").as_deref(),
+        Some("http://127.0.0.1:8085/api")
+    );
+    overrides::set("override.ref", "${NO_SUCH_ENV_VARIABLE_FOR_TEST}");
+    assert_eq!(
+        app.get_property("override.ref"),
+        None,
+        "an unresolved reference is no value, as in a file"
+    );
+    overrides::clear("override.ref");
+    assert_eq!(app.get_property("override.ref"), None);
+}
+
+#[test]
 fn standalone_reader_resolves_references_against_the_base_config() {
     setup();
     // test.properties: ref.from.base=${server.port} — resolves via AppConfigReader

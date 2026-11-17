@@ -5532,3 +5532,22 @@ the limit, fewer keep their computed scale, so the limit never pads and every re
   repo (`npm run release:rust`), both engines byte-identical again.
 
 CHANGELOG Unreleased, `Changed` item 1.
+
+## Increment 203 — A runtime argument's value is resolved like a file value (2026-11-17)
+
+The twin of the Java engine's change of the same day (mercury-composable, `ConfigReader.get`). A `-Dkey=value` runtime
+argument was returned as written, so a key moved from `application.yml` to the command line silently lost its
+`${ENV_VAR:default}` substitution, and a credential had to travel on the command line in clear - the asymmetry the
+language packs met while wiring their transcript audit store's database password. Now `ConfigReader::get_with`
+passes an override's text through the same `resolve_text` step as a file value: an environment variable with a
+default, or a reference to another configuration key, resolved at read time, so `-Dkey='${ENV_VAR}'` keeps the secret
+out of the process list and container `args` arrays, which do no shell expansion.
+
+- **`crates/platform-core/src/util/config_reader.rs`.** `resolve_text(value, key, default, visited)` extracted from
+  `get_with` and applied to the override as well as to the tree's value; the base-config guard (Java
+  `baseConfig != null`) and the loop detection are unchanged.
+- **Tests.** `tests/config.rs` `override_value_resolves_references_like_a_file_value`: a default, a reference to
+  `server.port`, an unresolved reference as no value, the cleared override gone.
+- **Docs.** The configuration reference's resolution-order paragraph.
+
+CHANGELOG Unreleased, `Changed` item 2.
