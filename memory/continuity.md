@@ -228,6 +228,22 @@ layers shipped; the two above have held through every re-verify.)*
   thread `minimalist-kafka-schema-cache-ruling` holds the measurements. Applies [[port-bottom-up-faithful]].
   <!-- id: confluent-client-parity-rust | created: 2026-10-30 | last_used: 2026-10-30 | uses: 1 | tier: archive-candidate | origin: 2026-10-30-190735 -->
 
+- **A `DECIMAL` result carries at most a configured number of decimal places - the node's `precision`, else the
+  application's `big.decimal.precision` (default 6) - rounded HALF_UP beyond the limit and kept as computed within it
+  (Increment 202, 2026-11-17; the twin of mercury-composable #637 and its ADR-0034, which supersedes the Java ADR-0025's
+  "no application default"; the Java fact is `decimal-result-precision-limit`).** The field computes financial rules
+  from inputs of several sources, each with its own number of decimal places, so one rounding policy needed a `round()`
+  on every statement. The limit is a CAP, not a fixed scale: a result within it is unchanged and the limit never pads.
+  Applied once, at the statement's result in `skills::decimal` through `DecimalEvaluator::evaluate_with_limit`, never
+  inside the arithmetic; `evaluate` stays unbounded so the shared vectors are unchanged; `model_validator` rejects a
+  malformed node value at deploy with Java's message, `common::decimal_precision_default` a malformed application value
+  at the first statement. The node's limit is resolved once in `math` and threaded to the statement, so an EXECUTE'd
+  module takes the caller's. **How to apply:** a twin of a Java limit on a result goes at the same boundary (the
+  statement's result), reads the same two settings by the same names and is proven with the Java fixture copied
+  verbatim; the Playground help carries the rule, so the bundle and help were redeployed from the Java repo
+  ([[webapp-single-source-java-repo]]).
+  <!-- id: decimal-result-precision-limit-rust | created: 2026-11-17 | last_used: 2026-11-17 | uses: 1 | tier: working | origin: 2026-11-17-061303 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
