@@ -35,6 +35,16 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    6 places, and the `f:decimal*` plugins of Event Script, are unchanged.
 
 ---
+
+2. **A runtime argument's value is resolved with the same `${ENV_VAR:default}` substitution as a file value
+   (Increment 203; the twin of the Java engine's change of the same day).** `ConfigReader::get` returned a
+   `-Dkey=value` as written, so a key moved from `application.yml` to a runtime argument silently lost its substitution
+   and a credential had to travel on the command line in clear. Now an override's value - an environment variable with
+   a default, or a reference to another configuration key - is resolved the way a file value is, at read time, so
+   `-Dkey='${ENV_VAR}'` keeps the secret out of the process list and container `args` arrays, which do no shell
+   expansion. **Upgrade note:** a runtime argument that relied on a literal `${...}` is now resolved, as a file value
+   always was; an unresolved reference without a default is no value, as in a file.
+
 ## Version 4.12.30, 11/5/2026
 
 The lock-step twin of Java 4.12.30, catching up from 4.12.27 with every common feature the Java engine shipped since. Java

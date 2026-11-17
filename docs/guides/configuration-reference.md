@@ -13,7 +13,10 @@ implementations unchanged.
 
 Resolution order for any key: `-Dkey=value` **runtime arguments** (the JVM `-D` analog,
 passed after `--` on the cargo command line) win over configuration-file values, and the
-files themselves merge in the manifest order described below.
+files themselves merge in the manifest order described below. A runtime argument's value is
+resolved with the same `${ENV_VAR:default}` substitution as a file value, so
+`-Dkey='${ENV_VAR}'` keeps a credential out of the process list and resolves it inside the
+application.
 
 !!! note "Rust port"
     The Java configuration reference documents many keys that do not exist in this port and

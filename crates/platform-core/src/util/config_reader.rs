@@ -192,17 +192,30 @@ impl ConfigReader {
         if key.is_empty() {
             return None;
         }
-        // 1. process override (the System.getProperty analog) always wins
+        // 1. process override (the System.getProperty analog) always wins; its value
+        //    resolves references the way a file value does, so a credential may be
+        //    given as -Dkey=${ENV_VAR} and never appear in the process list
         if let Some(v) = overrides::get(key) {
-            return Some(ConfigValue::Text(v));
+            return self.resolve_text(ConfigValue::Text(v), key, default, visited);
         }
         // 2. own tree
         let value = match self.map.get_element(key) {
             Some(v) => v.clone(),
             None => return default.cloned(),
         };
-        // 3. ${...} substitution (only when a base config is reachable — Java:
-        //    `baseConfig != null`)
+        // 3. ${...} substitution
+        self.resolve_text(value, key, default, visited)
+    }
+
+    /// `${...}` substitution of a text value (only when a base config is reachable —
+    /// Java: `baseConfig != null`); any other value is returned as it is.
+    fn resolve_text(
+        &self,
+        value: ConfigValue,
+        key: &str,
+        default: Option<&ConfigValue>,
+        visited: &mut Vec<String>,
+    ) -> Option<ConfigValue> {
         if let ConfigValue::Text(text) = &value {
             if text.contains(REF_BEGIN) && self.base_available() {
                 let segments = extract_segments(text);
