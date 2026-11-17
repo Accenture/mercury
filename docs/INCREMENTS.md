@@ -5551,3 +5551,24 @@ out of the process list and container `args` arrays, which do no shell expansion
 - **Docs.** The configuration reference's resolution-order paragraph.
 
 CHANGELOG Unreleased, `Changed` item 2.
+
+## Increment 204 — `graph.task` sets `x-graph-id` and `x-node`; `llm.run` copies both onto each model turn (2026-11-17)
+
+The twin of the Java engine's change of the same day (mercury-composable #641; RFC-0012 section 8, ruling R5). The
+transcript audit store the language packs built this week records the graph and the node of every conversation, and an
+audit must not depend on an author remembering to map them. The loop forwarded nothing but the correlation id and the
+return path to `llm.chat`; now the engine contributes identity, never content.
+
+- **`crates/knowledge-graph/src/skills.rs`.** `with_graph_context` (replacing `with_return_path`, on the single request
+  and the fan-out requests): `x-graph-id` = `instance.graph_id`, `x-node` = the node's alias, set after the input mapping
+  so they always carry the engine's values, then the relay as `x-return-path` for a node with `progress` as before.
+  `X_GRAPH_ID`, `X_NODE`.
+- **`extensions/agent-loop`.** `PlatformGateway::with_context(platform, return_path, cid, turn_headers)` sets the turn
+  headers on every `llm.chat` request (`with_progress` delegates with none); `graph_context(headers)` picks the two from
+  the `llm.run` request's headers, trimmed; `function.rs` passes them. Exported with the two constants.
+- **Tests.** `tests/llm_run_platform.rs` `the_graph_context_reaches_every_model_turn` (both turns carry both headers; a
+  caller that sends neither leaves the turns without them; the scripted `llm.chat` now records its headers);
+  `tests/graph_runtime.rs` reads `unit-test-task-1` and `demo-task` back from the demo task's headers.
+- **Docs.** `reserved-names-and-headers.md` (the section for the two headers), the skills reference's progress paragraph.
+
+CHANGELOG Unreleased, `Added` item 1.

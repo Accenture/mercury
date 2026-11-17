@@ -34,7 +34,7 @@ use platform_core::automation::MY_CORRELATION_ID;
 use platform_core::{preload, AppError, ComposableFunction, EventEnvelope, Platform, PostOffice};
 
 use crate::agent_loop::{AgentLoop, CAP, CONVERSATION, MODEL, STATUS, TURN, TURNS, USAGE};
-use crate::platform_gateway::{PlatformGateway, X_RETURN_PATH};
+use crate::platform_gateway::{graph_context, PlatformGateway, X_RETURN_PATH};
 use crate::settings::Defaults;
 use crate::value::{copy, get, text, value_of};
 
@@ -60,10 +60,12 @@ impl ComposableFunction for LlmRun {
     ) -> Result<EventEnvelope, AppError> {
         let platform = Platform::get_instance();
         let po = PostOffice::new(&platform);
-        let gateway = PlatformGateway::with_progress(
+        // the graph context the engine's task node sends rides onto every model turn (RFC-0012)
+        let gateway = PlatformGateway::with_context(
             &platform,
             headers.get(X_RETURN_PATH).map(String::as_str),
             headers.get(MY_CORRELATION_ID).map(String::as_str),
+            graph_context(&headers),
         );
         let agent = AgentLoop::new(&gateway, Defaults::from_config(), Box::new(now_ms));
         let envelope = agent.run(input.body()).await?;

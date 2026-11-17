@@ -520,7 +520,7 @@ pub async fn task(
                 .map_err(invalid)?;
             build_task_request(&node_name, &route, &mapping, &mut state)?
         };
-        let request = with_return_path(request, &instance, &node).await;
+        let request = with_graph_context(request, &instance, &node).await;
         log::info!("Call task {route}, ttl={ttl}");
         po.annotate_trace("task", &route);
         let response = call_task(&po, request, ttl).await;
@@ -570,7 +570,7 @@ pub async fn task(
     // every request of the fan-out reports through the node's one relay
     let mut with_relay = Vec::with_capacity(requests.len());
     for request in requests {
-        with_relay.push(with_return_path(request, &instance, &node).await);
+        with_relay.push(with_graph_context(request, &instance, &node).await);
     }
     let requests = with_relay;
     for batch in requests.chunks(concurrency) {
@@ -589,14 +589,25 @@ pub async fn task(
     EventEnvelope::new().set_body(next)
 }
 
-/// The node's relay as the request's `x-return-path`, for a node that carries
-/// `progress` in a watched run (RFC-0011 section 8.4; Java
-/// `GraphTask.withReturnPath`); any other request is unchanged.
-async fn with_return_path(
+/// The graph context the engine sets on every request a task node sends (RFC-0012 section 8).
+pub const X_GRAPH_ID: &str = "x-graph-id";
+pub const X_NODE: &str = "x-node";
+
+/// The graph context on every request - the graph's id as `x-graph-id` and the node's
+/// alias as `x-node`, set after the input mapping so they always carry the engine's
+/// values: a function that records what it did for a transaction (the language packs'
+/// LLM helper writes them into its transcript audit store, RFC-0012 section 8) gets both
+/// without the author mapping anything - and the node's relay as `x-return-path` for a
+/// node that carries `progress` in a watched run (RFC-0011 section 8.4; Java
+/// `GraphTask.withGraphContext`).
+async fn with_graph_context(
     request: EventEnvelope,
     instance: &GraphInstance,
     node: &SimpleNode,
 ) -> EventEnvelope {
+    let request = request
+        .set_header(X_GRAPH_ID, &instance.graph_id)
+        .set_header(X_NODE, node.get_alias());
     match crate::common::return_path_for(instance, node).await {
         Some(return_path) => request.set_header(crate::progress::X_RETURN_PATH, &return_path),
         None => request,

@@ -925,6 +925,11 @@ On a `graph.task` node the function also gets `x-return-path` for its own events
 nothing and passes nothing, so a function that forwards its headers cannot leak a caller's return path.
 CompileGraph refuses a blank `progress` and an input mapping to `header.x-return-path`.
 
+**Every request of a `graph.task` node also carries `x-graph-id` and `x-node`** - the graph's id and the node's
+alias, set by the engine after the input mapping (see
+[the graph context headers](../reserved-names-and-headers.md#x-graph-id)); `llm.run` copies both onto each
+`llm.chat` turn, so the LLM helper's transcript audit store records the graph and the node of every model turn.
+
 ```
 create node investigate
 with type Task

@@ -249,6 +249,10 @@ impl ComposableFunction for CountingStepTask {
 /// Java `DemoTaskFunction` (`v1.demo.task`): echoes the body and the `hello`
 /// request header, doubles `amount`, returns a response header; the
 /// `exception` field triggers the error path.
+/// The headers the demo task last received: the engine's graph context on every task request
+/// (RFC-0012 section 8) is asserted from here.
+static LAST_TASK_HEADERS: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+
 #[preload(route = "v1.demo.task", instances = 10)]
 struct DemoTaskFunction;
 
@@ -260,6 +264,7 @@ impl ComposableFunction for DemoTaskFunction {
         input: EventEnvelope,
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
+        *LAST_TASK_HEADERS.lock().expect("task headers") = Some(headers.clone());
         let body: serde_json::Value = input.body_as().unwrap_or(serde_json::Value::Null);
         if body.get("exception").is_some() {
             return Err(AppError::new(400, "just a test"));
@@ -1722,6 +1727,21 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
     assert_eq!(
         Some("demo"),
         reply.headers().get("x-task").map(String::as_str)
+    );
+    // the engine's graph context on every task request (RFC-0012 section 8): the graph's id and
+    // the node's alias, set after the input mapping
+    let task_headers = LAST_TASK_HEADERS
+        .lock()
+        .expect("task headers")
+        .clone()
+        .expect("the demo task ran");
+    assert_eq!(
+        Some("unit-test-task-1"),
+        task_headers.get("x-graph-id").map(String::as_str)
+    );
+    assert_eq!(
+        Some("demo-task"),
+        task_headers.get("x-node").map(String::as_str)
     );
 
     // --- unit-test-task-2: field mapping into a PoJo function

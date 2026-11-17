@@ -23,6 +23,7 @@
 //! "Reachable" is a local function or a declared Event-over-HTTP target. The Java engine's
 //! `po.exists` also finds a route on the Kafka service mesh, which the Rust port does not have.
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -38,6 +39,9 @@ use crate::value::{java_is_blank, java_trim, put};
 pub const LLM_CHAT: &str = "llm.chat";
 /// The header a caller names its return route in, for progress events (RFC-0011 section 8.4).
 pub const X_RETURN_PATH: &str = "x-return-path";
+/// The graph context the engine's task node sends, copied onto every model turn (RFC-0012 section 8).
+pub const X_GRAPH_ID: &str = "x-graph-id";
+pub const X_NODE: &str = "x-node";
 const CID: &str = "cid";
 
 /// The loop's gateway to the platform.
@@ -46,7 +50,23 @@ pub struct PlatformGateway {
     po: PostOffice,
     return_path: Option<String>,
     business_cid: Option<String>,
+    turn_headers: Vec<(String, String)>,
     warned: AtomicBool,
+}
+
+/// The graph context among a caller's headers: `x-graph-id` and `x-node` when the engine's task
+/// node sent them, trimmed, so the LLM helper records the graph and the node of every turn
+/// (RFC-0012 section 8; Java `PlatformGateway.graphContext`).
+pub fn graph_context(headers: &HashMap<String, String>) -> Vec<(String, String)> {
+    [X_GRAPH_ID, X_NODE]
+        .iter()
+        .filter_map(|name| {
+            headers
+                .get(*name)
+                .filter(|value| !java_is_blank(value))
+                .map(|value| (name.to_string(), java_trim(value).to_string()))
+        })
+        .collect()
 }
 
 impl PlatformGateway {
@@ -62,6 +82,17 @@ impl PlatformGateway {
         return_path: Option<&str>,
         cid: Option<&str>,
     ) -> PlatformGateway {
+        PlatformGateway::with_context(platform, return_path, cid, Vec::new())
+    }
+
+    /// A gateway whose every `llm.chat` request also carries `turn_headers` - the graph context
+    /// of the task node that called the loop, see [`graph_context`].
+    pub fn with_context(
+        platform: &Platform,
+        return_path: Option<&str>,
+        cid: Option<&str>,
+        turn_headers: Vec<(String, String)>,
+    ) -> PlatformGateway {
         PlatformGateway {
             platform: platform.clone(),
             po: PostOffice::new(platform),
@@ -69,6 +100,7 @@ impl PlatformGateway {
                 .filter(|route| !java_is_blank(route))
                 .map(|route| java_trim(route).to_string()),
             business_cid: cid.map(str::to_string),
+            turn_headers,
             warned: AtomicBool::new(false),
         }
     }
@@ -93,7 +125,12 @@ impl LoopGateway for PlatformGateway {
     }
 
     async fn chat(&self, request: Value, timeout_ms: i64) -> Result<EventEnvelope, AppError> {
-        self.request(LLM_CHAT, request, timeout_ms).await
+        let mut event = EventEnvelope::new().set_to(LLM_CHAT).set_raw_body(request);
+        for (name, value) in &self.turn_headers {
+            event = event.set_header(name, value);
+        }
+        let timeout = Duration::from_millis(u64::try_from(timeout_ms).unwrap_or(0));
+        self.po.request(event, timeout).await
     }
 
     async fn call(

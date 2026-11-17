@@ -28,7 +28,7 @@ use std::time::{Duration, Instant};
 
 use agent_loop::{
     capped, failure, json_equals, Defaults, LoopGateway, PlatformGateway, LLM_CHAT, LLM_RUN,
-    X_RETURN_PATH,
+    X_GRAPH_ID, X_NODE, X_RETURN_PATH,
 };
 use async_trait::async_trait;
 use platform_core::{
@@ -47,6 +47,7 @@ const TIMEOUT: Duration = Duration::from_secs(15);
 
 static REPLIES: Mutex<VecDeque<Value>> = Mutex::new(VecDeque::new());
 static REQUESTS: Mutex<Vec<Value>> = Mutex::new(Vec::new());
+static CHAT_HEADERS: Mutex<Vec<HashMap<String, String>>> = Mutex::new(Vec::new());
 static WATCHED: Mutex<Vec<EventEnvelope>> = Mutex::new(Vec::new());
 
 #[main_application]
@@ -70,7 +71,7 @@ struct ScriptedChat;
 impl ComposableFunction for ScriptedChat {
     async fn handle_event(
         &self,
-        _headers: HashMap<String, String>,
+        headers: HashMap<String, String>,
         input: EventEnvelope,
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
@@ -78,6 +79,7 @@ impl ComposableFunction for ScriptedChat {
             .lock()
             .expect("requests")
             .push(input.body().clone());
+        CHAT_HEADERS.lock().expect("chat headers").push(headers);
         let reply = REPLIES.lock().expect("replies").pop_front();
         let Some(reply) = reply else {
             return Err(AppError::new(500, "no scripted reply"));
@@ -183,7 +185,12 @@ fn at<'a>(value: &'a Value, path: &[&str]) -> &'a Value {
         })
 }
 
+fn chat_headers() -> Vec<HashMap<String, String>> {
+    CHAT_HEADERS.lock().expect("chat headers").clone()
+}
+
 fn reset() {
+    CHAT_HEADERS.lock().expect("chat headers").clear();
     REPLIES.lock().expect("replies").clear();
     REQUESTS.lock().expect("requests").clear();
     WATCHED.lock().expect("watched").clear();
@@ -366,6 +373,39 @@ async fn progress_goes_to_the_callers_return_path(po: &PostOffice) {
     assert_eq!(at(end, &["status"]).as_str(), Some("done"));
 }
 
+/// The engine's task node sends x-graph-id and x-node; the loop copies both onto each llm.chat
+/// request, so the helper's transcript audit store records the graph and the node without the
+/// author mapping anything (RFC-0012 section 8).
+async fn the_graph_context_reaches_every_model_turn(po: &PostOffice) {
+    reset();
+    script(vec![tool_use(), done()]);
+    let event = EventEnvelope::new()
+        .set_to(LLM_RUN)
+        .set_raw_body(input(CREDIT_LIMIT, &[]))
+        .set_trace(&trace::new_trace_id(), "TEST /agent-loop")
+        .set_header(X_GRAPH_ID, "order-assistant")
+        .set_header(X_NODE, "assist");
+    let response = po.request(event, TIMEOUT).await.expect("llm.run replies");
+    assert_eq!(200, response.status(), "{}", body_text(&response));
+    let headers = chat_headers();
+    assert_eq!(2, headers.len());
+    for turn in &headers {
+        assert_eq!(
+            Some("order-assistant"),
+            turn.get(X_GRAPH_ID).map(String::as_str)
+        );
+        assert_eq!(Some("assist"), turn.get(X_NODE).map(String::as_str));
+    }
+    // a caller that sends neither leaves the turns without them
+    reset();
+    script(vec![done()]);
+    let response = run(po, input(CREDIT_LIMIT, &[]), None).await;
+    assert_eq!(200, response.status());
+    let headers = chat_headers();
+    assert_eq!(1, headers.len());
+    assert!(!headers[0].contains_key(X_GRAPH_ID) && !headers[0].contains_key(X_NODE));
+}
+
 async fn without_a_return_path_nothing_is_sent(po: &PostOffice) {
     reset();
     script(vec![done()]);
@@ -485,6 +525,7 @@ async fn llm_run_through_the_platform() {
     one_tool_then_the_answer(&po).await;
     progress_goes_to_the_callers_return_path(&po).await;
     without_a_return_path_nothing_is_sent(&po).await;
+    the_graph_context_reaches_every_model_turn(&po).await;
     a_route_that_fails_answers_with_its_status(&po).await;
     a_slow_route_times_out_and_the_deadline_stops_the_run(&po).await;
     a_preflight_failure_reaches_the_caller_with_its_status(&po).await;
