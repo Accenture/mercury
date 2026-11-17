@@ -630,6 +630,7 @@ async fn graph_runtime_end_to_end() {
     graphs_run_end_to_end_like_java(&platform).await;
     graph_task_matches_java_semantics(&platform).await;
     decimal_statement_matches_java_semantics(&platform).await;
+    decimal_precision_matches_java_semantics(&platform).await;
     join_loop_retirement_and_health(&platform).await;
     api_fetcher_matches_java_semantics(&platform).await;
     fetcher_cache_key_uses_dictionary_declared_inputs_only(&platform).await;
@@ -1518,6 +1519,71 @@ async fn graphs_run_end_to_end_like_java(platform: &Platform) {
     // 'text(5000) -> headers.x-ttl' sets the HTTP timeout and rides the wire
     // as the X-TTL request header - the mock echoes what it observed
     assert_eq!(Some(Value::from("5000")), mm.get_element("observed_ttl"));
+}
+
+/// The decimal places of a DECIMAL result (ADR-0034; Java `DecimalStatementTest`'s precision tests): the test
+/// configuration does not set `big.decimal.precision`, so the default of 6 applies to a node without a
+/// precision property; a node's precision, written as text or as a number, replaces it; and a malformed one
+/// is rejected at the gate, so the graph answers 404 as if nonexistent (compiled-or-404).
+async fn decimal_precision_matches_java_semantics(platform: &Platform) {
+    let reply = run_graph(
+        platform,
+        "unit-test-decimal-precision",
+        serde_json::json!({"amount": "1"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "{:?}", reply.body());
+    let body = body_map(&reply);
+    let text = |key: &str| {
+        let value = body
+            .get_element(key)
+            .unwrap_or_else(|| panic!("{key} is missing"));
+        assert!(
+            value.is_str(),
+            "{key} is a decimal string, never a JSON number: {value:?}"
+        );
+        event_script::conversions::display(&value)
+    };
+    // the non-terminating quotient's 34 digits are rounded HALF_UP to the default 6 places
+    assert_eq!("0.333333", text("third"));
+    assert_eq!("0.666667", text("two_thirds"));
+    assert_eq!("-0.666667", text("negative"), "half up is away from zero");
+    // a result within the limit keeps its computed scale: the limit never pads
+    assert_eq!("1.5", text("short"));
+    assert_eq!(
+        "1.000000",
+        text("carried"),
+        "a carry keeps the limit's scale, as round() does"
+    );
+    assert_eq!(
+        "0",
+        text("dust"),
+        "a value that rounds to zero is the canonical zero"
+    );
+    // precision=2 as text
+    assert_eq!("0.33", text("price"));
+    assert_eq!("0.13", text("half_cent"));
+    assert_eq!("1.5", text("exact"));
+    // precision=10 as a number, more than the application default
+    assert_eq!("0.3333333333", text("tenth"));
+    // precision=0: whole numbers
+    assert_eq!("3", text("rounded"));
+
+    // precision=two fails the model validator, so CompileGraph never deploys the graph
+    let reply = run_graph(
+        platform,
+        "unit-test-decimal-precision-bad",
+        serde_json::json!({"amount": "1"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(404, reply.status());
+    let text = event_script::conversions::to_json_string(reply.body());
+    assert!(
+        text.contains("not found"),
+        "unexpected error response: {text}"
+    );
 }
 
 /// Java parity (`DecimalStatementTest`): the DECIMAL statement end to end (RFC-0001), the high-precision

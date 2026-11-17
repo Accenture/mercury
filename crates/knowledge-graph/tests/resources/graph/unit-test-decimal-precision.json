@@ -1,0 +1,168 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "the decimal places of a DECIMAL result: big.decimal.precision (default 6) and a node's precision",
+        "name": "unit-test-decimal-precision"
+      }
+    },
+    {
+      "alias": "quotient",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "DECIMAL: third -> {input.body.amount} / 3",
+          "DECIMAL: two_thirds -> 2 * {input.body.amount} / 3",
+          "DECIMAL: negative -> -2 * {input.body.amount} / 3",
+          "DECIMAL: short -> {input.body.amount} * 1.5",
+          "DECIMAL: carried -> 0.9999999 * {input.body.amount}",
+          "DECIMAL: dust -> 0.0000004 * {input.body.amount}"
+        ],
+        "purpose": "no precision property: the application default (6 when big.decimal.precision is not set) caps the results"
+      }
+    },
+    {
+      "alias": "cents",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "precision": "2",
+        "statement": [
+          "DECIMAL: price -> {input.body.amount} / 3",
+          "DECIMAL: half_cent -> 0.125 * {input.body.amount}",
+          "DECIMAL: exact -> 1.5 * {input.body.amount}"
+        ],
+        "purpose": "precision=2 as the grammar writes it (text): the node's own limit, half up"
+      }
+    },
+    {
+      "alias": "wide",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "precision": 10,
+        "statement": [
+          "DECIMAL: tenth -> {input.body.amount} / 3"
+        ],
+        "purpose": "precision=10 as a JSON number: a node may ask for more places than the application default"
+      }
+    },
+    {
+      "alias": "whole",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "precision": 0,
+        "statement": [
+          "DECIMAL: rounded -> 2.5 * {input.body.amount}"
+        ],
+        "purpose": "precision=0: whole numbers, half up"
+      }
+    },
+    {
+      "alias": "collect",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "quotient.result.third -> output.body.third",
+          "quotient.result.two_thirds -> output.body.two_thirds",
+          "quotient.result.negative -> output.body.negative",
+          "quotient.result.short -> output.body.short",
+          "quotient.result.carried -> output.body.carried",
+          "quotient.result.dust -> output.body.dust",
+          "cents.result.price -> output.body.price",
+          "cents.result.half_cent -> output.body.half_cent",
+          "cents.result.exact -> output.body.exact",
+          "wide.result.tenth -> output.body.tenth",
+          "whole.result.rounded -> output.body.rounded"
+        ],
+        "purpose": "collect the results"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "quotient",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "quotient",
+      "target": "cents",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "cents",
+      "target": "wide",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "wide",
+      "target": "whole",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "whole",
+      "target": "collect",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "collect",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

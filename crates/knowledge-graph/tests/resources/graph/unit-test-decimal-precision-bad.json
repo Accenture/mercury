@@ -1,0 +1,57 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "deliberately invalid: a graph.math precision that is not a whole number from 0 to 1000 - CompileGraph must reject it and requests answer 404",
+        "name": "unit-test-decimal-precision-bad"
+      }
+    },
+    {
+      "alias": "price",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "precision": "two",
+        "statement": [
+          "DECIMAL: third -> {input.body.amount} / 3"
+        ],
+        "purpose": "the malformed precision"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "price",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "price",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

@@ -5501,3 +5501,34 @@ CHANGELOG Unreleased: `Added` 6, `Changed` 4, `Documentation` 2.
 
 Gates: `cargo test -p ai-contract-provider` (12 passed), `cargo test -p mercury-knowledge-graph --test playground`,
 `python3 scripts/check-doc-claims.py`, `python3 scripts/check-llms-links.py`, `node --check` on the broker.
+
+## Increment 202 — A `DECIMAL` result carries at most a configured number of decimal places: `big.decimal.precision` and a node's `precision` (2026-11-17)
+
+The twin of mercury-composable #637 (the Java engine's ADR-0034, which supersedes ADR-0025's "no application default").
+A field installation computes financial rules from inputs of several sources, each with its own number of decimal
+places, so a product's scale was the sum of the inputs' and a non-terminating quotient came back with 34 significant
+digits; one rounding policy needed a `round()` on every statement. Now a `DECIMAL` result carries at most the node's
+`precision`, else the application's `big.decimal.precision` (default 6): more decimal places are rounded HALF_UP to
+the limit, fewer keep their computed scale, so the limit never pads and every result within 6 places is unchanged.
+
+- **`crates/knowledge-graph/src/math/decimal_evaluator.rs`.** `evaluate_with_limit(expression, max_scale)` (Java
+  `DecimalEvaluator.evaluate(expression, maxScale)`), `limit_scale` (HALF_UP beyond the limit, the value as it is
+  within it) and `precision(text)` (a whole number from 0 to `MAX_SCALE`, else an error starting "must be" that the
+  caller prefixes). `evaluate` stays unbounded, so the shared conformance vectors are unchanged.
+- **`src/skills.rs`.** `math` resolves the node's limit once (`decimal_precision`: the `precision` property rendered to
+  text, else `common::decimal_precision_default`) and threads it to `decimal`, which evaluates with it; the limit
+  applies to each statement's result, never inside the arithmetic, and an EXECUTE'd module takes the calling node's.
+- **`src/common.rs`.** `decimal_precision_default` reads `big.decimal.precision` once into an `AtomicI64` like the loop
+  guards, a malformed value an error naming the key on every call. `PRECISION` and `DECIMAL_PRECISION_CONFIG`.
+- **`src/model_validator.rs`.** `validate_decimal_precision`: a `graph.math` node's `precision` is checked at deploy
+  with Java's message (`node price - precision must be a whole number from 0 to 1000, got 'two'`).
+- **Tests.** `tests/decimal_precision.rs` (Java `DecimalPrecisionTest`: the cap, the pad-free rule,
+  result-not-arithmetic, `limit_scale`, the setting's range); `tests/graph_runtime.rs`
+  `decimal_precision_matches_java_semantics` over the Java fixtures `unit-test-decimal-precision` (eleven results: the
+  default 6, `precision` as text "2", as the number 10, as 0) and `unit-test-decimal-precision-bad` (rejected, 404);
+  `tests/compiler.rs` asserts the validator's message.
+- **Docs.** The skills reference (template line and the *Decimal places* rule), the command reference, the commands
+  JSON, the configuration reference (`big.decimal.precision`); the Playground bundle and help deployed from the Java
+  repo (`npm run release:rust`), both engines byte-identical again.
+
+CHANGELOG Unreleased, `Changed` item 1.

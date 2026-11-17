@@ -34,15 +34,15 @@ use rmpv::Value;
 
 use crate::common::{
     apply_null_source, assert_mutable_model_target, assert_variables_resolved, combine,
-    count_execute_statements_for, get_effective_ttl, get_else_statement, get_entries,
-    get_first_word, get_for_each_mapping, get_graph_instance, get_if_statement,
+    count_execute_statements_for, decimal_precision_default, get_effective_ttl, get_else_statement,
+    get_entries, get_first_word, get_for_each_mapping, get_graph_instance, get_if_statement,
     get_model_array_size, get_next_model_param_set, get_next_node, get_next_tag_resolved, get_node,
     get_then_statement, handle_data_mapping_entry, invalid, name_offending_selectors,
     perform_fetcher_output_mapping, reset_nodes, selectors_in, split_blocks,
     substitute_mapping_source, substitute_var_if_any, substitute_var_if_any_logical, COMPUTE_TAG,
     CONDITION_TAG, DECIMAL_TAG, DELAY_TAG, ERROR, EXCEPTION, EXECUTE, HEADER, IF_TAG, IN,
-    MAPPING_TAG, MAP_TO, MODEL_NAMESPACE, NEXT, NODE, NODE_NAME, RESET_TAG, RESULT, SINK, SKILL,
-    STATUS, TARGET, TYPE,
+    MAPPING_TAG, MAP_TO, MODEL_NAMESPACE, NEXT, NODE, NODE_NAME, PRECISION, RESET_TAG, RESULT,
+    SINK, SKILL, STATUS, TARGET, TYPE,
 };
 use crate::math::{DecimalEvaluator, ExpressionEngine};
 use crate::model::GraphInstance;
@@ -125,9 +125,17 @@ pub async fn math(
             "{NODE_NAME}{node_name} does not have 'statement' entries"
         )));
     }
+    let precision = decimal_precision(node_name, &node)?;
     let (result, delay_ms) = {
         let mut state = instance.state.lock().expect("graph state machine");
-        let result = execute_math_node(node_name, &instance, &mut state, &for_each, &statements)?;
+        let result = execute_math_node(
+            node_name,
+            &instance,
+            &mut state,
+            &for_each,
+            &statements,
+            precision,
+        )?;
         state
             .set_element(
                 &format!("{node_name}.decision"),
@@ -146,12 +154,24 @@ pub async fn math(
     EventEnvelope::new().set_body(result)
 }
 
+/// The decimal places a DECIMAL result of this node may carry (ADR-0034; Java `GraphMath.decimalPrecision`):
+/// the node's 'precision' property when it has one, else the application's `big.decimal.precision`. An
+/// EXECUTE'd module takes the calling node's limit, as its results land on the caller.
+fn decimal_precision(node_name: &str, node: &Arc<SimpleNode>) -> Result<i64, AppError> {
+    match node.get_property(PRECISION) {
+        None => decimal_precision_default(),
+        Some(value) => DecimalEvaluator::precision(&display(&value))
+            .map_err(|e| invalid(format!("{NODE_NAME}{node_name} - {PRECISION} {e}"))),
+    }
+}
+
 fn execute_math_node(
     node_name: &str,
     instance: &GraphInstance,
     state: &mut MultiLevelMap,
     for_each: &[String],
     statements: &[String],
+    precision: i64,
 ) -> Result<String, AppError> {
     let execute = count_execute_statements_for(node_name, statements, true)?;
     let merged = if execute > 0 {
@@ -160,18 +180,18 @@ fn execute_math_node(
         statements.to_vec()
     };
     if for_each.is_empty() {
-        return execute_statements(node_name, &merged, instance, state);
+        return execute_statements(node_name, &merged, instance, state, precision);
     }
     let blocks = split_blocks(&merged);
-    let result1 = execute_statements(node_name, &blocks[0], instance, state)?;
+    let result1 = execute_statements(node_name, &blocks[0], instance, state, precision)?;
     if result1 != NEXT {
         return Ok(result1);
     }
-    let result2 = execute_for_each(node_name, for_each, &blocks[1], instance, state)?;
+    let result2 = execute_for_each(node_name, for_each, &blocks[1], instance, state, precision)?;
     if result2 != NEXT {
         return Ok(result2);
     }
-    execute_statements(node_name, &blocks[2], instance, state)
+    execute_statements(node_name, &blocks[2], instance, state, precision)
 }
 
 fn execute_for_each(
@@ -180,6 +200,7 @@ fn execute_for_each(
     statements: &[String],
     instance: &GraphInstance,
     state: &mut MultiLevelMap,
+    precision: i64,
 ) -> Result<String, AppError> {
     if statements.is_empty() {
         return Ok(NEXT.to_string());
@@ -196,7 +217,7 @@ fn execute_for_each(
         for (key, value) in get_next_model_param_set(&mappings, i) {
             state.set_element(&key, value).map_err(invalid)?;
         }
-        let result = execute_statements(node_name, statements, instance, state)?;
+        let result = execute_statements(node_name, statements, instance, state, precision)?;
         if result != NEXT {
             return Ok(result);
         }
@@ -209,6 +230,7 @@ fn execute_statements(
     entries: &[String],
     instance: &GraphInstance,
     state: &mut MultiLevelMap,
+    precision: i64,
 ) -> Result<String, AppError> {
     let mut jump: Option<String> = None;
     for entry in entries {
@@ -223,7 +245,7 @@ fn execute_statements(
                 return Ok(decision);
             }
         }
-        process_commands(&tag, command, node_name, instance, state)?;
+        process_commands(&tag, command, node_name, instance, state, precision)?;
         if let Some(next) = get_next_tag_resolved(&tag, command, state)? {
             jump = Some(next);
         }
@@ -237,6 +259,7 @@ fn process_commands(
     node_name: &str,
     instance: &GraphInstance,
     state: &mut MultiLevelMap,
+    precision: i64,
 ) -> Result<(), AppError> {
     // guarantee a single line for all commands except IF-THEN-ELSE
     let command = command.replace('\n', " ");
@@ -247,7 +270,7 @@ fn process_commands(
         condition(&command, node_name, state)?;
     }
     if tag == DECIMAL_TAG {
-        decimal(&command, node_name, state)?;
+        decimal(&command, node_name, state, precision)?;
     }
     if tag == MAPPING_TAG {
         handle_data_mapping_entry(node_name, &command, state, &instance.graph)?;
@@ -315,7 +338,17 @@ fn compute(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Result<
 /// `0.0005`, not the `0.00050` its own text would parse as). That is exact over the text received and only as
 /// exact as the computation that produced the float - the guide declares it, so sending a number instead of a
 /// string is a conscious decision.
-fn decimal(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Result<(), AppError> {
+///
+/// The result's decimal places are limited by `precision` - the node's own, else the application's
+/// `big.decimal.precision` (default 6; ADR-0034): a result with more is rounded HALF_UP to the limit, one
+/// with fewer keeps its computed scale. The limit applies to each statement's result, never to the
+/// arithmetic inside the expression.
+fn decimal(
+    command: &str,
+    node_name: &str,
+    state: &mut MultiLevelMap,
+    precision: i64,
+) -> Result<(), AppError> {
     let Some(sep) = command.rfind(MAP_TO) else {
         return Err(invalid(format!(
             "{NODE_NAME}{node_name} does not have '->' in '{command}'"
@@ -331,7 +364,7 @@ fn decimal(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Result<
     assert_variables_resolved(rhs, state)?;
     let rendered = render_inexact_numbers(rhs, state)?;
     let text = substitute_var_if_any_logical(&rendered, state, false)?;
-    let result = DecimalEvaluator::evaluate(&text)
+    let result = DecimalEvaluator::evaluate_with_limit(&text, precision)
         .map_err(|e| name_offending_selectors(math_error(e), rhs, state))?;
     state
         .set_element(&format!("{node_name}.result.{lhs}"), Value::from(result))

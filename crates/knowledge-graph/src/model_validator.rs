@@ -40,7 +40,9 @@ use platform_core::graph::{MiniGraph, SimpleNode};
 use rmpv::Value;
 use std::sync::Arc;
 
-use crate::common::{assert_mutable_model_target, get_entries, EXCEPTION, NODE_NAME, SKILL};
+use crate::common::{
+    assert_mutable_model_target, get_entries, EXCEPTION, NODE_NAME, PRECISION, SKILL,
+};
 use crate::progress::{PROGRESS, X_RETURN_PATH};
 use crate::suspend::{get_valid_ttl_seconds, RESUME_ROUTE, SUSPEND_ALIAS, SUSPEND_ROUTE};
 
@@ -74,7 +76,25 @@ pub fn validate(graph: &MiniGraph) -> Result<(), String> {
     validate_progress(graph)?;
     validate_model_metadata_immutability(graph)?;
     validate_json_paths(graph)?;
-    validate_schemas(graph)
+    validate_schemas(graph)?;
+    validate_decimal_precision(graph)
+}
+
+/// A graph.math node's 'precision' - the most decimal places its DECIMAL results may carry (ADR-0034) - is
+/// a whole number from 0 to 1000, checked here so a malformed value fails at deploy rather than at the
+/// node's first DECIMAL statement (Java `GraphModelValidator.validateDecimalPrecision`).
+fn validate_decimal_precision(graph: &MiniGraph) -> Result<(), String> {
+    for node in graph.get_nodes() {
+        let skill = node.get_property(SKILL).map(|v| display(&v));
+        let (Some(skill), Some(value)) = (skill, node.get_property(PRECISION)) else {
+            continue;
+        };
+        if skill == crate::skills::MATH_ROUTE {
+            crate::math::DecimalEvaluator::precision(&display(&value))
+                .map_err(|e| format!("{NODE_NAME}{} - {PRECISION} {e}", node.get_alias()))?;
+        }
+    }
+    Ok(())
 }
 
 /// The JSONPath sources compile (RFC-0010): a data mapping's source written as

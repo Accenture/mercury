@@ -84,16 +84,18 @@ fn manifest_listed_graphs_are_compiled() {
     // + the 4 progress fixtures (progress-1..4: node.start for a node with 'progress', a
     // function's own events through the node's relay, a failing run, a synchronous subgraph
     // reporting through its parent - RFC-0011 section 8.4)
-    // the 17 deliberately-invalid fixtures
+    // + the decimal-precision fixture (the decimal places of a DECIMAL result: the
+    // application default and a node's precision as text, as a number and as zero - ADR-0034)
+    // the 18 deliberately-invalid fixtures
     // (suspend err1-7, no-end, ttl err1-4, task-6, error-alias, schema-err1 with
     // an unknown schema keyword, schema-err2 with an inapplicable one, jsonpath-err1
-    // with a JSONPath outside RFC 9535) are rejected
+    // with a JSONPath outside RFC 9535, decimal-precision-bad with precision=two) are rejected
     // by the mandatory quality gate. Every graph a runtime test executes MUST
     // be listed here - deployed execution is compiled-or-404 (no lazy load)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        79,
+        80,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
@@ -260,6 +262,16 @@ fn node_ttl_placement_and_metadata_immutability_are_validated() {
     assert!(
         err.contains("graph.extension, graph.api.fetcher or graph.task"),
         "unexpected message: {err}"
+    );
+    // a graph.math node's precision is a whole number from 0 to 1000 (ADR-0034): the fixture that runs
+    // end to end passes as written (precision as text, as a number and as zero), and 'two' is rejected by
+    // name at deploy with Java's message
+    assert!(model_validator::validate(&import("unit-test-decimal-precision")).is_ok());
+    assert!(!graphs::graph_exists("unit-test-decimal-precision-bad"));
+    let err = model_validator::validate(&import("unit-test-decimal-precision-bad")).unwrap_err();
+    assert_eq!(
+        "node price - precision must be a whole number from 0 to 1000, got 'two'",
+        err
     );
 }
 

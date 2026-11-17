@@ -64,6 +64,42 @@ impl DecimalEvaluator {
         Ok(canonical(&Self::evaluate_decimal(expression)?))
     }
 
+    /// Evaluate a DECIMAL statement's expression with a limit on the decimal places of its result (ADR-0034;
+    /// Java `DecimalEvaluator.evaluate(expression, maxScale)`). The arithmetic inside the expression is
+    /// unchanged - exact, with the 34-digit division context - and the limit applies to the result alone,
+    /// through [`Self::limit_scale`]: a result with more decimal places than the limit is rounded HALF_UP to
+    /// it, and one with fewer keeps its computed scale.
+    pub fn evaluate_with_limit(expression: &str, max_scale: i64) -> Result<String, MathError> {
+        Ok(canonical(&Self::limit_scale(
+            Self::evaluate_decimal(expression)?,
+            max_scale,
+        )))
+    }
+
+    /// Apply a limit on decimal places: a value with more decimal places than the limit is rounded HALF_UP
+    /// (half away from zero, the rounding of `f:round` and of the dialect's `round()`) to the limit; a value
+    /// with fewer is returned as it is, so the limit never pads a result.
+    pub fn limit_scale(value: BigDecimal, max_scale: i64) -> BigDecimal {
+        if value.fractional_digit_count() > max_scale {
+            value.with_scale_round(max_scale, bigdecimal::RoundingMode::HalfUp)
+        } else {
+            value
+        }
+    }
+
+    /// The decimal places a 'precision' setting allows - a graph.math node's 'precision' property or the
+    /// application's `big.decimal.precision` - given as text (a node property is rendered to text first, so a
+    /// number and a string are read alike). A whole number from 0 to [`MAX_SCALE`]; anything else is an error
+    /// whose message starts with "must be", so a caller prefixes the setting's name.
+    pub fn precision(text: &str) -> Result<i64, String> {
+        match text.trim().parse::<i64>() {
+            Ok(places) if (0..=MAX_SCALE).contains(&places) => Ok(places),
+            _ => Err(format!(
+                "must be a whole number from 0 to {MAX_SCALE}, got '{text}'"
+            )),
+        }
+    }
+
     /// Evaluate to the exact result, its scale never negative.
     pub fn evaluate_decimal(expression: &str) -> Result<BigDecimal, MathError> {
         let ast = parser::parse_decimal(expression)?;

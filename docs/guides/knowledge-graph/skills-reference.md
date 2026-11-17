@@ -372,11 +372,12 @@ skill=graph.math
 statement[]=DECIMAL: fee -> {input.body.amount} * {input.body.rate}
 statement[]=DECIMAL: rounded -> round({price.result.fee}, 2, HALF_UP)
 statement[]=DECIMAL: total -> {input.body.qty} * {price.result.rounded}
+precision=2                                  # optional: decimal places of this node's DECIMAL results
 ```
 
 - **The result is a canonical decimal string**, stored at `{node}.result.{var}`: plain notation, never
-  scientific, the computed scale kept (`round(10.5, 2, HALF_UP)` is `"10.50"`), and a zero of any scale
-  written `"0"`. It is a string on purpose. The state machine is saved by [`graph.suspend`](#suspend) and
+  scientific, the computed scale kept up to the decimal places the node allows (`round(10.5, 2, HALF_UP)` is
+  `"10.50"`; the limit is below), and a zero of any scale written `"0"`. It is a string on purpose. The state machine is saved by [`graph.suspend`](#suspend) and
   restored by [`graph.resume`](#resume), and every event hop serializes it; a string is the same after as
   before, where a decimal type would come back a string and a small integer would change width. It is a
   JSON string in the response too, so no parser turns it into a double.
@@ -396,6 +397,18 @@ statement[]=DECIMAL: total -> {input.body.qty} * {price.result.rounded}
   `ceil`, `min` and `max` are exact (`min` and `max` return the first of equal values). `+` always adds.
 - **Rounding is always explicit**: `round(x, scale, mode)` with mode `HALF_UP`, `HALF_EVEN`, `HALF_DOWN`,
   `UP`, `DOWN`, `CEILING` or `FLOOR`, written bare or quoted. `round(x)` and `round(x, scale)` fail by name.
+- **Decimal places — one rounding policy.** A result carries at most the node's `precision` (`precision=2`),
+  else the application's `big.decimal.precision` (default `6`;
+  [configuration reference](../configuration-reference.md#big-decimal-precision)). A result with more decimal
+  places is rounded `HALF_UP` to the limit (`1 / 3` is `"0.333333"` by default and `"0.33"` with
+  `precision=2`); one with fewer keeps its computed scale (`1.5 * 2` stays `"3.0"` — the limit never pads).
+  The limit applies to each statement's result, not to the arithmetic inside it (a quotient keeps its 34
+  digits until the statement ends), and a `round()` to more places than the limit is rounded again to the
+  limit, so a node that needs more raises its `precision` (a whole number from 0 to 1000; `CompileGraph`
+  rejects anything else at deploy). The policy exists because inputs from several sources arrive with
+  different numbers of decimal places: without it a result's scale is whatever the widest input gave it. An
+  `EXECUTE`'d module takes the calling node's limit, as its results land on the caller. The same rule on both
+  engines (the Java engine's ADR-0034).
 - **What cannot be exact is refused by name**: `sqrt`, `log`, `log10`, `exp`, `sin`, `cos`, `tan`, `asin`,
   `acos`, `atan`, `random()` and the constants `PI` and `E` fail in a `DECIMAL` statement. Keep that step in
   a `COMPUTE`, or use a [`graph.task`](#task) function.
