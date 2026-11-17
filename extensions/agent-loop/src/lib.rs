@@ -57,7 +57,9 @@ mod value;
 pub use agent_loop::{capped, failure, AgentLoop, Clock, MIN_STEP_MS, RESERVE_MS};
 pub use function::{LlmRun, LLM_RUN};
 pub use gateway::LoopGateway;
-pub use platform_gateway::{PlatformGateway, LLM_CHAT, X_RETURN_PATH};
+pub use platform_gateway::{
+    graph_context, PlatformGateway, LLM_CHAT, X_GRAPH_ID, X_NODE, X_RETURN_PATH,
+};
 pub use settings::{Defaults, LoopSettings, AUTO, MANUAL, UNATTENDED, WRITE};
 pub use tool_catalog::{Row, ToolCatalog, NAME_PATTERN};
 pub use tool_schema::{json_equals, ToolSchema, DOCUMENTARY, KEYWORDS, VIOLATION_CAP};

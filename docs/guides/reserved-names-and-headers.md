@@ -175,6 +175,15 @@ without `progress` never sees the header, and a graph cannot map it (`header.x-r
 `llm.run` sends its own progress events to the route the header names. See
 [Progress events](knowledge-graph/skills-reference.md#progress).
 
+### `x-graph-id` and `x-node` - the graph context of a task request {#x-graph-id}
+
+The engine sets two headers on every request a `graph.task` node sends, after the node's input mapping: `x-graph-id`,
+the graph's id, and `x-node`, the node's alias. A function that does not read them is unaffected. A function that
+records what it did for a transaction gets the graph and the node without the author mapping anything - the language
+packs' LLM helper writes both into its transcript audit store (RFC-0012), and `llm.run` copies them onto each
+`llm.chat` request for it. A caller that sends neither (a direct call, an older engine) leaves them absent, and the
+trace path still names the entry that started the transaction.
+
 ## Reserved envelope tags
 
 The envelope's `tags` wire field is engine-managed and never visible to a user function.
