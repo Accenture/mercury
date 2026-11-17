@@ -77,6 +77,10 @@ pub const MAPPING_TAG: &str = "mapping:";
 pub const COMPUTE_TAG: &str = "compute:";
 pub const CONDITION_TAG: &str = "condition:";
 pub const DECIMAL_TAG: &str = "decimal:";
+/// The node property that limits the decimal places of a graph.math node's DECIMAL results.
+pub const PRECISION: &str = "precision";
+/// The application property that limits the decimal places of every DECIMAL result without a node limit.
+pub const DECIMAL_PRECISION_CONFIG: &str = "big.decimal.precision";
 pub const EXECUTE_TAG: &str = "execute:";
 pub const RESET_TAG: &str = "reset:";
 pub const IF_TAG: &str = "if:";
@@ -215,6 +219,23 @@ pub fn loop_interval() -> i64 {
     let value = str2long(&config.get_property_or("graph.max.loop.interval", "1000")).max(100);
     CACHE.store(value, Ordering::Relaxed);
     value
+}
+
+/// `big.decimal.precision` - the most decimal places a DECIMAL result may carry when its node sets no
+/// `precision` of its own (default 6; ADR-0034). A malformed value is an error naming the key, on every
+/// call until it is fixed, so a graph never computes with a limit the operator did not set.
+pub fn decimal_precision_default() -> Result<i64, AppError> {
+    static CACHE: AtomicI64 = AtomicI64::new(-1);
+    let cached = CACHE.load(Ordering::Relaxed);
+    if cached >= 0 {
+        return Ok(cached);
+    }
+    let config = AppConfigReader::get_instance();
+    let configured = config.get_property_or(DECIMAL_PRECISION_CONFIG, "6");
+    let value = crate::math::DecimalEvaluator::precision(&configured)
+        .map_err(|e| invalid(format!("{DECIMAL_PRECISION_CONFIG} {e}")))?;
+    CACHE.store(value, Ordering::Relaxed);
+    Ok(value)
 }
 
 /// `graph.node.high.frequency` (hits within the loop interval, floor 2,

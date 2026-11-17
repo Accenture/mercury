@@ -30,6 +30,7 @@ Optional:
 ```
 for_each[]={array-source} -> model.{var}     (iterate a statement block)
 statement[]=BEGIN / statement[]=END          (delimit the for_each block)
+precision=2                                  (decimal places of DECIMAL results - see below)
 statement[]=NEXT: {node-name}
 statement[]=DELAY: {milliseconds}
 ```
@@ -42,7 +43,8 @@ Statements
 - DECIMAL: {var} -> {expression} - the high-precision COMPUTE: the expression
   is evaluated with exact decimal arithmetic and the result is stored in the
   node's result namespace as a canonical decimal string (plain notation, the
-  computed scale kept, a zero of any scale written "0"). COMPUTE still computes
+  computed scale kept up to the node's precision, a zero of any scale written
+  "0"). COMPUTE still computes
   in binary floating point, and a graph that never says DECIMAL keeps its
   arithmetic; two rules reach it all the same: a string that is a canonical
   number compares as a number, and round() is half up, away from zero. See
@@ -156,6 +158,20 @@ A zero of any scale is stored as "0" (round(0.004, 2, HALF_UP), 1.50 - 1.50 and
 the scale. The remainder (%) follows the sign of the dividend (-7 % 3 is "-1").
 The decimal plugins (f:decimalAdd, f:decimalRound ...) work in a MAPPING
 statement.
+
+Decimal places - one rounding policy: a result carries at most the node's
+precision (precision=2), else the application's big.decimal.precision (default
+6). A result with more decimal places is rounded half up, away from zero, to
+the limit (1 / 3 is "0.333333" by default and "0.33" with precision=2); a
+result with fewer keeps its computed scale (1.5 * 2 stays "3.0" - the limit
+never pads). The limit applies to each statement's result, not to the
+arithmetic inside it (a quotient keeps its 34 digits until the statement
+ends), and a round() to more places than the limit is rounded again to the
+limit, so a node that needs more places raises its precision (0 to 1000;
+CompileGraph rejects anything else). The policy exists because inputs from
+several sources arrive with different numbers of decimal places: without it a
+result's scale is whatever the widest input gave it. An EXECUTE'd module takes
+the calling node's precision, as its results land on the caller.
 
 IF / THEN / ELSE
 ----------------

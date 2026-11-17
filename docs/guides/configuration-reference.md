@@ -743,6 +743,23 @@ playground keep theirs. A blank value keeps the default. Set it in `application.
 into the page it serves, and the web app shows it in place of its built-in title. Read by
 `crates/knowledge-graph` (`get.index.html`).
 
+#### `big.decimal.precision` {#big-decimal-precision}
+
+| Type | Default |
+|---|---|
+| integer (0 to 1000) | `6` |
+
+The most decimal places a `graph.math` [`DECIMAL` statement](knowledge-graph/skills-reference.md#math-decimal)
+result may carry when its node sets no `precision` of its own. A result with more decimal places is rounded
+`HALF_UP` to the limit; one with fewer keeps its computed scale, so the setting never pads a result. The limit
+applies to each statement's result, not to the arithmetic inside the expression (a non-terminating quotient
+keeps its 34 significant digits until the statement ends). A node overrides it with `precision=<n>` in the
+same range. The setting exists so that inputs from several sources, each with its own number of decimal
+places, leave every result under one rounding policy (the Java engine's ADR-0034; the same rule on both
+engines). A value outside the range or not a whole number fails the first `DECIMAL` statement with an error
+naming the key. The `f:decimal*` plugins of Event Script are not affected; `f:decimalRound` states their
+rounding. Read by `crates/knowledge-graph` (`graph.math`).
+
 #### `graph.model.automation`
 
 | Type | Default |
