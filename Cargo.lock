@@ -1445,11 +1445,14 @@ version = "4.12.30"
 dependencies = [
  "async-trait",
  "log",
+ "mercury-agent-loop",
  "mercury-knowledge-graph",
  "mercury-minigraph-state-redis",
  "mercury-platform-core",
  "mercury-test-support",
+ "regex",
  "rmpv",
+ "serde_json",
  "tokio",
  "uuid",
 ]

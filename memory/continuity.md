@@ -244,6 +244,21 @@ layers shipped; the two above have held through every re-verify.)*
   ([[webapp-single-source-java-repo]]).
   <!-- id: decimal-result-precision-limit-rust | created: 2026-11-17 | last_used: 2026-11-17 | uses: 1 | tier: working | origin: 2026-11-17-061303 -->
 
+- **The Playground example ships the Java example's agent graphs as the same models, with the example's own tool
+  functions ported and the agent-loop crate linked (Increment 205, 2026-11-18, Eric's direction).** `order-assistant`,
+  `diagram-assistant`, `site-notes`, `document-ingest` and `document-query` in `examples/minigraph-playground/resources/graph/`
+  are byte-identical copies of mercury-composable's; the compiler accepted every node type, mapping and skill they use
+  without a change. The example needed `src/order_book.rs` (the order book's three tools), `src/diagram.rs`
+  (`diagram.render`, the image stored out of band), `mercury-agent-loop` as a dependency named from `lib.rs` so `llm.run`
+  registers, the peer map's fifteen routes, `diagram.store.folder`, the `/api/stream/graph/{graph_id}` streaming entry
+  and the corpus. The token-free test is `tests/agent_graphs.rs` on scripted stand-ins (`tests/common/`); driven live
+  through the Python pack on Haiku 4.5 on 2026-11-18 (`docs/test-reports/agent-graphs-live-drive.md`): every graph
+  answered, the graph's counts the Java drive's label for label. **How to apply:** when the Java example's graph models or
+  corpus change, copy the files - never edit the Rust copies by hand; a new example tool is a Rust function in the
+  example's lib, a new peer route an entry of `event-over-http.yaml` (one route per entry); the engine binary finds
+  `resources/` relative to its working directory, so run it from the example's folder.
+  <!-- id: playground-agent-graphs-twin | created: 2026-11-18 | last_used: 2026-11-18 | uses: 1 | tier: working | origin: 2026-11-18-105101 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.

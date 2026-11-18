@@ -1,0 +1,481 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "order-assistant",
+        "purpose": "A customer-support assistant built on the agent loop (RFC-0011): an llm.run node reasons with a fixed tool catalog certified on this graph. Two tools read the order and its shipment; the one write, a refund, waits for a supervisor through suspend and resume. The graph, not the model, decides where each outcome goes, and the engine stays LLM-free: llm.chat runs on the LLM helper of a language pack behind Event-over-HTTP"
+      }
+    },
+    {
+      "alias": "knowledge",
+      "types": [
+        "Island"
+      ],
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "The knowledge layer: the tool catalog the loop is allowed to use, and the error handler"
+      }
+    },
+    {
+      "alias": "order-tools",
+      "types": [
+        "ToolCatalog"
+      ],
+      "properties": {
+        "tools": "[\n  {\n    \"name\": \"order_lookup\",\n    \"route\": \"demo.order.lookup\",\n    \"strict\": true,\n    \"description\": \"An order by its id: the date it was placed, its items, the total, the currency and the order status.\",\n    \"input_schema\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"order_id\": {\n          \"type\": \"string\",\n          \"pattern\": \"^ORD-[0-9]+$\"\n        }\n      },\n      \"required\": [\n        \"order_id\"\n      ],\n      \"additionalProperties\": false\n    }\n  },\n  {\n    \"name\": \"shipment_status\",\n    \"route\": \"demo.shipment.status\",\n    \"strict\": true,\n    \"description\": \"The shipment of an order: the carrier, the tracking number, the status (in_transit, delivered or lost), the date of the last update and the carrier's note.\",\n    \"input_schema\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"order_id\": {\n          \"type\": \"string\",\n          \"pattern\": \"^ORD-[0-9]+$\"\n        }\n      },\n      \"required\": [\n        \"order_id\"\n      ],\n      \"additionalProperties\": false\n    }\n  },\n  {\n    \"name\": \"issue_refund\",\n    \"route\": \"demo.refund.issue\",\n    \"write\": true,\n    \"description\": \"Issue a refund to the customer of an order, once. A refund is a payment, so a supervisor approves it before it runs.\",\n    \"input_schema\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"order_id\": {\n          \"type\": \"string\",\n          \"pattern\": \"^ORD-[0-9]+$\"\n        },\n        \"amount\": {\n          \"type\": \"number\",\n          \"exclusiveMinimum\": 0,\n          \"description\": \"the amount to refund, at most the order's total\"\n        },\n        \"reason\": {\n          \"type\": \"string\",\n          \"minLength\": 1,\n          \"maxLength\": 200\n        }\n      },\n      \"required\": [\n        \"order_id\",\n        \"amount\",\n        \"reason\"\n      ],\n      \"additionalProperties\": false\n    }\n  }\n]",
+        "purpose": "The agent's tool catalog, a dataset node under the island: each row maps an API-safe name to a composable route, with the description the model reads and the input schema the loop validates. issue_refund is marked write: true, so it waits for approval"
+      }
+    },
+    {
+      "alias": "resume",
+      "types": [
+        "Resume"
+      ],
+      "properties": {
+        "skill": "graph.resume",
+        "task": "v1.redis.retrieve.model",
+        "purpose": "Restore the suspended run of this correlation id, if any: a resumed run continues past the advise checkpoint into decide. A fresh run flows through to check-input"
+      }
+    },
+    {
+      "alias": "check-input",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(={input.body.question}) -> model.question_probe",
+          "IF: {model.question_probe} == '=null'\nTHEN: reject\nELSE: assist"
+        ],
+        "purpose": "A fresh run needs the customer's question before any token is spent"
+      }
+    },
+    {
+      "alias": "reject",
+      "types": [
+        "Mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "int(400) -> output.status",
+          "text(rejected) -> output.body.type",
+          "text(Missing question. Provide the customer's question in the 'question' field) -> output.body.message"
+        ],
+        "purpose": "Reject a request without a question"
+      }
+    },
+    {
+      "alias": "assist",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "llm.run",
+        "ttl": "55s",
+        "exception": "failed",
+        "progress": "Investigating the order",
+        "input": [
+          "f:json(order-tools.tools) -> tools",
+          "text(You are the customer-support assistant of an online store. Use the tools to check the facts before you answer. Look the order up first, then its shipment. Propose a refund with the issue_refund tool only when the shipment is lost, for the order's total, and give the reason. Answer the customer in two or three plain sentences, and never invent an order, a shipment or a refund.) -> system",
+          "input.body.question -> prompt",
+          "text(write) -> mode",
+          "int(8) -> max_turns",
+          "text(50s) -> timeout",
+          "model.agent.conversation -> conversation",
+          "model.agent.turn -> turn",
+          "model.agent.approval -> approval",
+          "input.body.decisions -> decisions"
+        ],
+        "output": [
+          "result.status -> model.agent.status",
+          "result.text -> model.agent.text",
+          "result.conversation -> model.agent.conversation",
+          "result.turn -> model.agent.turn",
+          "result.turns -> model.agent.turns",
+          "result.approval -> model.agent.approval",
+          "result.calls -> model.agent.calls",
+          "result.usage -> model.agent.usage",
+          "result.model -> model.agent.model",
+          "result.refusal -> model.agent.refusal",
+          "result.cap -> model.agent.cap"
+        ],
+        "purpose": "The agent loop: each model turn goes to llm.chat on the LLM helper, each tool call to the route the catalog names, until the model answers, a write waits for a person, or a limit stops it. The first run supplies the prompt; a resumed run supplies the conversation, the turn, the approval block kept in the model and the supervisor's decisions, and the loop carries on"
+      }
+    },
+    {
+      "alias": "route",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "IF: {model.agent.status} == 'approval'\nTHEN: advise\nELSE: next",
+          "IF: {model.agent.status} == 'done'\nTHEN: respond\nELSE: stopped"
+        ],
+        "purpose": "The graph decides on the loop's status: an answer, a call that waits for a person, or a stop"
+      }
+    },
+    {
+      "alias": "respond",
+      "types": [
+        "Mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(answer) -> output.body.type",
+          "model.agent.text -> output.body.message",
+          "model.agent.turn -> output.body.turn",
+          "model.agent.calls -> output.body.calls",
+          "model.agent.usage -> output.body.usage",
+          "model.agent.model -> output.body.model",
+          "model.cid -> output.body.cid",
+          "model.run -> output.body.run"
+        ],
+        "purpose": "The model's answer to the customer, with the call log and the usage"
+      }
+    },
+    {
+      "alias": "stopped",
+      "types": [
+        "Mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "int(422) -> output.status",
+          "text(stopped) -> output.body.type",
+          "text(The model stopped without an answer. The status says why) -> output.body.message",
+          "model.agent.status -> output.body.status",
+          "model.agent.refusal -> output.body.refusal",
+          "model.agent.cap -> output.body.cap",
+          "model.agent.calls -> output.body.calls",
+          "model.agent.turn -> output.body.turn",
+          "model.cid -> output.body.cid"
+        ],
+        "purpose": "A refusal or a cap: the run ends and the caller learns why"
+      }
+    },
+    {
+      "alias": "advise",
+      "types": [
+        "Checkpoint"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(approval) -> output.body.type",
+          "text(A tool call waits for a supervisor's decision. Decide each waiting call, then POST again with the same X-Correlation-Id and a body holding turn, this reply's turn number, and decisions, one per waiting call with its id, approved as true or false, and an optional note.) -> output.body.message",
+          "model.agent.turn -> output.body.turn",
+          "model.agent.approval.calls -> output.body.calls",
+          "model.agent.calls -> output.body.answered",
+          "model.cid -> output.body.cid",
+          "model.run -> output.body.run"
+        ],
+        "purpose": "The checkpoint: stage the approval advice - the waiting calls with their arguments, and the calls already answered - then pause. A resumed run continues at decide, never here, unless decide sends it back to advise again"
+      }
+    },
+    {
+      "alias": "suspend",
+      "types": [
+        "Suspend"
+      ],
+      "properties": {
+        "skill": "graph.suspend",
+        "task": "v1.redis.persist.model",
+        "ttl": "2d",
+        "purpose": "Persist the run under graph:order-assistant:{cid}: the model holds the conversation, the turn and the waiting calls"
+      }
+    },
+    {
+      "alias": "decide",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "RESET: advise, decide",
+          "MAPPING: text(={input.body.decisions}) -> model.decisions_probe",
+          "MAPPING: f:defaultValue(input.body.turn, int(-1)) -> model.turn_probe",
+          "IF: {model.decisions_probe} == '=null' || {model.turn_probe} != {model.agent.turn}\nTHEN: advise\nELSE: next",
+          "RESET: assist, route",
+          "NEXT: assist"
+        ],
+        "purpose": "A resumed run lands here. A request without decisions, or for another turn than the one that waits, re-advises and pauses again. A request with the decisions for this turn resets the loop node and runs it again: the loop takes the waiting calls from the restored model, never from the request, so the call that runs is the call the supervisor saw"
+      }
+    },
+    {
+      "alias": "failed",
+      "types": [
+        "Handler"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "error.code -> output.status",
+          "text(error) -> output.body.type",
+          "error.message -> output.body.message",
+          "error.source -> output.body.source",
+          "error.message -> model.failure.message",
+          "text(={model.agent.status}) -> model.status_probe"
+        ],
+        "purpose": "The loop's own failure: a bad catalog, llm.chat unreachable or failing, or a resume whose decisions the loop refused. It reports the error and notes whether an approval was pending"
+      }
+    },
+    {
+      "alias": "triage-failure",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "RESET: advise",
+          "IF: {model.status_probe} != '=approval'\nTHEN: end\nELSE: next",
+          "MAPPING: int(200) -> output.status",
+          "MAPPING: model.failure.message -> output.body.error",
+          "NEXT: advise"
+        ],
+        "purpose": "A failure while an approval was pending, such as a resume with a decision for an unknown call, must not lose the transaction: the run goes back to the advise checkpoint, which shows the waiting calls again with the error, and pauses. Any other failure ends the run with the error"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "knowledge",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "root",
+      "target": "resume",
+      "relations": [
+        {
+          "type": "start",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "knowledge",
+      "target": "order-tools",
+      "relations": [
+        {
+          "type": "tools",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "knowledge",
+      "target": "failed",
+      "relations": [
+        {
+          "type": "handler",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "resume",
+      "target": "check-input",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "check-input",
+      "target": "assist",
+      "relations": [
+        {
+          "type": "valid",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "check-input",
+      "target": "reject",
+      "relations": [
+        {
+          "type": "invalid",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "assist",
+      "target": "route",
+      "relations": [
+        {
+          "type": "outcome",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "route",
+      "target": "respond",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "route",
+      "target": "advise",
+      "relations": [
+        {
+          "type": "approval",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "route",
+      "target": "stopped",
+      "relations": [
+        {
+          "type": "stopped",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "advise",
+      "target": "suspend",
+      "relations": [
+        {
+          "type": "checkpoint",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "advise",
+      "target": "decide",
+      "relations": [
+        {
+          "type": "resumed",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "decide",
+      "target": "advise",
+      "relations": [
+        {
+          "type": "again",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "decide",
+      "target": "assist",
+      "relations": [
+        {
+          "type": "decided",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "respond",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "stopped",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "reject",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "suspend",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "failed",
+      "target": "triage-failure",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "triage-failure",
+      "target": "advise",
+      "relations": [
+        {
+          "type": "retry",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "triage-failure",
+      "target": "end",
+      "relations": [
+        {
+          "type": "reported",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

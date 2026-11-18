@@ -1,0 +1,304 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "document-query",
+        "purpose": "Query many (RFC-0013, principle 7): an llm.run node answers a question from the agent's knowledge graph - the schema first, then read-only openCypher through graph_query, in a read transaction inside the pack's configured database - and cites the source of every fact. No file is read: the documents were read once by document-ingest"
+      }
+    },
+    {
+      "alias": "knowledge",
+      "types": [
+        "Island"
+      ],
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "The knowledge layer: the tool catalog the loop may use, and the error handler"
+      }
+    },
+    {
+      "alias": "query-tools",
+      "types": [
+        "ToolCatalog"
+      ],
+      "properties": {
+        "tools": "[\n  {\n    \"name\": \"graph_schema\",\n    \"description\": \"The schema of the agent's knowledge graph: every node label with its count and its property names and types, and every relationship type with its count and the labels it connects. Read it before writing a query or an ingest, so labels, types and property names match what the graph holds.\",\n    \"input_schema\": {\n      \"type\": \"object\",\n      \"properties\": {},\n      \"required\": [],\n      \"additionalProperties\": false\n    },\n    \"route\": \"graph.schema\"\n  },\n  {\n    \"name\": \"graph_query\",\n    \"description\": \"Run a read-only openCypher query against the agent's knowledge graph and return its rows. Pass values as parameters ($name in the query, the value under that name in parameters) instead of writing them into the query. A node comes back as {id, labels, properties}, a relationship as {id, type, start, end, properties}, a path as a list of them. Rows are capped: narrow the query with WHERE and LIMIT when the result was cut. A query that writes (CREATE, MERGE, SET, DELETE, REMOVE, DROP, LOAD CSV) is refused - use graph_write or graph_ingest.\",\n    \"input_schema\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"query\": {\n          \"type\": \"string\",\n          \"description\": \"The openCypher query, read-only, with $parameters.\"\n        },\n        \"parameters\": {\n          \"type\": \"object\",\n          \"description\": \"The values the query's $parameters take.\"\n        }\n      },\n      \"required\": [\n        \"query\"\n      ],\n      \"additionalProperties\": false\n    },\n    \"route\": \"graph.query\"\n  }\n]",
+        "purpose": "The catalog: two rows copied from the agent tools' published catalog, both reads - no write mark, nothing waits"
+      }
+    },
+    {
+      "alias": "check-input",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(={input.body.question}) -> model.question_probe",
+          "IF: {model.question_probe} == '=null'\nTHEN: reject\nELSE: answer"
+        ],
+        "purpose": "A run needs the 'question' field before any token is spent"
+      }
+    },
+    {
+      "alias": "reject",
+      "types": [
+        "Mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "int(400) -> output.status",
+          "text(rejected) -> output.body.type",
+          "text(Missing question. Ask the question in the 'question' field) -> output.body.message"
+        ],
+        "purpose": "Reject a request without 'question'"
+      }
+    },
+    {
+      "alias": "answer",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "llm.run",
+        "ttl": "55s",
+        "exception": "failed",
+        "progress": "Asking the knowledge graph",
+        "input": [
+          "f:json(query-tools.tools) -> tools",
+          "text(You answer questions from the agent's knowledge graph and nothing else. Read the schema with graph_schema first, then run one or two read-only openCypher queries with graph_query, with every value as a parameter, and answer in plain sentences, citing the source property of every fact you use. If the graph holds nothing relevant, say so. Never read files or the web.) -> system",
+          "input.body.question -> prompt",
+          "text(write) -> mode",
+          "int(8) -> max_turns",
+          "text(50s) -> timeout"
+        ],
+        "output": [
+          "result.status -> model.agent.status",
+          "result.text -> model.agent.text",
+          "result.turn -> model.agent.turn",
+          "result.turns -> model.agent.turns",
+          "result.calls -> model.agent.calls",
+          "result.usage -> model.agent.usage",
+          "result.model -> model.agent.model",
+          "result.refusal -> model.agent.refusal",
+          "result.cap -> model.agent.cap"
+        ],
+        "purpose": "The agent loop: the schema, one or two read-only queries, the answer with its sources - reads only, so nothing waits"
+      }
+    },
+    {
+      "alias": "route",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "IF: {model.agent.status} == 'done'\nTHEN: respond\nELSE: stopped"
+        ],
+        "purpose": "The graph decides on the loop's status: an answer, or a stop"
+      }
+    },
+    {
+      "alias": "respond",
+      "types": [
+        "Mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(answer) -> output.body.type",
+          "model.agent.text -> output.body.message",
+          "model.agent.turn -> output.body.turn",
+          "model.agent.calls -> output.body.calls",
+          "model.agent.usage -> output.body.usage",
+          "model.agent.model -> output.body.model",
+          "model.cid -> output.body.cid"
+        ],
+        "purpose": "The model's answer with its sources, the call log and the usage"
+      }
+    },
+    {
+      "alias": "stopped",
+      "types": [
+        "Mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "int(422) -> output.status",
+          "text(stopped) -> output.body.type",
+          "text(The model stopped without an answer. The status says why) -> output.body.message",
+          "model.agent.status -> output.body.status",
+          "model.agent.refusal -> output.body.refusal",
+          "model.agent.cap -> output.body.cap",
+          "model.agent.calls -> output.body.calls",
+          "model.agent.turn -> output.body.turn",
+          "model.cid -> output.body.cid"
+        ],
+        "purpose": "A refusal or a cap: the run ends and the caller learns why"
+      }
+    },
+    {
+      "alias": "failed",
+      "types": [
+        "Handler"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "error.code -> output.status",
+          "text(error) -> output.body.type",
+          "error.message -> output.body.message",
+          "error.source -> output.body.source"
+        ],
+        "purpose": "The loop's own failure: a bad catalog, llm.chat or a tool route unreachable. It reports the error"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "knowledge",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "root",
+      "target": "check-input",
+      "relations": [
+        {
+          "type": "start",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "knowledge",
+      "target": "query-tools",
+      "relations": [
+        {
+          "type": "tools",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "knowledge",
+      "target": "failed",
+      "relations": [
+        {
+          "type": "handler",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "check-input",
+      "target": "answer",
+      "relations": [
+        {
+          "type": "valid",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "check-input",
+      "target": "reject",
+      "relations": [
+        {
+          "type": "invalid",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "answer",
+      "target": "route",
+      "relations": [
+        {
+          "type": "outcome",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "route",
+      "target": "respond",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "route",
+      "target": "stopped",
+      "relations": [
+        {
+          "type": "stopped",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "respond",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "stopped",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "reject",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "failed",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

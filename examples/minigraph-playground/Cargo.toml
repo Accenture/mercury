@@ -19,8 +19,15 @@ mercury-knowledge-graph = { path = "../../crates/knowledge-graph" }
 # inventory) - the connection is lazy, so the app runs normally without
 # Redis until a graph actually suspends or resumes.
 mercury-minigraph-state-redis = { path = "../../extensions/minigraph-state-redis" }
+# The agent loop (llm.run, RFC-0011 / ADR-0033): linking this crate registers the loop's route,
+# which the order-assistant, diagram-assistant, site-notes, document-ingest and document-query
+# graphs name as their task - the Java example's extensions/agent-loop dependency.
+mercury-agent-loop = { path = "../../extensions/agent-loop" }
 async-trait = "0.1"
 log = "0.4"
+rmpv = { version = "1", features = ["with-serde"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util"] }
@@ -28,3 +35,5 @@ rmpv = { version = "1", features = ["with-serde"] }
 uuid = { version = "1", features = ["v4"] }
 # one temporary folder per test process, removed when the process exits (dev-only)
 mercury-test-support = { path = "../../crates/test-support" }
+# the scripted model and tool stand-ins of the agent demo graphs' tests parse the corpus and the prompts
+regex = "1"

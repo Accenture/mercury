@@ -9,6 +9,16 @@ graphs:
   # node is a function on the LLM helper app (a python or node host) reached through
   # event-over-http.yaml
   - 'support-triage'
+  # the agent loop of RFC-0011 (llm.run): a supervised write through suspend and resume on Redis
+  - 'order-assistant'
+  # an MCP server's tool in the loop's catalog, through diagram.render and the pack's MCP binding
+  - 'diagram-assistant'
+  # the built-in agent tools of RFC-0013 (a language pack's extensions/agent-tools): a crawl and a
+  # supervised write of the notes; a document of corpus/ extracted into the knowledge graph (mode: auto);
+  # the graph queried with the sources cited
+  - 'site-notes'
+  - 'document-ingest'
+  - 'document-query'
 
 #
 # Graph set is optional

@@ -108,18 +108,49 @@ Without a mapped peer the relay answers a 503 that names the missing configurati
 `otel.forwarding=true` on the engine and the wrapper host, one distributed trace spans the edge,
 the relay and the AI node (see the OpenTelemetry certification report).
 
+## The AI demo graphs: an agent loop, an MCP server's tool, the built-in tools
+
+Beside `support-triage`, this example ships the agent graphs of the Java Playground, compiled unchanged by this engine:
+`order-assistant` (an agent loop on `llm.run` whose one write, a refund, waits for a supervisor through suspend and
+resume on Redis), `diagram-assistant` (the loop's one tool reaches a Mermaid MCP server through `diagram.render`, a
+function of this example in front of the pack's MCP binding, with the rendered image stored out of band) and the three
+graphs on the built-in agent tools of ADR-0036 - `site-notes` (a crawl of a documentation section, then a supervised write
+of the notes into the pack's workspace), `document-ingest` (a document of the synthetic corpus in `corpus/` extracted into
+the agent's knowledge graph by a node that declares `mode: auto`) and `document-query` (the graph read, the sources cited).
+The example's own tool functions are `src/order_book.rs` and `src/diagram.rs`; the loop comes from the `agent-loop`
+extension crate this example links. `resources/graph/README.md` has the setup and the protocols; the token-free end-to-end
+test is `tests/agent_graphs.rs` (`cargo test -p minigraph-playground --test agent_graphs`), with a scripted model, stand-ins
+for the tool routes and the Mermaid binding, and the RESP2 Redis double of `tests/common/`.
+
+The peers are the language packs' extensions, reached through `resources/event-over-http.yaml`: the LLM helper (8087
+Node.js, 8086 Python), the MCP binding (8089 Node.js, 8088 Python) and the agent tools (8090 Node.js, 8089 Python). The
+`-D` arguments after `--` select them, for example the Python pack for all three:
+
+```bash
+cargo run -p minigraph-playground -- -Dllm.peer.port=8086 -Dmcp.peer.port=8088 -Dtools.peer.port=8089
+```
+
+Without the Playground a run is one request, `POST /api/graph/<graph>`, or `POST /api/stream/graph/<graph>` with
+`accept: text/event-stream` to watch the loop's events before the result.
+
 ## Where things live
 
 | File | Role |
 |---|---|
-| `src/main.rs` | the one-line main; links the engine's inventory |
+| `src/main.rs` | the one-line main; links the engine's, the state store's and the agent loop's inventories |
+| `src/lib.rs`, `src/order_book.rs`, `src/diagram.rs` | the example's own functions: the streaming relay, the order book's three tools, `diagram.render` |
 | `resources/application.yml` | app name, `app.env=dev`, port, temp folder |
 | `resources/rest.yaml` | the Playground/companion endpoint bindings |
-| `resources/graphs.yaml` | the deployment manifest: `tutorial-1`, `support-triage` and the set `tutorials` (compiled or 404); the set unpacks into `/tmp/unpack` |
+| `resources/graphs.yaml` | the deployment manifest: `tutorial-1`, `support-triage`, the five agent graphs and the set `tutorials` (compiled or 404); the set unpacks into `/tmp/unpack` |
+| `resources/event-over-http.yaml` | the peer map: `llm.chat`, `llm.stream`, `mermaid.render` and the twelve built-in tool routes on the language packs |
 | `resources/flows.yaml` | the flows this app deploys: `graph-executor` and `flow-11` |
 | `resources/flows/graph-executor.yml` | the standard exposure flow behind `POST /api/graph/{graph-id}` |
 | `resources/flows/flow-11.yml` | the echo flow that tutorial 11's `graph.extension` node calls (`flow://flow-11`) |
 | `resources/graph/support-triage.json` | the E0 triage graph; tutorial 1's model travels with the engine crate |
+| `resources/graph/order-assistant.json`, `diagram-assistant.json`, `site-notes.json`, `document-ingest.json`, `document-query.json` | the agent demo graphs, the Java example's models unchanged (`resources/graph/README.md`) |
+| `resources/mcp/mermaid-servers.yml` | a copy of the MCP binding's server entry for the Mermaid server behind `mermaid.render` |
+| `corpus/` | the synthetic corpus of the document graphs: two agreements and two policies of fictional companies |
+| `tests/agent_graphs.rs`, `tests/common/` | the token-free end-to-end test of the five agent graphs; the scripted model, the tool stand-ins and the RESP2 Redis double |
 | `resources/graph/tutorials.pack` | the graph set `tutorials` (version 1.0): tutorials 2 to 14, packed by the graph packager |
 | `../../crates/knowledge-graph/resources/public/` | the served bundle, deployed from the Java repo's webapp (`npm run release:rust`) |
 | `../../crates/knowledge-graph/resources/help/` | the `describe`/help markdown, mirrored from the Java repo by the same command |

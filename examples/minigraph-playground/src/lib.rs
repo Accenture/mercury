@@ -16,6 +16,9 @@
 //! The Playground's own composable functions - a library target so the integration
 //! tests link the same annotation inventory the binary does (a `#[preload]` in
 //! `main.rs` would exist for the binary alone).
+pub mod diagram;
+pub mod order_book;
+
 use std::collections::HashMap;
 
 use async_trait::async_trait;
@@ -24,6 +27,9 @@ use platform_core::{
     preload, AppError, ComposableFunction, EventEnvelope, EventStreamWriter, Platform, PostOffice,
 };
 
+/// The agent loop's route, `llm.run` - a function of the `agent-loop` extension that the agent demo
+/// graphs name as their task; naming it here keeps the extension's annotation inventory linked.
+pub const AGENT_LOOP_ROUTE: &str = agent_loop::LLM_RUN;
 /// The route of the AI-token streaming relay (`POST /api/llm/stream` in `rest.yaml`).
 pub const LLM_STREAM_RELAY_ROUTE: &str = "llm.stream.relay";
 /// The AI node the relay forwards to - a function on the LLM helper app, reached

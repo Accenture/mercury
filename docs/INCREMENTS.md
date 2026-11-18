@@ -5572,3 +5572,39 @@ return path to `llm.chat`; now the engine contributes identity, never content.
 - **Docs.** `reserved-names-and-headers.md` (the section for the two headers), the skills reference's progress paragraph.
 
 CHANGELOG Unreleased, `Added` item 1.
+
+## Increment 205 — The Playground example ships the Java example's agent graphs, and drives them live (2026-11-18)
+
+The Java Playground had grown five agent graphs since the agent loop shipped - `order-assistant` (a supervised refund
+through suspend and resume), `diagram-assistant` (an MCP server's tool in the catalog), `site-notes`, `document-ingest` and
+`document-query` (the built-in agent tools of ADR-0036) - and the Rust example still shipped `support-triage` alone, so a
+Rust installation had `llm.run` with no example that exercised it. Eric's direction: mirror the graphs and drive them.
+
+- **The models, unchanged.** The five JSON files of `examples/minigraph-playground/resources/graph/` are byte-identical
+  copies of mercury-composable's; the compiler accepted every node type, mapping and skill they use (`graph.resume` and
+  `graph.suspend` on the Redis store, `graph.math` with `RESET:` and probes, `f:concat` with four arguments, `llm.run` with
+  `mode`, `progress` and `exception`). `graphs.yaml` lists them; `corpus/` is the Java example's synthetic corpus;
+  `resources/mcp/mermaid-servers.yml` the copy of the binding's server entry.
+- **The example's own functions.** `src/order_book.rs`: the order book and its three tools (`demo.order.lookup`,
+  `demo.shipment.status`, `demo.refund.issue` - the one write, issued once per order, 409 on a second attempt);
+  `src/diagram.rs`: `diagram.render`, the function in front of the pack's `mermaid.render` that stores the SVG and a page
+  that inlines it under `diagram.store.folder` and gives the model a reference, never the image. `mercury-agent-loop`
+  joins the example's dependencies and `lib.rs` names its route, so `llm.run` registers from the inventory (the Java
+  example's `extensions/agent-loop` jar); `rmpv`, `serde_json` and `uuid` join for the functions.
+- **The peer map and the entries.** `event-over-http.yaml` gains `mermaid.render` (the MCP binding, 8089 Node.js / 8088
+  Python) and the twelve tool routes (the agent tools, 8090 / 8089), one route per entry; `rest.yaml` gains the watched
+  run, `POST /api/stream/graph/{graph_id}` with `stream: true`; `application.yml` gains `diagram.store.folder`.
+- **Tests.** `tests/agent_graphs.rs` - one boot, the five graphs end to end on a scripted model and stand-ins for the
+  tool routes and the Mermaid binding (`tests/common/agent_doubles.rs`, the twins of the Java `MockLlmChat`,
+  `MockAgentTools` and `MockDiagramRender`) and the RESP2 Redis double, now shared with the tutorial-14 test as
+  `tests/common/redis_double.rs`: the approval protocol with a re-advise, a stale turn, a refused decision and the order
+  book's 409; the diagram's reference and stored files; the supervised notes write approved and refused; the ingest under
+  `mode: auto`, idempotent; the query with sources; the watched run's events over server-sent events. `cargo fmt` and
+  `clippy -D warnings` clean.
+- **The live drive** (`docs/test-reports/agent-graphs-live-drive.md`): every graph through the Python pack on Haiku 4.5
+  with Redis, Neo4j and the public Mermaid MCP server; the graph's counts the Java drive's label for label; the same
+  schema-check finding on the travel policy; 43 model turns; no error in the engine's log.
+- **Docs.** The example's README (the agent graphs section, the file table) and `resources/graph/README.md` (the setup
+  and the protocols, the Java example's page adapted to this engine's commands).
+
+CHANGELOG Unreleased, `Added` item 2.
