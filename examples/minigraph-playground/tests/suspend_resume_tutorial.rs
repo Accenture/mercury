@@ -22,21 +22,21 @@
 //! `v1.redis.persist.model` / `v1.redis.retrieve.model` store functions,
 //! with the final response carrying the state captured across all of them.
 //!
-//! The Java suite embeds a real redis-server binary; this environment has
-//! neither the binary nor a Docker daemon, so the server side is the same
-//! in-process RESP2 test double the `minigraph-state-redis` crate's contract
-//! tests use — the client wire path (TCP, RESP2 frames, SETEX/GETDEL) stays
-//! fully real.
+//! The Java suite embeds a real redis-server binary; here the server side is the
+//! in-process RESP2 test double of `tests/common/redis_double.rs` (the approach of the
+//! `minigraph-state-redis` crate's contract tests) — the client wire path (TCP, RESP2
+//! frames, SETEX/GETDEL) stays fully real.
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use platform_core::automation::AsyncHttpRequest;
 use platform_core::{automation, overrides, AutoStart, EventEnvelope, Platform, PostOffice};
 use rmpv::Value;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
+
+// the RESP2 double shared with the agent graphs' test
+#[path = "common/redis_double.rs"]
+mod redis_double;
+use redis_double::start_resp_double;
 
 // The application under test is a BIN crate — include its source so the
 // link-time inventory in this test binary carries the engine skills AND the
@@ -46,151 +46,6 @@ use tokio::net::TcpListener;
 mod app;
 
 const TIMEOUT: Duration = Duration::from_secs(8);
-
-// ---- the RESP2 test double (same approach as the minigraph-state-redis
-// contract tests — the double stands in for redis-server, never the client) ----
-
-#[derive(Clone)]
-struct StoredValue {
-    value: Vec<u8>,
-    expires_at: Option<Instant>,
-}
-
-type SharedStore = Arc<Mutex<HashMap<Vec<u8>, StoredValue>>>;
-
-async fn start_resp_double() -> u16 {
-    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
-    let port = listener.local_addr().expect("addr").port();
-    let store: SharedStore = Arc::new(Mutex::new(HashMap::new()));
-    tokio::spawn(async move {
-        loop {
-            let Ok((socket, _)) = listener.accept().await else {
-                return;
-            };
-            let store = store.clone();
-            tokio::spawn(async move { serve_connection(socket, store).await });
-        }
-    });
-    port
-}
-
-async fn serve_connection(mut socket: tokio::net::TcpStream, store: SharedStore) {
-    let mut buffer: Vec<u8> = Vec::new();
-    let mut chunk = [0u8; 4096];
-    loop {
-        while let Some((args, consumed)) = parse_resp_array(&buffer) {
-            buffer.drain(..consumed);
-            let reply = dispatch(&args, &store);
-            if socket.write_all(&reply).await.is_err() {
-                return;
-            }
-        }
-        match socket.read(&mut chunk).await {
-            Ok(0) | Err(_) => return,
-            Ok(n) => buffer.extend_from_slice(&chunk[..n]),
-        }
-    }
-}
-
-fn parse_resp_array(buffer: &[u8]) -> Option<(Vec<Vec<u8>>, usize)> {
-    let mut pos = 0;
-    let (count, next) = parse_prefixed_int(buffer, pos, b'*')?;
-    pos = next;
-    let mut args = Vec::with_capacity(count.max(0) as usize);
-    for _ in 0..count {
-        let (len, next) = parse_prefixed_int(buffer, pos, b'$')?;
-        pos = next;
-        let end = pos + len as usize;
-        if buffer.len() < end + 2 {
-            return None;
-        }
-        args.push(buffer[pos..end].to_vec());
-        pos = end + 2;
-    }
-    Some((args, pos))
-}
-
-fn parse_prefixed_int(buffer: &[u8], pos: usize, prefix: u8) -> Option<(i64, usize)> {
-    if buffer.len() <= pos || buffer[pos] != prefix {
-        return None;
-    }
-    let line_end = buffer[pos..].windows(2).position(|w| w == b"\r\n")? + pos;
-    let text = std::str::from_utf8(&buffer[pos + 1..line_end]).ok()?;
-    Some((text.parse().ok()?, line_end + 2))
-}
-
-fn dispatch(args: &[Vec<u8>], store: &SharedStore) -> Vec<u8> {
-    let command = args
-        .first()
-        .map(|c| String::from_utf8_lossy(c).to_ascii_uppercase())
-        .unwrap_or_default();
-    let mut map = store.lock().expect("store");
-    match command.as_str() {
-        "PING" => b"+PONG\r\n".to_vec(),
-        "CLIENT" | "SELECT" | "AUTH" => b"+OK\r\n".to_vec(),
-        // the store detects its consume strategy from INFO server once per
-        // process; report a 6.2+ version so this suite keeps exercising the
-        // native GETDEL path (the transactional fallback has its own suite
-        // in the store crate)
-        "INFO" => {
-            let body = "# Server\r\nredis_version:7.4.1\r\n";
-            let mut reply = format!("${}\r\n", body.len()).into_bytes();
-            reply.extend_from_slice(body.as_bytes());
-            reply.extend_from_slice(b"\r\n");
-            reply
-        }
-        "SETEX" if args.len() == 4 => {
-            let seconds: u64 = String::from_utf8_lossy(&args[2]).parse().unwrap_or(0);
-            map.insert(
-                args[1].clone(),
-                StoredValue {
-                    value: args[3].clone(),
-                    expires_at: Some(Instant::now() + Duration::from_secs(seconds)),
-                },
-            );
-            b"+OK\r\n".to_vec()
-        }
-        "GETDEL" | "GET" if args.len() == 2 => {
-            let live = match map.get(&args[1]) {
-                Some(entry) if !expired(entry) => Some(entry.value.clone()),
-                Some(_) => {
-                    map.remove(&args[1]);
-                    None
-                }
-                None => None,
-            };
-            match live {
-                Some(value) => {
-                    if command == "GETDEL" {
-                        map.remove(&args[1]);
-                    }
-                    let mut reply = format!("${}\r\n", value.len()).into_bytes();
-                    reply.extend_from_slice(&value);
-                    reply.extend_from_slice(b"\r\n");
-                    reply
-                }
-                None => b"$-1\r\n".to_vec(),
-            }
-        }
-        "DEL" => {
-            let mut removed = 0;
-            for key in &args[1..] {
-                if map.remove(key).is_some() {
-                    removed += 1;
-                }
-            }
-            format!(":{removed}\r\n").into_bytes()
-        }
-        _ => format!("-ERR unknown command '{command}'\r\n").into_bytes(),
-    }
-}
-
-fn expired(entry: &StoredValue) -> bool {
-    entry
-        .expires_at
-        .map(|at| Instant::now() >= at)
-        .unwrap_or(false)
-}
 
 // ---- helpers ----
 

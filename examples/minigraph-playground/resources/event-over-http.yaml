@@ -17,3 +17,52 @@ event.http:
     target: 'http://${llm.peer.host:127.0.0.1}:${llm.peer.port:8087}/api/event'
   - route: 'llm.stream'
     target: 'http://${llm.peer.host:127.0.0.1}:${llm.peer.port:8087}/api/event'
+  #
+  # The diagram-assistant demo graph's tool reaches an MCP server: mermaid.render is a function of the
+  # MCP binding of a language pack (mercury-nodejs extensions/mcp-binding on port 8089, or
+  # mercury-python on 8088), bound in the binding's code to the tool of a Mermaid MCP server named in
+  # its server file (mcp/mermaid-servers.yml in this folder is a copy of that server entry). The
+  # graph's catalog names diagram.render, a function of this application (src/diagram.rs) that calls
+  # mermaid.render and stores the rendered image out of band; a route names the capability, never the
+  # transport; the engine stays MCP-free.
+  #
+  - route: 'mermaid.render'
+    target: 'http://${mcp.peer.host:127.0.0.1}:${mcp.peer.port:8089}/api/event'
+  #
+  # The built-in agent tools (RFC-0013 / ADR-0036) of a language pack's extensions/agent-tools - files
+  # inside one workspace, the web inside an allowlist, the agent's knowledge graph inside one database,
+  # a clock - reached by the site-notes, document-ingest and document-query demo graphs. Run the Node.js
+  # extension (port 8090) or the Python one (8089) with the sandboxes this application's corpus and the
+  # demo need, for example:
+  #
+  #     node dist/src/cli.js extensions/agent-tools/agent-tools.mjs \
+  #       -Dtools.file.root=<path to examples/minigraph-playground/corpus> \
+  #       -Dtools.web.allow=accenture.github.io -Dtools.graph.uri=bolt://127.0.0.1:7687 -Dtools.graph.write=true
+  #
+  # Select the Python extension, or any other peer, with -Dtools.peer.host / -Dtools.peer.port.
+  # One route per entry: the map does not take a comma-separated list.
+  #
+  - route: 'file.read'
+    target: 'http://${tools.peer.host:127.0.0.1}:${tools.peer.port:8090}/api/event'
+  - route: 'file.write'
+    target: 'http://${tools.peer.host:127.0.0.1}:${tools.peer.port:8090}/api/event'
+  - route: 'file.list'
+    target: 'http://${tools.peer.host:127.0.0.1}:${tools.peer.port:8090}/api/event'
+  - route: 'file.search'
+    target: 'http://${tools.peer.host:127.0.0.1}:${tools.peer.port:8090}/api/event'
+  - route: 'file.extract'
+    target: 'http://${tools.peer.host:127.0.0.1}:${tools.peer.port:8090}/api/event'
+  - route: 'web.fetch'
+    target: 'http://${tools.peer.host:127.0.0.1}:${tools.peer.port:8090}/api/event'
+  - route: 'web.crawl'
+    target: 'http://${tools.peer.host:127.0.0.1}:${tools.peer.port:8090}/api/event'
+  - route: 'graph.schema'
+    target: 'http://${tools.peer.host:127.0.0.1}:${tools.peer.port:8090}/api/event'
+  - route: 'graph.query'
+    target: 'http://${tools.peer.host:127.0.0.1}:${tools.peer.port:8090}/api/event'
+  - route: 'graph.write'
+    target: 'http://${tools.peer.host:127.0.0.1}:${tools.peer.port:8090}/api/event'
+  - route: 'graph.ingest'
+    target: 'http://${tools.peer.host:127.0.0.1}:${tools.peer.port:8090}/api/event'
+  - route: 'time.now'
+    target: 'http://${tools.peer.host:127.0.0.1}:${tools.peer.port:8090}/api/event'

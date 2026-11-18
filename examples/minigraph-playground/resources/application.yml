@@ -41,5 +41,9 @@ graph.traversal.log: true
 # preserved, and an empty [] or {} is a real value, never treated as null.
 serializer.null.transport: false
 
+# The diagram-assistant demo stores the rendered SVG and a page that inlines it under this folder
+# (diagram.render keeps the image out of band and gives the model a reference).
+diagram.store.folder: /tmp/rendered_diagrams
+
 info.app.description: 'mercury MiniGraph Playground (active knowledge graph)'
 show.application.properties: 'application.name, app.env, rest.server.port'

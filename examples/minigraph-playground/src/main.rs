@@ -64,6 +64,15 @@ impl EntryPoint for PlaygroundApp {
             minigraph_state_redis::PERSIST_ROUTE,
             minigraph_state_redis::RETRIEVE_ROUTE
         );
+        // the agent demo graphs: the loop's route and the example's own tool routes
+        log::info!(
+            "Agent loop {} with the demo tools {}, {}, {} and {}",
+            minigraph_playground::AGENT_LOOP_ROUTE,
+            minigraph_playground::order_book::ORDER_LOOKUP_ROUTE,
+            minigraph_playground::order_book::SHIPMENT_STATUS_ROUTE,
+            minigraph_playground::order_book::REFUND_ISSUE_ROUTE,
+            minigraph_playground::diagram::DIAGRAM_RENDER_ROUTE
+        );
         Ok(())
     }
 }

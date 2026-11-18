@@ -25,6 +25,16 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    audit store (mercury-python #59, mercury-nodejs #126). `llm_run_platform.rs` pins the copy onto the turns,
    `graph_runtime.rs` reads the two headers back in the demo task. **Upgrade note:** none.
 
+2. **The Playground example ships the Java example's five agent graphs and drives them live (Increment 205).**
+   `order-assistant`, `diagram-assistant`, `site-notes`, `document-ingest` and `document-query` in
+   `examples/minigraph-playground/resources/graph/` are the Java Playground's models unchanged, compiled by this engine
+   as they are; the example gains the order book's three tools (`src/order_book.rs`), `diagram.render` in front of the
+   pack's MCP-bound `mermaid.render` with the image stored out of band (`src/diagram.rs`), the `agent-loop` crate as a
+   dependency so `llm.run` registers, the peer map's `mermaid.render` and twelve built-in tool routes, the watched-run
+   entry `POST /api/stream/graph/{graph_id}`, the synthetic corpus and the token-free end-to-end test
+   `tests/agent_graphs.rs`. Driven live through the Python pack on Claude Haiku 4.5
+   (`docs/test-reports/agent-graphs-live-drive.md`).
+
 ### Changed
 
 1. **A `DECIMAL` result carries at most a configured number of decimal places: `big.decimal.precision` (default 6) for
@@ -54,6 +64,14 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    `-Dkey='${ENV_VAR}'` keeps the secret out of the process list and container `args` arrays, which do no shell
    expansion. **Upgrade note:** a runtime argument that relied on a literal `${...}` is now resolved, as a file value
    always was; an unresolved reference without a default is no value, as in a file.
+
+### Security
+
+1. **libz-sys 1.1.33 (Increment 206).** The `audit` gate failed on 2026-11-18 on RUSTSEC-2026-0544 (CVE-2026-85091), published
+   on 2026-11-11 against `libz-sys` 1.1.31 and patched in 1.1.33: a heap buffer overflow in the bundled zlib. `libz-sys`
+   reaches the workspace through `rdkafka-sys` (`minimalist-kafka` and the two Kafka examples). The lockfile moves that one
+   crate. **Upgrade note:** none - a lockfile bump; an application that builds `mercury-minimalist-kafka` with its own
+   lockfile updates `libz-sys` itself (`cargo update -p libz-sys`).
 
 ## Version 4.12.30, 11/5/2026
 

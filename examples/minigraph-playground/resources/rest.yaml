@@ -29,6 +29,16 @@ rest:
     timeout: 30s
     tracing: true
 
+  # A watched run: the same graph executor, its progress events (a node's own text and the agent
+  # loop's run, turn and tool events) streamed as server-sent events before the result.
+  - service: 'http.flow.adapter'
+    methods: ['POST']
+    url: '/api/stream/graph/{graph_id}'
+    flow: 'graph-executor'
+    timeout: 60s
+    tracing: true
+    stream: true
+
   #
   # The AI-token streaming composition: the relay forwards its reply lane into the
   # event-over-http mapped "llm.stream" AI node (the LLM helper app) and the

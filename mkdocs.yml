@@ -160,6 +160,7 @@ nav:
       - "Test Report — OpenTelemetry Forwarder (Dynatrace)": test-reports/otel-dynatrace-certification.md
       - "Test Report — The LLM helper (Claude)": test-reports/llm-helper-certification.md
       - "AI Companion Test Report": test-reports/AI-companion-test.md
+      - "Test Report — The agent demo graphs on the Rust engine": test-reports/agent-graphs-live-drive.md
       - Port Scope & Fidelity: background/port-scope.md
       - Architecture Decisions: arch-decisions/ADR.md
       - Requests for Comments (RFC): arch-decisions/RFC.md

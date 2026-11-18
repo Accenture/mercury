@@ -1,0 +1,22 @@
+# The MCP binding's server file for the diagram-assistant demo graph (RFC-0011 / ADR-0033 step 4; the
+# shape of draft-design-specs/agent-tool-use.md). It names the server only - what is environment-specific.
+# The tool is a function of the binding, declared in its code: mermaid.render binds the server's tool
+# validate_and_render_mermaid_diagram and pins the digest of its input schema. The application's own
+# diagram.render function calls mermaid.render, stores the rendered image out of band and gives the
+# model a reference instead.
+#
+# The binding's default server file names the same server, so this copy is optional; it lets the
+# example pin its own URL or timeout. Run a language pack's MCP binding, then start this application:
+#
+#   mercury-serve extensions/mcp-binding/mcp_binding.py [-Dmcp.servers=<absolute path of this file>]        (mercury-python, port 8088)
+#   node dist/src/cli.js extensions/mcp-binding/mcp-binding.mjs [-Dmcp.servers=<absolute path of this file>]  (mercury-nodejs, port 8089)
+#
+# The server is the public Mermaid Chart MCP endpoint, reached over streamable HTTP with no credential.
+# Should the server change its tool's schema, the binding refuses to start and names the tool - re-run
+# `describe mermaid`, review the new schema against the graph's catalog row, and update the digest in the
+# binding's code.
+servers:
+  mermaid:
+    transport: http
+    url: 'https://chatgpt.mermaid.ai/anthropic/mcp'
+    timeout_ms: 20000

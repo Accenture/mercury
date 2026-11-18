@@ -1,0 +1,299 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "diagram-assistant",
+        "purpose": "An agent loop whose one tool reaches an MCP server: the catalog row render_diagram maps to diagram.render, a function of this application that calls mermaid.render - a function of the MCP binding of a language pack, bound in the binding's code to the tool of a Mermaid MCP server reached over streamable HTTP - and stores the rendered image under a reference id, so the model gets the verdict and a reference, never the image. The graph names capabilities, never transports; the binding names the server and the tool; the engine stays MCP-free (RFC-0011 / ADR-0033 step 4)"
+      }
+    },
+    {
+      "alias": "knowledge",
+      "types": [
+        "Island"
+      ],
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "The knowledge layer: the tool catalog and the error handler"
+      }
+    },
+    {
+      "alias": "diagram-tools",
+      "types": [
+        "ToolCatalog"
+      ],
+      "properties": {
+        "tools": "[\n  {\n    \"name\": \"render_diagram\",\n    \"route\": \"diagram.render\",\n    \"strict\": true,\n    \"description\": \"Validate a Mermaid diagram and render it. Returns valid (true or false), the diagram code and, when valid, the rendered image. Call it before you answer, and again after fixing an invalid diagram.\",\n    \"input_schema\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"diagramCode\": {\n          \"type\": \"string\",\n          \"description\": \"the Mermaid diagram code to validate and render\"\n        },\n        \"title\": {\n          \"type\": \"string\",\n          \"description\": \"an optional title for the diagram\"\n        }\n      },\n      \"required\": [\n        \"diagramCode\"\n      ],\n      \"additionalProperties\": false\n    }\n  }\n]",
+        "purpose": "The catalog: one row, written on the graph after reviewing the server's own description with the binding's describe command. The model reads this text, never the server's; the input schema is the loop's closed subset, so the server's $schema keyword stays out"
+      }
+    },
+    {
+      "alias": "check-input",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "MAPPING: text(={input.body.question}) -> model.question_probe",
+          "IF: {model.question_probe} == '=null'\nTHEN: reject\nELSE: assist"
+        ],
+        "purpose": "A run needs the description of the diagram before any token is spent"
+      }
+    },
+    {
+      "alias": "reject",
+      "types": [
+        "Mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "int(400) -> output.status",
+          "text(rejected) -> output.body.type",
+          "text(Missing question. Describe the diagram in the 'question' field) -> output.body.message"
+        ],
+        "purpose": "Reject a request without a description"
+      }
+    },
+    {
+      "alias": "assist",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "llm.run",
+        "ttl": "55s",
+        "exception": "failed",
+        "progress": "Drawing the diagram",
+        "input": [
+          "f:json(diagram-tools.tools) -> tools",
+          "text(You are a diagram assistant for software teams. Turn the user's description into one Mermaid diagram. Always validate it with the render_diagram tool before you answer. If the tool reports the diagram invalid, fix the code and validate again. Answer with the validated Mermaid code in a fenced mermaid block, one sentence on what the diagram shows, and the reference id the tool returned for the stored image. Never answer with a diagram the tool has not validated.) -> system",
+          "input.body.question -> prompt",
+          "int(6) -> max_turns",
+          "text(50s) -> timeout"
+        ],
+        "output": [
+          "result.status -> model.agent.status",
+          "result.text -> model.agent.text",
+          "result.turns -> model.agent.turns",
+          "result.calls -> model.agent.calls",
+          "result.usage -> model.agent.usage",
+          "result.model -> model.agent.model",
+          "result.refusal -> model.agent.refusal",
+          "result.cap -> model.agent.cap"
+        ],
+        "purpose": "The agent loop: the model drafts the Mermaid code, the loop calls diagram.render, and the model answers with the validated code and the reference of the stored image, or fixes the code and tries again. diagram.render is a function of this application that calls mermaid.render, the MCP binding's function for the Mermaid server's tool, and keeps the rendered image out of band"
+      }
+    },
+    {
+      "alias": "route",
+      "types": [
+        "Decision"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "IF: {model.agent.status} == 'done'\nTHEN: respond\nELSE: stopped"
+        ],
+        "purpose": "The graph decides on the loop's status"
+      }
+    },
+    {
+      "alias": "respond",
+      "types": [
+        "Mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(answer) -> output.body.type",
+          "model.agent.text -> output.body.message",
+          "model.agent.turns -> output.body.turns",
+          "model.agent.calls -> output.body.calls",
+          "model.agent.usage -> output.body.usage",
+          "model.agent.model -> output.body.model"
+        ],
+        "purpose": "The validated diagram, with the call log and the usage"
+      }
+    },
+    {
+      "alias": "stopped",
+      "types": [
+        "Mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "int(422) -> output.status",
+          "text(stopped) -> output.body.type",
+          "text(The model stopped without an answer. The status says why) -> output.body.message",
+          "model.agent.status -> output.body.status",
+          "model.agent.refusal -> output.body.refusal",
+          "model.agent.cap -> output.body.cap",
+          "model.agent.calls -> output.body.calls"
+        ],
+        "purpose": "A refusal or a cap"
+      }
+    },
+    {
+      "alias": "failed",
+      "types": [
+        "Handler"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "error.code -> output.status",
+          "text(error) -> output.body.type",
+          "error.message -> output.body.message",
+          "error.source -> output.body.source"
+        ],
+        "purpose": "The loop's own failure: a bad catalog, llm.chat unreachable or failing"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "knowledge",
+      "relations": [
+        {
+          "type": "contains",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "root",
+      "target": "check-input",
+      "relations": [
+        {
+          "type": "start",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "knowledge",
+      "target": "diagram-tools",
+      "relations": [
+        {
+          "type": "tools",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "knowledge",
+      "target": "failed",
+      "relations": [
+        {
+          "type": "handler",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "check-input",
+      "target": "assist",
+      "relations": [
+        {
+          "type": "valid",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "check-input",
+      "target": "reject",
+      "relations": [
+        {
+          "type": "invalid",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "assist",
+      "target": "route",
+      "relations": [
+        {
+          "type": "outcome",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "route",
+      "target": "respond",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "route",
+      "target": "stopped",
+      "relations": [
+        {
+          "type": "stopped",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "respond",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "stopped",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "reject",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "failed",
+      "target": "end",
+      "relations": [
+        {
+          "type": "then",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}
