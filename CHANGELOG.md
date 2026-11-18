@@ -65,6 +65,14 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    expansion. **Upgrade note:** a runtime argument that relied on a literal `${...}` is now resolved, as a file value
    always was; an unresolved reference without a default is no value, as in a file.
 
+### Security
+
+1. **libz-sys 1.1.33 (Increment 206).** The `audit` gate failed on 2026-11-18 on RUSTSEC-2026-0544 (CVE-2026-85091), published
+   on 2026-11-11 against `libz-sys` 1.1.31 and patched in 1.1.33: a heap buffer overflow in the bundled zlib. `libz-sys`
+   reaches the workspace through `rdkafka-sys` (`minimalist-kafka` and the two Kafka examples). The lockfile moves that one
+   crate. **Upgrade note:** none - a lockfile bump; an application that builds `mercury-minimalist-kafka` with its own
+   lockfile updates `libz-sys` itself (`cargo update -p libz-sys`).
+
 ## Version 4.12.30, 11/5/2026
 
 The lock-step twin of Java 4.12.30, catching up from 4.12.27 with every common feature the Java engine shipped since. Java

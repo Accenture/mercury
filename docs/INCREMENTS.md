@@ -5608,3 +5608,16 @@ Rust installation had `llm.run` with no example that exercised it. Eric's direct
   and the protocols, the Java example's page adapted to this engine's commands).
 
 CHANGELOG Unreleased, `Added` item 2.
+
+## Increment 206 — libz-sys 1.1.33 for RUSTSEC-2026-0544 (2026-11-18)
+
+The `audit` job on PR #415 (Increment 205) failed on RUSTSEC-2026-0544 (CVE-2026-85091), published on 2026-11-11 against
+`libz-sys` 1.1.31: a heap buffer overflow in the zlib the crate bundles (madler/zlib issue 1310), patched in 1.1.33.
+`libz-sys` reaches the workspace only through `rdkafka-sys` 4.10.0 (`mercury-minimalist-kafka`, `kafka-demo`,
+`sync-over-async-demo`); nothing in the Playground example or the agent loop depends on it, so the increment it rode on was
+not the cause - the advisory is a week old and the gate audits the whole lockfile. `cargo update -p libz-sys` moved that one
+crate, 1.1.31 → 1.1.33, version and checksum alone; no other edge re-resolved. No source changes. CHANGELOG Unreleased,
+`Security` item 1.
+
+Gates: `cargo build -p mercury-minimalist-kafka -p kafka-demo` against the bumped crate, and the CI `audit` job on the pull
+request.
