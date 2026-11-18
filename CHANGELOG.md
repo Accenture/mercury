@@ -65,6 +65,15 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    expansion. **Upgrade note:** a runtime argument that relied on a literal `${...}` is now resolved, as a file value
    always was; an unresolved reference without a default is no value, as in a file.
 
+3. **jiff replaces chrono, chrono-tz and iana-time-zone (Increment 207).** The event-script date and time plugins (`now`,
+   `dateTime`, `parseDate`, `parseDateTime`, `addDays`, `daysBetween`) and the engine's timestamps now use `jiff` 1,
+   after RustSec listed `chrono` and `chrono-tz` as unmaintained; the three crates leave the lockfile. Same Java
+   `DateTimeFormatter` pattern coverage, same outputs, with two refinements toward Java: a parsed local time inside a
+   daylight-saving gap moves forward by the gap instead of failing (`LocalDateTime.atZone` semantics), and `f:dateTime()`
+   on a system whose zone has no IANA name prints the offset alone instead of failing. Zones come from the system's
+   zoneinfo, with a bundled copy for a container without one. **Upgrade note:** none - the plugins' arguments and results
+   are unchanged; only the wording after `unable to parse date -` / `unable to parse datetime -` is jiff's.
+
 ### Security
 
 1. **libz-sys 1.1.33 (Increment 206).** The `audit` gate failed on 2026-11-18 on RUSTSEC-2026-0544 (CVE-2026-85091), published

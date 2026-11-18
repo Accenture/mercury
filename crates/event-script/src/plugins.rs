@@ -1145,7 +1145,7 @@ fn plugin_snake_case(args: &[Value]) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plugins_e8::java_pattern_to_chrono;
+    use crate::plugins_e8::java_pattern_to_strftime;
 
     fn table_of_json_text() -> Value {
         // the shape of a node authored as keys=[ "community-property", "separate-property" ]:
@@ -1853,20 +1853,23 @@ mod tests {
         // the converter tokenizes properly: names, 12-hour clock, AM/PM,
         // millis, quoted literals, escaped quotes, offsets
         assert_eq!(
-            java_pattern_to_chrono("MM/dd/yyyy HH:mm:ss"),
+            java_pattern_to_strftime("MM/dd/yyyy HH:mm:ss"),
             Ok("%m/%d/%Y %H:%M:%S".to_string())
         );
         assert_eq!(
-            java_pattern_to_chrono("yyyy-MM-dd'T'HH:mm:ss.SSS"),
+            java_pattern_to_strftime("yyyy-MM-dd'T'HH:mm:ss.SSS"),
             Ok("%Y-%m-%dT%H:%M:%S.%3f".to_string())
         );
         assert_eq!(
-            java_pattern_to_chrono("EEE, dd MMM yyyy hh:mm a"),
+            java_pattern_to_strftime("EEE, dd MMM yyyy hh:mm a"),
             Ok("%a, %d %b %Y %I:%M %p".to_string())
         );
-        assert_eq!(java_pattern_to_chrono("yyyy''MM"), Ok("%Y'%m".to_string()));
+        assert_eq!(
+            java_pattern_to_strftime("yyyy''MM"),
+            Ok("%Y'%m".to_string())
+        );
         // unsupported letters fail loudly instead of emitting garbage
-        let err = java_pattern_to_chrono("yyyy VV").expect_err("V unsupported");
+        let err = java_pattern_to_strftime("yyyy VV").expect_err("V unsupported");
         assert!(err.contains("'V'"), "{err}");
 
         // f:dateTime honors the zone argument (Java ZoneId.of analog) —
@@ -1904,17 +1907,12 @@ mod tests {
         .expect("parse AM/PM");
         // the same instant computed directly (local zone, like Java
         // LocalDateTime.parse().atZone(systemDefault()))
-        use chrono::TimeZone;
-        let expected = chrono::Local
-            .from_local_datetime(
-                &chrono::NaiveDate::from_ymd_opt(2026, 7, 4)
-                    .unwrap()
-                    .and_hms_opt(21, 30, 0)
-                    .unwrap(),
-            )
-            .earliest()
+        let expected = jiff::civil::date(2026, 7, 4)
+            .at(21, 30, 0, 0)
+            .to_zoned_datetime(jiff::tz::TimeZone::system())
             .unwrap()
-            .timestamp_millis();
+            .timestamp()
+            .as_millisecond();
         assert_eq!(ms, Value::from(expected));
         // milliseconds in the pattern round-trip too
         let ms = calculate(

@@ -25,12 +25,12 @@ rmpv = { version = "1", features = ["with-serde"] }
 serde_json = "1"
 serde_json_path = "0.7"
 base64 = "0.22"
-chrono = "0.4"
-# increment 53 (parity F5): f:dateTime zone argument — chrono-tz is the
-# ZoneId.of() analog (IANA database), iana-time-zone names the system zone
-# (the ZoneId.systemDefault() analog, same crate chrono uses internally)
-chrono-tz = "0.10"
-iana-time-zone = "0.1"
+# dates, times and zones (increment 207: jiff replaces chrono, chrono-tz and iana-time-zone,
+# which RustSec lists as unmaintained): f:dateTime's zone argument is jiff::tz::TimeZone::get
+# (the ZoneId.of() analog, the IANA database) and TimeZone::system() names the system zone
+# (the ZoneId.systemDefault() analog); tzdb-bundle-always keeps a copy of the database for a
+# container without /usr/share/zoneinfo, the system's copy winning where it exists
+jiff = { version = "1", features = ["tzdb-bundle-always"] }
 mercury-event-script-macros = { version = "4.12.30", path = "../event-script-macros" }
 uuid = { version = "1", features = ["v4"] }
 # RFC-0001 / ADR-0025: exact decimal arithmetic for the f:decimal* plugins and the DECIMAL statement

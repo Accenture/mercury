@@ -28,8 +28,9 @@
 //! the Java engine's message. The shared conformance vectors run in `tests/date_plugin_vectors.rs`.
 
 use bigdecimal::ToPrimitive;
-use chrono::{Datelike, NaiveDate, TimeDelta};
 use event_script_macros::simple_plugin;
+use jiff::civil::Date;
+use jiff::Span;
 use rmpv::Value;
 
 use crate::conversions::display;
@@ -68,14 +69,18 @@ fn is_iso_date_shape(text: &str) -> bool {
         })
 }
 
-fn date(value: &Value, context: &str) -> Result<NaiveDate, String> {
+fn date(value: &Value, context: &str) -> Result<Date, String> {
     if let Value::String(s) = value {
         let text = s.as_str().unwrap_or_default();
         if is_iso_date_shape(text) {
             let field = |range: std::ops::Range<usize>| text[range].parse::<u32>().unwrap_or(0);
-            return i32::try_from(field(0..4))
-                .ok()
-                .and_then(|year| NaiveDate::from_ymd_opt(year, field(5..7), field(8..10)))
+            let year = i16::try_from(field(0..4)).ok();
+            let month = i8::try_from(field(5..7)).ok();
+            let day = i8::try_from(field(8..10)).ok();
+            return year
+                .zip(month)
+                .zip(day)
+                .and_then(|((year, month), day)| Date::new(year, month, day).ok())
                 .ok_or_else(|| format!("Not a calendar date in {context} - got '{text}'"));
         }
     }
@@ -96,7 +101,7 @@ fn days(value: &Value, context: &str) -> Result<i64, String> {
         .ok_or_else(|| out_of_range(context))
 }
 
-fn text(date: NaiveDate, context: &str) -> Result<String, String> {
+fn text(date: Date, context: &str) -> Result<String, String> {
     if (0..=9999).contains(&date.year()) {
         Ok(format!(
             "{:04}-{:02}-{:02}",
@@ -128,8 +133,10 @@ fn plugin_add_days(args: &[Value]) -> Result<Value, String> {
     expect_two(args, NAME)?;
     let from = date(&args[0], NAME)?;
     let count = days(&args[1], NAME)?;
-    let result = TimeDelta::try_days(count)
-        .and_then(|delta| from.checked_add_signed(delta))
+    let result = Span::new()
+        .try_days(count)
+        .ok()
+        .and_then(|span| from.checked_add(span).ok())
         .ok_or_else(|| out_of_range(NAME))?;
     Ok(Value::from(text(result, NAME)?))
 }
@@ -140,7 +147,9 @@ fn plugin_days_between(args: &[Value]) -> Result<Value, String> {
     expect_two(args, NAME)?;
     let from = date(&args[0], NAME)?;
     let to = date(&args[1], NAME)?;
-    Ok(Value::from(to.signed_duration_since(from).num_days().abs()))
+    // two writable dates are at most MAX_DAYS apart, so the span always fits
+    let days = to.since(from).map_err(|_| out_of_range(NAME))?.get_days();
+    Ok(Value::from(i64::from(days).abs()))
 }
 
 #[cfg(test)]

@@ -1638,6 +1638,10 @@ Example for parsing a date-time string to an ISO 3339 timestamp
 
 - f:parseDateTime(input.body.datetime, text(MM/dd/yyyy HH:mm:ss; iso))
 
+A parsed value is read as a local date-time in the application's time zone, as Java's `LocalDateTime.atZone(systemDefault())`
+reads it: a time that falls inside a daylight-saving gap moves forward by the gap, and a time that occurs twice takes
+the earlier offset.
+
 *Date arithmetic plugins*
 
 `f:addDays(date, days)` and `f:daysBetween(from, to)` compute with calendar dates — a due date from payment terms,

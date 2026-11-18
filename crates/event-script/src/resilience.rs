@@ -83,7 +83,7 @@ pub async fn handle(
     let input = MultiLevelMap::from_value(event.body().clone());
     let mut cumulative = get_int(&input, "cumulative", 0).max(0);
     let mut result = MultiLevelMap::new();
-    let now_ms = chrono::Utc::now().timestamp_millis();
+    let now_ms = jiff::Timestamp::now().as_millisecond();
     // still inside the backoff period?
     if input.key_exists("backoff") {
         let last_backoff = get_int(&input, "backoff", 0);

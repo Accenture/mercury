@@ -156,9 +156,11 @@ maintained), thiserror 1, log 0.4 (std feature),
 tokio 1 (rt-multi-thread/sync/time/macros/net/signal/io-util), async-trait 0.1,
 async-channel 2 (per-route MPMC queue), rmp-serde 1 + rmpv 1 (with-serde), uuid 1 (v4),
 **hyper 1 (http1/server) + hyper-util 0.1 + http-body-util 0.1** (D10 — REST automation;
-deliberately not a web framework: rest.yaml IS the router), **chrono 0.4 + chrono-tz 0.10 +
-iana-time-zone 0.1** (event-script date/time plugins; chrono-tz = the ZoneId.of analog,
-increment 53), **tokio-rustls 0.26 (ring) +
+deliberately not a web framework: rest.yaml IS the router), **jiff 1 (`tzdb-bundle-always`)** (the
+event-script date/time plugins and the engine's timestamps; `TimeZone::get` = the ZoneId.of analog, `TimeZone::system()`
+= systemDefault; Increment 207, 2026-11-18, replaced chrono 0.4 + chrono-tz 0.10 + iana-time-zone 0.1 after RustSec
+listed chrono and chrono-tz as unmaintained - the system's zoneinfo wins, the bundled copy serves a container without
+one), **tokio-rustls 0.26 (ring) +
 rustls-native-certs 0.8** (increment 48 — outbound HTTPS with OS-trust-store verification +
 `trust_all_cert`; rcgen dev-dep for the self-signed TLS test), **moka 0.12 (sync)**
 (increment 71 — the ManagedCache engine, Caffeine's Rust lineage, wrapped as an internal
