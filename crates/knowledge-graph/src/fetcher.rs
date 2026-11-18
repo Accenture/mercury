@@ -164,7 +164,7 @@ impl ProviderMetadata {
 fn lack_of_skill_advice(feature: &str) {
     static WARNED: OnceLock<Mutex<HashMap<String, i64>>> = OnceLock::new();
     let warned = WARNED.get_or_init(|| Mutex::new(HashMap::new()));
-    let now = chrono::Utc::now().timestamp_millis();
+    let now = jiff::Timestamp::now().as_millisecond();
     let mut map = warned.lock().expect("feature advisories");
     let last = map.get(feature).copied().unwrap_or(0);
     if now - last > WARNING_INTERVAL_MS {

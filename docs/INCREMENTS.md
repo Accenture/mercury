@@ -5621,3 +5621,35 @@ crate, 1.1.31 → 1.1.33, version and checksum alone; no other edge re-resolved.
 
 Gates: `cargo build -p mercury-minimalist-kafka -p kafka-demo` against the bumped crate, and the CI `audit` job on the pull
 request.
+
+## Increment 207 — jiff replaces chrono, chrono-tz and iana-time-zone (2026-11-18)
+
+Eric's direction after the `audit` gate of PR #415 listed `chrono` 0.4.45 and `chrono-tz` 0.10.4 as unmaintained: investigate
+jiff and replace if acceptable. Only two crates used them - `event-script` (the `now`, `dateTime`, `parseDate`,
+`parseDateTime`, `addDays` and `daysBetween` plugins; `chrono-tz` for the zone argument and `iana-time-zone` for the system
+zone) and `knowledge-graph` (timestamps, the Playground console's local time) - and nothing else in the workspace pulled
+them, so the three crates leave the lockfile entirely; `jiff` 1.0.1 (`tzdb-bundle-always`) replaces them.
+
+- **Acceptable, by probe before the port.** Every strftime token the Java-pattern converter emits exists in jiff with the
+  same meaning (`%Y %y %m %-m %d %-d %B %b %A %a %H %-H %I %-I %M %-M %S %-S %3f %p %z %:z %Z %%`); strptime parses the
+  12-hour clock with AM/PM and milliseconds and refuses trailing input; `TimeZone::get` resolves IANA names from the
+  system's zoneinfo, the bundled copy serving a container without one; `TimeZone::system()` names the zone
+  (`Asia/Hong_Kong` here); `civil::Date` covers years 0 to 9999 and the 3,652,424-day span the date plugins allow; a
+  local time inside a daylight-saving gap moves forward by the gap and an ambiguous one takes the earlier offset -
+  Java's `LocalDateTime.atZone(systemDefault())` rule, which chrono's `earliest()` did not follow (it returned an error
+  for the gap).
+- **The port.** `plugins_date.rs`: `civil::Date` with `Span::try_days` and `checked_add`, `since(...).get_days()`;
+  `plugins_e8.rs`: `java_pattern_to_chrono` → `java_pattern_to_strftime` (the tokens unchanged), `now` on
+  `Timestamp::now()` and the system zone, `dateTime` on `TimeZone::get` / `TimeZone::system()` with the `[zone-id]`
+  suffix from `iana_name()` (the offset alone when the system zone has no name - Java prints a fixed-offset zone that
+  way), the formatting through `strtime::format` so a failure is an error and never a panic, `parseDate` and
+  `parseDateTime` on `civil::Date::strptime` / `civil::DateTime::strptime` and `to_zoned_datetime(TimeZone::system())`;
+  `resilience.rs`, `graph_set_loader.rs`, `commands.rs`, `fetcher.rs`, `executor.rs` on `Timestamp`. The plugin test
+  computes its expected instant with jiff. No message a flow sees changed except the parser's own wording after
+  `unable to parse date -`.
+- **Docs.** `docs/guides/event-script/syntax.md` states the zone rule of the parse plugins. The Stack & Tools section of
+  continuity names jiff.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p
+mercury-event-script -p mercury-knowledge-graph` (38 suites, 201 tests), `cargo test --workspace` (151 suites, 774
+tests, 0 failures), and the CI `audit` job on the pull request. CHANGELOG Unreleased, `Changed` item 3.

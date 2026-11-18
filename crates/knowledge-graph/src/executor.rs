@@ -584,7 +584,7 @@ async fn check_frequency(
     node_name: &str,
     parent_span: &Option<String>,
 ) {
-    let now = chrono::Utc::now().timestamp_millis();
+    let now = jiff::Timestamp::now().as_millisecond();
     let (total, last) = {
         let mut hits = instance.hits.lock().expect("visit counters");
         let entry = hits.entry(node_name.to_string()).or_default();

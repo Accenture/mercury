@@ -263,26 +263,28 @@ fn plugin_now(args: &[Value]) -> Result<Value, String> {
     match command.to_ascii_lowercase().as_str() {
         "iso" => Ok(Value::from(platform_core::trace::iso8601_utc_now())),
         "local" => Ok(Value::from(
-            chrono::Local::now()
-                .format("%Y-%m-%d %H:%M:%S%.3f")
+            jiff::Timestamp::now()
+                .to_zoned_datetime(jiff::tz::TimeZone::system())
+                .strftime("%Y-%m-%d %H:%M:%S%.3f")
                 .to_string(),
         )),
-        "ms" => Ok(Value::from(chrono::Utc::now().timestamp_millis())),
+        "ms" => Ok(Value::from(jiff::Timestamp::now().as_millisecond())),
         _ => Err("Supported types are: iso, local, ms".to_string()),
     }
 }
 
-/// Convert a Java `DateTimeFormatter` pattern to a chrono format string
-/// (increment 53, parity F5 — was a naive six-token replace that passed
-/// everything else through as garbage). A real tokenizer: repeated pattern
-/// letters, `'quoted literals'` (with `''` as an escaped quote), literal
-/// separators (`%` escaped). Coverage is the practical Java letter set;
-/// an unsupported letter fails LOUDLY instead of producing wrong output.
-/// Known micro-divergences (closest chrono forms, documented): `X`/`XX`
-/// render as `+0530` (no minute-less form), `XXX` renders UTC as `+00:00`
-/// where Java prints `Z`; `z` is format-only (chrono cannot parse zone
-/// abbreviations).
-pub(crate) fn java_pattern_to_chrono(pattern: &str) -> Result<String, String> {
+/// Convert a Java `DateTimeFormatter` pattern to a strftime format string in
+/// jiff's dialect (increment 53, parity F5 — was a naive six-token replace that
+/// passed everything else through as garbage; increment 207 moved the target
+/// from chrono to jiff, whose conversion specifiers are the same for every
+/// token emitted here). A real tokenizer: repeated pattern letters, `'quoted
+/// literals'` (with `''` as an escaped quote), literal separators (`%` escaped).
+/// Coverage is the practical Java letter set; an unsupported letter fails
+/// LOUDLY instead of producing wrong output. Known micro-divergences (closest
+/// strftime forms, documented): `X`/`XX` render as `+0530` (no minute-less
+/// form), `XXX` renders UTC as `+00:00` where Java prints `Z`; `z` is
+/// format-only (jiff cannot parse zone abbreviations).
+pub(crate) fn java_pattern_to_strftime(pattern: &str) -> Result<String, String> {
     let chars: Vec<char> = pattern.chars().collect();
     let mut out = String::new();
     let push_literal = |out: &mut String, c: char| {
@@ -375,25 +377,37 @@ fn plugin_date_time(args: &[Value]) -> Result<Value, String> {
     // Java DateGenerator: ZonedDateTime.now(zone).format(pattern) — the
     // optional 2nd argument is the zone (ZoneId.of), previously silently
     // dropped (parity F5); no pattern → ISO_DATE_TIME with the [zone-id]
-    // suffix; no zone → the system default
-    let zone_name = match args.get(1) {
-        Some(zone) => get_text_value(zone),
-        None => iana_time_zone::get_timezone()
-            .map_err(|e| format!("unable to detect the system time zone - {e}"))?,
+    // suffix; no zone → the system default (ZoneId.systemDefault)
+    let (tz, zone_name) = match args.get(1) {
+        Some(zone) => {
+            let name = get_text_value(zone);
+            let tz = jiff::tz::TimeZone::get(&name)
+                .map_err(|_| format!("Unknown time zone '{name}'"))?;
+            (tz, name)
+        }
+        None => {
+            let tz = jiff::tz::TimeZone::system();
+            let name = tz.iana_name().map(str::to_string).unwrap_or_default();
+            (tz, name)
+        }
     };
-    let tz: chrono_tz::Tz = zone_name
-        .parse()
-        .map_err(|_| format!("Unknown time zone '{zone_name}'"))?;
-    let now = chrono::Utc::now().with_timezone(&tz);
+    let now = jiff::Timestamp::now().to_zoned_datetime(tz);
     match args.first() {
-        None => Ok(Value::from(format!(
-            "{}[{}]",
-            now.format("%Y-%m-%dT%H:%M:%S%.f%:z"),
-            zone_name
-        ))),
+        None => {
+            // Java's ISO_DATE_TIME: the [zone-id] suffix for a region, the offset alone for a
+            // zone that has no IANA name (a system whose /etc/localtime names none)
+            let stamp = now.strftime("%Y-%m-%dT%H:%M:%S%.f%:z").to_string();
+            Ok(Value::from(if zone_name.is_empty() {
+                stamp
+            } else {
+                format!("{stamp}[{zone_name}]")
+            }))
+        }
         Some(pattern) => {
-            let format = java_pattern_to_chrono(&get_text_value(pattern))?;
-            Ok(Value::from(now.format(&format).to_string()))
+            let format = java_pattern_to_strftime(&get_text_value(pattern))?;
+            jiff::fmt::strtime::format(&format, &now)
+                .map(Value::from)
+                .map_err(|e| format!("unable to format the date-time - {e}"))
         }
     }
 }
@@ -491,24 +505,25 @@ fn get_rules(text: &str) -> Vec<String> {
 }
 
 fn parsed_date_output(
-    local_datetime: chrono::NaiveDateTime,
+    local_datetime: jiff::civil::DateTime,
     rules: &[String],
 ) -> Result<Value, String> {
-    use chrono::TimeZone;
-    let zoned = chrono::Local
-        .from_local_datetime(&local_datetime)
-        .earliest()
-        .ok_or_else(|| "invalid local datetime".to_string())?;
+    // Java LocalDateTime.atZone(systemDefault()): an ambiguous local time takes the
+    // earlier offset and a time inside a daylight-saving gap moves forward by the
+    // gap - jiff's compatible disambiguation, the same rule
+    let zoned = local_datetime
+        .to_zoned_datetime(jiff::tz::TimeZone::system())
+        .map_err(|e| format!("invalid local datetime - {e}"))?;
     let output = rules.get(1).map(String::as_str).unwrap_or("iso");
     match output.to_ascii_lowercase().as_str() {
-        "ms" => Ok(Value::from(zoned.timestamp_millis())),
+        "ms" => Ok(Value::from(zoned.timestamp().as_millisecond())),
         "local" => Ok(Value::from(
-            zoned.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
+            zoned.strftime("%Y-%m-%d %H:%M:%S%.3f").to_string(),
         )),
         "iso" => Ok(Value::from(
             zoned
-                .with_timezone(&chrono::Utc)
-                .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+                .with_time_zone(jiff::tz::TimeZone::UTC)
+                .strftime("%Y-%m-%dT%H:%M:%S%.3fZ")
                 .to_string(),
         )),
         _ => Err("Supported types are: iso, local, ms".to_string()),
@@ -525,11 +540,10 @@ fn plugin_parse_date(args: &[Value]) -> Result<Value, String> {
                     "Invalid validation rule. Syntax: text(pattern, iso | local | ms)".to_string(),
                 );
             };
-            let format = java_pattern_to_chrono(pattern)?;
-            let date = chrono::NaiveDate::parse_from_str(&get_text_value(value), &format)
+            let format = java_pattern_to_strftime(pattern)?;
+            let date = jiff::civil::Date::strptime(&format, get_text_value(value))
                 .map_err(|e| format!("unable to parse date - {e}"))?;
-            let midnight = date.and_hms_opt(0, 0, 0).ok_or("invalid date")?;
-            parsed_date_output(midnight, &rules)
+            parsed_date_output(date.at(0, 0, 0, 0), &rules)
         }
         _ => Err("Invalid validation rule. Syntax: text(pattern, iso | local | ms)".to_string()),
     }
@@ -545,8 +559,8 @@ fn plugin_parse_date_time(args: &[Value]) -> Result<Value, String> {
                     "Invalid validation rule. Syntax: text(pattern, iso | local | ms)".to_string(),
                 );
             };
-            let format = java_pattern_to_chrono(pattern)?;
-            let datetime = chrono::NaiveDateTime::parse_from_str(&get_text_value(value), &format)
+            let format = java_pattern_to_strftime(pattern)?;
+            let datetime = jiff::civil::DateTime::strptime(&format, get_text_value(value))
                 .map_err(|e| format!("unable to parse datetime - {e}"))?;
             parsed_date_output(datetime, &rules)
         }

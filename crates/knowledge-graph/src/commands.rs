@@ -917,12 +917,13 @@ async fn show_session(po: &PostOffice, me: &Arc<GraphSession>, out_route: &str) 
 }
 
 fn local_timestamp(ms: i64) -> String {
-    use chrono::TimeZone;
-    chrono::Local
-        .timestamp_millis_opt(ms)
-        .single()
-        .map(|t| t.format("%Y-%m-%d %H:%M:%S%.3f").to_string())
-        .unwrap_or_else(|| ms.to_string())
+    jiff::Timestamp::from_millisecond(ms)
+        .map(|t| {
+            t.to_zoned_datetime(jiff::tz::TimeZone::system())
+                .strftime("%Y-%m-%d %H:%M:%S%.3f")
+                .to_string()
+        })
+        .unwrap_or_else(|_| ms.to_string())
 }
 
 async fn reset_session(po: &PostOffice, me: &Arc<GraphSession>, out_route: &str) {

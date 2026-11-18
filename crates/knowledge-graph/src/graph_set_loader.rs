@@ -418,7 +418,7 @@ fn write_generated_manifest(file: &Path, manifest: &str, unpack: &str, outcome: 
     );
     text.push_str(&format!(
         "# Unpacked {}\n",
-        chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ")
+        jiff::Timestamp::now().strftime("%Y-%m-%dT%H:%M:%S%.3fZ")
     ));
     for line in &outcome.provenance {
         text.push_str(&format!("# {line}\n"));
