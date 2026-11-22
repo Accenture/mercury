@@ -5653,3 +5653,25 @@ them, so the three crates leave the lockfile entirely; `jiff` 1.0.1 (`tzdb-bundl
 Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p
 mercury-event-script -p mercury-knowledge-graph` (38 suites, 201 tests), `cargo test --workspace` (151 suites, 774
 tests, 0 failures), and the CI `audit` job on the pull request. CHANGELOG Unreleased, `Changed` item 3.
+
+## Increment 208 — the unused `async-channel` dependency leaves platform-core (2026-11-21)
+
+cargo 1.100, the stable toolchain a fresh machine installs today and the one CI floats to, reports a dependency that is
+declared but never used: `warning: unused dependency 'async-channel'` at `crates/platform-core/Cargo.toml`, on every
+`cargo build`, `cargo clippy` and `cargo test`. The warning is right. `async-channel = "2"` was written for increment
+2's design, one MPMC channel per route, but Increment 3's manager-worker dispatch (the `ServiceQueue` port) replaced that
+design before the first commit that carries the line (`bf8c46fb`, increments 2 to 5 together), and no Rust source on
+`main` has ever referenced the crate: the per-route mailbox and the per-worker channels are `tokio::sync::mpsc`
+(`platform.rs`). Nothing else in the workspace pulled it.
+
+The line is removed. The lockfile loses `async-channel` 2.5.0 and `concurrent-queue` 2.5.0, which only it required; no
+other edge re-resolved. No source changes and no behaviour change; the workspace compiles two crates fewer. The Stack &
+Tools section of continuity names the dispatch in place of the crate.
+
+Not changed, and raised with the maintainer: the abstract of ADR-0002 and section 5.4 of
+`draft-design-specs/platform-core-port.md` still describe the event bus as an `async-channel` MPMC queue per route. Both
+are records of a decision, so neither is reworded without a ruling.
+
+Gates: `cargo build --workspace --all-targets` with no warning, `cargo fmt --all --check`, `cargo clippy --workspace
+--all-targets -- -D warnings`, `cargo test --workspace`, and the CI `audit` job on the pull request. CHANGELOG
+Unreleased, `Changed` item 4.
