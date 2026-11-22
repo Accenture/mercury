@@ -30,10 +30,79 @@ raised as *Proposed* under the older practice and were confirmed together when i
 > verbatim in intent**; each entry keeps its original number for cross-referencing, and its
 > original decision **Date** (when the decision was first made in the Java project). Where the
 > Rust *realization* differs from the Java one, the entry says so explicitly — chiefly
-> **ADR-0002** (tokio async/await rather than Java 21 virtual threads over Vert.x) and
+> **ADR-0002** (tokio async/await rather than Java 21 virtual threads over Vert.x; superseded
+> 2026-11-22 by ADR-0019, which restates that realization with the event bus as built) and
 > **ADR-0006** (the Kafka service mesh is out of scope for this port). Continuity invariants
 > are distilled incrementally (only `inv-never-couple-functions` / ADR-0001 is formalized so
 > far); each `formalizes:` names the intended constraint id.
+
+---
+
+## ADR-0019 — Async event engine: sequential-reading RPC on tokio, dispatched by a per-route manager and its workers {#adr-0019}
+**Status:** Accepted · **Date:** 2026-11-22T06:25:13.000Z · **Serves:** vision-mercury · **Supersedes:** [ADR-0002](#adr-0002)
+<!-- id: adr-0019 | status: accepted | supersedes: adr-0002 | formalizes: inv-async-tokio-rpc -->
+
+**Abstract.** Functions execute as **tokio tasks** over an in-memory event bus built from
+tokio's own channels; no other channel crate is involved. Each route has one **manager task**
+and `instances` **worker tasks** (1 to 1000). A sender delivers into the manager's **bounded
+mailbox** (`tokio::sync::mpsc`; `elastic.queue.dispatch.mailbox.size`, default 1024, minimum
+20) and awaits when it is full: back-pressure, not drops. Workers **pull**: a worker announces
+that it is ready, receives exactly one event on its own capacity-1 channel, runs the function,
+delivers the reply when the event names a `reply_to`, and announces again, so a worker has at
+most one event in flight. The manager hands each event to the next ready worker, first ready
+first served; with no worker free it buffers through the route's **elastic queue** (the first
+20 events in memory, the overflow in segment files) and drains one event per ready signal
+until the queue is empty. A PostOffice RPC call (`po.request(...).await`) reads as a
+straight-line request→reply to the caller, while the tokio runtime multiplexes many in-flight
+requests over a small pool of OS threads, so sequential-style code performs at async
+throughput. The dispatch is the port of the Java engine's `ServiceQueue` state machine and
+`WorkerHandler` ready-signal protocol (`crates/platform-core/src/platform.rs`).
+
+**What this entry supersedes.** ADR-0002's abstract named the event bus as an `async-channel`
+queue, "one MPMC queue per route". That was the design of increment 2. Increment 3, on the
+maintainer's direction to port the Java FIFO reactive back-pressure handler, replaced it with
+the dispatch above before the event bus was first committed, so the MPMC queue was never
+built: no source file ever used `async-channel`, and the unused dependency left the manifest
+in Increment 208. Everything else ADR-0002 decided stands here unchanged: the goal, tokio
+`async`/`await` as the realization, the lineage and the port's consequences.
+
+**Rationale.** The **goal is identical** to the Java framework's: keep the **clarity of
+sequential code** (the code reads as the intent of the application) without paying the
+throughput cost of blocking an OS thread per in-flight request. Java achieves this with
+**Java 21 virtual threads over an Eclipse Vert.x event bus**: a virtual thread is suspended
+and its carrier kernel thread released across an RPC. The Rust port achieves the same
+property natively with **`async`/`await` on tokio**: an `.await` suspends the task and frees
+the worker thread, with no virtual-thread machinery. The lineage is preserved and extended:
+Scala/Akka actor model (Mercury v1) → Vert.x event bus (v2) → non-blocking engine (v3) → Java
+21 virtual threads (v3.1+) → **tokio async (this Rust port)**. The alternatives considered for
+the port were the same in spirit as Java's, a hand-rolled thread-per-request pool (caps
+concurrency) and a fully callback-style API (harder to read), and both were rejected for the
+reasons Java rejected them.
+
+The dispatch is the manager and its workers, not a queue the workers share, for three
+reasons. **Fidelity:** it is the Java design, so a route behaves the same on both engines
+under load: events are dispatched in the order they arrived, a burst is absorbed by the
+elastic queue instead of being dropped or held in unbounded memory, and the spilled record
+format on disk is byte-identical to the Java store's. A shared MPMC queue keeps the order
+but has nowhere to put a burst: bounded, it stalls its senders at capacity; unbounded, it
+grows in memory. **Sufficiency:** increment 2 reached for an MPMC crate because tokio's
+`mpsc` has a single consumer, and several workers were to share one receiver. Here the
+manager is the only consumer of the mailbox and each worker the only consumer of its own
+channel, so tokio's channels are enough. **Economy:** the engine carries one runtime and no
+second channel implementation.
+
+Consequences specific to the port: the framework requires the tokio runtime, and `register`
+must be called within one, since managers and workers are spawned tasks; the actor-model
+discipline is enforced by the borrow checker plus the route-only coupling rule (ADR-0001),
+notably **never hold a `MutexGuard` across an `.await`**; an event is serialized (MsgPack)
+only when it spills into the elastic queue, a deliberate divergence from Java, where every
+bus message is already bytes; a route registered with one worker is a strict FIFO lane, which
+route pools build on (ADR-0017); the Event Script engine's own routes (`event.script.manager`,
+`task.executor`) and the RPC reply listener run directly on a fresh task and bypass the
+queue, so orchestration never waits on its own mailbox, an engine privilege that registration
+does not expose; and the port's platform-core benchmark, taken on this dispatch, measured it
+**outperforming** the Java virtual-thread baseline on the same RPC workloads (see
+`docs/INCREMENTS.md`, the platform-core milestone).
 
 ---
 
@@ -682,8 +751,8 @@ over the state machine is the primary tool; JSON-Path (`$.…`) is the escape fo
 ---
 
 ## ADR-0002 — Async event engine: sequential-reading RPC at reactive performance {#adr-0002}
-**Status:** Accepted · **Date:** 2026-06-22T22:47:23.000Z · **Serves:** vision-mercury
-<!-- id: adr-0002 | status: accepted | formalizes: inv-async-tokio-rpc -->
+**Status:** Superseded by [ADR-0019](#adr-0019) (2026-11-22: the abstract's `async-channel` event bus, one MPMC queue per route, was never built; the goal, tokio `async`/`await` as the realization, the lineage and the consequences stand there unchanged) · **Date:** 2026-06-22T22:47:23.000Z · **Serves:** vision-mercury
+<!-- id: adr-0002 | status: superseded | superseded-by: adr-0019 -->
 
 **Abstract.** Functions execute as **tokio tasks** over an **`async-channel`** in-memory event bus
 (one MPMC queue per route, with FIFO back-pressure). A PostOffice RPC call (`po.request(...).await`)

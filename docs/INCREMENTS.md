@@ -5654,7 +5654,7 @@ Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D 
 mercury-event-script -p mercury-knowledge-graph` (38 suites, 201 tests), `cargo test --workspace` (151 suites, 774
 tests, 0 failures), and the CI `audit` job on the pull request. CHANGELOG Unreleased, `Changed` item 3.
 
-## Increment 208 — the unused `async-channel` dependency leaves platform-core (2026-11-21)
+## Increment 208 — the unused `async-channel` dependency leaves platform-core, and ADR-0019 supersedes ADR-0002 (2026-11-21)
 
 cargo 1.100, the stable toolchain a fresh machine installs today and the one CI floats to, reports a dependency that is
 declared but never used: `warning: unused dependency 'async-channel'` at `crates/platform-core/Cargo.toml`, on every
@@ -5668,10 +5668,19 @@ The line is removed. The lockfile loses `async-channel` 2.5.0 and `concurrent-qu
 other edge re-resolved. No source changes and no behaviour change; the workspace compiles two crates fewer. The Stack &
 Tools section of continuity names the dispatch in place of the crate.
 
-Not changed, and raised with the maintainer: the abstract of ADR-0002 and section 5.4 of
-`draft-design-specs/platform-core-port.md` still describe the event bus as an `async-channel` MPMC queue per route. Both
-are records of a decision, so neither is reworded without a ruling.
+The removal surfaced two records that still described the event bus as an `async-channel` MPMC queue per route: the
+abstract of ADR-0002 and section 5.4 of `draft-design-specs/platform-core-port.md`. Both record a decision, so they were
+raised with the maintainer first, and corrected on the maintainer's ruling the same day:
+
+- **ADR-0019 supersedes ADR-0002.** The new entry restates the decision with the event bus as built: tokio tasks, one
+  manager task and its worker tasks per route on `tokio::sync::mpsc` (a bounded mailbox, one capacity-1 channel per
+  worker), workers pulling by ready signal, the elastic queue behind the manager. The goal, tokio `async`/`await` as the
+  realization, the lineage and the consequences carry over unchanged. ADR-0002 is marked *Superseded*, its text left in
+  place; the ledger's provenance note names the successor.
+- **The design spec states the current design.** Section 5.4 describes the dispatch as built and says why no MPMC
+  channel crate is needed; the mapping table of section 3, the worker loop of section 5.6 and open question 5 of section
+  8 follow, and the header carries a dated note.
 
 Gates: `cargo build --workspace --all-targets` with no warning, `cargo fmt --all --check`, `cargo clippy --workspace
---all-targets -- -D warnings`, `cargo test --workspace`, and the CI `audit` job on the pull request. CHANGELOG
-Unreleased, `Changed` item 4.
+--all-targets -- -D warnings`, `cargo test --workspace`, the AI-contract snapshot tests again after the ledger edit, and
+the CI `audit` job on the pull request. CHANGELOG Unreleased, `Changed` item 4.

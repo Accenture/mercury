@@ -77,7 +77,8 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
 4. **The unused `async-channel` dependency leaves `mercury-platform-core` (Increment 208).** cargo 1.100 reports a
    dependency that is declared but never used, and this one was: the per-route queue has been the manager-worker
    dispatch on `tokio::sync::mpsc` since Increment 3. The lockfile loses `async-channel` and `concurrent-queue`.
-   **Upgrade note:** none - no source or behaviour change.
+   ADR-0019 supersedes ADR-0002 to record the event bus as built, and the platform-core design spec states the current
+   design. **Upgrade note:** none - no source or behaviour change.
 
 ### Security
 
