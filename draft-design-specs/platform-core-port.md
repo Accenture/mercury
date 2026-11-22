@@ -11,6 +11,11 @@
 > (main app, unit tests, integration tests) relies on it. Increment 1 is now **config
 > management**; the event-bus foundation moves to increment 2. Spring is confirmed fully
 > **out of scope** (Java-only), not merely deferred.
+>
+> **Updated 2026-11-22 (maintainer's ruling; ADR-0019 supersedes ADR-0002):** §3, §5.4, §5.6 and
+> §8 question 5 now state the event bus **as built** - the manager-worker dispatch on tokio's own
+> channels. The `async-channel` MPMC queue those sections first described was replaced by
+> increment 3 (§5b) before the event bus was first committed and was never built.
 
 ## 1. Goal & scope
 
@@ -56,7 +61,7 @@ and parameterized by **configuration files in `resources/`**.
 | `EventEnvelope` (Object body, MsgPack) | `EventEnvelope` struct; body as `rmpv::Value` | increment 2 |
 | `TypedLambdaFunction<I,O>` / `LambdaFunction` | untyped `ComposableFunction` trait (+ typed adapter) | increment 2 |
 | `Platform` (singleton registry) | `Platform` (`Arc`, shared) | increment 2 |
-| Vert.x event bus | per-route **MPMC channel** (`async-channel`) + N worker tasks | increment 2 |
+| Vert.x event bus | per-route **manager task** + N **worker tasks** on `tokio::sync::mpsc` (a bounded mailbox, one capacity-1 channel per worker), the route's `ElasticQueue` behind the manager | §5.4, §5b; ADR-0019 |
 | `PostOffice.send` / `.request` | `PostOffice::send` / `::request(timeout)` | increment 2 |
 | `AppException(status, message)` | `AppError { status, message }` | shared |
 | `@PreLoad` classpath scan | `#[preload]` → link-time `inventory` collection (explicit `register` remains underneath) | D6, §5i |
@@ -235,9 +240,39 @@ response envelope with that status.
 ### 5.4 `Platform` (registry + worker pools)
 
 `register(route, f, instances)` / `has_route` / `release` / `routes`. Route validation as Java
-(lowercase, dot-separated, ≥1 dot). Each route: one `async-channel` (MPMC) sender + `instances`
-worker tasks sharing the receiver → point-to-point to exactly one free worker. (tokio's mpsc is
-single-consumer — hence `async-channel`.) Broadcast deferred.
+(lowercase, dot-separated, ≥1 dot). `instances` is clamped to 1–1000 (Java `ServiceDef`), and
+registering a route that exists reloads it.
+
+**Current design (as built since increment 3; ADR-0019).** The event bus is the manager-worker
+dispatch, on tokio's own channels:
+
+- **One manager task and `instances` worker tasks per route.**
+- **The mailbox.** `Platform::deliver` sends an event into the manager's bounded
+  `tokio::sync::mpsc` mailbox (`elastic.queue.dispatch.mailbox.size`, default 1024, min 20) and
+  awaits when it is full - back-pressure, not drops. The mailbox carries two kinds of message: an
+  event to dispatch, and a worker's ready signal.
+- **Workers pull.** Each worker has its own capacity-1 `mpsc` channel from the manager. It
+  announces `Ready`, takes one event, runs the function, delivers the reply when the event names
+  a `reply_to`, and announces again - at most one event in flight per worker.
+- **The manager dispatches.** It hands each event to the next ready worker, first ready first
+  served, so an event reaches exactly one worker (point-to-point). With no worker free it buffers
+  through the route's `ElasticQueue` and drains one event per ready signal until the queue is
+  empty. §5b has the state machine and the queue's two tiers.
+- **Release** stops the manager; the workers exit as their channels close and the elastic queue
+  is destroyed.
+- **Direct routes.** The Event Script engine's `event.script.manager` and `task.executor`, and
+  the RPC reply listener, run on a fresh task and bypass the queue (`RESERVED_ENGINE_ROUTES`), so
+  orchestration never waits on its own mailbox. Registration does not expose this.
+- **Route pools** (`register_route_pool`, ADR-0017) are `{prefix}.{n}` private routes of one
+  worker each, every one a strict FIFO lane.
+- **Broadcast is not ported.**
+
+**No MPMC channel crate.** The first draft of this section gave each route one `async-channel`
+(MPMC) sender with its workers sharing the receiver, because tokio's `mpsc` has a single
+consumer. The manager-worker design does not need one: the manager is the only consumer of the
+mailbox, and each worker the only consumer of its own channel. Increment 3 (§5b) replaced the
+draft before the event bus was first committed, so `async-channel` was never used by a source
+file; the unused dependency left the manifest in Increment 208.
 
 ### 5.5 `PostOffice`
 
@@ -247,9 +282,10 @@ timeout → `AppError{408}`, inbox released either way).
 
 ### 5.6 Worker invocation
 
-Worker loop: receive → `handle_event` → `Ok(out)`/`Err(e)→error envelope` → stamp `exec_time`
-→ if input had `reply_to`, deliver the response (same `cid`) via the platform. The minimal
-analog of `WorkerHandler` + `ServiceQueue` + inbox correlation.
+Worker loop: announce `Ready` → receive one event → `handle_event` → `Ok(out)`/`Err(e)→error
+envelope` → stamp `exec_time` → if input had `reply_to`, deliver the response (same `cid`) via
+the platform → announce `Ready` again. The analog of `WorkerHandler`; the `ServiceQueue` side is
+the manager of §5.4 and §5b.
 
 ### 5.7 Test plan — increment 2
 
@@ -706,6 +742,9 @@ event-script design E-3, `event-script-port.md` §5c; the cache utility — incr
 3. **Route naming** — keep Java's dotted route names (`v1.get.profile`) verbatim? *(Assumed
    yes — routes are data.)*
 4. **Edition/MSRV** — Rust 2021, latest stable toolchain? *(Assumed yes.)*
-5. **`async-channel`** for the per-route MPMC queue (increment 2), or a tokio-only dispatcher
-   fan-out? *(Recommend `async-channel`.)*
+5. **`async-channel`** ~~for the per-route MPMC queue (increment 2), or a tokio-only dispatcher
+   fan-out? *(Recommend `async-channel`.)*~~ **DECIDED by increment 3 (maintainer, 2026-07-15),
+   recorded 2026-11-22 as ADR-0019: the tokio-only dispatcher** - a manager task and its worker
+   tasks on `tokio::sync::mpsc`, the port of the Java `ServiceQueue` (§5.4, §5b). `async-channel`
+   was never used and left the manifest in Increment 208.
 6. Anything to pull into / push out of increments 1–2?

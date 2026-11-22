@@ -153,8 +153,12 @@ of the archived `serde_yaml`, wired as `serde_yaml = { package = "yaml_serde", v
 `use serde_yaml::` stays — migrated 2026-09-24 after Eric saw `serde_yaml v0.9.34+deprecated` in the 4.12.16 publish
 log; its parser `libyaml-rs` is libyaml transliterated by c2rust, the same technique as the retired `unsafe-libyaml`,
 maintained), thiserror 1, log 0.4 (std feature),
-tokio 1 (rt-multi-thread/sync/time/macros/net/signal/io-util), async-trait 0.1,
-async-channel 2 (per-route MPMC queue), rmp-serde 1 + rmpv 1 (with-serde), uuid 1 (v4),
+tokio 1 (rt-multi-thread/sync/time/macros/net/signal/io-util; the per-route queue is the manager-worker dispatch of
+Increment 3 on `tokio::sync::mpsc`, a bounded mailbox and one capacity-1 channel per worker, recorded as ADR-0019, which
+superseded ADR-0002 on 2026-11-22 - `async-channel`, declared
+for increment 2's MPMC design and never used by a source file, left the manifest in Increment 208, 2026-11-21, after
+cargo 1.100 reported it as a declared-but-unused dependency, the warning `cargo::unused_dependencies`), async-trait 0.1,
+rmp-serde 1 + rmpv 1 (with-serde), uuid 1 (v4),
 **hyper 1 (http1/server) + hyper-util 0.1 + http-body-util 0.1** (D10 — REST automation;
 deliberately not a web framework: rest.yaml IS the router), **jiff 1 (`tzdb-bundle-always`)** (the
 event-script date/time plugins and the engine's timestamps; `TimeZone::get` = the ZoneId.of analog, `TimeZone::system()`
