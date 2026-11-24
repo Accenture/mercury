@@ -370,7 +370,7 @@ layers shipped; the two above have held through every re-verify.)*
   <!-- id: historical-releases-tags-and-pages-rust | created: 2026-11-13 | last_used: 2026-11-13 | uses: 1 | tier: working | origin: 2026-11-13-022524 -->
 
 - **A Node statement names the current Node.js LTS as the version to use and keeps the true minimum in brackets, and a
-  CI action's Node runtime is moved by the action's own release (the maintainer, 2026-11-23; Increment 209).** Asked
+  CI action's Node runtime is moved by the action's own release (the maintainer, 2026-11-23; Increment 209, PR #418).** Asked
   whether the "Node.js 18+" statements should stay as technical floors, the maintainer chose to state Node 26: "Node.js
   26 LTS (minimum 18)" in the READMEs of `hello-world`, `kafka-demo`, `sync-over-async-demo` and `api-playground` and the
   headers of the two `sse-client.mjs` and of `fetch-swagger-ui.js`. `templates/starter-graph/scripts/ai-companion-broker.mjs`
