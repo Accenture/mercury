@@ -5,4 +5,4 @@
   thread edited on main conflicts with a stacked branch's edit of the same paragraph, so record a stacked item's merge in
   its session log and let the close carry it. origin: 2026-11-05-181529.
   → serves: vision-mercury
-  <!-- id: catch-up-java-4-12-29 | created: 2026-11-05 | last_used: 2026-11-05 | uses: 5 | tier: active | origin: 2026-11-05-181529 -->
+  <!-- id: catch-up-java-4-12-29 | created: 2026-11-05 | last_used: 2026-11-05 | uses: 5 | tier: archive-candidate | origin: 2026-11-05-181529 -->

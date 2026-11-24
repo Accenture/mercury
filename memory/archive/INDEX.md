@@ -139,3 +139,6 @@
 - mock-upload-loads-every-member — A mock-data upload travels like a command: it loads every member's instance (Eric's design… — faded — 2026-Q4.md
 - graph-set-pack-and-deploy-rust — Graph sets follow ADR-0027 in the Java repository's ledger (RFC-0005, promoted 2026-10-06)… — faded — 2026-Q4.md
 - reverify-invariants-20261024 — Re-verify invariants: Eric walked the 7 `core` facts and the Vision on 2026-10-24; all con… — completed thread swept (older than archive_window) — 2026-Q4.md
+- confluent-client-parity-rust — The Schema Registry client follows the mechanisms of the Confluent client the Java engine… — faded — 2026-Q4.md
+- release-4-12-26 — Release v4.12.26 — SHIPPED 2026-10-26: the lock-step twin of Java 4.12.26, catching up fro… — completed thread swept (older than archive_window) — 2026-Q4.md
+- release-4-12-27 — Release v4.12.27 — SHIPPED 2026-10-30: the lock-step twin of Java 4.12.27 (the dead-letter… — completed thread swept (older than archive_window) — 2026-Q4.md

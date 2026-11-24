@@ -71,16 +71,21 @@
   facade, `Platform::keep_running`, `group.protocol=auto`; 12 crates. Origin 2026-09-22-010413.md.) Prior: v4.12.12
   (2026-09-21 — the catch-up release 4.12.7 → 4.12.12 in one step, PR #296 → `983e7550`, tag → `1ef183cb`; Increments 118–124.)
 - **last_enabled:** 2026-07-15
-- **last_review:** 2026-11-13 | through 2026-11-13-023344.md (ON COMMAND + CADENCE — 12 sessions since the 2026-11-03
-  review, this log included: `refresh-metadata` refreshed 6 footers, tier changes 6 (`catch-up-java-4-12-29` and
-  `release-4-12-30` → active; `confluent-client-parity-rust`, `conv-tests-remove-temp-files-rust`, `release-4-12-26` and
-  `release-4-12-27` → archive-candidate); archived 2 faded facts (`mock-upload-loads-every-member` 22 sessions,
-  `graph-set-pack-and-deploy-rust` 31) after step 6 found no reliance; swept 1 completed thread
-  (`reverify-invariants-20261024`, 21); `catch-up-java-4-12-29` condensed to a stub, its stale "Next: the release at 4.12.29"
-  corrected (shipped in 4.12.30); reactivated 0, superseded 0; archive-verify pass; invariants not due (22 of 40 since
-  2026-10-24-042748); stalled threads none (no unchecked thread); contradictions none; Doc Gaps: none in the window; next to
-  cross the window: `webapp-single-source-java-repo` (20), a likely declaration gap (Increment 200 deployed the bundle and
-  help from the Java repo), KEPT the same day as one (2026-11-13-032326); live facts 18 → 15. Smoke test not run.)
+- **last_review:** 2026-11-24 | through 2026-11-24-064252.md (ON COMMAND + CADENCE — 14 sessions since the 2026-11-13 review,
+  this log included: `refresh-metadata` refreshed 11 footers (8 before the review log, 3 after it), tier changes 8
+  (`conv-guides-follow-java-rust`, `date-month-year-plugins` and `conv-tests-remove-temp-files-rust` → active;
+  `decimal-result-precision-limit-rust`, `historical-releases-tags-and-pages-rust`, `playground-agent-graphs-twin`,
+  `catch-up-java-4-12-29` and `release-4-12-30` → archive-candidate);
+  archived 1 faded fact (`confluent-client-parity-rust`, 29 sessions) after step 6 found no commit on the registry
+  client and no mention of its subject in the window; KEPT `conv-tests-remove-temp-files-rust` (29) as a declaration
+  gap, its third: Increments 199 and 205 added test binaries that register `run_at_exit` and write under `temp_path`
+  without declaring it (2026-11-05-192553, 2026-11-18-105101); swept 2 completed threads (`release-4-12-26` 30,
+  `release-4-12-27` 27); reactivated 0, superseded 0; archive-verify pass; invariants not due (13 of 40 since
+  2026-11-13-032326); stalled threads none (one unchecked thread, `guides-alignment-with-java`, opened today);
+  contradictions none; Doc Gaps: none in the window; live facts 22 → 19. Smoke test not run.)
+  Prior: 2026-11-13 | through 2026-11-13-023344.md (ON COMMAND + CADENCE — refreshed 6 footers, tier changes 6; archived 2
+  faded facts; swept 1 thread (`reverify-invariants-20261024`); `webapp-single-source-java-repo` KEPT the same day as a
+  declaration gap; live facts 18 → 15)
   Prior: 2026-11-03 | through 2026-11-03-005834.md (CADENCE — refreshed 6 footers, tier changes 4; archived 0; swept 1 thread
   (`release-4-12-24`); one stale statement corrected (the "released lock-step" wording); live facts 16 → 15)
   Prior: 2026-10-24 | through 2026-10-24-040826.md (ON COMMAND + CADENCE — refreshed 5 footers, tier changes 2; archived 3 faded
@@ -220,20 +225,6 @@ layers shipped; the two above have held through every re-verify.)*
   substance unchanged.)
   <!-- id: port-bottom-up-faithful | created: 2026-07-15 | last_used: 2026-08-30 | uses: 104 | tier: core | origin: 2026-07-15-215538.md -->
 
-- **The Schema Registry client follows the mechanisms of the Confluent client the Java engine uses (Eric, 2026-10-30;
-  Increments 191 and 193, PR #399).** The Java `minimalist-kafka` gets its registry behaviour from Confluent's
-  `CachedSchemaRegistryClient` as a library; this engine's client is its own implementation, so it reproduces that
-  behaviour by name and default rather than inventing a policy: the request retry (`RetryExecutor`: `max.retries` 3,
-  `retries.wait.ms` 1000, `retries.max.wait.ms` 20000, the statuses 408, 429, 500, 502, 503 and 504, full jitter) and the
-  caching (a schema by id for the life of the process, bounded to 1000; `latest` for `latest.cache.ttl.sec`, 60 s; the
-  pinned-version cache the Java module adds because Confluent lacks it). **Why:** Eric's two rulings of that day - a
-  retry built only where the client lacks one, and "the Rust version is our own implementation so it needs to follow
-  the same caching mechanism". **How to apply:** before changing registry behaviour on either engine, read what
-  Confluent's client does (the 8.x sources jars in `~/.m2`: `CachedSchemaRegistryClient`, `RestService`,
-  `RetryExecutor`, `SchemaRegistryClientConfig`) and measure it against a counting registry; the Java repository's
-  thread `minimalist-kafka-schema-cache-ruling` holds the measurements. Applies [[port-bottom-up-faithful]].
-  <!-- id: confluent-client-parity-rust | created: 2026-10-30 | last_used: 2026-10-30 | uses: 1 | tier: archive-candidate | origin: 2026-10-30-190735 -->
-
 - **A `DECIMAL` result carries at most a configured number of decimal places - the node's `precision`, else the
   application's `big.decimal.precision` (default 6) - rounded HALF_UP beyond the limit and kept as computed within it
   (Increment 202, 2026-11-17; the twin of mercury-composable #637 and its ADR-0034, which supersedes the Java ADR-0025's
@@ -248,7 +239,7 @@ layers shipped; the two above have held through every re-verify.)*
   statement's result), reads the same two settings by the same names and is proven with the Java fixture copied
   verbatim; the Playground help carries the rule, so the bundle and help were redeployed from the Java repo
   ([[webapp-single-source-java-repo]]).
-  <!-- id: decimal-result-precision-limit-rust | created: 2026-11-17 | last_used: 2026-11-17 | uses: 1 | tier: working | origin: 2026-11-17-061303 -->
+  <!-- id: decimal-result-precision-limit-rust | created: 2026-11-17 | last_used: 2026-11-17 | uses: 1 | tier: archive-candidate | origin: 2026-11-17-061303 -->
 
 - **The Playground example ships the Java example's agent graphs as the same models, with the example's own tool
   functions ported and the agent-loop crate linked (Increment 205, 2026-11-18, Eric's direction).** `order-assistant`,
@@ -263,7 +254,7 @@ layers shipped; the two above have held through every re-verify.)*
   corpus change, copy the files - never edit the Rust copies by hand; a new example tool is a Rust function in the
   example's lib, a new peer route an entry of `event-over-http.yaml` (one route per entry); the engine binary finds
   `resources/` relative to its working directory, so run it from the example's folder.
-  <!-- id: playground-agent-graphs-twin | created: 2026-11-18 | last_used: 2026-11-18 | uses: 1 | tier: working | origin: 2026-11-18-105101 -->
+  <!-- id: playground-agent-graphs-twin | created: 2026-11-18 | last_used: 2026-11-18 | uses: 1 | tier: archive-candidate | origin: 2026-11-18-105101 -->
 
 ## Conventions
 
@@ -344,7 +335,7 @@ layers shipped; the two above have held through every re-verify.)*
   of a Java webapp fix). `Cargo.toml` has no `exclude` any more; `cargo package --list` carries 214 files, the 42 help pages, the bundle and the entry page, no
   webapp path and no source map. The source maps stay gitignored here. Supersedes [[webapp-bundle-follows-help-edits]] (the rule that a help edit needs the rebuilt bundle still holds, now from the
   Java repo). Relates [[example-and-template-carry-their-flows]].
-  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-11-13 | uses: 24 | tier: active | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
+  <!-- id: webapp-single-source-java-repo | created: 2026-10-02 | last_used: 2026-11-24 | uses: 27 | tier: active | supersedes: webapp-bundle-follows-help-edits | origin: 2026-10-02-180239 -->
 
 - **Tests remove the temporary files they write when they complete, verified by measuring (Eric, 2026-10-06; Increment 162, PR
   #360 merge `acf767d7`, MERGED 2026-10-06 05:35Z).** A test binary runs its tests in parallel and has no after-all hook. Per-process files go under `test_support::temp_path`
@@ -355,7 +346,7 @@ layers shipped; the two above have held through every re-verify.)*
   of its own, because the cleanup removes the holding area. Verify per test binary: a marker file, each binary run from its package
   folder, then `find -newer` over the system temp folder and `/tmp`. Java twin fact `conv-tests-remove-temp-files`; the thread is the
   Java repository's `test-temp-file-housekeeping`.
-  <!-- id: conv-tests-remove-temp-files-rust | created: 2026-10-06 | last_used: 2026-10-30 | uses: 6 | tier: archive-candidate | origin: 2026-10-06-053150 -->
+  <!-- id: conv-tests-remove-temp-files-rust | created: 2026-10-06 | last_used: 2026-11-24 | uses: 7 | tier: active | origin: 2026-10-06-053150 -->
 
 - **The Java Mercury's releases v1.12.8 to v3.0.19 live here as tags and GitHub releases; their branches are gone (Eric,
   2026-11-13).** This repository held the Java Mercury (1.x to 3.x) before the Rust port graduated into it, and tags
@@ -367,7 +358,7 @@ layers shipped; the two above have held through every re-verify.)*
   own tags (3.0.17, 3.0.18, 3.0.19), and their notes carry the right heading and say so. Java twin
   `historical-releases-tags-and-pages`. **How to apply:** find an old release by its tag or release page, never a
   branch; a release published after the fact passes `--latest=false`.
-  <!-- id: historical-releases-tags-and-pages-rust | created: 2026-11-13 | last_used: 2026-11-13 | uses: 1 | tier: working | origin: 2026-11-13-022524 -->
+  <!-- id: historical-releases-tags-and-pages-rust | created: 2026-11-13 | last_used: 2026-11-13 | uses: 1 | tier: archive-candidate | origin: 2026-11-13-022524 -->
 
 - **A Node statement names the current Node.js LTS as the version to use and keeps the true minimum in brackets, and a
   CI action's Node runtime is moved by the action's own release (the maintainer, 2026-11-23; Increment 209, PR #418).** Asked
@@ -401,7 +392,7 @@ layers shipped; the two above have held through every re-verify.)*
   review's main lesson: the commonest difference was not between the engines but a Rust sentence the Rust source no
   longer matches, so a guide statement about what is "not ported" or what "fails" is checked against the code when
   the code changes.
-  <!-- id: conv-guides-follow-java-rust | created: 2026-11-24 | last_used: 2026-11-24 | uses: 1 | tier: working | origin: 2026-11-24-044858 -->
+  <!-- id: conv-guides-follow-java-rust | created: 2026-11-24 | last_used: 2026-11-24 | uses: 3 | tier: active | origin: 2026-11-24-044858 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 

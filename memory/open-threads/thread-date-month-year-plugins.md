@@ -6,4 +6,4 @@
   engine for now" sentences and four corrections to its flow schema page. Lesson: a floor checked with "at least" hides
   a constant that falls behind, so hold a count with an exact test. origin: 2026-11-24-035344.
   → serves: vision-mercury
-  <!-- id: date-month-year-plugins | created: 2026-11-24 | last_used: 2026-11-24 | uses: 1 | tier: working | origin: 2026-11-24-035344 -->
+  <!-- id: date-month-year-plugins | created: 2026-11-24 | last_used: 2026-11-24 | uses: 3 | tier: active | origin: 2026-11-24-035344 -->
