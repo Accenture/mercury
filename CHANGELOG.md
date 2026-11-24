@@ -109,6 +109,18 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    have retired Node 20 for actions and Node 24 is the newest runtime an action can declare. **Upgrade note:** none -
    documentation and CI only; no script changes behaviour.
 
+### Fixed
+
+1. **A flow reads the request's cookies and session values (Increment 211).** The HTTP flow adapter did not pass them:
+   `input.cookie.<name>` and `input.session.<key>` resolved null in a flow, and in a graph run through the adapter,
+   where the Java engine supplies both. The HTTP edge already parsed the `Cookie` header and kept the reply headers of
+   an endpoint's authentication function as session values; the adapter now copies both into the flow input dataset
+   under the Java keys `cookie` and `session`. Each is always a map, empty when the request has no cookie or its
+   endpoint no authentication function, as on the Java engine. `input.stream` and `input.filename` still resolve null:
+   this engine's HTTP edge has no upload stream and no multipart upload. Pinned through the real HTTP edge by the flow
+   fixture `input-cookie-session`. **Upgrade note:** a mapping of the whole `input.cookie` or `input.session` answered
+   nothing before and answers a map now, an empty one when the request has none.
+
 ### Security
 
 1. **libz-sys 1.1.33 (Increment 206).** The `audit` gate failed on 2026-11-18 on RUSTSEC-2026-0544 (CVE-2026-85091), published

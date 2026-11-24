@@ -21,10 +21,17 @@
 //! input dataset and launches the flow, preserving the HTTP edge's reply
 //! address so the flow's response completes the HTTP request.
 //!
-//! Divergence (doc'd): cookies, upload streams, file names and session info
-//! are not part of the Rust HTTP edge yet (platform-core §7 deferrals), so
-//! those dataset keys are absent — mappings referencing them resolve null,
-//! which the mapping engine already tolerates.
+//! The dataset carries the Java key set: `header`, `body`, `cookie`,
+//! `path_parameter`, `method`, `uri`, `query`, `ip` and `session`. `cookie` and
+//! `session` are always maps, empty when the request has no cookie or its
+//! endpoint no authentication function, as Java's `getCookies()` and
+//! `getSessionInfo()` answer.
+//!
+//! Divergence (doc'd): upload streams and file names are not part of the Rust
+//! HTTP edge (object streams and multipart upload are platform-core §7
+//! deferrals), so the keys `stream` and `filename` are absent — mappings
+//! referencing them resolve null, as they do on the Java engine for a request
+//! that is not an upload.
 
 use std::collections::HashMap;
 
@@ -112,6 +119,16 @@ async fn process_request(platform: &Platform, event: &EventEnvelope) -> Result<(
         if let Some(value) = request.get_element(from) {
             set(&mut dataset, to, value)?;
         }
+    }
+    // the cookies and the session values are always maps (Java puts
+    // request.getCookies() and request.getSessionInfo(), each a map that starts
+    // empty): the HTTP edge renders them only when it has some, so an absent
+    // key becomes the empty map here
+    for (from, to) in [("cookies", "cookie"), ("session", "session")] {
+        let value = request
+            .get_element(from)
+            .unwrap_or_else(|| Value::Map(Vec::new()));
+        set(&mut dataset, to, value)?;
     }
     // the business correlation id: the edge-ensured header (configurable),
     // falling back to a fresh uuid (Java parity)

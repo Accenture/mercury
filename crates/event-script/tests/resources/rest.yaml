@@ -22,3 +22,20 @@ rest:
     flow: 'timeout-test'
     timeout: 10s
     tracing: true
+
+  # Rust-side supplement (Increment 211): the flow reads the request's cookies
+  # and, on the first endpoint, the session values its authentication function set
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/cookie/session/{user}"
+    flow: 'input-cookie-session'
+    authentication: "v1.session.auth"
+    timeout: 10s
+    tracing: true
+
+  - service: "http.flow.adapter"
+    methods: ['GET']
+    url: "/api/cookie/open/{user}"
+    flow: 'input-cookie-session'
+    timeout: 10s
+    tracing: true

@@ -115,6 +115,8 @@ fn loaded_flow_set_matches_the_java_engine() {
         // from rust-flows.yaml: the Rust-side dynamic-fork supplement
         // (canonical fixture needs sub-flows — E-7)
         "dynamic-fork-test",
+        // the cookies and session values of the HTTP input dataset (Increment 211)
+        "input-cookie-session",
         // from more-flows.yaml: the parser fixtures that compile.
         // dynamic-reserved-key: the reserved-key RHS is dynamic, checked at runtime
         "dynamic-reserved-key",

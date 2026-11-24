@@ -37,6 +37,27 @@ use rmpv::Value;
 
 // ---- Java-parity task functions (ports of the Java test tasks) ----
 
+/// The authentication function of the `/api/cookie/session/{user}` endpoint: it lets
+/// every request through, and the headers of its reply become the session values of
+/// the request (Java `HttpRouter`), which the flow reads as `input.session.*`.
+#[preload(route = "v1.session.auth")]
+struct SessionAuth;
+
+#[async_trait]
+impl ComposableFunction for SessionAuth {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        EventEnvelope::new()
+            .set_header("user", "demo")
+            .set_header("role", "tester")
+            .set_body(true)
+    }
+}
+
 /// Java `Greetings` (`greeting.test` ×10): echo user+greeting with status 201
 /// and a demo header; the `exception` input triggers error scenarios.
 #[preload(route = "greeting.test", instances = 10)]
@@ -1670,6 +1691,8 @@ async fn flows_run_end_to_end_like_java() {
         "the caller's x-ttl must govern the flow budget, ceiled to seconds: {body}"
     );
 
+    flow_input_carries_cookies_and_session(&platform).await;
+
     // sanity: the RPC inbox is still healthy after all scenarios
     let po = PostOffice::new(&platform);
     let ping = po
@@ -1683,6 +1706,78 @@ async fn flows_run_end_to_end_like_java() {
         .await
         .expect("direct rpc");
     assert_eq!(ping.body_as::<String>().unwrap(), "ping");
+}
+
+/// Increment 211 (Java `HttpToFlow` parity): the flow input dataset carries the request's
+/// cookies under `cookie` and the session values of its authentication function under
+/// `session`, each always a map - empty when the request has none. Called from the one
+/// booted test, through the real HTTP edge.
+async fn flow_input_carries_cookies_and_session(platform: &Platform) {
+    let po = PostOffice::new(platform);
+    // an authenticated request with two cookies: both maps reach the flow
+    let request = platform_core::automation::AsyncHttpRequest::new()
+        .set_method("GET")
+        .set_target_host("http://127.0.0.1:8102")
+        .set_url("/api/cookie/session/quinn")
+        .set_header("accept", "application/json")
+        .set_cookie("flavor", "oatmeal")
+        .set_cookie("size", "large");
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(request.to_value()),
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("cookie and session flow");
+    assert_eq!(200, reply.status(), "{:?}", reply.body());
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "quinn");
+    assert_eq!(body["flavor"], "oatmeal", "input.cookie.flavor: {body}");
+    assert_eq!(
+        body["cookies"],
+        serde_json::json!({"flavor": "oatmeal", "size": "large"}),
+        "input.cookie: {body}"
+    );
+    assert_eq!(body["session_user"], "demo", "input.session.user: {body}");
+    assert_eq!(body["session"]["user"], "demo", "input.session: {body}");
+    assert_eq!(body["session"]["role"], "tester", "input.session: {body}");
+    // a request with no cookie to an endpoint with no authentication: both keys are
+    // empty maps, as the Java adapter passes them, so a mapping of the whole map
+    // answers an empty map and a mapping of one value answers nothing
+    let request = platform_core::automation::AsyncHttpRequest::new()
+        .set_method("GET")
+        .set_target_host("http://127.0.0.1:8102")
+        .set_url("/api/cookie/open/quinn")
+        .set_header("accept", "application/json");
+    let reply = po
+        .request(
+            EventEnvelope::new()
+                .set_to("async.http.request")
+                .set_raw_body(request.to_value()),
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("flow with no cookie and no session");
+    assert_eq!(200, reply.status(), "{:?}", reply.body());
+    let body = json_body(&reply);
+    assert_eq!(body["user"], "quinn");
+    assert_eq!(
+        body["cookies"],
+        serde_json::json!({}),
+        "input.cookie: {body}"
+    );
+    assert_eq!(
+        body["session"],
+        serde_json::json!({}),
+        "input.session: {body}"
+    );
+    assert!(body.get("flavor").is_none(), "no cookie value: {body}");
+    assert!(
+        body.get("session_user").is_none(),
+        "no session value: {body}"
+    );
 }
 
 /// Increment 52 (parity F18): the Java FlowExecutor precondition — a launch
