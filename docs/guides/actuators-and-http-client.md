@@ -8,16 +8,21 @@ Everything on this page describes the behavior of this repository's engine
 
 ## Actuator endpoints
 
-When [REST automation](rest-automation.md) is on, four endpoints are added automatically —
+When [REST automation](rest-automation.md) is on, six endpoints are added automatically —
 unless your `rest.yaml` already claims their URLs, in which case your entry wins (that is how
 you attach authentication, CORS, or a different timeout to an actuator):
 
 ```text
+POST /api/event
 GET /info
+GET /info/routes
 GET /env
 GET /health
 GET /livenessprobe
 ```
+
+`POST /api/event` serves the [Event over HTTP](event-over-http.md) protocol and the others are
+actuator endpoints.
 
 !!! note "Rust port"
     One Java default is not ported: **`/info/lib`** (Java lists JAR dependencies from the
@@ -197,9 +202,11 @@ graph that routes on the returned status.
     (increment 48) — behavior matches the Java client, including the `trust_all_cert`
     escape hatch. The Java client's streaming surface is still deferred: object streams
     for upload/download, multipart file upload, and the `X-Small-Payload-As-Bytes`
-    optimization are not ported — request and response bodies are always aggregated in
-    memory (the client adds an `x-content-length` response header when the origin did
-    not send `content-length`).
+    optimization are not ported — request and response bodies are aggregated in memory
+    (the client adds an `x-content-length` response header when the origin did not send
+    `content-length`), with one exception: a `text/event-stream` response the caller asked
+    for with `Accept: text/event-stream` is relayed event by event — see
+    [HTTP Streaming](http-streaming.md).
 
 ### Timeouts
 

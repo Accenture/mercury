@@ -86,7 +86,7 @@ onto the Rust flow-adapter span, matching Java-caller behavior exactly; even the
 internal fire-and-forget `hello.pojo` call chained onto the echo's span). The programmatic
 call initially joined by trace id only — see finding I3 below.
 
-With the [default-on application log context](../guides/observability.md#the-application-log-context),
+With the [default-on application log context](../guides/observability.md#log-context),
 every structured log line on both sides carried the same trace id — logs and spans join up
 across the language boundary with zero setup.
 

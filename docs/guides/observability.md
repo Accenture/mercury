@@ -32,6 +32,9 @@ works with the same two ids:
 | `http.trace.id.header` | `X-Trace-Id` | inbound (when no `traceparent`) and the async HTTP client outbound |
 | `http.correlation.id.header` | `X-Correlation-Id` | edge capture inbound; async HTTP client outbound |
 | `http.traceparent.header` | `traceparent` | The header carrying the full W3C trace context; REST automation inbound (standard `traceparent` first, custom name only when the standard is absent) and HTTP client / Event-over-HTTP outbound (stamped under **both** names) |
+| `kafka.trace.id.header` | *(unset)* | Kafka Flow Adapter inbound fallback; `simple.kafka.notification` outbound, stamped alongside `traceparent` |
+| `kafka.correlation.id.header` | `cid` | Kafka Flow Adapter inbound; `simple.kafka.notification` outbound |
+| `kafka.traceparent.header` | `traceparent` | Kafka twin of `http.traceparent.header`: adapter inbound (standard first, custom name only when the standard is absent); notification outbound (stamped under **both** names) |
 
 A `rest.yaml` endpoint entry may override all three per endpoint (`trace.id.header`,
 `correlation.id.header`, `traceparent.header`); precedence is per-entry > global > built-in
@@ -60,10 +63,10 @@ header — is supported: the edge then resolves **one** id for both rather than 
     gateway allow-list — retire the custom name once it lands.
 
 !!! note "Rust port"
-    The Java guide also documents `kafka.trace.id.header` / `kafka.correlation.id.header` /
-    `kafka.traceparent.header` (plus the `secondary.kafka.*` twins) for its Kafka flow
-    adapters. The Kafka service mesh is not ported, so those keys do not exist here — HTTP
-    is the only protocol boundary.
+    The three `kafka.*` keys above are read by the opt-in
+    [minimalist-kafka](minimalist-kafka.md) crate, as in Java. The Java guide also documents
+    `secondary.kafka.*` twins for twin-kafka, which is not ported, so those keys do not exist
+    here.
 
 ## Turning tracing on
 
@@ -380,7 +383,7 @@ log level comes from `log.level` (default `info`); a `RUST_LOG` environment vari
     and there is no thread id field. Format selection is a configuration key plus the
     `-Dlog.format=` runtime argument (the JVM `-D` analog) instead of log4j2 XML files.
 
-## The application log context
+## The application log context {#log-context}
 
 Spans tell you the causal path; application logs tell you what happened inside each step.
 The log-context feature closes the gap: every structured log line carries a `context`

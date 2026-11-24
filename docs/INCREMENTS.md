@@ -5840,3 +5840,59 @@ Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --lock
 --locked` (152 suites, 783 passed, 0 failed, 9 ignored; the new case is a function of an existing test), `python3
 scripts/check-doc-claims.py` and `python3 scripts/check-llms-links.py`. `mkdocs build --strict` was not run (mkdocs is not
 on the build machine); the pull request's `docs` run is its gate.
+
+## Increment 212 — stale statements corrected and anchors repaired across the guides (2026-11-23)
+
+The first two steps of a review of every guide page against its Java counterpart, made after the maintainer ruled that
+this repository's guides follow the Java repository's closely (Increment 210). Of 38 paired pages none was identical,
+one was close, 23 had findings and 14 were different documents. The most frequent finding was not a difference between
+the engines: a Rust sentence that was true when written and that the Rust source now contradicts. This increment
+corrects those sentences and repairs the anchors; it changes no behaviour and takes no decision that is the
+maintainer's. Each statement was checked against the source before it was changed.
+
+- **Registration.** A duplicate route is reloaded with a `Reloading` warning and the application keeps starting, as
+  in Java (`platform.rs`); four pages said it fails start-up (`api-overview.md`, `event-driven/ai-agent-guide.md`,
+  `event-driven/index.md`, `event-driven/write-your-first-function.md`). An invalid route name does stop the
+  application here, where the Java engine skips the function, and the pages now say which. In `api-overview.md`:
+  `register` creates a public function and `register_private` a private one (the page named a `register_public` that
+  does not exist), `instances` is clamped to 1 to 1000, the `FunctionOptions` example names its third field so it
+  compiles, and Event over HTTP is listed as ported. The function agent guide no longer says there is no
+  private/public distinction.
+- **Kafka.** Three notes said the Kafka flow adapter or its keys do not exist here; `minimalist-kafka` has been part
+  of this engine since 4.12.14. Corrected in `event-script/index.md`, `observability.md` (the three `kafka.*` rows of
+  the Java header table are taken; the `secondary.kafka.*` twins stay absent with twin-kafka) and
+  `reserved-names-and-headers.md` (the top note; the routes `simple.kafka.notification`, `sync.prepare` and
+  `sync.await`). `event-script/syntax.md` and `knowledge-graph/workflow-suspension.md` take the Java wording back
+  ("a Kafka flow adapter", "publishing a Kafka message"). `minimalist-kafka.md` said twice that the Java engine's
+  producer close waits without bound; it is bounded by the same ten seconds (`KafkaRuntime.shutdown`).
+- **Reserved routes.** `async.http.response`, `async.http.response.stream` and `event.api.service` are added to the
+  platform-core table, which said every name was enumerated from source; the row of the retired
+  `post.companion.command` is removed.
+- **The Playground.** Fourteen tutorials ship, not thirteen (`getting-started.md`, `build-your-first-graph.md`,
+  `playground-and-companion.md`); three sentences about a past validation sweep keep their thirteen and say "of the
+  time". `session reset` restarts the session with an empty draft graph (`handle_session` in `commands.rs`, and the
+  help page); the guide said it does not clear the draft. The port note on port 8085 stated a difference that does
+  not exist. The catalog's run-deadline note quotes the one line the engine emits, `Graph traversal aborted: timed out
+  after N ms`. The label "AI agents, preferred" on the one companion endpoint is the Java label again.
+- **Single statements.** `architecture.md`: the envelope uses the standard wire format shared with the Java engine
+  (the note said it was deliberately not compatible), and `/info/routes` is among the actuators.
+  `actuators-and-http-client.md`: six default endpoints, `POST /api/event` and `/info/routes` included, and a
+  `text/event-stream` response is relayed event by event, not aggregated. `getting-started.md`: the workspace layout
+  with `extensions/`, and thirteen published crates. `flow-schema-reference.md`: a numeric delay below 1 is taken as
+  1 millisecond, not refused.
+- **Anchors and links.** `registration-metadata-contract.md` regains the six heading ids of the Java page, which
+  repairs the link from the flow schema reference to `#capabilities`, and the string length row with its paragraph,
+  which that link is about. The observability heading carries the Java id `{#log-context}`; its own link and three
+  inbound links use it. The syntax guide and the flow grammar link the flow schema reference and the Overview as the
+  Java pages do; the skills reference links `flow-schema-reference.md#arithmetic`; the function agent guide's See
+  also and `related` list the four pages they had dropped. A link and anchor check over the whole `docs` tree finds
+  no broken anchor in the guides.
+- **Left for the maintainer.** `transaction.journal.recorder` is described as receiving journals although
+  journaling is not ported: remove the row, or keep it with a note. The heading ids of `event-over-http.md` differ
+  from the Java page's, and nothing is broken by it; restoring them changes four inbound links. The other thirteen
+  steps of the review's proposed order.
+
+CHANGELOG Unreleased, `Documentation` item 2. Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets
+--locked -- -D warnings`, `cargo test --workspace --locked` (152 suites, 783 passed, 0 failed, 9 ignored), `python3
+scripts/check-doc-claims.py` and `python3 scripts/check-llms-links.py`. `mkdocs build --strict` was not run (mkdocs is not
+on the build machine); the pull request's `docs` run is its gate.

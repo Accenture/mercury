@@ -19,15 +19,20 @@ cargo build
 cargo test --workspace
 ```
 
-Everything is a standard **Cargo workspace**: the three engine crates live under `crates/`
-and each example application is a standalone crate under `examples/` with its configuration
-in a `resources/` folder beside its `Cargo.toml`.
+Everything is a standard **Cargo workspace**: the engine crates live under `crates/`, the
+opt-in extension crates under `extensions/`, and each example application is a standalone
+crate under `examples/` with its configuration in a `resources/` folder beside its
+`Cargo.toml`.
 
 ```text
 crates/
   platform-core/      the event-driven foundation (layer 1)
   event-script/       the YAML flow engine (layer 2)
   knowledge-graph/    the active knowledge graph + Playground (layer 3)
+  minimalist-kafka/   the opt-in Kafka flow adapter and notification
+  (and the three macro crates, one beside each layer)
+extensions/           opt-in crates: Redis connection, sync-over-async, distributed cache,
+                      workflow state on Redis, the OpenTelemetry forwarder, the agent loop
 examples/
   hello-world/        functions + REST automation (layer 1)
   hello-flow/         an Event Script flow behind an HTTP endpoint (layer 2)
@@ -145,9 +150,9 @@ list graphs
 help tutorial 1
 ```
 
-`list graphs` shows the deployable graph models with their purposes (including thirteen
-tutorials that take you from hello-world to custom error handling and composable-function
-tasks); each `help tutorial N` page walks one concept. An AI agent can drive the same console
+`list graphs` shows the deployable graph models with their purposes (including fourteen
+tutorials that take you from hello-world to custom error handling, composable-function
+tasks and a workflow with human checkpoints); each `help tutorial N` page walks one concept. An AI agent can drive the same console
 through the synchronous companion endpoint — see the
 [AI agent guide](knowledge-graph/ai-agent-guide.md).
 
@@ -162,7 +167,7 @@ Spring-specific key names are retired in the Rust port (`APP_PROFILES_ACTIVE`,
 
 ## Use from crates.io
 
-The seven library crates publish under `mercury-`prefixed package names, while the lib
+The thirteen library crates publish under `mercury-`prefixed package names, while the lib
 (code-facing) names stay short:
 
 ```toml
@@ -187,7 +192,7 @@ still links. The macro crates (`mercury-platform-macros`, `mercury-event-script-
 
 - Write your own function: [the authoring walkthrough](event-driven/write-your-first-function.md)
   covers typed/untyped functions, `#[preload]` parameters, and the application lifecycle.
-- Explore the thirteen Playground tutorials (`help tutorial 1` … `help tutorial 13`), then
+- Explore the fourteen Playground tutorials (`help tutorial 1` … `help tutorial 14`), then
   [build your first graph](knowledge-graph/build-your-first-graph.md).
 - Understand the whole: [Architecture](architecture.md) and
   [Composing the Layers](knowledge-graph/composing-the-layers.md).

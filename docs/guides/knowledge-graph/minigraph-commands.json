@@ -200,7 +200,7 @@
       "notes": [
         "traverse from root to end",
         "pre-run quality check: the suspend/resume contract (the same whole-graph rules the CompileGraph deployment gate enforces) is validated before traversal - a violation reports 'Unable to run - <reason>' and aborts with the uniform terminal line",
-        "run deadline: a dry-run traversal is bounded by model.ttl (default 30s) - the same deadline its deployed twin gets from the flow timer; a hung or overlong run emits 'Graph traversal timed out after N ms' followed by the canonical 'Graph traversal aborted' terminal; seed a different budget at the instantiate edge: long(60000) -> model.ttl"
+        "run deadline: a dry-run traversal is bounded by model.ttl (default 30s) - the same deadline its deployed twin gets from the flow timer; a hung or overlong run emits one terminal line, 'Graph traversal aborted: timed out after N ms'; seed a different budget at the instantiate edge: long(60000) -> model.ttl"
       ],
       "example": "run"
     },

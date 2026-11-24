@@ -42,8 +42,9 @@ flow task, a graph skill, another function — reaches it only by the string
 !!! note "Rust port"
     The Java original discovers `@PreLoad` classes by classpath scanning at startup. Rust has
     no runtime scanning, so `#[preload]` performs **compile-time registration** through a
-    link-time inventory — same annotation shape, resolved when the binary links. A duplicate
-    route or an invalid route name still fails fast at startup.
+    link-time inventory — same annotation shape, resolved when the binary links. An invalid
+    route name still fails fast at startup (the Java engine skips that function with an error
+    log); a duplicate route reloads the earlier registration with a warning, as in Java.
 
 ## Talking through the event bus
 
@@ -86,7 +87,7 @@ router.** The [Getting Started](../getting-started.md) guide shows this end to e
   AI agent is writing functions for you, point it here: it is the engine-verified, single
   context an agent needs to author a correct composable function — the full `#[preload]`
   contract, the trait contracts, a pre-write checklist, and worked examples — with no need to
-  read the engine source. It earned that claim in a thirteen-tutorial validation sweep where
+  read the engine source. It earned that claim in a validation sweep of the thirteen tutorials of the time, where
   fresh agents built working applications from these documents alone.
 
 ## See also

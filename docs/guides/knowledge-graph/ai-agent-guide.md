@@ -28,7 +28,7 @@ related:
 | Goal | Endpoint | Notes |
 |---|---|---|
 | **Execute a deployed graph** | `POST /api/graph/{graph-id}` | Send the request body; get the response. No session. |
-| **Build/edit a graph — AI agents, preferred** | `POST /api/companion/{session-id}/sync` | **Synchronous** — returns the command outcome **in-band** `{ok, output, error, result}`; output is *also* teed to the human's WS console. |
+| **Build/edit a graph** | `POST /api/companion/{session-id}/sync` | **Synchronous** — returns the command outcome **in-band** `{ok, output, error, result}`; output is *also* teed to the human's WS console. |
 | **Read the live model** | `GET /api/graph/session/{session-id}` | Returns the current graph as JSON. |
 
 This guide is about the **companion** flow — co-authoring a graph with a human watching the

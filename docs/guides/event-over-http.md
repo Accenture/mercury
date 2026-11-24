@@ -274,7 +274,7 @@ tasks:
    automatically. Both apps log telemetry under the **same trace id**, the
    `hello.declarative` RPC record carries `span_id` and `parent_span_id` chaining it onto
    the caller's flow, and — with the default-on
-   [application log context](observability.md#the-application-log-context) — every
+   [application log context](observability.md#log-context) — every
    structured log line on both sides is stamped with that trace id.
 
 ### The programmatic twin

@@ -9,8 +9,7 @@ this port actually registers.
 !!! note "Rust port"
     The Java list includes many names from unported subsystems, absent here: the connector
     and service-mesh routes (`cloud.connector`, `presence.*`, `system.service.*`,
-    `*.multiplex.*`), the scheduler (`cron.scheduler`, `run.scheduled.job`), the Kafka and
-    sync-over-async extensions,
+    `*.multiplex.*`), the scheduler (`cron.scheduler`, `run.scheduled.job`),
     `actuator.services` / `lib.actuator.service` (`/info/lib` is deferred —
     `routes.actuator.service` / `/info/routes` IS ported), and `http.auth.handler` — a rest.yaml
     `authentication` entry names your authentication function's route directly here (the
@@ -31,6 +30,9 @@ this port actually registers.
 | `liveness.actuator.service` | `/livenessprobe` actuator endpoint |
 | `no.op` | Echo placeholder function for skeletons and simple flow decisions (500 instances, tunable via `worker.instances.no.op`) |
 | `async.http.request` | The built-in async HTTP client (an event interceptor) |
+| `async.http.response` | HTTP response event handler |
+| `async.http.response.stream` | Route-name base of the streaming reply lanes: a pool, one lane held by each streaming request |
+| `event.api.service` | Event API service (the `/api/event` endpoint of Event over HTTP) |
 | `ws.server.housekeeper` | Websocket server cleanup service |
 
 One route **prefix** is also reserved by platform-core:
@@ -105,7 +107,11 @@ application links it and sets `redis.cache.enabled=true`; the `sync-over-async` 
 crate's health route is **`soa.redis.health`** — the two coexist, each reporting on its own
 `redis.*` / `soa.redis.*` server. See [Distributed Cache](distributed-cache.md). The `agent-loop` extension crate
 reserves **`llm.run`**, the agent loop (model turns through `llm.chat`, tools by route), when an
-application links it.
+application links it. The `minimalist-kafka` crate reserves **`simple.kafka.notification`** (publish
+an event to a Kafka topic, drop-n-forget / fail-fast) — see [Minimalist Kafka](minimalist-kafka.md)
+— and the `sync-over-async` extension crate reserves **`sync.prepare`** (register the return route
+and serialize the request) and **`sync.await`** (block for the asynchronous response), the ready-made
+facade tasks an application wires into its own sync-to-async flow.
 
 Routes marked * — and the whole Playground developer surface below — are gated by
 `#[optional_service("app.env=dev")]` and exist only when `app.env` is `dev`:
@@ -114,7 +120,6 @@ Routes marked * — and the whole Playground developer surface below — are gat
 |---|---|
 | `graph.command.service` | The Playground command grammar |
 | `graph.command.singleton` | Single-worker command handler (orderly AI-companion requests) |
-| `post.companion.command` | AI-companion endpoint (fire-and-forget) |
 | `post.companion.command.sync` | AI-companion `/sync` endpoint (in-band outcome) |
 | `show.graph.model`, `get.live.graph`, `inspect.state.machine` | Model and state inspection |
 | `upload.json.content`, `upload.mock.content` | Playground uploads |

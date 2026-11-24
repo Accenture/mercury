@@ -145,7 +145,7 @@ execution. [Composing the Layers](composing-the-layers.md) tells this story end 
   [command grammar](command-reference.md) (with its machine-readable form,
   [`minigraph-commands.json`](minigraph-commands.json)), and the
   [skills reference](skills-reference.md). These are **engine-verified**: in a
-  thirteen-tutorial validation sweep, fresh AI agents given only these documents built and
+  validation sweep of the thirteen tutorials of the time, fresh AI agents given only these documents built and
   ran every tutorial graph — the last eight tutorials passing on the first attempt with zero
   out-of-band lookups. If an AI agent builds graphs for you, point it at
   [`docs/llms.txt`](../../llms.txt) and it will find its own way here.

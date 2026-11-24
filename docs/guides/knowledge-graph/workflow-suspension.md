@@ -41,7 +41,7 @@ Two everyday situations produce the same problem — a multi-step process that c
 finish in one go:
 
 - **Waiting for another system (fully automatic).** A step starts a long batch job — for
-  example by publishing a message to a job queue — and the processing takes minutes or hours.
+  example by publishing a Kafka message — and the processing takes minutes or hours.
   When it finishes, the batch processor calls back with the same correlation ID and the
   workflow picks up at the next step. No person is involved: suspension is not only for
   human-in-the-loop.

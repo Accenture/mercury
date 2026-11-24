@@ -39,7 +39,7 @@ opens **Graph set packaging** (graph files and the current graph packed into `<s
 engine, or a dropped `.pack` inspected - `help package`) and **Graph schema** (the request and
 response contract as rows, pre-filled from the engine's contract view of the draft and the last run,
 saved through `update node` - `help schema`, [the graph contract](graph-contract.md#panel)), and the `?` button (or ``Ctrl+` ``) opens a help panel serving the same pages as the `help`
-command — including the [thirteen tutorials](build-your-first-graph.md#where-to-go-next).
+command — including the [fourteen tutorials](build-your-first-graph.md#where-to-go-next).
 
 ## Sessions
 
@@ -74,9 +74,10 @@ the primary's graph replaces it. You can subscribe only to a **primary** session
 has not itself subscribed) and never to yourself. `session unsubscribe` detaches, keeping
 your current graph; `session reset` restarts the session and disconnects its subscribers.
 
-Note that `session reset` resets *subscriptions*, not your work: it does **not** clear the
-draft graph — the UI restores the draft on reconnect. To start clean, delete the nodes
-explicitly. The full rules are in the [command grammar](command-reference.md#session).
+Note that `session reset` also **clears your work**: the session restarts with an empty draft
+graph, as on the Java engine. A subscriber unsubscribes first, and the subscribers of a primary
+session keep their own graphs. Export first if you want to keep the draft. The full rules are in
+the [command grammar](command-reference.md#session).
 
 Joining copies the draft: subscribing to a primary that holds a graph replaces yours with it, and
 subscribing to an empty primary hands it yours. Leaving keeps it: when a primary session closes (its
@@ -204,7 +205,7 @@ list flows         # Event Script flows, each with its description
 
 This page is the seed of the platform's collaboration vision made concrete: a fresh AI agent,
 given only the [engine-verified AI documentation](index.md#in-this-section), built and ran
-all thirteen Playground tutorials through `/sync` — self-correcting from in-band errors while
+all thirteen Playground tutorials of the time through `/sync` — self-correcting from in-band errors while
 maintainers watched live through subscribed sessions. If an agent builds graphs for you,
 point it at the [AI agent guide](ai-agent-guide.md); everything it needs, including the
 [command grammar](command-reference.md) and its machine-readable form, is linked from there.

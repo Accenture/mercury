@@ -6,7 +6,7 @@
 > and its semantics **across languages**. How each language attaches the metadata —
 > a Java annotation, a Rust attribute macro, a Python or TypeScript decorator — is an
 > idiom; everything else on this page is the contract, and the
-> [golden vectors](#conformance-the-golden-vectors) prove an engine honors it.
+> [golden vectors](#conformance) prove an engine honors it.
 
 The Java engine is the reference implementation; its
 [Annotations Reference](https://accenture.github.io/mercury-composable/guides/annotations-reference/)
@@ -14,7 +14,7 @@ documents the reference carrier surface in full. **This engine implements the co
 with the macro carrier** — the local [Macros Reference](macros-reference.md) is the
 carrier twin of the annotations page. Python and Node.js ports implement it next.
 
-## One model, many carriers
+## One model, many carriers {#model}
 
 The same declaration in the four languages:
 
@@ -45,7 +45,7 @@ class HelloWorld implements TypedLambdaFunction<EventEnvelope, unknown> { ... }
 The discovery mechanics differ by necessity — only the JVM scans a classpath at runtime —
 but the developer-visible style, the metadata model and the boot-time semantics must not.
 
-## The canonical metadata model
+## The canonical metadata model {#schema}
 
 Every registration resolves to one canonical record. Wire form for tooling and
 conformance: JSON, camelCase keys, enums as strings (never ordinals).
@@ -67,7 +67,7 @@ conformance: JSON, camelCase keys, enums as strings (never ordinals).
 }
 ```
 
-### Capability fields (per-language applicability)
+### Capability fields (per-language applicability) {#capabilities}
 
 Some Java `@PreLoad` fields are capabilities of a runtime family, not universal contract:
 
@@ -77,6 +77,14 @@ Some Java `@PreLoad` fields are capabilities of a runtime family, not universal 
 | `inputPojoClass` | defeats JVM type erasure; enables `List<PoJo>` | **N/A** — `TypedFunction<I, O>` is monomorphized; `body_as::<Vec<T>>()` carries the element type | Python: type hints suffice; Node: applicable as a class reference |
 | `inputStrategy` / `outputStrategy` | SNAKE / CAMEL / DEFAULT, flippable at runtime (`snake.case.serialization`) | **N/A at runtime** — `#[serde(rename_all)]` fixes case at compile time (the one genuine capability difference) | applicable — runtime case mapping is natural in both |
 | `executionHint` (reserved) | `@KernelThreadRunner` → kernel thread pool | reserved, unimplemented — every function is a tokio task; revisit if a field workload needs `spawn_blocking` | Python: relevant (GIL / thread pool); Node: worker_threads — design when porting |
+| string length/index semantics (plugin catalog: `length`, `substring`) | UTF-16 code units (`String.length()` — JVM legacy, retained) | **Unicode scalar values** (`chars()`) — the ports rule | Python `len()` and Go `RuneCountInString` are scalar-native; Node uses `[...str].length`, NOT the UTF-16 `.length` — never retrofit the JVM legacy |
+
+A port documents each N/A explicitly (the Rust docs' `!!! note "Rust port"` convention);
+silence is not a disposition. The string-semantics row is a **bounded, deliberate
+divergence** (maintainer ruling, 2026-07-26): identical for all Basic-Multilingual-Plane
+text — English, Chinese, JSON keys, typical enterprise payloads — and differing only for
+supplementary-plane characters (emoji, historical scripts), which Java counts as 2 code
+units and every port counts as 1 scalar value.
 
 !!! note "Rust port"
     The three N/A rows above ARE this port's dispositions, stated per the contract's own
@@ -85,7 +93,7 @@ Some Java `@PreLoad` fields are capabilities of a runtime family, not universal 
     monomorphized `TypedFunction<I, O>` subsumes `inputPojoClass`. `executionHint` is
     reserved-only here, exactly as in Java.
 
-## Fixed semantics — every port MUST
+## Fixed semantics — every port MUST {#semantics}
 
 1. **Attach at definition, resolve at boot.** `env_instances` names a configuration KEY
    (which may itself hold `${ENV_VAR:default}`); the value is read at framework boot —
@@ -138,7 +146,7 @@ Some Java `@PreLoad` fields are capabilities of a runtime family, not universal 
    compile-time (Rust), compile-fail tests guard the messages (`trybuild`, the
    `tests/ui` suites); where it is import/boot-time (Java, Python, Node), unit tests do.
 
-## Conformance — the golden vectors
+## Conformance — the golden vectors {#conformance}
 
 The contract is proven the same way the
 [event envelope wire format](https://accenture.github.io/mercury-composable/guides/event-envelope-wire-format/)
@@ -164,7 +172,7 @@ The websocket and entry-point kinds carry little metadata beyond a name/namespac
 sequence; they are pinned by each engine's own registration tests rather than shared
 vectors.
 
-## Porting order (the playbook)
+## Porting order (the playbook) {#porting}
 
 For a new language port, in order: (1) implement the carrier + local registry + boot
 resolver for the function kind; (2) pass `core.json`; (3) add the extension points and
