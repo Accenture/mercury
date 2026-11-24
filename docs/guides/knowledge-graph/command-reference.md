@@ -31,6 +31,7 @@ related:
 | **Node name** | lowercase letters, digits and hyphen | `person-name`, `mdm-profile`, `fetcher-1` |
 | **Node type** | a descriptive label; shipped examples **capitalize** structural types | `Root`, `End`, `Provider`, `Dictionary`, `Fetcher`, `Island` |
 | **Reserved names** | the root node **must** be named `root`; the end node **must** be `end` | — |
+| **Root `purpose`** | required by the **CompileGraph deployment gate** — a session dry-run does not enforce it, so include it at creation to avoid a deploy-time rejection | — |
 | **Property** | `key=value`; keys may be composite (dot-bracket) | `url=http://...`, `mapping[]=a -> b` |
 | **List property** | a `key[]=entry` line *appends* one entry to the list `key` | repeat `mapping[]=...` per entry |
 | **Multi-line value** | wrap the value in triple single quotes | `statement[]='''` … `'''` |
@@ -82,17 +83,17 @@ A **non-leaf (interior) path maps the entire subtree**, not just scalars: a sour
 Dictionary mapping carries the whole array.
 
 **A null source clears a `model.*` target and leaves any other target untouched** — the same rule
-as Event Script flows (mercury-composable #453). When a mapping's source resolves to null — the key does
-not exist, or a plugin returns null — a `model.*` target is **removed** (set to null instead when the
-source key exists with a null value, or when the target is an indexed element such as
-`model.profiles[1]`, so list positions stay stable); an `output.*` or node-alias target is **left as it
-was** (a source key that exists with a null value propagates the null). The rule holds for `mapping[]`
-entries, `for_each` entries and the output mapping of `graph.task`, `graph.extension` and
-`graph.api.fetcher`; a fetcher or extension `input[]` parameter mapped from a null source is simply not
-supplied. A default for a model variable therefore comes from the **source** side:
-`f:defaultValue(input.body.flag, boolean(false)) -> model.flag`, or a plugin's own default such as
-`f:lookup(table, value, text(unknown))` or `f:rangeLookup(table, value, text(unknown))`, or `f:minRange(range, int(0))` for the open end of a range. Do not write a default into `model.*` first and overlay it with
-a possibly-null source — the overlay removes the default.
+as Event Script flows (mercury-composable #453). When a mapping's source resolves to null — the key does not exist, or a
+plugin returns null — a `model.*` target is **removed** (set to null instead when the source key exists
+with a null value, or when the target is an indexed element such as `model.profiles[1]`, so list
+positions stay stable); an `output.*` or node-alias target is **left as it was** (a source key that
+exists with a null value propagates the null). The rule holds for `mapping[]` entries, `for_each`
+entries and the output mapping of `graph.task`, `graph.extension` and `graph.api.fetcher`; a fetcher
+or extension `input[]` parameter mapped from a null source is simply not supplied. A default for a
+model variable therefore comes from the **source** side: `f:defaultValue(input.body.flag,
+boolean(false)) -> model.flag`, or a plugin's own default such as `f:lookup(table, value,
+text(unknown))` or `f:rangeLookup(table, value, text(unknown))`, or `f:minRange(range, int(0))` for the open end of a range. Do not write a default into `model.*` first and overlay it with a possibly-null
+source — the overlay removes the default.
 
 ### Dynamic keys and values in a source {#dynamic-keys}
 
@@ -145,24 +146,38 @@ exists (in particular, the legacy `:type` suffix — "simple type matching" — 
 generate it. A `:` inside a **Dictionary** node's `input[]` entry is a **default value**, nothing
 else — see [Provider & Dictionary](#provider-dictionary)):
 
-| Form | Produces |
-|---|---|
-| `text(hello world)` | string (verbatim, no quoting needed — spaces are preserved exactly, including leading/trailing ones inside the parentheses: `text(Hello )` keeps its trailing space) |
-| `int(100)` / `long(10000000000)` | integer (non-numeric input → `-1`; a decimal part is dropped) |
-| `float(1.5)` / `double(1.5)` | floating-point number |
-| `boolean(true)` | boolean — `true` only for case-insensitive `true`; anything else is `false` |
-| `map(k1=v1, k2=v2)` | inline map literal (values are strings) |
-| `map(config.key)` | the value of an application-configuration key |
-| `file(text:/tmp/f.txt)` / `file(json:…)` / `file(binary:…)` | file content as text / parsed JSON / bytes — read at **mapping-evaluation time** (each execution), so a changed file is picked up by the next run |
-| `classpath(text:/data/f.txt)` | like `file()`, resolved against the app's resource roots |
+`text(hello world)`
+:   string (verbatim, no quoting needed — spaces are preserved exactly, including leading/trailing ones inside the parentheses: `text(Hello )` keeps its trailing space)
+
+`int(100)` / `long(10000000000)`
+:   integer (non-numeric input → `-1`; a decimal part is dropped)
+
+`float(1.5)` / `double(1.5)`
+:   floating-point number
+
+`boolean(true)`
+:   boolean — `true` only for case-insensitive `true`; anything else is `false`
+
+`map(k1=v1, k2=v2)`
+:   inline map literal (values are strings)
+
+`map(config.key)`
+:   the value of an application-configuration key
+
+`file(text:/tmp/f.txt)` / `file(json:…)` / `file(binary:…)`
+:   file content as text / parsed JSON / bytes — read at **mapping-evaluation time** (each execution), so a changed file is picked up by the next run
+
+`classpath(text:/data/f.txt)`
+:   like `file()`, resolved against the app's resource roots
 
 Beyond constants, two further **non-constant source forms** are valid in mappings (the graph
 skills share Event Script's mapping engine):
 
-| Form | Meaning |
-|---|---|
-| `f:plugin(args…)` | a [simple-plugin](../event-script/syntax.md#simple-plugins) invocation — the modern replacement for the deprecated `:type` suffixes. **Arguments accept any mapping source**: constants and any state-machine path — `model.*`, `input.*`, `output.*`, and node namespaces such as `{node}.result.{key}` (engine-verified). Examples: `f:concat(model.a, text(!))`, generators `f:uuid()` and `f:now(text(local))` (current date-time at execution: `iso`/`local`/`ms`), date arithmetic `f:addDays(date, days)` and `f:daysBetween(from, to)` (dates written as `YYYY-MM-DD`, no time and no time zone — [dates](skills-reference.md#dates)), JSON dataset creation `f:json(text([]))` → empty list / `f:json(text({"a": [1, 2]}))` → nested map (parses JSON text from a constant or model variable), arithmetic `f:add(...)`, logic `f:ternary(...)`, and **list/map reshapers** `f:removeKey(list, text(key))` (strip fields from every map in a list), `f:listOfMap(...)` (maps-of-lists → list-of-maps, order-preserving) and `f:length(...)` (length by type: list → element count, string → **character** count, bytes → byte count, null → 0). **Full catalog** in the [Event Script syntax page](../event-script/syntax.md#simple-plugins) |
-| `$.…` | an RFC 9535 JSONPath query over the state machine (prefer plain dot-bracket keys; JSONPath only when the query needs it); a definite path yields the value and an indefinite one (a filter, a wildcard, a deep scan) always a list ([result shape](../event-script/syntax.md#json-path)). A graph whose JSONPath is outside the standard is rejected at deployment, in a data dictionary's default value too, and a simple plugin's `$` argument is checked the same way |
+`f:plugin(args…)`
+:   a [simple-plugin](../event-script/syntax.md#simple-plugins) invocation — the modern replacement for the deprecated `:type` suffixes. **Arguments accept any mapping source**: constants and any state-machine path — `model.*`, `input.*`, `output.*`, and node namespaces such as `{node}.result.{key}` (engine-verified). Examples: `f:concat(model.a, text(!))`, generators `f:uuid()` and `f:now(text(local))` (current date-time at execution: `iso`/`local`/`ms`), date arithmetic `f:addDays(date, days)` and `f:daysBetween(from, to)`, with `f:addMonths`, `f:monthsBetween`, `f:addYears` and `f:yearsBetween` for calendar months and years (dates written as `YYYY-MM-DD`, no time and no time zone — [dates](skills-reference.md#dates)), JSON dataset creation `f:json(text([]))` → empty list / `f:json(text({"a": [1, 2]}))` → nested map (parses JSON text from a constant or model variable), arithmetic `f:add(...)`, logic `f:ternary(...)`, and **list/map reshapers** `f:removeKey(list, text(key))` (strip fields from every map in a list), `f:listOfMap(...)` (maps-of-lists → list-of-maps, order-preserving) and `f:length(...)` (length by type: list → element count, string → **character** count, bytes → byte count, null → 0). **Full catalog** in the [Event Script syntax page](../event-script/syntax.md#simple-plugins)
+
+`$.…`
+:   an RFC 9535 JSONPath query over the state machine (prefer plain dot-bracket keys; JSONPath only when the query needs it); a definite path yields the value and an indefinite one (a filter, a wildcard, a deep scan) always a list ([result shape](../event-script/syntax.md#json-path)). A graph whose JSONPath is outside the standard is rejected at deployment, in a data dictionary's default value too, and a simple plugin's `$` argument is checked the same way
 
 ## Commands {#commands}
 
@@ -258,7 +273,7 @@ gets a fresh instance.
 ```
 run                        # traverse from root to end
 execute {node}             # run a single node (after instantiate)
-inspect {namespace.key}    # read a value from the state machine
+inspect {namespace.key}    # read a value from the state machine (a leaf value or a whole subtree)
 ```
 
 ```
@@ -269,6 +284,11 @@ inspect error                # the exception context after a failed node routed 
 
 > **Placeholder convention:** `{…}` in the syntax lines above (e.g. `{node}`,
 > `{namespace.key}`) marks a value you substitute — **do not type the braces**.
+> **`inspect` returns subtrees too**: `inspect output` prints the whole populated namespace
+> map; ask for a composite key like `inspect output.body.rmdAmount` when you want one value.
+> (An AI driver on the `/sync` companion endpoint rarely needs `inspect` at all: a run's
+> structured outcome comes back in the response's `result` field.)
+
 > Write `inspect output.body.name`, not `inspect {output.body.name}` (a literal
 > `{output.body}` is treated as the key `{output` → `body}` and resolves to nothing).
 
@@ -301,11 +321,11 @@ reads as living documentation. `list flows` enumerates the Event Script flows fo
 `extension=flow://{flow-id}`. **`describe graph {graph-id}`** then shows a deployed model's
 **contract view** — its purpose, size, and the `input.*` / `output.*` data surface derived
 from the model's own mappings — so an agent can wire the delegation's `input[]`/`output[]`
-without out-of-band knowledge or trial execution. Since RFC-0007 (Increment 171) the view carries
-**types** where the model or the declaration gives them (`input.body.amount (number)`), `[declared]`
-on a path only the root's or end's `schema` knows, every staged `output.status`, a `Declared schema:`
-line and the URL of the graph's OpenAPI document (`GET /api/openapi/{graph-id}`; `?view=contract`
-answers the same derivation as JSON) — see [the graph contract](graph-contract.md#discovery).
+without out-of-band knowledge or trial execution. Since RFC-0007 (Increment 171) the view carries **types** where the
+model or the declaration gives them (`input.body.amount (number)`), `[declared]` on a path only the
+root's or end's `schema` knows, every staged `output.status`, a `Declared schema:` line and the URL of
+the graph's OpenAPI document (`GET /api/openapi/{graph-id}`; `?view=contract` answers the same
+derivation as JSON) — see [the graph contract](graph-contract.md#discovery).
 
 ### export / import {#export}
 
@@ -688,15 +708,26 @@ unaffected: the island sinks, so the execution path never enters the knowledge l
 
 A `graph.math` node runs an ordered list of `statement[]` lines. Seven statement types:
 
-| Statement | Form | Purpose |
-|---|---|---|
-| `COMPUTE` | `COMPUTE: {var} -> {expr}` | evaluate a JS-like math expression; the result is stored in **this node's `result` namespace** — read it back as `{this-node}.result.{var}` or move it with `MAPPING`. An expression carrying a comparison or boolean operator yields a boolean; a boolean operand in arithmetic, a `<`/`>` comparison or a function argument is rejected by name, and so are an unknown function, an overflow and a division by zero (see [numbers and booleans](skills-reference.md#math)) |
-| `DECIMAL` | `DECIMAL: {var} -> {expr}` | the **high-precision `COMPUTE`**: evaluate the expression with exact decimal arithmetic and store the result in **this node's `result` namespace** as a canonical decimal string (`{this-node}.result.{var}`); a `Double` operand is converted through its shortest decimal text (send money as strings; [the trade-off is declared in the guide](skills-reference.md#math-decimal)), rounding is always explicit (`round(x, scale, mode)`), a result carries at most the node's `precision` decimal places (else the application's `big.decimal.precision`, default 6; more are rounded `HALF_UP`, fewer are kept), and what cannot be exact (`sqrt`, `log`, `exp`, trigonometry, `random()`, `PI`, `E`) is refused — see [the DECIMAL statement](skills-reference.md#math-decimal) |
-| `CONDITION` | `CONDITION: {var} -> {boolean expr}` | evaluate a boolean expression and store the boolean in this node's `result` — the declared form of a decision value, whether or not the expression carries an operator (`CONDITION: same -> {model.flag}`); an `IF` may test it directly (`IF: {node.result.var}`) |
-| `IF` | multi-line (see below) | a boolean **decision** that redirects traversal to a named node |
-| `MAPPING` | `MAPPING: source -> target` | data mapping, identical to `graph.data.mapper` (**no** `{}` around source/target) |
-| `EXECUTE` | `EXECUTE: {node-name}` | run another `graph.math` node's statements inline, **in the calling node's context** — any `COMPUTE` results land in the **invoking** node's result namespace (`{invoker}.result.{var}`); the executed module's own namespace stays empty. This is the **module-reuse mechanism**: author a formula once in an off-path module node, and any executing node borrows it (see the note below) |
-| `RESET` | `RESET: {node-name}` | forget a node completely — guard, completion mark, state — so it can execute again (advanced; see the rules below) |
+`COMPUTE` — `COMPUTE: {var} -> {expr}`
+:   evaluate a JS-like math expression; the result is stored in **this node's `result` namespace** — read it back as `{this-node}.result.{var}` or move it with `MAPPING`. An expression carrying a comparison or boolean operator yields a boolean (the question you wrote); a boolean operand in arithmetic, a `<`/`>` comparison or a function argument is rejected by name, and so are an unknown function, an overflow and a division by zero (see [numbers and booleans](skills-reference.md#math))
+
+`DECIMAL` — `DECIMAL: {var} -> {expr}`
+:   the **high-precision `COMPUTE`**: evaluate the expression with exact decimal arithmetic and store the result in **this node's `result` namespace** as a canonical decimal string (`{this-node}.result.{var}`); a `Double` operand is converted through its shortest decimal text (send money as strings; [the trade-off is declared in the guide](skills-reference.md#math-decimal)), rounding is always explicit (`round(x, scale, mode)`), a result carries at most the node's `precision` decimal places (else the application's `big.decimal.precision`, default 6; more are rounded `HALF_UP`, fewer are kept), and what cannot be exact (`sqrt`, `log`, `exp`, trigonometry, `random()`, `PI`, `E`) is refused — see [the DECIMAL statement](skills-reference.md#math-decimal)
+
+`CONDITION` — `CONDITION: {var} -> {boolean expr}`
+:   evaluate a boolean expression and store the boolean in this node's `result` — the declared form of a decision value, whether or not the expression carries an operator (`CONDITION: same -> {model.flag}`); an `IF` may test it directly (`IF: {node.result.var}`)
+
+`IF` — multi-line (see below)
+:   a boolean **decision** that redirects traversal to a named node
+
+`MAPPING` — `MAPPING: source -> target`
+:   data mapping, identical to `graph.data.mapper` (**no** `{}` around source/target)
+
+`EXECUTE` — `EXECUTE: {node-name}`
+:   run another `graph.math` node's statements inline, **in the calling node's context** — any `COMPUTE` results land in the **invoking** node's result namespace (`{invoker}.result.{var}`); the executed module's own namespace stays empty. This is the **module-reuse mechanism**: author a formula once in an off-path module node, and any executing node borrows it (see the note below)
+
+`RESET` — `RESET: {node-name}`
+:   forget a node completely — guard, completion mark, state — so it can execute again (advanced; see the rules below)
 
 Expressions use `{namespace.key}` substitution (`{input.body.a}`, `{book.price}`, `{model.x}`) —
 the `{…}` substitution syntax is robust to hyphenated names (`{unit-price}` is the value of

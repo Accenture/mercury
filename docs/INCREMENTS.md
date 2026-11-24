@@ -5725,3 +5725,81 @@ Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --lock
 composite. `cargo audit` is not installed on the build machine: the bumped lockfile's 287 registry crates were matched
 against the advisory database through OSV (none), and the CI `audit` job on the pull request is the gate, as it is the
 first run of the workflow changes themselves.
+
+## Increment 210 — `f:addMonths`, `f:monthsBetween`, `f:addYears` and `f:yearsBetween`, calendar months and years (2026-11-23)
+
+The twin of the Java engine's `AddMonths`, `MonthsBetween`, `AddYears` and `YearsBetween` (mercury-composable #667, squash
+`df358e62`, part of its issue #664). `f:addDays` and `f:daysBetween` (Increment 189) compute in days; a month is not a
+fixed number of days, so a rule stated in months or years was a calendar algorithm written out in `graph.math` statements.
+
+- **`plugins_date.rs`.** `f:addMonths(date, months)` and `f:addYears(date, years)` answer the date that many calendar
+  months or years later (earlier for a negative number) as `YYYY-MM-DD`; `f:monthsBetween(from, to)` and
+  `f:yearsBetween(from, to)` answer the whole months or years completed between two dates as an integer, whatever the
+  order. The Java plugins call `LocalDate.plusMonths`, `plusYears` and `ChronoUnit.MONTHS` / `YEARS.between`; this port
+  calls jiff's `Date::checked_add` with a `Span` of months or years and `Date::until` with the largest unit month or year,
+  then takes the absolute value. Measured on jiff 1.0.1 before the Java change: the two give `java.time`'s answer on every
+  edge case of the issue, and the month count equals the JDK's formula on all 267,289 pairs of dates from 2027-11-01 to
+  2029-03-31 in both orders. The months and the years are read by the rule that reads the days (one `count` function for
+  the three units, through `decimal::operand`), bounded before any arithmetic by the widest writable span, 119,999 months
+  or 9,999 years; the refusal names the unit, "The months of addMonths must be a whole number". jiff holds a year below
+  0000 where `java.time`'s writable range ends, so a result there is refused by the check that writes the date, as one
+  after 9999 is. Arity, date and out-of-range messages are the day plugins' with the plugin's name.
+- **The three rules, declared in the guides and pinned by vectors.** A day the resulting month lacks becomes that month's
+  last day and no other date moves (`2027-01-31` and one month give `2027-02-28`; `2027-02-28` and one month give
+  `2027-03-28`). A month is complete when the day of the month is reached, a year when the month and day are. After an
+  addition that ended on a shorter month the count is one short of the number added (`2028-02-29` and 12 months give
+  `2029-02-28`, 11 whole months and no whole year later). No end-of-month option and no signed variant.
+- **`BUILTIN_PLUGIN_COUNT` is 67.** It was 62 and the engine declared 63: `rangeLookup` (Increment 176) had been added
+  without the constant, a floor the loader checks with "at least", so nothing failed. The four new plugins bring the
+  declared number to 67, and the constant now states it: 67 distinct names, the same 67 the Java engine ships as
+  `@SimplePlugin` classes. `tests/builtin_plugin_count.rs` holds the number exactly, in a test binary that declares no
+  plugin of its own (with the constant set to 66 it fails); a comment in `registration_conflicts.rs` that still said 46
+  names the constant instead.
+- **`contract.rs`.** The graph contract types `addMonths` and `addYears` as `string`, `monthsBetween` and `yearsBetween` as
+  `integer`.
+- **Tests.** The shared `date-plugin-vectors.json` (175 vectors, 110 of them new, byte-identical with the Java
+  repository's) in `tests/date_plugin_vectors.rs`, green on the first run: the runner gains the codes `bad-months` and
+  `bad-years`, matches `bad-days` on "The days of" so that a refusal naming the wrong unit fails its vector, and requires
+  vectors for each of the six plugins. Negative control: with `months-between-month-end-not-reached` set to 1 the test
+  fails by the vector's id, and the file was restored byte for byte. Eight in-module tests for the four plugins. The graph
+  fixture `unit-test-date-arithmetic-2` (byte-identical) in `graph_runtime`, as three sequential functions of the one
+  booted test, the twins of the Java `GraphTaskTest` methods: the end of a term, its notice date and the months and years
+  used in both orders; a term from 29 February ending on 28 February, the months given as text; and four refusals with
+  HTTP 400 and the plugin's message - a date-time, an absent start date and absent months, each reaching the plugin as
+  Nil, and a fraction of a month. The manifest compiles 81 graphs.
+- **Docs and the Playground.** The Event Script syntax guide (four catalog rows; *Date arithmetic plugins* with an example
+  and the three rules), the skills reference's *Dates* (`{#dates}`, pinned on both engines), the command reference's
+  plugin examples, the AI agent guide's pre-send checklist and the commands catalog, the Java branch's text. The help
+  page `help graph-data-mapper` and the bundle are deployed from the Java repo with `npm run release:rust` (Node
+  26.12.0): `index-Cxgp22Vg.js` became `index-wWr4LR2P.js`, and every deployed file and all 44 help pages are
+  byte-identical with the Java repo's. CHANGELOG Unreleased, `Added` item 3.
+- **Two guide pages brought in line with the Java pages (the maintainer's direction on review: this repository's guides
+  follow the Java repository's closely unless there is a reason).** The Java change could not land in two pages as it
+  was written, so both were aligned first.
+  - `flow-schema-reference.md` was a terse page of 492 lines written for this repository, with no data-mapping tables
+    and no plugin catalog; the Java page is the full reference. It is now the Java page (1,271 lines) with each
+    difference applied as an explicit edit, 45 hunks: the plugin catalog with its six date rows, the namespace and
+    constant tables, the execution types with their examples, the HTTP input dataset, the pipeline, sub-flow and
+    external-state sections and the annotated example. The differences that remain have a reason. Where this engine
+    differs, a note marked *Rust port* says so: `input.cookie`, `input.stream`, `input.filename`, `input.session`,
+    `error.stack` and `datatype` are accepted and resolve null; the compiler ignores `join`, `pipeline` and `loop` on
+    another execution type where the Java table says *Forbidden*; string length counts Unicode scalar values; a plugin
+    is a `#[simple_plugin]` function and not a scanned class. Rules the earlier page had verified against the compiler
+    are kept after the Java text (the loader's failure semantics, the reserved model keys, the decision clamp, the
+    resilience handler's contract, the route `http.flow.adapter`), and the claim `no-handler-error-shape` keeps its
+    sentence. Four Java statements do not hold on either engine and were corrected here: the minimal flow named a first
+    task and a handler it did not define; `'* -> *'` is refused, since `*` is a destination only; `ext:append` is the
+    key `append`, not a form of its own; the annotated example carried two `output` keys in one task. They are raised
+    for the Java page.
+  - `command-reference.md`: three tables are definition lists as in the Java page (the constants, the two non-constant
+    source forms, the statements), entry for entry the same words; the root `purpose` row and the note that `inspect`
+    returns a subtree are taken from the Java page, both checked against this engine. 43 lines in 9 hunks still
+    differ, each with a reason: `graph.js` is retired here; `export` always writes the file, where the Java engine
+    skips an identical one; connectivity is an authoring convention this engine does not enforce; and two references
+    name the Java repository and this ledger.
+  CHANGELOG Unreleased, `Documentation` item 1.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace
+--locked` (152 suites, 783 passed, 0 failed, 9 ignored; 774 passed before the increment), `python3
+scripts/check-doc-claims.py` and `python3 scripts/check-llms-links.py`. `mkdocs build --strict` was not run (mkdocs is not
+on the build machine); the pull request's `docs` run is its gate.

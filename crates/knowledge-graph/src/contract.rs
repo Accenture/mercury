@@ -62,15 +62,16 @@ const MODEL_PREFIX: &str = "model.";
 /// The simple plugins whose result type is known from the plugin alone.
 fn plugin_type(name: &str) -> Option<&'static str> {
     match name {
-        "int" | "long" | "length" | "decimalCompare" | "daysBetween" => Some(INTEGER),
+        "int" | "long" | "length" | "decimalCompare" | "daysBetween" | "monthsBetween"
+        | "yearsBetween" => Some(INTEGER),
         "float" | "double" | "add" | "subtract" | "multiply" | "div" | "mod" | "increment"
         | "decrement" => Some(NUMBER),
         "boolean" | "eq" | "ne" | "gt" | "lt" | "and" | "or" | "not" | "isNull" | "notNull" => {
             Some(BOOLEAN)
         }
-        "text" | "concat" | "substring" | "now" | "uuid" | "dateTime" | "addDays" | "b64"
-        | "lookup" | "rangeLookup" | "decimalAdd" | "decimalSubtract" | "decimalMultiply"
-        | "decimalDiv" | "decimalMod" | "decimalRound" => Some(STRING),
+        "text" | "concat" | "substring" | "now" | "uuid" | "dateTime" | "addDays" | "addMonths"
+        | "addYears" | "b64" | "lookup" | "rangeLookup" | "decimalAdd" | "decimalSubtract"
+        | "decimalMultiply" | "decimalDiv" | "decimalMod" | "decimalRound" => Some(STRING),
         "listOfMap" | "updateListOfMap" => Some(ARRAY),
         _ => None,
     }

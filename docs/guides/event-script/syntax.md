@@ -1522,6 +1522,10 @@ For example:
 | **Generator**       | now             | text(iso), text(local) or text(ms)                                                                                    |
 | **Date**            | addDays         | A date written as `YYYY-MM-DD` and a whole number of days (negative for an earlier date) — returns the date that many days later, written the same way: `(2027-01-15, 15)` gives `2027-01-30`. See *Date arithmetic plugins* below. |
 | **Date**            | daysBetween     | Two dates written as `YYYY-MM-DD`, in either order — returns the whole days between them as an integer, the earlier date excluded and the later one included: `(2027-04-10, 2027-05-11)` gives `31`, the same date twice gives `0`. |
+| **Date**            | addMonths       | A date written as `YYYY-MM-DD` and a whole number of calendar months (negative for an earlier date) — returns the date that many months later with the same day of the month, or the last day of the resulting month when that month is shorter: `(2027-03-15, 12)` gives `2028-03-15`, `(2027-01-31, 1)` gives `2027-02-28`. |
+| **Date**            | monthsBetween   | Two dates written as `YYYY-MM-DD`, in either order — returns the whole months completed between them as an integer: `(2026-06-01, 2027-05-31)` gives `11`, and `(2026-06-01, 2027-06-01)` gives `12`. |
+| **Date**            | addYears        | A date written as `YYYY-MM-DD` and a whole number of calendar years (negative for an earlier date) — returns the date that many years later with the same month and day; 29 February becomes 28 February in a year that lacks it: `(2028-02-29, 1)` gives `2029-02-28`. |
+| **Date**            | yearsBetween    | Two dates written as `YYYY-MM-DD`, in either order — returns the whole years completed between them as an integer, the way an age is counted: `(1990-07-04, 2027-07-03)` gives `36`, and `(1990-07-04, 2027-07-04)` gives `37`. |
 | **Logical**         | eq              | Two Objects, plus up to two optional modifiers: `text(ignoreCase)` compares two strings case-insensitively; `text(ignoreType)` compares the text forms of the two values, allowing relaxed comparison of numbers and booleans so that `"123" == 123`, `"123.456" == 123.456` and `"true" == true`; use both together for a case-insensitive text-form comparison. e.g. `f:eq(model.a, model.b, text(ignoreCase))` |
 | **Logical**         | ne              | Two Objects, plus the same optional `text(ignoreCase)` / `text(ignoreType)` modifiers as `eq` — returns the exact complement of `eq`                                                                  |
 | **Logical**         | isNull          | A single Object                                                                                                       |
@@ -1644,8 +1648,10 @@ the earlier offset.
 
 *Date arithmetic plugins*
 
-`f:addDays(date, days)` and `f:daysBetween(from, to)` compute with calendar dates — a due date from payment terms,
-the days between two events — without a composable function. A date is an ISO-8601 calendar date written exactly as
+Six plugins compute with calendar dates — a due date from payment terms, a renewal date twelve months after a start
+date, the days or the whole months between two events — without a composable function. `f:addDays` and
+`f:daysBetween` work in days; `f:addMonths`, `f:monthsBetween`, `f:addYears` and `f:yearsBetween` work in calendar
+months and years, which are not a fixed number of days. A date is an ISO-8601 calendar date written exactly as
 `YYYY-MM-DD`, a plain day with **no time and no time zone** (not UTC, not a Unix timestamp), so the answer never depends
 on where the application runs, and the calendar is the Gregorian one with its leap days.
 
@@ -1655,6 +1661,11 @@ on where the application runs, and the calendar is the Gregorian one with its le
 - `f:daysBetween(from, to)` returns the whole days between the two dates as an integer. It counts the earlier date out
   and the later one in: the same date twice gives `0`, `2027-03-01` to `2027-03-02` gives `1`, and `2027-04-10` to
   `2027-05-11` gives `31`. The order of the arguments does not matter — the answer is never negative.
+- `f:addMonths(date, months)` and `f:addYears(date, years)` return the date that many calendar months or years later,
+  written as `YYYY-MM-DD`. The months and the years are a whole number, read as the days of `f:addDays` are, and a
+  negative number gives an earlier date. The day of the month is kept: `2027-03-15` and `12` months give `2028-03-15`.
+- `f:monthsBetween(from, to)` and `f:yearsBetween(from, to)` return the whole months or the whole years completed
+  between the two dates as an integer. The order of the arguments does not matter — the answer is never negative.
 
 ```yaml
 - 'f:addDays(input.body.invoice_date, input.body.term_days) -> model.due_date'
@@ -1666,10 +1677,38 @@ With `invoice_date` `2027-01-15`, `term_days` `15` and `paid_on` `2027-02-02`, `
 `days_apart` is `3` and `last_day_before_due` is `2027-01-29`. `f:addDays(model.start, f:daysBetween(...))` is not
 valid — a plugin argument is never another plugin — so map the count to a model variable first.
 
+```yaml
+- 'f:addMonths(input.body.start_date, input.body.term_months) -> model.end_date'
+- 'f:addMonths(model.end_date, int(-3)) -> output.body.notice_date'
+- 'f:monthsBetween(input.body.start_date, input.body.as_of) -> output.body.months_used'
+- 'f:yearsBetween(input.body.start_date, input.body.as_of) -> output.body.years_used'
+```
+
+With `start_date` `2026-06-01`, `term_months` `24` and `as_of` `2027-05-31`, `model.end_date` is `2028-06-01`,
+`notice_date` is `2028-03-01`, `months_used` is `11` and `years_used` is `0`.
+
+Calendar months and years follow three rules. Each one changes a date or a count, so a flow that relies on another
+convention must not use these plugins for it:
+
+1. **A day the resulting month lacks becomes that month's last day, and no other date moves.** `2027-01-31` and one
+   month give `2027-02-28` (`2028-01-31` gives `2028-02-29`, in a leap year), `2027-03-31` and minus one month give
+   `2027-02-28`, and `2028-02-29` and one year give `2029-02-28`. The last day of a month does not stay a last day:
+   `2027-02-28` and one month give `2027-03-28`. So adding months in steps differs from adding them at once — two steps
+   of one month from `2027-01-31` end on `2027-03-28`, and two months end on `2027-03-31`. A schedule of monthly dates
+   adds 1, 2, 3 and so on months to its start date, never one month to the previous date.
+2. **A month is complete when the day of the month is reached, and a year when the month and day are.** From
+   `2026-06-01`, `2027-05-31` is `11` whole months and `2027-06-01` is `12`. From `1990-07-04`, `2027-07-03` is `36`
+   whole years and `2027-07-04` is `37`.
+3. **After an addition that ended on a shorter month, the count is one short of the number added.** `2027-01-31` and
+   one month give `2027-02-28`, and `f:monthsBetween` of those two dates is `0`, because 28 February does not reach
+   day 31. `2028-02-29` and `12` months give `2029-02-28`, which is `11` whole months and `0` whole years after it; the
+   twelfth month and the first year are complete on `2029-03-01`.
+
 A date of another shape (`2027-01-15T10:00:00`, `2027-01-15Z`, `2027-1-5`, `01/15/2027`, surrounding spaces), a day the
-calendar lacks (`2027-02-29`, `2027-04-31`), a fractional or non-numeric number of days, a null argument, and a result
-outside the years `0000` to `9999` are refused by name, so the task fails rather than computing with a wrong date. A
-date-time from `f:now` is not a date; `f:dateTime(text(yyyy-MM-dd))` gives today's date in the application's time zone.
+calendar lacks (`2027-02-29`, `2027-04-31`), a fractional or non-numeric number of days, months or years, a null
+argument, and a result outside the years `0000` to `9999` are refused by name, so the task fails rather than computing
+with a wrong date. A date-time from `f:now` is not a date; `f:dateTime(text(yyyy-MM-dd))` gives today's date in the
+application's time zone.
 
 *Simple Field Validation*
 

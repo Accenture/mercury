@@ -203,9 +203,13 @@ engines):
 > - [ ] **Date arithmetic is a plugin, not code.** A due date or a day count on dates written as `YYYY-MM-DD` is
 >       `f:addDays({date}, {days})` (a negative number of days goes back) or `f:daysBetween({from}, {to})` (whole days,
 >       the earlier date excluded and the later one included, in either order) in a `graph.data.mapper`
->       ([dates](skills-reference.md#dates)). Never compute it in `graph.math`, in a composable function or through
->       epoch milliseconds (`f:parseDate` with `ms`), which brings time zones back in; the request carries its dates as
->       `YYYY-MM-DD` text, with no time and no time zone.
+>       ([dates](skills-reference.md#dates)). A period in calendar months or years is `f:addMonths({date}, {months})`
+>       or `f:addYears({date}, {years})` (the day of the month is kept, and a day the resulting month lacks becomes
+>       its last day) and `f:monthsBetween({from}, {to})` or `f:yearsBetween({from}, {to})` (the whole months or years
+>       completed, in either order), never a number of days divided by 30 or 365; a monthly schedule adds 1, 2, 3
+>       and so on months to its start date, never one month to the previous date. Never compute any of these in
+>       `graph.math`, in a composable function or through epoch milliseconds (`f:parseDate` with `ms`), which brings
+>       time zones back in; the request carries its dates as `YYYY-MM-DD` text, with no time and no time zone.
 > - [ ] A `$` source is an **RFC 9535** JSONPath query, used only as a data mapping's source: no Jayway forms
 >       (`in`, `=~`, `.length()`), and no JSONPath inside a `{reference}`
 >       ([JSON Path](../event-script/syntax.md#json-path)).
