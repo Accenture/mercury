@@ -124,6 +124,18 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    `url` requires). **Upgrade note:** none - a lockfile bump; an application that builds a Redis extension with its own
    lockfile updates `url` itself (`cargo update -p url`).
 
+### Documentation
+
+1. **The flow schema reference and the command reference follow the Java pages (Increment 210).** This repository's
+   guides follow the Java repository's text, and a difference needs a reason stated where it is. The flow schema
+   reference was a terse page with no data-mapping tables and no plugin catalog; it is now the Java page: every field,
+   the execution types with examples, the namespace and constant tables, the HTTP input dataset and the plugin
+   catalog, the six date plugins included. A note marked *Rust port* says where this engine differs: a flow does not
+   receive cookies, upload streams, file names or session values, there is no stack trace and no PoJo class name, and
+   the compiler ignores a field that does not belong to an execution type. The command reference's constants, source
+   forms and statements are definition lists as in the Java page, and it gains the root `purpose` rule of the
+   deployment gate and the note that `inspect` returns a subtree. No behaviour changes.
+
 ## Version 4.12.30, 11/5/2026
 
 The lock-step twin of Java 4.12.30, catching up from 4.12.27 with every common feature the Java engine shipped since. Java

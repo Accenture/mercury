@@ -118,8 +118,9 @@ fn duplicate_names_warn_and_last_wins() {
     );
     assert!(!plugins::contains_simple_plugin("anyFnName"));
 
-    // 4. the built-in floor: all 46 engine plugins arrived through the
-    //    inventory (the count the SimplePluginLoader hook asserts at boot)
+    // 4. the built-in floor: every engine plugin (BUILTIN_PLUGIN_COUNT of them)
+    //    arrived through the inventory (the count the SimplePluginLoader hook
+    //    asserts at boot); tests/builtin_plugin_count.rs holds the exact number
     assert!(
         plugins::load_inventory_plugins() >= plugins::BUILTIN_PLUGIN_COUNT,
         "the built-in #[simple_plugin] declarations must all be collected"

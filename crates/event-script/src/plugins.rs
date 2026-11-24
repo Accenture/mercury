@@ -48,6 +48,9 @@ use crate::plugins_e8::value_type_name;
 /// The number of built-in `#[simple_plugin]` declarations the engine itself
 /// ships (this module, `plugins_e8`, `plugins_decimal` and `plugins_date`) —
 /// the startup floor the `SimplePluginLoader` asserts against linker elision.
+/// The Java engine ships the same 67 as `@SimplePlugin` classes. The loader
+/// checks "at least", so `tests/builtin_plugin_count.rs` holds the number
+/// exactly: update the constant when a plugin is added.
 pub const BUILTIN_PLUGIN_COUNT: usize = 67;
 
 /// A plugin body (Java `PluginFunction.calculate`): evaluated argument values

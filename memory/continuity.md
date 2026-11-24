@@ -385,6 +385,22 @@ layers shipped; the two above have held through every re-verify.)*
   `agent-memory.yml` is installed by the agent-memory tool, so check its `actions/checkout` line after an upgrade.
   <!-- id: node-version-statements-and-ci-runtime-rust | created: 2026-11-24 | last_used: 2026-11-24 | uses: 1 | tier: working | origin: 2026-11-24-005208 -->
 
+- **This repository's guides follow the Java repository's text closely, and a difference needs a reason stated where
+  it is (the maintainer, 2026-11-24, on review of Increment 210: "The Rust doc should closely follow Java repo unless
+  there is a reason").** The Java change for the month and year date plugins could not land in two pages:
+  `flow-schema-reference.md` was a terse page written for this repository, with no plugin catalog, and
+  `command-reference.md` kept tables where the Java page has definition lists. Both were aligned in the same pull
+  request (#420). **Why:** a Java docs hunk must have a place to land here, and a reader of both engines must not find
+  two descriptions of one behaviour. **How to apply:** take a Java docs change with `git apply`; when a hunk has no
+  place, align the page first, never leave the hunk out. To align a page, start from the Java text and apply each
+  difference as an explicit edit, checked against this engine's source. The reasons that count: this engine behaves
+  differently (a note marked *Rust port*), a Rust API or code example, a reference that names the other repository or
+  this ledger, and a Java statement that does not hold on this engine (raise it for the Java page). A rule this
+  repository had verified against its source stays, after the Java text, when the Java page is silent. The other guide
+  pages have not been reviewed against this rule (the agent's note: `syntax.md`, `skills-reference.md`,
+  `ai-agent-guide.md` and `minigraph-commands.json` took the Java hunks cleanly on 2026-11-24).
+  <!-- id: conv-guides-follow-java-rust | created: 2026-11-24 | last_used: 2026-11-24 | uses: 1 | tier: working | origin: 2026-11-24-044858 -->
+
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 
 > The `(blueprint)` items live one-per-file in `memory/open-threads/` (v4.39.0). This section is
