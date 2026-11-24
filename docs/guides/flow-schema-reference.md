@@ -684,11 +684,10 @@ Append `:qualifier` to any source reference to convert the value before mapping:
 | `$.path` | JSONPath expression | `$.input.body.list[*].id -> ids` |
 
 !!! note "Rust port"
-    The flow input dataset of this engine carries `method`, `uri`, `header`, `path_parameter`,
-    `query`, `body` and `ip`. Cookies, upload streams, file names and session values are not passed to
-    a flow, so `input.cookie`, `input.stream`, `input.filename` and `input.session` are accepted in a
-    mapping and resolve null. This engine produces **no stack trace**: `error.stack`, present on the
-    Java engine when a stack trace exists, is accepted and resolves null.
+    This engine's HTTP edge has no upload stream and no multipart upload, so `input.stream` and
+    `input.filename` are accepted in a mapping and resolve null, as they do on the Java engine for a
+    request that is not an upload. This engine produces **no stack trace**: `error.stack`, present on
+    the Java engine when a stack trace exists, is accepted and resolves null.
 
 ---
 
@@ -791,17 +790,18 @@ When a flow is triggered by an HTTP request, the following fields are available 
 | `method` | String | HTTP method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS) |
 | `uri` | String | Request URI path |
 | `header` | Map | Request headers (lowercase keys) |
-| `cookie` | Map | HTTP cookies (lowercase keys) — Java engine only |
+| `cookie` | Map | HTTP cookies (lowercase keys) |
 | `path_parameter` | Map | URL path parameters (as defined in `rest.yaml`) |
 | `query` | Map | Query string parameters (lowercase keys) |
 | `body` | Map / List / Object | Parsed request body; JSON object → Map, JSON array → List (map it with `*` as the function's whole input), text → String |
 | `stream` | String | Stream route ID for file upload or large body streaming — Java engine only |
 | `ip` | String | Remote IP address |
 | `filename` | String | Original filename (multipart file upload) — Java engine only |
-| `session` | Map | Session key-values set by an authentication function — Java engine only |
+| `session` | Map | Session key-values set by an authentication function |
 
-The four keys marked *Java engine only* are absent from this engine's dataset; see the *Rust port*
-note under [Input namespaces](#input-namespaces-lhs-of-input-mappings).
+`cookie` and `session` are always maps: empty when the request carries no cookie, or when its endpoint
+has no authentication function. The two keys marked *Java engine only* are absent from this engine's
+dataset; see the *Rust port* note under [Input namespaces](#input-namespaces-lhs-of-input-mappings).
 
 ---
 

@@ -5803,3 +5803,40 @@ Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --lock
 --locked` (152 suites, 783 passed, 0 failed, 9 ignored; 774 passed before the increment), `python3
 scripts/check-doc-claims.py` and `python3 scripts/check-llms-links.py`. `mkdocs build --strict` was not run (mkdocs is not
 on the build machine); the pull request's `docs` run is its gate.
+
+## Increment 211 — a flow reads the request's cookies and session values (2026-11-23)
+
+Found while the flow schema reference was aligned with the Java page (Increment 210): the Java `HttpToFlow` adapter puts
+eleven keys into a flow's input dataset, and this engine's `http.flow.adapter` copied seven. `cookie`, `session`, `stream`
+and `filename` were missing, so `input.cookie.<name>` and `input.session.<key>` resolved null in a flow, and in a graph,
+whose `input` namespace is the flow's.
+
+- **The cause was a note that had gone out of date.** The adapter's module doc called the four keys deferrals of the
+  HTTP edge. Two of them had arrived since: the edge parses the `Cookie` header into a map (parity F14d, increment 56),
+  and it keeps the reply headers of an endpoint's authentication function as session values. `AsyncHttpRequest` renders
+  both, as `cookies` and `session`, when it has some. Only the adapter did not read them.
+- **`adapter.rs`.** The adapter copies `cookies` to `cookie` and `session` to `session`. Java puts
+  `request.getCookies()` and `request.getSessionInfo()`, each a map that starts empty, so both keys are always maps
+  here too: a request with no cookie, or an endpoint with no authentication function, gives the empty map. The
+  dataset's other maps, `path_parameter` and `query`, were already always present.
+- **`stream` and `filename` stay absent.** Java reads the stream route from the upload the edge received and the file
+  name from its multipart form. This engine's HTTP edge has neither an upload stream nor multipart upload (the
+  platform-core deferral still stands), so there is nothing to pass; a mapping of either resolves null, as it does on
+  the Java engine for a request that is not an upload.
+- **Test, written first.** The flow fixture `flows-rust/input-cookie-session.yml` echoes `input.cookie.flavor`, the
+  whole `input.cookie`, `input.session.user` and the whole `input.session`. Two endpoints in the test `rest.yaml` bind
+  it: one behind the authentication function `v1.session.auth`, which lets every request through and answers the
+  headers `user` and `role`, and one with no authentication. `flow_input_carries_cookies_and_session`, a function of
+  the one booted test in `flow_runtime.rs`, calls both through the real HTTP edge: two cookies and the two session
+  values reach the flow, and the request with neither gets two empty maps. Before the change it failed on the first
+  cookie. The Java repository has no fixture that reads either key in a flow, so the fixture is a Rust-side
+  supplement, listed in `rust-flows.yaml`.
+- **Docs.** The *Rust port* note of the flow schema reference and its *HTTP input dataset* table now name only
+  `stream` and `filename` as absent, which removes one hunk of difference from the Java page; the syntax guide's
+  dataset table gains the same statement, which it lacked; the REST automation guide says a flow reads the session
+  values as `input.session.<key>`. CHANGELOG Unreleased, `Fixed` item 1.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace
+--locked` (152 suites, 783 passed, 0 failed, 9 ignored; the new case is a function of an existing test), `python3
+scripts/check-doc-claims.py` and `python3 scripts/check-llms-links.py`. `mkdocs build --strict` was not run (mkdocs is not
+on the build machine); the pull request's `docs` run is its gate.

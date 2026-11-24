@@ -260,6 +260,12 @@ The HTTP request dataset, addressable with the "input." namespace, contains the 
 
 For easy matching, please use lower case for headers, cookies, query and path parameters.
 
+> The Rust engine's HTTP edge has no upload stream and no multipart upload, so the `stream` and
+> `filename` keys are absent: a mapping that reads `input.stream` or `input.filename` is accepted and
+> resolves null, as it does on the Java engine for a request that is not an upload. `cookie` and
+> `session` are always maps, empty when the request has no cookie or its endpoint no authentication
+> function.
+
 Regular API uses JSON and XML and they will be converted to a hash map in the event's body (a JSON
 array body becomes a list — see [Special consideration for Lists as input](#special-consideration-for-lists-as-input)).
 

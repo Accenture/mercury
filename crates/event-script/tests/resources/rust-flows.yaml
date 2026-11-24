@@ -1,7 +1,9 @@
 # Rust-side supplemental flows (NOT Java fixtures — see README.md):
 # dynamic-fork coverage until the canonical fixture's sub-flow + ext:
-# dependencies arrive with increment E-7.
+# dependencies arrive with increment E-7; the cookies and session values
+# of the HTTP input dataset, which no Java fixture reads (Increment 211).
 flows:
   - 'dynamic-fork-test.yml'
+  - 'input-cookie-session.yml'
 
 location: 'classpath:/flows-rust/'

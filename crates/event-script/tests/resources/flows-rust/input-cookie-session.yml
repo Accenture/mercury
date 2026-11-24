@@ -1,0 +1,30 @@
+#
+# Rust-side supplement (Increment 211): the HTTP input dataset carries the
+# request's cookies and the session values an authentication function set,
+# as the Java HttpToFlow adapter passes them - 'cookie' and 'session' are
+# always maps, empty when the request has none. The Java repository has no
+# fixture that reads either key in a flow, so this one is not a Java copy.
+#
+flow:
+  id: 'input-cookie-session'
+  description: 'Echo the cookies and the session values of an HTTP request'
+  ttl: 10s
+
+first.task: 'no.op'
+
+tasks:
+  - input:
+      - 'input.cookie.flavor -> model.flavor'
+      - 'input.cookie -> model.cookies'
+      - 'input.session.user -> model.session_user'
+      - 'input.session -> model.session'
+    process: 'no.op'
+    output:
+      - 'text(application/json) -> output.header.content-type'
+      - 'input.path_parameter.user -> output.body.user'
+      - 'model.flavor -> output.body.flavor'
+      - 'model.cookies -> output.body.cookies'
+      - 'model.session_user -> output.body.session_user'
+      - 'model.session -> output.body.session'
+    description: 'Echo the cookie and session values of the request'
+    execution: end

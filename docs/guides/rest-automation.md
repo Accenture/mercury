@@ -168,7 +168,8 @@ sent to this route (with the endpoint's timeout). The contract:
   to the caller, so the function can reject with a custom status such as 403;
 - **headers on the verdict envelope become session info** that rides to the target
   function as read-only headers (the `session` map of the `AsyncHttpRequest`) — e.g. put
-  the validated user id there. A working example is the `event.api.auth` demo in the
+  the validated user id there. A flow bound to the endpoint reads the same values as
+  `input.session.<key>`. A working example is the `event.api.auth` demo in the
   [Event over HTTP](event-over-http.md#authentication-the-eventapiauth-demo) guide.
 
 !!! note "Rust port"
