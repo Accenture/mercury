@@ -5896,3 +5896,22 @@ CHANGELOG Unreleased, `Documentation` item 2. Gates: `cargo fmt --all --check`, 
 --locked -- -D warnings`, `cargo test --workspace --locked` (152 suites, 783 passed, 0 failed, 9 ignored), `python3
 scripts/check-doc-claims.py` and `python3 scripts/check-llms-links.py`. `mkdocs build --strict` was not run (mkdocs is not
 on the build machine); the pull request's `docs` run is its gate.
+
+## Increment 213 — `transaction.journal.recorder` keeps its row, with a note that journaling is not ported (2026-11-23)
+
+The maintainer's ruling on the item Increment 212 left open. The observability guide and the reserved names page
+describe `transaction.journal.recorder` as receiving request and response journals, as the Java pages do. Journaling is
+not ported: `yaml.journal` is not read and nothing produces a journal, so nothing is delivered to the route; only the
+forwarding branch in `telemetry.rs` exists, and the name stays reserved. The same words therefore described a
+behaviour this engine does not have.
+
+The ruling: keep the row, with a note. Journaling was not ported because the need is met where the transaction is
+defined. An Event Script flow adds a task that records what the audit needs, and a graph adds a node with a composable
+function that does the same. The recorder is a legacy requirement that predates the knowledge graph. Both pages now
+carry a note marked *Rust port* that says so; on the reserved names page it joins the existing note on
+`additional.info`. No source changes.
+
+CHANGELOG Unreleased, `Documentation` item 3. Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets
+--locked -- -D warnings`, `cargo test --workspace --locked` (152 suites, 783 passed, 0 failed, 9 ignored), `python3
+scripts/check-doc-claims.py` and `python3 scripts/check-llms-links.py`. `mkdocs build --strict` was not run (mkdocs is not
+on the build machine); the pull request's `docs` run is its gate.

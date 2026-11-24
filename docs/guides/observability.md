@@ -234,6 +234,13 @@ dataset to it. A companion hook, **`transaction.journal.recorder`**, receives
 request/response journals when journaling is enabled (journals may contain PII — handle
 per your organization's security policy).
 
+!!! note "Rust port"
+    Journaling is not ported (`yaml.journal` is not read), so this engine never produces a
+    journal and nothing is delivered to `transaction.journal.recorder`; the route name stays
+    reserved. The feature is a legacy requirement that predates the knowledge graph. To audit
+    a transaction here, add a task to the flow (Event Script) or a node with a composable
+    function to the graph (MiniGraph) that records what the audit needs.
+
 ### The OpenTelemetry forwarder (ready-made) {#otel-forwarder}
 
 You do not have to write the forwarder for OpenTelemetry. The
