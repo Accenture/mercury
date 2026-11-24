@@ -127,6 +127,9 @@ graphs:
   # the date plugins: addDays and daysBetween in a data mapper - a due date from the payment terms and
   # the days between it and the payment date, in either order
   - 'unit-test-date-arithmetic-1'
+  # the date plugins in calendar months and years: addMonths, monthsBetween, addYears and yearsBetween in a data
+  # mapper - the end of a term and its notice date, and the whole months and years used, in either order
+  - 'unit-test-date-arithmetic-2'
   # asynchronous graph.extension (RFC-0011 section 8.1, Java #609): start a target and answer at once - a
   # subgraph, a fan-out, a graph and a flow that are not deployed, a flow target under the node's ttl or its
   # own; the err graphs put 'async' on graph.task, give it a value other than true or false, and map an

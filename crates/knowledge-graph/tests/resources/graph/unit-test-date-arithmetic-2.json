@@ -1,0 +1,65 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Term"
+      ],
+      "alias": "term",
+      "properties": {
+        "skill": "graph.data.mapper",
+        "purpose": "the dates of a term agreement from its start date and its length in months, and how much of the term has been used on a given date - ISO-8601 dates written as YYYY-MM-DD, with no time and no time zone",
+        "mapping": [
+          "f:addMonths(input.body.start_date, input.body.term_months) -> model.end_date",
+          "model.end_date -> output.body.end_date",
+          "f:addMonths(model.end_date, int(-3)) -> output.body.notice_date",
+          "f:monthsBetween(input.body.start_date, input.body.as_of) -> output.body.months_used",
+          "f:monthsBetween(input.body.as_of, input.body.start_date) -> output.body.months_used_swapped",
+          "f:monthsBetween(input.body.as_of, model.end_date) -> output.body.months_remaining",
+          "f:monthsBetween(input.body.start_date, model.end_date) -> output.body.term_check",
+          "f:addYears(input.body.start_date, int(1)) -> output.body.first_anniversary",
+          "f:yearsBetween(input.body.start_date, input.body.as_of) -> output.body.years_used",
+          "f:yearsBetween(input.body.as_of, input.body.start_date) -> output.body.years_used_swapped"
+        ]
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "the addMonths, monthsBetween, addYears and yearsBetween simple plugins in a data mapper: a date a number of calendar months or years later, and the whole months and years between two dates in either order",
+        "name": "unit-test-date-arithmetic-2"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "term",
+          "properties": {}
+        }
+      ],
+      "target": "term"
+    },
+    {
+      "source": "term",
+      "relations": [
+        {
+          "type": "done",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

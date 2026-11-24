@@ -634,6 +634,9 @@ async fn graph_runtime_end_to_end() {
     let platform = boot().await;
     graphs_run_end_to_end_like_java(&platform).await;
     graph_task_matches_java_semantics(&platform).await;
+    date_plugins_compute_the_end_of_a_term_and_the_months_used(&platform).await;
+    date_plugins_end_a_term_on_the_last_day_of_a_shorter_month(&platform).await;
+    month_and_year_plugins_refuse_what_the_day_plugins_refuse(&platform).await;
     decimal_statement_matches_java_semantics(&platform).await;
     decimal_precision_matches_java_semantics(&platform).await;
     join_loop_retirement_and_health(&platform).await;
@@ -2329,6 +2332,119 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
     assert_eq!(200, reply.status());
     let mm = body_map(&reply);
     assert_eq!(Some(Value::from(0.25)), mm.get_element("x"));
+}
+
+/// The Java `GraphTaskTest.datePluginsComputeTheEndOfATermAndTheMonthsUsed` twin.
+async fn date_plugins_compute_the_end_of_a_term_and_the_months_used(platform: &Platform) {
+    // unit-test-date-arithmetic-2: f:addMonths(input.body.start_date, input.body.term_months)
+    // gives the end of the term and, with a negative number, the notice date before it.
+    // f:monthsBetween and f:yearsBetween count the whole months and years completed between
+    // two dates, with the same answer in either order
+    let reply = run_graph(
+        platform,
+        "unit-test-date-arithmetic-2",
+        serde_json::json!({"start_date": "2026-06-01", "term_months": 24, "as_of": "2027-05-31"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "{:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("2028-06-01")), mm.get_element("end_date"));
+    assert_eq!(
+        Some(Value::from("2028-03-01")),
+        mm.get_element("notice_date")
+    );
+    assert_eq!(
+        Some(Value::from("2027-06-01")),
+        mm.get_element("first_anniversary")
+    );
+    // the twelfth month and the first year are complete on 2027-06-01, a day after the date
+    // asked about
+    assert_eq!(Some(Value::from(11)), mm.get_element("months_used"));
+    assert_eq!(Some(Value::from(11)), mm.get_element("months_used_swapped"));
+    assert_eq!(Some(Value::from(12)), mm.get_element("months_remaining"));
+    assert_eq!(Some(Value::from(24)), mm.get_element("term_check"));
+    assert_eq!(Some(Value::from(0)), mm.get_element("years_used"));
+    assert_eq!(Some(Value::from(0)), mm.get_element("years_used_swapped"));
+    // a whole year later the same request counts 23 months and one year
+    let reply = run_graph(
+        platform,
+        "unit-test-date-arithmetic-2",
+        serde_json::json!({"start_date": "2026-06-01", "term_months": 24, "as_of": "2028-05-31"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "{:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from(23)), mm.get_element("months_used"));
+    assert_eq!(Some(Value::from(0)), mm.get_element("months_remaining"));
+    assert_eq!(Some(Value::from(1)), mm.get_element("years_used"));
+    assert_eq!(Some(Value::from(1)), mm.get_element("years_used_swapped"));
+}
+
+/// The Java `GraphTaskTest.datePluginsEndATermOnTheLastDayOfAShorterMonth` twin.
+async fn date_plugins_end_a_term_on_the_last_day_of_a_shorter_month(platform: &Platform) {
+    // unit-test-date-arithmetic-2: 29 February plus 12 months is 28 February, the last day of
+    // a month that lacks day 29. The months may arrive as text. The day of the month is kept
+    // going back, so the notice date is the 28th. The end date does not reach day 29, so the
+    // term counts 11 whole months and no whole year
+    let reply = run_graph(
+        platform,
+        "unit-test-date-arithmetic-2",
+        serde_json::json!({"start_date": "2028-02-29", "term_months": "12", "as_of": "2029-02-28"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "{:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("2029-02-28")), mm.get_element("end_date"));
+    assert_eq!(
+        Some(Value::from("2028-11-28")),
+        mm.get_element("notice_date")
+    );
+    assert_eq!(
+        Some(Value::from("2029-02-28")),
+        mm.get_element("first_anniversary")
+    );
+    assert_eq!(Some(Value::from(11)), mm.get_element("term_check"));
+    assert_eq!(Some(Value::from(11)), mm.get_element("months_used"));
+    assert_eq!(Some(Value::from(0)), mm.get_element("months_remaining"));
+    assert_eq!(Some(Value::from(0)), mm.get_element("years_used"));
+}
+
+/// The Java `GraphTaskTest.monthAndYearPluginsRefuseWhatTheDayPluginsRefuse` twin.
+async fn month_and_year_plugins_refuse_what_the_day_plugins_refuse(platform: &Platform) {
+    // unit-test-date-arithmetic-2: a date-time, an absent request field, which reaches the
+    // plugin as Nil, and a fraction of a month each abort the run with the reason
+    for (body, message) in [
+        (
+            serde_json::json!({"start_date": "2026-06-01T00:00:00Z", "term_months": 24, "as_of": "2027-05-31"}),
+            "Expected a date written as YYYY-MM-DD",
+        ),
+        (
+            serde_json::json!({"term_months": 24, "as_of": "2027-05-31"}),
+            "Expected a date written as YYYY-MM-DD, with no time and no time zone, in addMonths - got null",
+        ),
+        (
+            serde_json::json!({"start_date": "2026-06-01", "as_of": "2027-05-31"}),
+            "The months of addMonths must be a whole number - got null",
+        ),
+        (
+            serde_json::json!({"start_date": "2026-06-01", "term_months": 1.5, "as_of": "2027-05-31"}),
+            "The months of addMonths must be a whole number - got 1.5",
+        ),
+    ] {
+        let reply = run_graph(
+            platform,
+            "unit-test-date-arithmetic-2",
+            body.clone(),
+            serde_json::json!({}),
+        )
+        .await;
+        assert_eq!(400, reply.status(), "{body}");
+        let text = event_script::conversions::to_json_string(reply.body());
+        assert!(text.contains(message), "{body}: {text}");
+    }
 }
 
 async fn join_loop_retirement_and_health(platform: &Platform) {

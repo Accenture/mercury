@@ -81,6 +81,9 @@ fn manifest_listed_graphs_are_compiled() {
     // by the notation; a graph.math IF skips the distance when the end is open)
     // + the date-arithmetic-1 fixture (f:addDays and f:daysBetween in a data mapper:
     // a due date from payment terms, the days apart in either order)
+    // + the date-arithmetic-2 fixture (f:addMonths, f:monthsBetween, f:addYears and
+    // f:yearsBetween in a data mapper: the end of a term and its notice date, the whole
+    // months and years used in either order)
     // + the 4 progress fixtures (progress-1..4: node.start for a node with 'progress', a
     // function's own events through the node's relay, a failing run, a synchronous subgraph
     // reporting through its parent - RFC-0011 section 8.4)
@@ -95,7 +98,7 @@ fn manifest_listed_graphs_are_compiled() {
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        80,
+        81,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );

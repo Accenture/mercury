@@ -218,9 +218,10 @@ ELSE: not-found
 '''
 ```
 
-### Dates — a due date and a day count {#dates}
+### Dates — a due date, a renewal date and the time between two dates {#dates}
 
-Two simple plugins compute with calendar dates in a mapper, with no function and no `graph.math` statement.
+Six simple plugins compute with calendar dates in a mapper, with no function and no `graph.math` statement: two in
+days, and four in calendar months and years.
 `f:addDays(date, days)` returns the date a whole number of days later (earlier for a negative number), and
 `f:daysBetween(from, to)` the whole days between two dates as an integer, the earlier date excluded and the later one
 included, whatever the order of the arguments:
@@ -240,7 +241,44 @@ the same date twice gives `0`. A date is an ISO-8601 calendar date written exact
 no time zone** — the request must carry dates in that form, and a date-time, a single-digit month, a day the calendar
 lacks (`2027-02-29`) or a null argument aborts the node by name, as does a fractional number of days or a result
 outside the years 0000 to 9999. The days may be a number or numeric text, so a terms property read from a table node
-works as written. Pinned on both engines by `unit-test-date-arithmetic-1` and the shared `date-plugin-vectors.json`. The full rules are in the
+works as written.
+
+A month is not a fixed number of days, so a period stated in calendar months or years has its own plugins.
+`f:addMonths(date, months)` and `f:addYears(date, years)` return the date that many months or years later (earlier for
+a negative number), and `f:monthsBetween(from, to)` and `f:yearsBetween(from, to)` the whole months or years completed
+between two dates as an integer, whatever the order of the arguments:
+
+```
+create node term
+with type Term
+with properties
+skill=graph.data.mapper
+mapping[]=f:addMonths(input.body.start_date, input.body.term_months) -> model.end_date
+mapping[]=model.end_date -> output.body.end_date
+mapping[]=f:addMonths(model.end_date, int(-3)) -> output.body.notice_date
+mapping[]=f:monthsBetween(input.body.start_date, input.body.as_of) -> output.body.months_used
+mapping[]=f:yearsBetween(input.body.start_date, input.body.as_of) -> output.body.years_used
+```
+
+A 24-month term from `2026-06-01` ends on `2028-06-01`, with its notice date on `2028-03-01`, and `2027-05-31` is `11`
+whole months and `0` whole years into it. Three rules decide the dates and the counts at the end of a month, and a
+graph states them by using these plugins:
+
+- **A day the resulting month lacks becomes that month's last day, and no other date moves.** `2027-01-31` and one
+  month give `2027-02-28`, and `2028-02-29` and one year give `2029-02-28`; `2027-02-28` and one month give
+  `2027-03-28`, not the last day of March. Two steps of one month from `2027-01-31` therefore end on `2027-03-28` where
+  two months end on `2027-03-31`, so a node that builds a monthly schedule adds 1, 2, 3 and so on months to the start
+  date, never one month to the previous date.
+- **A month is complete when the day of the month is reached, and a year when the month and day are.** From
+  `2026-06-01`, the twelfth month is complete on `2027-06-01`. An age in whole years is `f:yearsBetween` of the birth
+  date and the date asked about.
+- **After an addition that ended on a shorter month, the count is one short of the number added.** `2028-02-29` and
+  `12` months give `2029-02-28`, which is `11` whole months and `0` whole years after it.
+
+The months and the years are a whole number read as the days are, and the same arguments are refused by name.
+
+Pinned on both engines by the shared `date-plugin-vectors.json` and the graph fixtures `unit-test-date-arithmetic-1`
+(days) and `unit-test-date-arithmetic-2` (months and years). The full rules are in the
 [Event Script syntax page](../event-script/syntax.md#simple-plugins) (*Date arithmetic plugins*).
 
 ## graph.math {#math}

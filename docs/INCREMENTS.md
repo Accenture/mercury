@@ -5725,3 +5725,54 @@ Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --lock
 composite. `cargo audit` is not installed on the build machine: the bumped lockfile's 287 registry crates were matched
 against the advisory database through OSV (none), and the CI `audit` job on the pull request is the gate, as it is the
 first run of the workflow changes themselves.
+
+## Increment 210 — `f:addMonths`, `f:monthsBetween`, `f:addYears` and `f:yearsBetween`, calendar months and years (2026-11-23)
+
+The twin of the Java engine's `AddMonths`, `MonthsBetween`, `AddYears` and `YearsBetween` (mercury-composable #667, squash
+`df358e62`, part of its issue #664). `f:addDays` and `f:daysBetween` (Increment 189) compute in days; a month is not a
+fixed number of days, so a rule stated in months or years was a calendar algorithm written out in `graph.math` statements.
+
+- **`plugins_date.rs`.** `f:addMonths(date, months)` and `f:addYears(date, years)` answer the date that many calendar
+  months or years later (earlier for a negative number) as `YYYY-MM-DD`; `f:monthsBetween(from, to)` and
+  `f:yearsBetween(from, to)` answer the whole months or years completed between two dates as an integer, whatever the
+  order. The Java plugins call `LocalDate.plusMonths`, `plusYears` and `ChronoUnit.MONTHS` / `YEARS.between`; this port
+  calls jiff's `Date::checked_add` with a `Span` of months or years and `Date::until` with the largest unit month or year,
+  then takes the absolute value. Measured on jiff 1.0.1 before the Java change: the two give `java.time`'s answer on every
+  edge case of the issue, and the month count equals the JDK's formula on all 267,289 pairs of dates from 2027-11-01 to
+  2029-03-31 in both orders. The months and the years are read by the rule that reads the days (one `count` function for
+  the three units, through `decimal::operand`), bounded before any arithmetic by the widest writable span, 119,999 months
+  or 9,999 years; the refusal names the unit, "The months of addMonths must be a whole number". jiff holds a year below
+  0000 where `java.time`'s writable range ends, so a result there is refused by the check that writes the date, as one
+  after 9999 is. Arity, date and out-of-range messages are the day plugins' with the plugin's name.
+- **The three rules, declared in the guides and pinned by vectors.** A day the resulting month lacks becomes that month's
+  last day and no other date moves (`2027-01-31` and one month give `2027-02-28`; `2027-02-28` and one month give
+  `2027-03-28`). A month is complete when the day of the month is reached, a year when the month and day are. After an
+  addition that ended on a shorter month the count is one short of the number added (`2028-02-29` and 12 months give
+  `2029-02-28`, 11 whole months and no whole year later). No end-of-month option and no signed variant.
+- **`BUILTIN_PLUGIN_COUNT` is 67.** It was 62 and the engine declared 63: `rangeLookup` (Increment 176) had been added
+  without the constant, a floor the loader checks with "at least", so nothing failed. The four new plugins bring the
+  declared number to 67, and the constant now states it.
+- **`contract.rs`.** The graph contract types `addMonths` and `addYears` as `string`, `monthsBetween` and `yearsBetween` as
+  `integer`.
+- **Tests.** The shared `date-plugin-vectors.json` (175 vectors, 110 of them new, byte-identical with the Java
+  repository's) in `tests/date_plugin_vectors.rs`, green on the first run: the runner gains the codes `bad-months` and
+  `bad-years`, matches `bad-days` on "The days of" so that a refusal naming the wrong unit fails its vector, and requires
+  vectors for each of the six plugins. Negative control: with `months-between-month-end-not-reached` set to 1 the test
+  fails by the vector's id, and the file was restored byte for byte. Eight in-module tests for the four plugins. The graph
+  fixture `unit-test-date-arithmetic-2` (byte-identical) in `graph_runtime`, as three sequential functions of the one
+  booted test, the twins of the Java `GraphTaskTest` methods: the end of a term, its notice date and the months and years
+  used in both orders; a term from 29 February ending on 28 February, the months given as text; and four refusals with
+  HTTP 400 and the plugin's message - a date-time, an absent start date and absent months, each reaching the plugin as
+  Nil, and a fraction of a month. The manifest compiles 81 graphs.
+- **Docs and the Playground.** The Event Script syntax guide (four catalog rows; *Date arithmetic plugins* with an example
+  and the three rules), the skills reference's *Dates* (`{#dates}`, pinned on both engines), the command reference's
+  plugin examples, the AI agent guide's pre-send checklist and the commands catalog, the Java branch's text. This
+  repository's `flow-schema-reference.md` has no plugin catalog, so the four rows the Java page gains have no place in
+  it. The help page `help graph-data-mapper` and the bundle are deployed from the Java repo with `npm run release:rust`
+  (Node 26.12.0): `index-Cxgp22Vg.js` became `index-wWr4LR2P.js`, and every deployed file and all 44 help pages are
+  byte-identical with the Java repo's. CHANGELOG Unreleased, `Added` item 3.
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace
+--locked` (151 suites, 782 passed, 0 failed, 9 ignored; 774 passed before), `python3 scripts/check-doc-claims.py` and
+`python3 scripts/check-llms-links.py`. `mkdocs build --strict` was not run (mkdocs is not on the build machine); the pull
+request's `docs` run is its gate.

@@ -123,6 +123,25 @@ exactly as YYYY-MM-DD, with no time and no time zone (not UTC, not a Unix timest
 single-digit month, a day the calendar lacks (2027-02-29), a fractional number of days, a null argument
 and a result outside the years 0000 to 9999 abort the node by name. The days may be a number or numeric text.
 
+A month is not a fixed number of days, so calendar months and years have their own plugins.
+f:addMonths(date, months) and f:addYears(date, years) return the date that many months or years later
+(earlier for a negative number), and f:monthsBetween(from, to) and f:yearsBetween(from, to) the whole
+months or years completed between two dates as an integer, whatever the order of the arguments:
+
+```
+mapping[]=f:addMonths(input.body.start_date, input.body.term_months) -> model.end_date
+mapping[]=f:monthsBetween(input.body.start_date, input.body.as_of) -> output.body.months_used
+```
+
+A 24-month term from 2026-06-01 ends on 2028-06-01, and 2027-05-31 is 11 whole months into it. The day of
+the month is kept, and a day the resulting month lacks becomes that month's last day: 2027-01-31 and one
+month give 2027-02-28, and 2028-02-29 and one year give 2029-02-28. No other date moves (2027-02-28 and
+one month give 2027-03-28), so a monthly schedule adds 1, 2, 3 and so on months to its start date, never
+one month to the previous date. A month is complete when the day of the month is reached, and a year when
+the month and day are, so a count taken after an addition that ended on a shorter month is one short:
+2027-01-31 to 2027-02-28 is 0 whole months, and 2028-02-29 to 2029-02-28 is 11 whole months and 0 whole
+years. The months and the years are read as the days are, and the same arguments abort the node by name.
+
 Dynamic keys
 ------------
 A {namespace.key} reference inside a source resolves before the source is read, and its value is

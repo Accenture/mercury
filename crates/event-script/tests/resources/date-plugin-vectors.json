@@ -1,7 +1,7 @@
 {
  "format": "mercury-date-plugin-vectors",
  "version": 1,
- "note": "Shared conformance vectors for the addDays and daysBetween simple plugins: every engine that executes flows runs these. 'plugin' names the plugin, 'args' are the call's arguments, 'expect' the answer (a date as text written as YYYY-MM-DD, or a JSON integer of days), 'error' an engine-neutral code matched by each engine against its own message. A date is an ISO-8601 calendar date written exactly as YYYY-MM-DD, with no time and no time zone, and a real day of the proleptic Gregorian calendar; a result must fall within 0000-01-01 to 9999-12-31. The days of addDays are a whole number, negative for an earlier date: a JSON integer, numeric text, or a floating-point number whose value is whole. daysBetween counts from the earlier date (excluded) to the later date (included), whatever the order of its arguments, so it is never negative. A null argument is refused.",
+ "note": "Shared conformance vectors for the date simple plugins - addDays and daysBetween, addMonths and monthsBetween, addYears and yearsBetween: every engine that executes flows runs these. 'plugin' names the plugin, 'args' are the call's arguments, 'expect' the answer (a date as text written as YYYY-MM-DD, or a JSON integer of days, months or years), 'error' an engine-neutral code matched by each engine against its own message. A date is an ISO-8601 calendar date written exactly as YYYY-MM-DD, with no time and no time zone, and a real day of the proleptic Gregorian calendar; a result must fall within 0000-01-01 to 9999-12-31. The days of addDays, the months of addMonths and the years of addYears are a whole number, negative for an earlier date: a JSON integer, numeric text, or a floating-point number whose value is whole. addMonths and addYears keep the day of the month, and a day the resulting month lacks becomes that month's last day; no other date moves to the end of a month. daysBetween counts from the earlier date (excluded) to the later date (included), whatever the order of its arguments, so it is never negative. monthsBetween and yearsBetween count the whole months and the whole years completed from the earlier date to the later one, whatever the order of the arguments: a month is complete when the later date reaches the earlier date's day of the month, and a year when it reaches the earlier date's month and day, so a date that addMonths or addYears moved to the last day of a shorter month is one short of the count that was added. A null argument is refused.",
  "vectors": [
   {
    "id": "add-field-example",
@@ -602,6 +602,1032 @@
   {
    "id": "add-huge-days",
    "plugin": "addDays",
+   "args": [
+    "2027-01-15",
+    "100000000000000000000"
+   ],
+   "error": "out-of-range"
+  },
+  {
+   "id": "add-months-renewal",
+   "plugin": "addMonths",
+   "args": [
+    "2027-03-15",
+    12
+   ],
+   "expect": "2028-03-15",
+   "note": "a renewal date, 12 months after the start date"
+  },
+  {
+   "id": "add-months-zero",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-31",
+    0
+   ],
+   "expect": "2027-01-31"
+  },
+  {
+   "id": "add-months-one",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    1
+   ],
+   "expect": "2027-02-15"
+  },
+  {
+   "id": "add-months-month-end",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-31",
+    1
+   ],
+   "expect": "2027-02-28",
+   "note": "a day the resulting month lacks becomes that month's last day"
+  },
+  {
+   "id": "add-months-month-end-leap",
+   "plugin": "addMonths",
+   "args": [
+    "2028-01-31",
+    1
+   ],
+   "expect": "2028-02-29",
+   "note": "2028 is a leap year"
+  },
+  {
+   "id": "add-months-30-day-month",
+   "plugin": "addMonths",
+   "args": [
+    "2027-03-31",
+    1
+   ],
+   "expect": "2027-04-30"
+  },
+  {
+   "id": "add-months-month-end-century",
+   "plugin": "addMonths",
+   "args": [
+    "2100-01-31",
+    1
+   ],
+   "expect": "2100-02-28",
+   "note": "a century year is a leap year only when divisible by 400"
+  },
+  {
+   "id": "add-months-month-end-400",
+   "plugin": "addMonths",
+   "args": [
+    "2000-01-31",
+    1
+   ],
+   "expect": "2000-02-29"
+  },
+  {
+   "id": "add-months-negative-month-end",
+   "plugin": "addMonths",
+   "args": [
+    "2027-03-31",
+    -1
+   ],
+   "expect": "2027-02-28",
+   "note": "the same rule going back"
+  },
+  {
+   "id": "add-months-day-kept",
+   "plugin": "addMonths",
+   "args": [
+    "2027-02-28",
+    1
+   ],
+   "expect": "2027-03-28",
+   "note": "the day of the month is kept: the last day of February does not become the last day of March"
+  },
+  {
+   "id": "add-months-two-from-start",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-31",
+    2
+   ],
+   "expect": "2027-03-31",
+   "note": "not the 2027-03-28 that two steps of one month give, so a monthly schedule adds from its start date each time"
+  },
+  {
+   "id": "add-months-year-carry",
+   "plugin": "addMonths",
+   "args": [
+    "2027-11-15",
+    3
+   ],
+   "expect": "2028-02-15"
+  },
+  {
+   "id": "add-months-negative",
+   "plugin": "addMonths",
+   "args": [
+    "2027-02-15",
+    -3
+   ],
+   "expect": "2026-11-15",
+   "note": "a negative number of months gives an earlier date"
+  },
+  {
+   "id": "add-months-leap-day-twelve",
+   "plugin": "addMonths",
+   "args": [
+    "2028-02-29",
+    12
+   ],
+   "expect": "2029-02-28"
+  },
+  {
+   "id": "add-months-leap-day-48",
+   "plugin": "addMonths",
+   "args": [
+    "2028-02-29",
+    48
+   ],
+   "expect": "2032-02-29"
+  },
+  {
+   "id": "add-months-as-text",
+   "plugin": "addMonths",
+   "args": [
+    "2027-03-15",
+    "12"
+   ],
+   "expect": "2028-03-15",
+   "note": "the months may be numeric text"
+  },
+  {
+   "id": "add-months-negative-as-text",
+   "plugin": "addMonths",
+   "args": [
+    "2027-03-15",
+    "-1"
+   ],
+   "expect": "2027-02-15"
+  },
+  {
+   "id": "add-months-whole-float",
+   "plugin": "addMonths",
+   "args": [
+    "2027-03-15",
+    12.0
+   ],
+   "expect": "2028-03-15",
+   "note": "a floating-point number whose value is whole is a whole number"
+  },
+  {
+   "id": "add-months-max-date",
+   "plugin": "addMonths",
+   "args": [
+    "9999-11-30",
+    1
+   ],
+   "expect": "9999-12-30"
+  },
+  {
+   "id": "add-months-min-date",
+   "plugin": "addMonths",
+   "args": [
+    "0000-02-01",
+    -1
+   ],
+   "expect": "0000-01-01"
+  },
+  {
+   "id": "add-months-short-year",
+   "plugin": "addMonths",
+   "args": [
+    "0998-12-15",
+    1
+   ],
+   "expect": "0999-01-15",
+   "note": "a year below 1000 is written with four digits"
+  },
+  {
+   "id": "add-months-last-writable-month",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    95675
+   ],
+   "expect": "9999-12-15"
+  },
+  {
+   "id": "add-months-first-writable-month",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    -24324
+   ],
+   "expect": "0000-01-15"
+  },
+  {
+   "id": "add-months-whole-span",
+   "plugin": "addMonths",
+   "args": [
+    "0000-01-01",
+    119999
+   ],
+   "expect": "9999-12-01",
+   "note": "the widest span in whole months between two writable dates"
+  },
+  {
+   "id": "add-months-whole-span-back",
+   "plugin": "addMonths",
+   "args": [
+    "9999-12-31",
+    -119999
+   ],
+   "expect": "0000-01-31"
+  },
+  {
+   "id": "months-between-year",
+   "plugin": "monthsBetween",
+   "args": [
+    "2026-06-01",
+    "2027-06-01"
+   ],
+   "expect": 12
+  },
+  {
+   "id": "months-between-day-before",
+   "plugin": "monthsBetween",
+   "args": [
+    "2026-06-01",
+    "2027-05-31"
+   ],
+   "expect": 11,
+   "note": "whole completed months: the twelfth is complete on 2027-06-01"
+  },
+  {
+   "id": "months-between-swapped",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-05-31",
+    "2026-06-01"
+   ],
+   "expect": 11,
+   "note": "the order of the arguments does not matter; never negative"
+  },
+  {
+   "id": "months-between-same-date",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-03-01",
+    "2027-03-01"
+   ],
+   "expect": 0
+  },
+  {
+   "id": "months-between-under-a-month",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-01-15",
+    "2027-02-14"
+   ],
+   "expect": 0
+  },
+  {
+   "id": "months-between-one-month",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-01-15",
+    "2027-02-15"
+   ],
+   "expect": 1,
+   "note": "a month is complete when the day of the month is reached"
+  },
+  {
+   "id": "months-between-month-end-not-reached",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-01-31",
+    "2027-02-28"
+   ],
+   "expect": 0,
+   "note": "28 February does not reach day 31, although it is the date addMonths answers for 2027-01-31 and one month"
+  },
+  {
+   "id": "months-between-month-end-not-reached-swapped",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-02-28",
+    "2027-01-31"
+   ],
+   "expect": 0
+  },
+  {
+   "id": "months-between-day-reached",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-01-28",
+    "2027-02-28"
+   ],
+   "expect": 1
+  },
+  {
+   "id": "months-between-into-longer-month",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-02-28",
+    "2027-03-31"
+   ],
+   "expect": 1
+  },
+  {
+   "id": "months-between-into-longer-month-swapped",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-03-31",
+    "2027-02-28"
+   ],
+   "expect": 1
+  },
+  {
+   "id": "months-between-across-short-month",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-01-31",
+    "2027-03-30"
+   ],
+   "expect": 1
+  },
+  {
+   "id": "months-between-across-short-month-reached",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-01-31",
+    "2027-03-31"
+   ],
+   "expect": 2
+  },
+  {
+   "id": "months-between-leap-day-year",
+   "plugin": "monthsBetween",
+   "args": [
+    "2028-02-29",
+    "2029-02-28"
+   ],
+   "expect": 11,
+   "note": "28 February does not reach day 29, although it is the date addMonths answers for 2028-02-29 and 12 months"
+  },
+  {
+   "id": "months-between-leap-day-year-reached",
+   "plugin": "monthsBetween",
+   "args": [
+    "2028-02-29",
+    "2029-03-01"
+   ],
+   "expect": 12
+  },
+  {
+   "id": "months-between-year-end",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-12-31",
+    "2028-01-01"
+   ],
+   "expect": 0
+  },
+  {
+   "id": "months-between-whole-span",
+   "plugin": "monthsBetween",
+   "args": [
+    "0000-01-01",
+    "9999-12-31"
+   ],
+   "expect": 119999
+  },
+  {
+   "id": "add-years-one",
+   "plugin": "addYears",
+   "args": [
+    "2027-03-15",
+    1
+   ],
+   "expect": "2028-03-15"
+  },
+  {
+   "id": "add-years-zero",
+   "plugin": "addYears",
+   "args": [
+    "2028-02-29",
+    0
+   ],
+   "expect": "2028-02-29"
+  },
+  {
+   "id": "add-years-leap-day",
+   "plugin": "addYears",
+   "args": [
+    "2028-02-29",
+    1
+   ],
+   "expect": "2029-02-28",
+   "note": "29 February in a year that lacks it becomes 28 February"
+  },
+  {
+   "id": "add-years-leap-day-to-leap-year",
+   "plugin": "addYears",
+   "args": [
+    "2028-02-29",
+    4
+   ],
+   "expect": "2032-02-29"
+  },
+  {
+   "id": "add-years-leap-day-negative",
+   "plugin": "addYears",
+   "args": [
+    "2028-02-29",
+    -1
+   ],
+   "expect": "2027-02-28"
+  },
+  {
+   "id": "add-years-leap-day-century",
+   "plugin": "addYears",
+   "args": [
+    "2096-02-29",
+    4
+   ],
+   "expect": "2100-02-28",
+   "note": "2100 is not a leap year"
+  },
+  {
+   "id": "add-years-day-kept",
+   "plugin": "addYears",
+   "args": [
+    "2027-02-28",
+    1
+   ],
+   "expect": "2028-02-28",
+   "note": "the day is kept: 28 February does not become 29 February in a leap year"
+  },
+  {
+   "id": "add-years-negative",
+   "plugin": "addYears",
+   "args": [
+    "2027-03-15",
+    -27
+   ],
+   "expect": "2000-03-15",
+   "note": "a negative number of years gives an earlier date"
+  },
+  {
+   "id": "add-years-as-text",
+   "plugin": "addYears",
+   "args": [
+    "2027-03-15",
+    "10"
+   ],
+   "expect": "2037-03-15",
+   "note": "the years may be numeric text"
+  },
+  {
+   "id": "add-years-whole-float",
+   "plugin": "addYears",
+   "args": [
+    "2027-03-15",
+    1.0
+   ],
+   "expect": "2028-03-15"
+  },
+  {
+   "id": "add-years-year-zero-leap-day",
+   "plugin": "addYears",
+   "args": [
+    "0000-02-29",
+    1
+   ],
+   "expect": "0001-02-28",
+   "note": "year 0000 is a leap year of the proleptic Gregorian calendar"
+  },
+  {
+   "id": "add-years-last-writable-year",
+   "plugin": "addYears",
+   "args": [
+    "2027-01-15",
+    7972
+   ],
+   "expect": "9999-01-15"
+  },
+  {
+   "id": "add-years-first-writable-year",
+   "plugin": "addYears",
+   "args": [
+    "2027-01-15",
+    -2027
+   ],
+   "expect": "0000-01-15"
+  },
+  {
+   "id": "add-years-whole-span",
+   "plugin": "addYears",
+   "args": [
+    "0000-06-15",
+    9999
+   ],
+   "expect": "9999-06-15",
+   "note": "the widest span in whole years between two writable dates"
+  },
+  {
+   "id": "add-years-whole-span-back",
+   "plugin": "addYears",
+   "args": [
+    "9999-06-15",
+    -9999
+   ],
+   "expect": "0000-06-15"
+  },
+  {
+   "id": "years-between-one",
+   "plugin": "yearsBetween",
+   "args": [
+    "2027-03-15",
+    "2028-03-15"
+   ],
+   "expect": 1
+  },
+  {
+   "id": "years-between-day-before",
+   "plugin": "yearsBetween",
+   "args": [
+    "2027-03-15",
+    "2028-03-14"
+   ],
+   "expect": 0,
+   "note": "a year is complete when the month and day are reached"
+  },
+  {
+   "id": "years-between-age",
+   "plugin": "yearsBetween",
+   "args": [
+    "1990-07-04",
+    "2027-07-03"
+   ],
+   "expect": 36,
+   "note": "an age in whole years, the day before the birthday"
+  },
+  {
+   "id": "years-between-age-birthday",
+   "plugin": "yearsBetween",
+   "args": [
+    "1990-07-04",
+    "2027-07-04"
+   ],
+   "expect": 37
+  },
+  {
+   "id": "years-between-swapped",
+   "plugin": "yearsBetween",
+   "args": [
+    "2027-07-04",
+    "1990-07-04"
+   ],
+   "expect": 37,
+   "note": "the order of the arguments does not matter; never negative"
+  },
+  {
+   "id": "years-between-same-date",
+   "plugin": "yearsBetween",
+   "args": [
+    "2027-03-01",
+    "2027-03-01"
+   ],
+   "expect": 0
+  },
+  {
+   "id": "years-between-leap-day",
+   "plugin": "yearsBetween",
+   "args": [
+    "2028-02-29",
+    "2029-02-28"
+   ],
+   "expect": 0,
+   "note": "28 February does not reach 29 February, although it is the date addYears answers for 2028-02-29 and one year"
+  },
+  {
+   "id": "years-between-leap-day-reached",
+   "plugin": "yearsBetween",
+   "args": [
+    "2028-02-29",
+    "2029-03-01"
+   ],
+   "expect": 1
+  },
+  {
+   "id": "years-between-leap-day-four",
+   "plugin": "yearsBetween",
+   "args": [
+    "2028-02-29",
+    "2032-02-28"
+   ],
+   "expect": 3
+  },
+  {
+   "id": "years-between-leap-day-four-reached",
+   "plugin": "yearsBetween",
+   "args": [
+    "2028-02-29",
+    "2032-02-29"
+   ],
+   "expect": 4
+  },
+  {
+   "id": "years-between-whole-span",
+   "plugin": "yearsBetween",
+   "args": [
+    "0000-01-01",
+    "9999-12-31"
+   ],
+   "expect": 9999
+  },
+  {
+   "id": "add-months-arity-one",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15"
+   ],
+   "error": "arity"
+  },
+  {
+   "id": "add-months-arity-three",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    1,
+    2
+   ],
+   "error": "arity"
+  },
+  {
+   "id": "months-between-arity-zero",
+   "plugin": "monthsBetween",
+   "args": [],
+   "error": "arity"
+  },
+  {
+   "id": "add-years-arity-one",
+   "plugin": "addYears",
+   "args": [
+    "2027-01-15"
+   ],
+   "error": "arity"
+  },
+  {
+   "id": "years-between-arity-three",
+   "plugin": "yearsBetween",
+   "args": [
+    "2027-01-15",
+    "2027-01-16",
+    "2027-01-17"
+   ],
+   "error": "arity"
+  },
+  {
+   "id": "add-months-date-time",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15T10:00:00",
+    1
+   ],
+   "error": "not-a-date",
+   "note": "no time"
+  },
+  {
+   "id": "months-between-utc",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-01-15",
+    "2027-02-15T00:00:00Z"
+   ],
+   "error": "not-a-date",
+   "note": "no time zone"
+  },
+  {
+   "id": "add-years-number-date",
+   "plugin": "addYears",
+   "args": [
+    20270115,
+    1
+   ],
+   "error": "not-a-date",
+   "note": "a date is text"
+  },
+  {
+   "id": "years-between-us-order",
+   "plugin": "yearsBetween",
+   "args": [
+    "01/15/2027",
+    "2028-01-15"
+   ],
+   "error": "not-a-date"
+  },
+  {
+   "id": "add-months-empty-date",
+   "plugin": "addMonths",
+   "args": [
+    "",
+    1
+   ],
+   "error": "not-a-date"
+  },
+  {
+   "id": "add-months-null-date",
+   "plugin": "addMonths",
+   "args": [
+    null,
+    1
+   ],
+   "error": "not-a-date",
+   "note": "a null argument is refused"
+  },
+  {
+   "id": "months-between-null-date",
+   "plugin": "monthsBetween",
+   "args": [
+    null,
+    "2027-01-15"
+   ],
+   "error": "not-a-date"
+  },
+  {
+   "id": "add-years-null-date",
+   "plugin": "addYears",
+   "args": [
+    null,
+    1
+   ],
+   "error": "not-a-date"
+  },
+  {
+   "id": "years-between-null-date",
+   "plugin": "yearsBetween",
+   "args": [
+    "2027-01-15",
+    null
+   ],
+   "error": "not-a-date"
+  },
+  {
+   "id": "add-months-feb-30",
+   "plugin": "addMonths",
+   "args": [
+    "2027-02-30",
+    1
+   ],
+   "error": "not-a-calendar-date"
+  },
+  {
+   "id": "months-between-april-31",
+   "plugin": "monthsBetween",
+   "args": [
+    "2027-04-31",
+    "2027-05-31"
+   ],
+   "error": "not-a-calendar-date"
+  },
+  {
+   "id": "add-years-feb-29-common-year",
+   "plugin": "addYears",
+   "args": [
+    "2027-02-29",
+    1
+   ],
+   "error": "not-a-calendar-date"
+  },
+  {
+   "id": "years-between-month-13",
+   "plugin": "yearsBetween",
+   "args": [
+    "2027-01-01",
+    "2027-13-01"
+   ],
+   "error": "not-a-calendar-date"
+  },
+  {
+   "id": "add-months-fraction",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    1.5
+   ],
+   "error": "bad-months"
+  },
+  {
+   "id": "add-months-fraction-text",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    "1.5"
+   ],
+   "error": "bad-months"
+  },
+  {
+   "id": "add-months-word",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    "twelve"
+   ],
+   "error": "bad-months"
+  },
+  {
+   "id": "add-months-boolean",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    true
+   ],
+   "error": "bad-months"
+  },
+  {
+   "id": "add-months-list",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    [
+     12
+    ]
+   ],
+   "error": "bad-months"
+  },
+  {
+   "id": "add-months-null",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    null
+   ],
+   "error": "bad-months"
+  },
+  {
+   "id": "add-years-fraction",
+   "plugin": "addYears",
+   "args": [
+    "2027-01-15",
+    0.5
+   ],
+   "error": "bad-years"
+  },
+  {
+   "id": "add-years-fraction-text",
+   "plugin": "addYears",
+   "args": [
+    "2027-01-15",
+    "0.5"
+   ],
+   "error": "bad-years"
+  },
+  {
+   "id": "add-years-word",
+   "plugin": "addYears",
+   "args": [
+    "2027-01-15",
+    "ten"
+   ],
+   "error": "bad-years"
+  },
+  {
+   "id": "add-years-boolean",
+   "plugin": "addYears",
+   "args": [
+    "2027-01-15",
+    true
+   ],
+   "error": "bad-years"
+  },
+  {
+   "id": "add-years-list",
+   "plugin": "addYears",
+   "args": [
+    "2027-01-15",
+    [
+     1
+    ]
+   ],
+   "error": "bad-years"
+  },
+  {
+   "id": "add-years-null",
+   "plugin": "addYears",
+   "args": [
+    "2027-01-15",
+    null
+   ],
+   "error": "bad-years"
+  },
+  {
+   "id": "add-months-after-max",
+   "plugin": "addMonths",
+   "args": [
+    "9999-12-31",
+    1
+   ],
+   "error": "out-of-range",
+   "note": "the result must be writable as YYYY-MM-DD"
+  },
+  {
+   "id": "add-months-before-min",
+   "plugin": "addMonths",
+   "args": [
+    "0000-01-01",
+    -1
+   ],
+   "error": "out-of-range"
+  },
+  {
+   "id": "add-months-lands-after-max",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    95676
+   ],
+   "error": "out-of-range",
+   "note": "within the widest span, and past the last writable date"
+  },
+  {
+   "id": "add-months-lands-before-min",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    -24325
+   ],
+   "error": "out-of-range",
+   "note": "within the widest span, and before the first writable date"
+  },
+  {
+   "id": "add-months-beyond-span",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    120000
+   ],
+   "error": "out-of-range"
+  },
+  {
+   "id": "add-months-huge",
+   "plugin": "addMonths",
+   "args": [
+    "2027-01-15",
+    "100000000000000000000"
+   ],
+   "error": "out-of-range"
+  },
+  {
+   "id": "add-years-after-max",
+   "plugin": "addYears",
+   "args": [
+    "9999-12-31",
+    1
+   ],
+   "error": "out-of-range"
+  },
+  {
+   "id": "add-years-before-min",
+   "plugin": "addYears",
+   "args": [
+    "0000-01-01",
+    -1
+   ],
+   "error": "out-of-range"
+  },
+  {
+   "id": "add-years-lands-after-max",
+   "plugin": "addYears",
+   "args": [
+    "2027-01-15",
+    7973
+   ],
+   "error": "out-of-range"
+  },
+  {
+   "id": "add-years-lands-before-min",
+   "plugin": "addYears",
+   "args": [
+    "2027-01-15",
+    -2028
+   ],
+   "error": "out-of-range"
+  },
+  {
+   "id": "add-years-beyond-span",
+   "plugin": "addYears",
+   "args": [
+    "2027-01-15",
+    10000
+   ],
+   "error": "out-of-range"
+  },
+  {
+   "id": "add-years-huge",
+   "plugin": "addYears",
    "args": [
     "2027-01-15",
     "100000000000000000000"

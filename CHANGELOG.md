@@ -35,6 +35,27 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    `tests/agent_graphs.rs`. Driven live through the Python pack on Claude Haiku 4.5
    (`docs/test-reports/agent-graphs-live-drive.md`).
 
+3. **`f:addMonths`, `f:monthsBetween`, `f:addYears` and `f:yearsBetween` - calendar-month and calendar-year arithmetic
+   beside `f:addDays` (Increment 210; the twin of the Java engine's plugins, mercury-composable #667, part of its issue
+   #664).** A month is not a fixed number of days, so a rule stated in months or years (a renewal date 12 months after a
+   start date, the whole months a payment is overdue, an age in whole years) had to be a calendar algorithm written out
+   in `graph.math` statements. `f:addMonths(date, months)` and `f:addYears(date, years)` return the date that many
+   calendar months or years later (earlier for a negative number): `f:addMonths(text(2027-03-15), int(12))` is
+   `2028-03-15`.
+   `f:monthsBetween(from, to)` and `f:yearsBetween(from, to)` return the whole months or years completed between two
+   dates as an integer; the order of the arguments does not matter and the answer is never negative. They give the Java
+   engine's answers, which are `java.time`'s, and three rules decide a date or a count at the end of a month. A day the
+   resulting month lacks becomes that month's last day (`2027-01-31` and one month give `2027-02-28`, `2028-02-29` and
+   one year give `2029-02-28`) and no other date moves (`2027-02-28` and one month give `2027-03-28`), so a monthly
+   schedule adds 1, 2, 3 and so on months to its start date. A month is complete when the day of the month is reached,
+   and a year when the month and day are (`2026-06-01` to `2027-05-31` is 11 whole months). After an addition that
+   ended on a shorter month the count is therefore one short of the number added (`2028-02-29` and 12 months give
+   `2029-02-28`, 11 whole months and no whole year later). Dates, the whole-number count and the refusals are those of
+   `f:addDays`; a count is bounded by the widest writable span, 119,999 months or 9,999 years. Pinned by the
+   engine-neutral `date-plugin-vectors.json` (175 vectors, 110 of them new, byte-identical with the Java repository's),
+   the in-module tests and the graph fixture `unit-test-date-arithmetic-2`; the graph contract types the results
+   (`string`, `integer`). Both engines carry the four plugins. **Upgrade note:** none - four new plugins.
+
 ### Changed
 
 1. **A `DECIMAL` result carries at most a configured number of decimal places: `big.decimal.precision` (default 6) for
