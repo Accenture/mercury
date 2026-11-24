@@ -16,8 +16,12 @@
     items each. 12 the paraphrased pages (`polyglot-functions.md`, `methodology.md`, `composing-the-layers.md`). 13
     `rest-automation`. 14 the fourteen different documents. 15 missing pages (a `sync-over-async.md` guide, the
     property graph API summary, the `EventScriptMock` and `FlowExecutor` testing sections).
-  - **The maintainer's decisions the review marked:** `transaction.journal.recorder` (remove the row, or keep it with
-    a note that journaling is not ported); one `rest-automation` page or Java's folder of four; whether to re-base
+  - **Ruled (the maintainer, 2026-11-24):** `transaction.journal.recorder` keeps its row with a note; journaling was
+    not ported because a flow adds a task and a graph adds a node with a composable function for a transaction audit,
+    and the recorder is a legacy requirement that predates the knowledge graph (Increment 213). Steps 3 to 15: noted,
+    not started. The heading ids of `event-over-http.md`: the differences were set out for the maintainer's review
+    (Java's one explicit id `{#zero-code-demo}`, and two headings worded differently); no change made.
+  - **The maintainer's decisions still open:** one `rest-automation` page or Java's folder of four; whether to re-base
     each of the fourteen different documents on the Java text; whether Java's `documentation-conventions.md` (front
     matter, At a glance) binds this repository, where 25 of 37 pages have no front matter; a link to the Java site or
     pages here for the language packs' agent tools.

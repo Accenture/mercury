@@ -143,8 +143,11 @@ own function under them to opt in:
 Both are part of the telemetry plumbing and are never themselves traced.
 
 !!! note "Rust port"
-    Java's optional `additional.info` function (merged into the `/info` response) is not
-    ported.
+    Journaling is not ported, so nothing is delivered to `transaction.journal.recorder` on this
+    engine; the name stays reserved. The feature is a legacy requirement that predates the
+    knowledge graph: for a transaction audit, add a task to the flow (Event Script) or a node
+    with a composable function to the graph (MiniGraph). Java's optional `additional.info`
+    function (merged into the `/info` response) is not ported either.
 
 ## Reserved event headers
 

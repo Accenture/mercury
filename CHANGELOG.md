@@ -162,6 +162,13 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    the `#log-context` anchor of the observability guide; and the links between the syntax guide, the flow grammar,
    the skills reference and the flow schema reference. No behaviour changes.
 
+3. **`transaction.journal.recorder` is marked as not served by this engine (Increment 213).** The observability guide
+   and the reserved names page describe the route as receiving request and response journals. Journaling is not
+   ported, so this engine never produces a journal and nothing is delivered to the route. Both pages keep the
+   description and gain a note marked *Rust port*: the feature is a legacy requirement that predates the knowledge
+   graph, and a transaction audit here is a task added to the flow or a node with a composable function added to the
+   graph. No behaviour changes.
+
 ## Version 4.12.30, 11/5/2026
 
 The lock-step twin of Java 4.12.30, catching up from 4.12.27 with every common feature the Java engine shipped since. Java
