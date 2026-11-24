@@ -418,6 +418,12 @@ layers shipped; the two above have held through every re-verify.)*
   in lock-step at each shared version. Recorded here after the 2026-09-04 smoke test found this
   section empty while the practice was visible throughout the archive and every recent log —
   raised to Eric rather than inferred, since this section forbids inferring, and confirmed by him.
+  **Amended 2026-11-24, a standing rule stated by the maintainer:** "for future fixes, you can commit and push without
+  asking me. I will do PR review and merge after that." Given when Auto-fix was turned on for PR #418 and confirmed as
+  standing, not for that PR alone. Applied as (the agent's reading of its scope): a fix for a CI failure or a merge
+  conflict on an open pull request is diagnosed, fixed, verified, committed and pushed without a go-ahead. Unchanged:
+  opening a pull request, merging, tagging and publishing each wait for the maintainer's go-ahead, and review and merge
+  are the maintainer's.
   <!-- id: eric-release-rhythm-rust | created: 2026-09-04 | last_used: 2026-09-04 | uses: 1 | tier: core | note: an operating preference that does not decay in relevance; core so it cannot fade out of the layer as its Java twin nearly did -->
 
 ## Team / Members
