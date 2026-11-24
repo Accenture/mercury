@@ -145,11 +145,12 @@ let body: GreetingResponse = reply.body_as()?;
 ```
 
 !!! note "Rust port"
-    The wire format is **idiomatic serde MsgPack**, deliberately *not* byte-compatible
-    with Java's compact flag-keyed encoding — cross-runtime envelope interop is out of
-    scope (the REST surfaces, where the two engines do meet, exchange plain JSON and are
-    contract-identical). The dynamic body is an `rmpv::Value`, the analog of Java's
-    untyped `Object` payload.
+    The envelope encodes as the **standard event envelope wire format** — a MsgPack map
+    with descriptive string keys shared verbatim with the Java engine, so the two engines
+    exchange envelopes over Event over HTTP (normative spec: the Java repo's
+    [Event Envelope Wire Format](https://accenture.github.io/mercury-composable/guides/event-envelope-wire-format/)).
+    Java's legacy *compact* flag-keyed encoding is not decoded. The dynamic body is an
+    `rmpv::Value`, the analog of Java's untyped `Object` payload.
 
 ## Platform — the service registry
 
@@ -217,8 +218,8 @@ function; to bind an endpoint to a flow instead, point `service:` at the built-i
 configuration also covers CORS, request/response header transforms, distributed-tracing
 activation, timeout enforcement, and an optional `authentication` function that approves
 or rejects the request before dispatch. The same server provides **static content** with
-etag/304 caching and a request-filter hook, plus the built-in actuators (`/info`, `/env`,
-`/health`, `/livenessprobe`).
+etag/304 caching and a request-filter hook, plus the built-in actuators (`/info`,
+`/info/routes`, `/env`, `/health`, `/livenessprobe`).
 
 !!! note "Rust port"
     The HTTP boundary is built on **hyper**, deliberately *not* a web framework —

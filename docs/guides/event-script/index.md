@@ -29,9 +29,10 @@ to load, so orchestration errors surface before runtime, not during a transactio
 !!! note "Rust port"
     The **flow YAML syntax is identical to the Java engine's** — flow files port between the
     two implementations unchanged, and the same grammar governs both. What differs is around
-    the flows: the functions they call are written in Rust, and the only flow adapter is
-    HTTP via REST automation (the Java engine's Kafka flow adapter belongs to the
-    out-of-scope service mesh).
+    the flows: the functions they call are written in Rust. As in Java, a **flow adapter**
+    (HTTP via `rest.yaml`, or Kafka through the opt-in
+    [minimalist-kafka](../minimalist-kafka.md) crate) drives a flow from outside and returns
+    its result.
 
 ## Write your first flow
 

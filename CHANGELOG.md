@@ -143,10 +143,24 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    reference was a terse page with no data-mapping tables and no plugin catalog; it is now the Java page: every field,
    the execution types with examples, the namespace and constant tables, the HTTP input dataset and the plugin
    catalog, the six date plugins included. A note marked *Rust port* says where this engine differs: a flow does not
-   receive cookies, upload streams, file names or session values, there is no stack trace and no PoJo class name, and
-   the compiler ignores a field that does not belong to an execution type. The command reference's constants, source
-   forms and statements are definition lists as in the Java page, and it gains the root `purpose` rule of the
-   deployment gate and the note that `inspect` returns a subtree. No behaviour changes.
+   receive upload streams or file names (cookies and session values arrive with Increment 211, under `Fixed`), there
+   is no stack trace and no PoJo class name, and the compiler ignores a field that does not belong to an execution
+   type. The command reference's constants, source forms and statements are definition lists as in the Java page, and
+   it gains the root `purpose` rule of the deployment gate and the note that `inspect` returns a subtree. No behaviour
+   changes.
+
+2. **Stale statements corrected and anchors repaired across the guides (Increment 212).** A review of every guide page
+   against its Java counterpart found sentences that were true when written and that the engine no longer matches.
+   Corrected, each against the source: a duplicate route is reloaded with a warning and does not stop the application
+   (four pages); `register` creates a public function and `register_private` a private one; Event over HTTP is
+   ported; the Kafka flow adapter and its header keys are part of this engine through `minimalist-kafka` (four
+   pages, with the three `kafka.*` rows of the observability table and the routes `simple.kafka.notification`,
+   `sync.prepare` and `sync.await`); the Playground ships fourteen tutorials; `session reset` clears the draft
+   graph; the envelope uses the standard wire format shared with the Java engine; REST automation adds six default
+   endpoints; the Java engine bounds its Kafka producer close; thirteen crates are published. Repaired: the heading
+   ids of the registration metadata contract, with its string length row, which the flow schema reference links;
+   the `#log-context` anchor of the observability guide; and the links between the syntax guide, the flow grammar,
+   the skills reference and the flow schema reference. No behaviour changes.
 
 ## Version 4.12.30, 11/5/2026
 

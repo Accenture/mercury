@@ -373,7 +373,7 @@ Read by `crates/platform-core` (logging). Switch at launch with `-Dlog.format=js
 |---|---|
 | boolean | `true` |
 
-Turns the [application log context](observability.md#the-application-log-context) on or
+Turns the [application log context](observability.md#log-context) on or
 off. When on (the default), the structured JSON formats (`log.format=json` or `compact`)
 stamp a `context` block — correlation id, trace/span ids, service name — into every log
 line a traced function emits, using the built-in `default-log-context.yaml` template.

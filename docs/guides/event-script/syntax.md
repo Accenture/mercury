@@ -26,6 +26,11 @@ related:
 >   (see the [function AI agent guide](../event-driven/ai-agent-guide.md)); the code examples on
 >   this page show the Rust form.
 
+> For a quick-reference lookup of all flow fields, namespaces, and task types, see the
+> [Flow Configuration Schema Reference](../flow-schema-reference.md).
+
+> **New to Event Script?** Start with the **[Overview](index.md)** for the layer's purpose and the flow mental model.
+
 ## Flow list
 
 This configuration file sits in the project "resources" project and contains a list of filenames.
@@ -186,7 +191,7 @@ for a complete end-to-end flow. Upon expiry, an unfinished flow will be aborted.
   rest.yaml overrides flow.ttl — the adapter passes the endpoint timeout to the new flow instance as its
   TTL, so the effective time budget at an HTTP entry point is always the REST timeout, even for the part
   of a flow that continues asynchronously after a "response" task. Keep the two values consistent;
-  flow.ttl stands on its own when the flow is started by other means, e.g. a custom event adapter.
+  flow.ttl stands on its own when the flow is started by other means, e.g. a Kafka flow adapter.
   Similarly, a sub-flow does not run under its own flow.ttl — see "Sub-flow deadline override" below.
 
 `first.task` - this points to the route name of a function (aka "task") to which the flow engine will deliver
@@ -1589,7 +1594,7 @@ For example:
 
 The `add` family above computes in `i64` or `f64`, which is right for counts and wrong for money
 (`0.1 + 0.2` is `0.30000000000000004`). The `decimal` family computes in exact decimal arithmetic, with the same rules as
-the `DECIMAL` statement of a knowledge graph, so a flow and a graph agree. Every result is a **canonical decimal string**:
+the `DECIMAL` statement of a knowledge graph ([`graph.math`](../knowledge-graph/skills-reference.md#math-decimal)), so a flow and a graph agree. Every result is a **canonical decimal string**:
 plain notation, never scientific, the computed scale kept, and a zero of any scale written `"0"`. A string is the same after
 `graph.suspend`, an event hop or a JSON response, where a number would be rounded by the parser.
 
@@ -2506,8 +2511,10 @@ serve as the exception handler instead of a custom function.
 
 ## See also
 
+- [Composable Orchestration — Overview](index.md) — the layer's purpose and the flow mental model.
 - [Flow grammar](flow-grammar.md) + [`event-script-flow.json`](event-script-flow.json) — the rule-based schema (the deterministic spec).
 - [AI agent guide](ai-agent-guide.md) — author flows deterministically with an agent.
+- [Flow Configuration Schema](../flow-schema-reference.md) — exhaustive field reference.
 - [Function AI agent guide](../event-driven/ai-agent-guide.md) — the composable functions tasks call (Rust API).
 - [MiniGraph command grammar](../knowledge-graph/command-reference.md) — the knowledge-graph layer that composes onto flows (`graph.extension` with `flow://`).
 - `examples/hello-flow/` — a working end-to-end flow application.

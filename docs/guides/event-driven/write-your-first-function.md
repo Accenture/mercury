@@ -129,8 +129,9 @@ stateless — the worker pool is the concurrency model, not your struct's fields
 `route` (required)
 :   The function's identity on the bus. Route names are **lowercase** letters, digits, `.`,
     `-`, and `_`, with **at least one dot** and no leading, trailing, or consecutive dots
-    (`v1.my.function`, `greeting.demo`). An invalid name or a duplicate route fails the
-    application at startup, so wiring mistakes never reach runtime.
+    (`v1.my.function`, `greeting.demo`). An invalid name fails the application at startup,
+    so that mistake never reaches runtime; a duplicate route reloads the earlier registration
+    with a `Reloading` warning, as in Java, so check the startup log for it.
 
 `instances` (default 1)
 :   How many concurrent workers the platform starts for the route. Each worker processes one

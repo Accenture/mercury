@@ -8,6 +8,7 @@ audience: [developer, architect, ai-agent, reference]
 keywords: [event script, flow, dsl, grammar, execution type, data mapping, deterministic, yaml]
 related:
   - guides/event-script/syntax.md
+  - guides/flow-schema-reference.md
   - guides/event-script/ai-agent-guide.md
   - guides/knowledge-graph/command-reference.md
 ---
@@ -19,8 +20,8 @@ related:
 > - The **source of truth** for the Event Script flow DSL — the rules an author (human or AI)
 >   needs to write a valid flow without inferring from examples.
 > - Machine-readable form: [`event-script-flow.json`](event-script-flow.json). Authoring from an
->   agent? See the [AI agent guide](ai-agent-guide.md). Tutorial/worked examples and exhaustive
->   field docs: [Event Script Syntax](syntax.md).
+>   agent? See the [AI agent guide](ai-agent-guide.md). Tutorial/worked examples:
+>   [Event Script Syntax](syntax.md); exhaustive field docs: [Flow Schema Reference](../flow-schema-reference.md).
 > - A flow is compiled and validated by the engine; the rules below mirror that validation (the
 >   `CompileFlows` port, `crates/event-script/src/compiler.rs`), so violating them fails compilation.
 > - **The flow YAML syntax is identical to the Java engine's** — flow files port unchanged.
@@ -148,5 +149,5 @@ Compile-time rules — violate them and the flow won't load:
 
 - [`event-script-flow.json`](event-script-flow.json) — machine-readable form of this grammar.
 - [AI agent guide](ai-agent-guide.md) — authoring flows deterministically from an agent.
-- [Event Script Syntax](syntax.md) — worked examples and exhaustive field docs.
+- [Event Script Syntax](syntax.md) · [Flow Schema Reference](../flow-schema-reference.md) — worked examples and exhaustive field docs.
 - [Function AI agent guide](../event-driven/ai-agent-guide.md) — writing the functions tasks call (Rust API).

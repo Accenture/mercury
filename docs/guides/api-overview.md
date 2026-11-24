@@ -27,13 +27,15 @@ let reply = po
 
 !!! note "Rust port"
     Java `PostOffice` capabilities not (yet) in this port: **broadcast**, **fork-n-join
-    parallel RPC** (`request(List<EventEnvelope>, timeout)`), **event-over-HTTP**
-    (`asyncRequest` against a remote instance), the `exists()` multi-route check
-    (use `Platform::has_route` per route), journaling helpers, and the `Kv` convenience
-    class. Java `Platform` extras not ported: `waitForProvider` and `setSelf`/personality.
-    The **public/private function distinction IS ported**: functions are private by
-    default (`is_private = true` on `#[preload]`, `register` vs `register_public`), and a
-    private function is not reachable through the `/api/event` endpoint (403), exactly as
+    parallel RPC** (`request(List<EventEnvelope>, timeout)`), the `exists()` multi-route
+    check (use `Platform::has_route` per route), journaling helpers, and the `Kv`
+    convenience class. Java `Platform` extras not ported: `waitForProvider` and
+    `setSelf`/personality. **Event over HTTP is ported**: `request` and `send` forward a
+    route declared in `yaml.event.over.http` to its peer (see
+    [Event over HTTP](event-over-http.md)). The **public/private function distinction IS
+    ported**: a `#[preload]` function is private by default (`is_private = true`), while
+    in code `register` creates a public function and `register_private` a private one, and
+    a private function is not reachable through the `/api/event` endpoint (403), exactly as
     in Java. The port adds nothing that Java lacks — absent here means deferred or out of
     scope, never renamed.
 
@@ -75,7 +77,10 @@ telemetry datasets and in the per-instance transient-store directory name.
 Registers a function at a route with `instances` concurrent workers (Java
 `platform.register(route, lambda, instances)`). Route names are lowercase letters, digits,
 `.`, `-`, `_`, with at least one dot and no leading, trailing, or consecutive dots.
-Registration fails (status 400) on an invalid name, a duplicate route, or zero instances.
+Registration fails (status 400) on an invalid name. A duplicate route is **reloaded** with a
+`Reloading` warning — the earlier function is released and the new one takes its place — and
+`instances` is clamped to 1 to 1000, both exactly as in Java. The function is **public**; use
+`register_private` for one reachable only inside this application instance.
 Must be called within a tokio runtime — the manager and workers are spawned tasks.
 
 Most applications never call this directly: `#[preload]` registers functions
@@ -93,15 +98,16 @@ platform.register("demo.echo", Arc::new(EchoFunction), 10)?;
 
 Registration with explicit `FunctionOptions` — the programmatic form of the annotation
 markers: `zero_traced` (the `#[zero_tracing]` analog — executions excluded from trace
-recording) and `interceptor` (the `#[event_interceptor]` analog — the function replies
-manually and the worker sends no automatic reply on success).
+recording), `private` (the `is_private` analog — the function is reachable only inside this
+application instance) and `interceptor` (the `#[event_interceptor]` analog — the function
+replies manually and the worker sends no automatic reply on success).
 
 ```rust
 platform.register_with_options(
     "manual.reply.service",
     Arc::new(InterceptorFunction),
     10,
-    FunctionOptions { zero_traced: false, interceptor: true },
+    FunctionOptions { interceptor: true, ..Default::default() },
 )?;
 ```
 

@@ -457,7 +457,7 @@ precision=2                                  # optional: decimal places of this 
   both compare numbers (see [the dialect](#math-dialect)).
 - **In an Event Script flow** the same arithmetic is the `f:decimalAdd`, `f:decimalSubtract`, `f:decimalMultiply`,
   `f:decimalDiv`, `f:decimalMod`, `f:decimalRound` and `f:decimalCompare` plugins, which answer the same canonical strings
-  (see the [built-in plugins](../event-script/syntax.md#built-in-plugins)).
+  (see the [flow schema reference](../flow-schema-reference.md#arithmetic)).
 - **`COMPUTE` on a decimal string computes in binary floating point**, exactly as it does today, and a
   `COMPUTE` result is a double. Nothing stops you; use `DECIMAL` for money.
 

@@ -529,8 +529,8 @@ started; the log line is `Kafka producer flushed and closed`. The flush waits th
 (`linger.ms`, 5 ms by default) for the acknowledgements and is bounded by the same ten seconds:
 a stopping pod must not wait on a dead broker past its termination grace, so when the broker cannot take
 the records in time the log names how many were left undelivered (`Kafka producer flush incomplete after
-10 s - N message(s) undelivered`). The Java engine shuts down in the same order; its producer close waits
-without bound.
+10 s - N message(s) undelivered`). The Java engine shuts down in the same order and bounds its producer
+close by the same ten seconds.
 
 ## Outbound: publishing to Kafka {#outbound}
 
@@ -956,7 +956,7 @@ spec (`draft-design-specs/minimalist-kafka-port.md`, §7):
 | `topic-pattern` | `subscribe(Pattern)` | the anchored `^(<pattern>)$` handed to the client's regex subscription; a new matching topic joins at the next metadata refresh |
 | Threading | Kafka-driving functions on kernel threads; Confluent serdes owner-confined | native client threads + async tasks; one shared, thread-safe codec |
 | Headless app | the JVM stays up on non-daemon consumer threads | the adapter declares that it keeps the process running; `SIGTERM`/Ctrl-C stop the consumers gracefully ([shutdown](#shutdown)) |
-| Shutdown | closes every consumer, then flushes and closes the producer, waiting without bound | stops every consumer (each leaves its group on close), then flushes the producer within the 10 s grace and forgets it; records the grace could not deliver are counted in the log |
+| Shutdown | closes every consumer, then closes the producer within the same 10 s grace, logging how many records were left undelivered | stops every consumer (each leaves its group on close), then flushes the producer within the 10 s grace and forgets it; records the grace could not deliver are counted in the log |
 | Schema codecs | Confluent's serializers as a library | this engine's own JSON Schema and Avro codecs on `jsonschema` / `apache-avro`; the frame and payloads are byte-identical |
 | Registry template | passed verbatim to the Confluent client | interpreted by name (unknown keys logged); TLS trust from the OS store |
 | CSFLE, rules, references | delegated to the Confluent serdes and KMS drivers | refused with a 501 (never plaintext); register self-contained schemas |

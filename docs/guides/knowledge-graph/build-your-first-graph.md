@@ -18,9 +18,9 @@ welcome message shows your session id — you will meet it again in
 [Playground & AI Companion](playground-and-companion.md).
 
 !!! note "Rust port"
-    The shipped `minigraph-playground` example runs on port **8085** (the Java guide's
-    examples use 8085). Like the Java original, the Playground is dev-only — it registers
-    only when `app.env=dev`.
+    The shipped `minigraph-playground` example runs on port **8085**, as the Java guide's
+    examples do. Like the Java original, the Playground is dev-only — it registers only
+    when `app.env=dev`.
 
 ## Step 1 — a root and an end
 
@@ -260,13 +260,14 @@ walks through the wiring.
 
 ## Where to go next
 
-**The thirteen in-app tutorials.** The Playground ships a complete, progressive course —
-type `help tutorial 1` through `help tutorial 13` in the console. They take you from the
+**The fourteen in-app tutorials.** The Playground ships a complete, progressive course —
+type `help tutorial 1` through `help tutorial 14` in the console. They take you from the
 hello-world graph you just built (tutorial 1) and deployment (2), through data dictionaries,
 providers, and the API fetcher (3), decisions with `graph.math` (4), parallel processing
 with a join barrier (5), iterative fetching with `for_each` (6), data mapping in depth (7),
 JSON-Path retrieval (8), reusable modules (9), graph extension (10), flow extension (11),
-and custom error handling (12), to invoking a composable function with `graph.task` (13).
+and custom error handling (12), to invoking a composable function with `graph.task` (13)
+and a workflow that suspends at human checkpoints (14).
 
 **Discovery.** Every tutorial also ships as a deployed graph model, so `list graphs` shows
 them alongside your own — each with its root node's `purpose`, so the listing reads as living

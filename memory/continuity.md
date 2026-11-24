@@ -396,9 +396,11 @@ layers shipped; the two above have held through every re-verify.)*
   difference as an explicit edit, checked against this engine's source. The reasons that count: this engine behaves
   differently (a note marked *Rust port*), a Rust API or code example, a reference that names the other repository or
   this ledger, and a Java statement that does not hold on this engine (raise it for the Java page). A rule this
-  repository had verified against its source stays, after the Java text, when the Java page is silent. The other guide
-  pages have not been reviewed against this rule (the agent's note: `syntax.md`, `skills-reference.md`,
-  `ai-agent-guide.md` and `minigraph-commands.json` took the Java hunks cleanly on 2026-11-24).
+  repository had verified against its source stays, after the Java text, when the Java page is silent. Every page was
+  reviewed against this rule on 2026-11-24; the remaining work is the thread [[guides-alignment-with-java]]. The
+  review's main lesson: the commonest difference was not between the engines but a Rust sentence the Rust source no
+  longer matches, so a guide statement about what is "not ported" or what "fails" is checked against the code when
+  the code changes.
   <!-- id: conv-guides-follow-java-rust | created: 2026-11-24 | last_used: 2026-11-24 | uses: 1 | tier: working | origin: 2026-11-24-044858 -->
 
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*

@@ -7,6 +7,10 @@ layer: platform-core
 audience: [ai-agent, developer]
 keywords: [ai agent, composable function, preload, ComposableFunction, TypedFunction, PostOffice, EventEnvelope, layer 1, rust]
 related:
+  - guides/event-driven/write-your-first-function.md
+  - guides/event-driven/function-execution.md
+  - guides/macros-reference.md
+  - guides/api-overview.md
   - guides/event-script/ai-agent-guide.md
   - guides/event-script/syntax.md
 ---
@@ -39,9 +43,13 @@ Functions are **not called directly**. The framework loads them at startup:
 4. Any caller (REST endpoint, Event Script flow, knowledge-graph skill, another function)
    addresses the function **only by its route name string**.
 
-A duplicate route causes the application to fail at startup — correctness is checkable before
-runtime. All routes are process-local: this port is deliberately single-runtime (in-memory event
-bus only; no Kafka service mesh), so there is no private/public route distinction.
+Contract violations are caught at startup: a duplicate route reloads the earlier registration
+with a `Reloading` warning and the application **keeps starting**, as in Java, while an invalid
+route name **stops the application at startup** (the Java engine skips that function with an
+error log). Check the startup log for these messages — correctness is checkable before runtime.
+All routes are process-local: this port is deliberately single-runtime (in-memory event bus; no
+Kafka service mesh). A preloaded function is private unless `is_private = false`, and only a
+public function is reachable from another application through Event over HTTP.
 
 ---
 
@@ -421,6 +429,10 @@ example's route list is demonstration.
 
 ## See also {#see-also}
 
+- [Write your first function](write-your-first-function.md) — step-by-step tutorial with PostOffice call.
+- [Function Execution](function-execution.md) — worker pools, the messaging patterns, interceptors and tracing per call type.
+- [Macros Reference](../macros-reference.md) — complete `#[preload]`, `#[main_application]`, and other macros.
+- [API Overview](../api-overview.md) — `PostOffice`, `Platform`, `EventEnvelope` API reference.
 - [Event Script AI agent guide](../event-script/ai-agent-guide.md) — orchestrate this function as a flow task.
 - [Event Script Syntax](../event-script/syntax.md) — the flow DSL and data-mapping catalog.
 - [MiniGraph command grammar](../knowledge-graph/command-reference.md) — call it from a graph via `graph.task`.
