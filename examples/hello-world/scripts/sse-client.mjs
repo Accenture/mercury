@@ -11,7 +11,7 @@
 
     Each Server-Sent Event is printed the moment it arrives, prefixed with the
     elapsed time, so you can see the progressive delivery - the messages render
-    one by one instead of appearing all at once. Requires Node.js 18 or higher.
+    one by one instead of appearing all at once. Use Node.js 26 LTS (minimum 18).
 */
 
 const url = process.argv[2] ?? 'http://127.0.0.1:8085/api/hello/sse';

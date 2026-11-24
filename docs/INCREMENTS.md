@@ -5684,3 +5684,44 @@ raised with the maintainer first, and corrected on the maintainer's ruling the s
 Gates: `cargo build --workspace --all-targets` with no warning, `cargo fmt --all --check`, `cargo clippy --workspace
 --all-targets -- -D warnings`, `cargo test --workspace`, the AI-contract snapshot tests again after the ledger edit, and
 the CI `audit` job on the pull request. CHANGELOG Unreleased, `Changed` item 4.
+
+## Increment 209 — `url` 2.5.9 for RUSTSEC-2026-0592, and the workflows' actions leave Node 20 (2026-11-23)
+
+The weekly `audit` run of 2026-11-23 failed on RUSTSEC-2026-0592 (GHSA-hrj5-67jp-wqp9), published on 2026-11-20 against
+`url` 2.5.8 and patched in 2.5.9: a stack overflow in `Url::origin()` on nested `blob:` URLs. `url` reaches the workspace
+only through `redis` 1.5.0 (`mercury-redis-connection`, `mercury-sync-over-async`, `mercury-distributed-cache`,
+`mercury-minigraph-state-redis`), which parses the configured Redis address with `Url::parse` and never calls
+`Url::origin()`; nothing in the workspace names the function either. `cargo update -p url --precise 2.5.9` moved `url` and
+`form_urlencoded`, 1.2.2 → 1.2.3, which the new `url` requires; no other edge re-resolved. No source changes. CHANGELOG
+Unreleased, `Security` item 2.
+
+The same run carried GitHub's deprecation warning for Node 20, the runtime `actions/checkout@v4` and
+`rustsec/audit-check@v2` declare; the runners already run both on Node 24. The warning did not fail the run, the advisory
+did. A workflow does not choose that runtime: a JavaScript action declares it in its own `action.yml`, and `node24` is the
+newest GitHub offers (there is no `node26`), so the remedy is the release of each action that declares it.
+`actions/checkout` moves from v4 to v7 in the three workflows and `actions/setup-python` from v5 to v7 in `docs.yml`;
+`Swatinem/rust-cache@v2` already declares Node 24 and `dtolnay/rust-toolchain` is a composite action. `rustsec/audit-check`
+has no release that declares Node 24 (v2.0.0 of 2024-09-23 is its newest), so the `audit` job pins the commit on the
+action's main branch that makes the move, `858dc40f` of 2026-03-20, which changes `action.yml` and the package files
+alone; a comment in `rust.yml` says to return to a version tag once a release carries it. No workflow runs Node itself, so
+none sets a Node version. `agent-memory.yml` is installed by the agent-memory tool, so an upgrade of the tool may bring
+its own version of that line.
+
+No script in the repository named Node 20. The statements of a minimum, "Node.js 18+", named a line that reached end of
+life in April 2025, so on the maintainer's ruling the seven files that carry one name Node.js 26 LTS (LTS since
+2026-10-28) as the version to use and keep 18 as the minimum: the READMEs of `hello-world`, `kafka-demo`,
+`sync-over-async-demo` and `api-playground`, and the headers of the two `sse-client.mjs` and of `fetch-swagger-ui.js`. The
+AI companion broker keeps "Node.js >= 22": the file is the Java repository's byte for byte, and 22 is a maintained line.
+The test reports keep the Node versions they were run with. No script changes behaviour. CHANGELOG Unreleased, `Changed`
+item 5.
+
+Checked on Node 26.12.0: every tracked script parses (`node --check`); `fetch-swagger-ui.js` fetched v5.33.1 into a scratch
+folder with the same 14 files as its Python twin; the hello-world SSE client printed the events of a live `hello-world`;
+`kafkajs` 2.2.4 loads and the topic helper reaches its connection attempt (no broker on the build machine, so no further).
+
+Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace
+--locked` (151 suites, 774 passed, 0 failed, 9 ignored, unchanged), `scripts/check-llms-links.py` and
+`scripts/check-doc-claims.py`; the three workflows parse as YAML, and each action they name declares `node24` or is
+composite. `cargo audit` is not installed on the build machine: the bumped lockfile's 287 registry crates were matched
+against the advisory database through OSV (none), and the CI `audit` job on the pull request is the gate, as it is the
+first run of the workflow changes themselves.

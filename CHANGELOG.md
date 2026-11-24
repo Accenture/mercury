@@ -80,6 +80,14 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    ADR-0019 supersedes ADR-0002 to record the event bus as built, and the platform-core design spec states the current
    design. **Upgrade note:** none - no source or behaviour change.
 
+5. **The Node.js helper scripts name Node.js 26 LTS, and the workflows' actions leave Node 20 (Increment 209).** The
+   READMEs and script headers that said "Node.js 18+" (`hello-world`, `kafka-demo`, `sync-over-async-demo` and
+   `api-playground`) name Node.js 26 LTS as the version to use and keep 18 as the minimum; Node 18 and 20 have reached
+   end of life. The AI companion broker keeps "Node.js >= 22". In CI, `actions/checkout` and `actions/setup-python` move
+   to v7 and `rustsec/audit-check` is pinned to the commit that declares the Node 24 runtime, since GitHub's runners
+   have retired Node 20 for actions and Node 24 is the newest runtime an action can declare. **Upgrade note:** none -
+   documentation and CI only; no script changes behaviour.
+
 ### Security
 
 1. **libz-sys 1.1.33 (Increment 206).** The `audit` gate failed on 2026-11-18 on RUSTSEC-2026-0544 (CVE-2026-85091), published
@@ -87,6 +95,13 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    reaches the workspace through `rdkafka-sys` (`minimalist-kafka` and the two Kafka examples). The lockfile moves that one
    crate. **Upgrade note:** none - a lockfile bump; an application that builds `mercury-minimalist-kafka` with its own
    lockfile updates `libz-sys` itself (`cargo update -p libz-sys`).
+
+2. **url 2.5.9 (Increment 209).** The weekly `audit` run of 2026-11-23 failed on RUSTSEC-2026-0592 (GHSA-hrj5-67jp-wqp9),
+   published on 2026-11-20 against `url` 2.5.8 and patched in 2.5.9: a stack overflow in `Url::origin()` on nested `blob:`
+   URLs. `url` reaches the workspace through `redis` (the four Redis extensions), which parses the configured Redis
+   address with it and never calls `Url::origin()`. The lockfile moves `url` and `form_urlencoded` (1.2.3, which the new
+   `url` requires). **Upgrade note:** none - a lockfile bump; an application that builds a Redis extension with its own
+   lockfile updates `url` itself (`cargo update -p url`).
 
 ## Version 4.12.30, 11/5/2026
 

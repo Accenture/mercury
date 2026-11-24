@@ -32,7 +32,7 @@ the target per message. No code wires any of those steps together — the flow Y
 ## Prerequisites
 
 - The Rust toolchain (this workspace builds the example: `cargo build -p kafka-demo`).
-- Node.js 18+ (for the helper programs in [`node/`](node)).
+- Node.js 26 LTS (minimum 18), for the helper programs in [`node/`](node).
 - The local Kafka broker from the Java repository's
   [`helpers/kafka-standalone`](https://github.com/Accenture/mercury-composable/tree/main/helpers/kafka-standalone)
   — a real single-node KRaft broker, no Docker needed.

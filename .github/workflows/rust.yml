@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust (stable + clippy + rustfmt)
         uses: dtolnay/rust-toolchain@stable
@@ -73,9 +73,13 @@ jobs:
       contents: read
       checks: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
+      # Pinned to the commit on the action's main branch that moves it to the
+      # Node 24 runtime (2026-03-20). Its newest release, v2.0.0, still declares
+      # Node 20, which the runners have retired and run on Node 24 with a
+      # deprecation warning. Return to a version tag once a release carries it.
       - name: cargo audit (RustSec advisories)
-        uses: rustsec/audit-check@v2
+        uses: rustsec/audit-check@858dc40f52ca2b8570b7a997c1c4e35c6fc9a432
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

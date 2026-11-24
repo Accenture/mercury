@@ -18,8 +18,8 @@
  * first; as a guard against a mistyped --target, a non-empty folder is emptied only when it holds a
  * previous fetch (the version file or swagger-ui-bundle.js).
  *
- * Node.js 18+, no dependencies (global fetch, zlib, a minimal tar reader). The Python twin is
- * scripts/fetch-swagger-ui.py.
+ * Node.js 26 LTS (minimum 18), no dependencies (global fetch, zlib, a minimal tar reader). The
+ * Python twin is scripts/fetch-swagger-ui.py.
  */
 
 'use strict';
