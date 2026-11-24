@@ -109,7 +109,7 @@ Start the application:
 cargo run -p hello-world
 ```
 
-Then consume the endpoint with the companion script (Node.js 18+) that prints
+Then consume the endpoint with the companion script (Node.js 26 LTS; minimum 18) that prints
 each event with its arrival time:
 
 ```bash
@@ -163,4 +163,4 @@ documentation sites' Event Streaming chapters.
 | `resources/rest.yaml` | declarative endpoints — the YAML *is* the router |
 | `resources/app-log-context.yaml` | which keys join every structured log line |
 | `resources/public/` | static content (etag/304, filter) |
-| `scripts/sse-client.mjs` | progressive-rendering demo client for the SSE endpoint (Node.js 18+) |
+| `scripts/sse-client.mjs` | progressive-rendering demo client for the SSE endpoint (Node.js 26 LTS; minimum 18) |

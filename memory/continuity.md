@@ -369,6 +369,22 @@ layers shipped; the two above have held through every re-verify.)*
   branch; a release published after the fact passes `--latest=false`.
   <!-- id: historical-releases-tags-and-pages-rust | created: 2026-11-13 | last_used: 2026-11-13 | uses: 1 | tier: working | origin: 2026-11-13-022524 -->
 
+- **A Node statement names the current Node.js LTS as the version to use and keeps the true minimum in brackets, and a
+  CI action's Node runtime is moved by the action's own release (the maintainer, 2026-11-23; Increment 209).** Asked
+  whether the "Node.js 18+" statements should stay as technical floors, the maintainer chose to state Node 26: "Node.js
+  26 LTS (minimum 18)" in the READMEs of `hello-world`, `kafka-demo`, `sync-over-async-demo` and `api-playground` and the
+  headers of the two `sse-client.mjs` and of `fetch-swagger-ui.js`. `templates/starter-graph/scripts/ai-companion-broker.mjs`
+  keeps ">= 22": it is the Java repository's file byte for byte, so it changes there first; the Java twins of the seven
+  files were not edited from this repository. No script pins a Node version, and the test reports keep the versions they
+  ran with. In CI a workflow does not choose an action's runtime: the action declares it, and `node24` is the newest
+  GitHub offers (there is no `node26`), so a Node deprecation warning is cleared by the release of the action that
+  declares the newer runtime (`actions/checkout@v7`, `actions/setup-python@v7`). `rustsec/audit-check` has no such
+  release (v2.0.0 declares Node 20), so `rust.yml` pins its main branch's `858dc40f52ca2b8570b7a997c1c4e35c6fc9a432`.
+  **How to apply:** when a Node line reaches end of life or a new LTS begins, update the stated version and keep the
+  minimum the script's built-ins need; return `rustsec/audit-check` to a version tag once a release declares Node 24;
+  `agent-memory.yml` is installed by the agent-memory tool, so check its `actions/checkout` line after an upgrade.
+  <!-- id: node-version-statements-and-ci-runtime-rust | created: 2026-11-24 | last_used: 2026-11-24 | uses: 1 | tier: working | origin: 2026-11-24-005208 -->
+
 ## Blueprint  *(gap from Current State → Vision; `(blueprint)` threads serve `vision-mercury`)*
 
 > The `(blueprint)` items live one-per-file in `memory/open-threads/` (v4.39.0). This section is

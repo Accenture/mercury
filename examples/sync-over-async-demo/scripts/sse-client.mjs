@@ -11,7 +11,7 @@
     The first SSE event is "event: cid" - quote its data value in POSTs to the
     producer pod's /api/produce so backend services know where to post. The
     optional second argument sets the channel's idle allowance in seconds
-    (the x-stream-idle-seconds request header). Requires Node.js 18+.
+    (the x-stream-idle-seconds request header). Use Node.js 26 LTS (minimum 18).
 */
 
 const url = process.argv[2] ?? 'http://127.0.0.1:8600/api/notifications';

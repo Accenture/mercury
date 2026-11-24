@@ -48,7 +48,7 @@ libraries start themselves — the binary only links them, and the roles differ 
 - The Java repository's `schema-registry-standalone` helper jar — only for the
   [JSON Schema](#json-schema-variant-confluent-wire-format) and [Avro](#avro-variant-confluent-wire-format)
   variants below (Protobuf is [not supported](#protobuf-not-supported)).
-- Node.js 18+ — only for the one-time topic-creation helper in `node/` (the app client is `curl`).
+- Node.js 26 LTS (minimum 18) — only for the one-time topic-creation helper in `node/` (the app client is `curl`).
 
 ## Run it
 

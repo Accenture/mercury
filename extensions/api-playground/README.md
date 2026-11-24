@@ -14,8 +14,8 @@ mirrored byte-for-byte from the Java repository, the reference.
 
 Swagger UI is third-party code that goes stale quickly, so it is not committed here: the
 `resources/public/swagger-ui` folder is in `.gitignore`, and a script fetches the latest
-release into it. Run one of the two (they do the same thing; Python 3.8+ or Node.js 18+, no
-dependencies):
+release into it. Run one of the two (they do the same thing, with no dependencies: Python 3.8+, or
+Node.js 26 LTS, minimum 18):
 
 ```shell
 python3 scripts/fetch-swagger-ui.py
