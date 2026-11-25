@@ -1,0 +1,68 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "provider-task",
+      "properties": {
+        "task": "polyglot.header.function",
+        "server.url": "http://127.0.0.1:${stub.peer.port}/api/event",
+        "server.header": [
+          "authorization: Bearer ${stub.peer.token}",
+          "x-hot-note: provider"
+        ],
+        "for_each": [
+          "input.body.items -> model.each_item"
+        ],
+        "input": [
+          "model.each_item -> amount"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "concurrency": "2",
+        "skill": "graph.task"
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.task sends the node's transport headers to the provider, once per for_each element",
+        "name": "unit-test-task-11"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "provider-task",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "provider-task"
+    }
+  ]
+}

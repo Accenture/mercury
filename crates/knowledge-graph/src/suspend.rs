@@ -324,11 +324,20 @@ struct StoreResponse {
     body: Value,
 }
 
-async fn call_store(po: &PostOffice, request: EventEnvelope, timeout_ms: i64) -> StoreResponse {
-    match po
-        .request(request, Duration::from_millis(timeout_ms.max(0) as u64))
-        .await
-    {
+/// The call to the store function - at the provider the node names (`server.url`, RFC-0017 D16)
+/// or wherever this instance reaches the route.
+async fn call_store(
+    po: &PostOffice,
+    request: EventEnvelope,
+    timeout_ms: i64,
+    server: Option<&crate::task_server::TaskServer>,
+) -> StoreResponse {
+    let timeout = Duration::from_millis(timeout_ms.max(0) as u64);
+    let outcome = match server {
+        Some(server) => server.request(po, request, timeout).await,
+        None => po.request(request, timeout).await,
+    };
+    match outcome {
         Ok(response) => StoreResponse {
             status: response.status(),
             headers: response.headers().clone(),
@@ -384,10 +393,14 @@ pub async fn suspend(
     );
     po.annotate_trace(TASK, &ctx.route);
     po.annotate_trace(CID, &cid);
+    let server = crate::task_server::TaskServer::of(&ctx.node).map_err(invalid)?;
+    if let Some(server) = &server {
+        po.annotate_trace(crate::task_server::URL, server.endpoint());
+    }
     // the request is issued within the skill's own task-scoped trace context,
     // so the store call's span chains onto THIS skill's span (the observable
     // topology Java achieves by issuing the request on the worker thread)
-    let response = call_store(&po, request, timeout).await;
+    let response = call_store(&po, request, timeout, server.as_ref()).await;
     let next = {
         let mut state = ctx.instance.state.lock().expect("graph state machine");
         state
@@ -550,9 +563,13 @@ pub async fn resume(
         .set_raw_body(key);
     po.annotate_trace(TASK, &ctx.route);
     po.annotate_trace(CID, &cid);
+    let server = crate::task_server::TaskServer::of(&ctx.node).map_err(invalid)?;
+    if let Some(server) = &server {
+        po.annotate_trace(crate::task_server::URL, server.endpoint());
+    }
     // issued within the skill's trace context — the store call's span chains
     // onto this skill's span (Java issues eagerly on the worker thread)
-    let response = call_store(&po, request, timeout).await;
+    let response = call_store(&po, request, timeout, server.as_ref()).await;
     let next = {
         let mut state = ctx.instance.state.lock().expect("graph state machine");
         state

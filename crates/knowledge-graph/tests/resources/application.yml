@@ -20,6 +20,8 @@ rest.server.port: 8090
 # (graph_runtime.rs); the stub peer binds stub.peer.port in the test
 yaml.event.over.http: 'classpath:/event-over-http.yaml'
 stub.peer.port: 8391
+# the token the unit-test-task-11 fixture sends to the stub peer as its transport header, by reference
+stub.peer.token: unit-token
 
 location.graph.temp: 'file:/tmp/graph'
 # the manifest carries the location of its own models ('location' entry,
@@ -27,3 +29,9 @@ location.graph.temp: 'file:/tmp/graph'
 # two manifests, comma-separated (the yaml.flow.automation convention) - the second one
 # carries its own location and pins the later-manifest-wins rule (tests/compiler.rs)
 graph.model.automation: 'classpath:/graphs.yaml, classpath:/graphs-extra.yaml'
+
+# hot deployment of graph sets (RFC-0017; tests/hot_deployment.rs) - on, in a folder of the tests' own, never the
+# Playground's temporary folder above; the record-driven tests configure a scratch folder of their own per step
+graph.hot.deploy: true
+graph.hot.undeploy: true
+location.graph.deploy: 'file:/tmp/hot-deploy-unit-test-rust'

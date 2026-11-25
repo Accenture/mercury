@@ -14,6 +14,18 @@ rest.server.port: 8085
 # Playground draft-graph scratch folder (Java parity: file:/tmp/graph).
 location.graph.temp: file:/tmp/graph
 
+# Hot deploy and undeploy of graph sets (RFC-0017) - both switches OFF by default.
+# Either switch on makes the engine read the hot deployment folder at startup and on demand:
+# graph.hot.deploy registers POST /api/graph-set/deploy, graph.hot.undeploy registers
+# POST /api/graph-set/undeploy/{graph-id}; GET /api/graph-set/deployed answers under either.
+# The folder must be a file:/ folder the application can write, outside the temp folder above
+# and outside every manifest's 'unpack' folder; mount it as a persistent volume to survive a restart.
+# graph.hot.deploy.throttle is the least time in ms between two reads of a set's record (0 = every lookup).
+graph.hot.deploy: false
+graph.hot.undeploy: false
+location.graph.deploy: file:/tmp/deploy
+# graph.hot.deploy.throttle: 0
+
 # The graph manifest — the CompileGraph deployment gate. A deployed graph is
 # executable at POST /api/graph/{graph-id} only when listed in the manifest
 # AND passing the gate ("compiled or 404"); the manifest carries the location

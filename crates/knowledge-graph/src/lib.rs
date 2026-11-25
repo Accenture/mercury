@@ -40,6 +40,7 @@ pub mod fetcher;
 pub mod graph_set;
 pub mod graph_set_loader;
 pub mod graphs;
+pub mod hot_deployment;
 pub mod math;
 pub mod mock;
 pub mod model;
@@ -53,6 +54,7 @@ pub mod services;
 pub mod session;
 pub mod skills;
 pub mod suspend;
+pub mod task_server;
 pub mod traveler;
 pub mod ws_graph_run;
 pub mod ws_ui;
@@ -561,6 +563,61 @@ impl ComposableFunction for UnpackGraphSet {
         _instance: usize,
     ) -> Result<EventEnvelope, AppError> {
         rest::unpack_graph_set(input).await
+    }
+}
+
+// --- Hot deployment of graph sets (RFC-0017): production entries behind the two switches, not
+// dev mode. Java `DeployGraphSet`, `UndeployGraphSet` and `ListDeployedGraphSets`, each
+// `@OptionalService` on its switch; either switch registers the list.
+
+/// Java `DeployGraphSet` (`deploy.graph.set`, `POST /api/graph-set/deploy`).
+#[preload(route = "deploy.graph.set", instances = 10)]
+#[optional_service("graph.hot.deploy=true")]
+pub struct DeployGraphSet;
+
+#[async_trait]
+impl ComposableFunction for DeployGraphSet {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::deploy_graph_set(input).await
+    }
+}
+
+/// Java `UndeployGraphSet` (`undeploy.graph.set`, `POST /api/graph-set/undeploy/{graph_id}`).
+#[preload(route = "undeploy.graph.set", instances = 10)]
+#[optional_service("graph.hot.undeploy=true")]
+pub struct UndeployGraphSet;
+
+#[async_trait]
+impl ComposableFunction for UndeployGraphSet {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::undeploy_graph_set(input).await
+    }
+}
+
+/// Java `ListDeployedGraphSets` (`list.deployed.sets`, `GET /api/graph-set/deployed`).
+#[preload(route = "list.deployed.sets", instances = 10)]
+#[optional_service("graph.hot.deploy=true,graph.hot.undeploy=true")]
+pub struct ListDeployedGraphSets;
+
+#[async_trait]
+impl ComposableFunction for ListDeployedGraphSets {
+    async fn handle_event(
+        &self,
+        _headers: HashMap<String, String>,
+        _input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        rest::list_deployed_graph_sets().await
     }
 }
 

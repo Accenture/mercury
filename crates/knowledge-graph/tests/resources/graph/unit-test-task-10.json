@@ -1,0 +1,60 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "provider-task",
+      "properties": {
+        "task": "v1.demo.task",
+        "server.url": "http://127.0.0.1:${stub.peer.port}",
+        "input": [
+          "input.body -> *"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "skill": "graph.task"
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.task calls the provider named on the node, which wins over the local function; the URL has no path",
+        "name": "unit-test-task-10"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "provider-task",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "provider-task"
+    }
+  ]
+}

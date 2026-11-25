@@ -87,3 +87,24 @@ rest:
     url: '/api/graph-set/unpack'
     timeout: 30s
     tracing: true
+
+  # Hot deploy and undeploy of graph sets (RFC-0017), registered only when graph.hot.deploy / graph.hot.undeploy is on.
+  # The body of a deploy is the graph set (.pack) as application/octet-stream; an optional X-Graph-Set-SHA256
+  # header is the digest the caller expects. A set is named after its main graph, which is the undeploy path.
+  - service: 'deploy.graph.set'
+    methods: ['POST']
+    url: '/api/graph-set/deploy'
+    timeout: 60s
+    tracing: true
+
+  - service: 'undeploy.graph.set'
+    methods: ['POST']
+    url: '/api/graph-set/undeploy/{graph_id}'
+    timeout: 30s
+    tracing: true
+
+  - service: 'list.deployed.sets'
+    methods: ['GET']
+    url: '/api/graph-set/deployed'
+    timeout: 30s
+    tracing: true

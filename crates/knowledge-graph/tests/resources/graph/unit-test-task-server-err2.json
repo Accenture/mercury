@@ -1,0 +1,60 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "provider-task",
+      "properties": {
+        "task": "v1.demo.task",
+        "server.url": "${UNSET_HOT_SERVER_VAR}/api/event",
+        "input": [
+          "input.body -> *"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "skill": "graph.task"
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "server.url that does not resolve to an absolute URL is rejected by the gate",
+        "name": "unit-test-task-server-err2"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "provider-task",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "provider-task"
+    }
+  ]
+}

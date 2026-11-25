@@ -828,6 +828,23 @@ names three skills, not four.) Note also that model metadata
 gate and the pre-run check) and again at runtime in both walker lanes. The per-node `ttl` is the
 sanctioned deadline mechanism, not rewriting `model.ttl`.
 
+**A task's provider on the node — `server.url` and `server.header[]` (RFC-0017).** When the function lives in a
+language-pack sidecar or a container the engine's Event-over-HTTP map (`yaml.event.over.http`, loaded once at startup)
+has never heard of — the shape of a hot-deployed graph on an engine that holds no user-defined function — the node
+names the provider: `server.url=${TARGET_UTIL_SERVER}/api/event` is the provider's Event-over-HTTP endpoint, and each
+`server.header[]=name: value` entry is a transport header on the call, such as a gateway's token, with the usual
+`${...}` substitution so the graph holds the variable's name and never the secret. the provider named on the node wins
+over a local function and over the Event-over-HTTP map — explicit beats implicit; a URL without a path gets
+`/api/event`, and a URL with a path is used as written, which is how an API gateway's own path reaches the target. The
+request's own `header.*` entries still travel inside the envelope to the function. The reachability check is skipped
+(the provider decides, and its 404 is the node's error), `for_each` calls one element at a time under the same
+concurrency window, and the deadline travels as `X-TTL` as always. The same two properties are accepted on
+[`graph.suspend`](#suspend) and [`graph.resume`](#resume), whose `task` names the state-store function, so a language
+pack can host a state store. The gate refuses the property on any other skill, a header without a URL, a URL that does
+not resolve to an absolute `http`/`https` URL (an unset variable leaves a path with no host; use `${VAR:default}` on a
+developer's machine), and a header entry that is not `name: value`. Deployment:
+[Hot deployment](ai-agent-guide.md#hot-deploy).
+
 ## graph.suspend {#suspend}
 
 Persists the workflow state of the running graph to an external state store and lets the run

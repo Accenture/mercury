@@ -79,6 +79,9 @@ pub fn compile_graphs() -> Vec<String> {
     // the declared return paths are read once here, so a refused entry is logged at startup, by name
     crate::progress::ReturnPaths::get_instance();
     crate::graph_set_loader::reset();
+    // configured before the manifests, so a manifest's 'unpack' folder and the hot folder refuse
+    // each other; its folder is read after them, so a configured manifest keeps owning its ids
+    crate::hot_deployment::configure();
     let config = AppConfigReader::get_instance();
     if !config
         .get_property_or("location.graph.deployed", "")
@@ -96,6 +99,7 @@ pub fn compile_graphs() -> Vec<String> {
             "No graph manifest configured (graph.model.automation) - \
              no deployed graph models will be executable"
         );
+        crate::hot_deployment::reconcile_all();
         return graphs::get_all_graphs();
     }
     // Since 4.12.19 the property may name several manifests, comma-separated (the
@@ -106,6 +110,7 @@ pub fn compile_graphs() -> Vec<String> {
     for manifest in manifests.split([',', ' ']).filter(|s| !s.is_empty()) {
         compile_manifest(manifest);
     }
+    crate::hot_deployment::reconcile_all();
     let all = graphs::get_all_graphs();
     log::info!("Graph models compiled: {}", all.len());
     all

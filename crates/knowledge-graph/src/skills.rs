@@ -492,12 +492,19 @@ pub async fn task(
     // a task route is reachable when registered locally, or when declared as a
     // declarative Event-over-HTTP target - the way python/node.js polyglot
     // functions and remote engine instances join a graph
-    if !platform.has_route(&route)
+    // a node that names its function's provider (server.url) calls it there, whatever this
+    // instance knows (RFC-0017 D16)
+    let server = crate::task_server::TaskServer::of(&node).map_err(invalid)?;
+    if server.is_none()
+        && !platform.has_route(&route)
         && platform_core::automation::event_api::get_event_http_target(&route).is_none()
     {
         return Err(invalid(format!(
             "{NODE_NAME}{node_name} - task '{route}' does not exist"
         )));
+    }
+    if let Some(server) = &server {
+        po.annotate_trace(crate::task_server::URL, server.endpoint());
     }
     let mapping = get_entries(node.get_property("input"));
     let for_each = get_entries(node.get_property("for_each"));
@@ -523,7 +530,7 @@ pub async fn task(
         let request = with_graph_context(request, &instance, &node).await;
         log::info!("Call task {route}, ttl={ttl}");
         po.annotate_trace("task", &route);
-        let response = call_task(&po, request, ttl).await;
+        let response = call_task(&po, request, ttl, server.as_ref()).await;
         let next = {
             let mut state = instance.state.lock().expect("graph state machine");
             store_single_response(&node_name, &node, &mut state, &response)?
@@ -574,7 +581,7 @@ pub async fn task(
     }
     let requests = with_relay;
     for batch in requests.chunks(concurrency) {
-        let responses = run_batch(batch.to_vec(), ttl).await;
+        let responses = run_batch(batch.to_vec(), ttl, server.as_ref()).await;
         let mut state = instance.state.lock().expect("graph state machine");
         for response in &responses {
             store_fork_join_response(&node_name, &node, &mut state, response)?;
@@ -618,13 +625,17 @@ async fn with_graph_context(
 /// responses come back in request order (Java `po.request(batch, timeout)`),
 /// so every task call carries this worker's trace and business
 /// correlation-id (see `common::join_batch` for why this must not spawn).
-async fn run_batch(requests: Vec<EventEnvelope>, ttl: i64) -> Vec<TaskResponse> {
+async fn run_batch(
+    requests: Vec<EventEnvelope>,
+    ttl: i64,
+    server: Option<&crate::task_server::TaskServer>,
+) -> Vec<TaskResponse> {
     let platform = Platform::get_instance();
     let po = PostOffice::new(&platform);
     crate::common::join_batch(
         requests
             .into_iter()
-            .map(|request| call_task(&po, request, ttl))
+            .map(|request| call_task(&po, request, ttl, server))
             .collect(),
     )
     .await
@@ -643,11 +654,20 @@ impl TaskResponse {
     }
 }
 
-async fn call_task(po: &PostOffice, request: EventEnvelope, ttl: i64) -> TaskResponse {
-    match po
-        .request(request, Duration::from_millis(ttl.max(0) as u64))
-        .await
-    {
+/// The call to the task route - at the provider the node names, or wherever this instance reaches
+/// the route; the batch request has no endpoint form, so a provider is called once per element.
+async fn call_task(
+    po: &PostOffice,
+    request: EventEnvelope,
+    ttl: i64,
+    server: Option<&crate::task_server::TaskServer>,
+) -> TaskResponse {
+    let timeout = Duration::from_millis(ttl.max(0) as u64);
+    let outcome = match server {
+        Some(server) => server.request(po, request, timeout).await,
+        None => po.request(request, timeout).await,
+    };
+    match outcome {
         Ok(response) => TaskResponse {
             status: response.status(),
             headers: response.headers().clone(),

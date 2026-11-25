@@ -1,0 +1,60 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "provider-task",
+      "properties": {
+        "task": "no.such.function.hot",
+        "server.url": "http://127.0.0.1:${rest.server.port}/api/event",
+        "input": [
+          "input.body -> *"
+        ],
+        "output": [
+          "result -> output.body"
+        ],
+        "skill": "graph.task"
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "graph.task meets the provider's 404 for a route it does not host - the node's error",
+        "name": "unit-test-task-12"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "provider-task",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "provider-task"
+    }
+  ]
+}

@@ -82,3 +82,33 @@ Both paths work; the first is easier for both the agent and the human.
 - The broker works unchanged against the Java and Rust playground engines —
   both announce `session ws-NNNNNN-N started` on open, answer the same
   ping/pong keep-alive frames and report subscriptions in the same words.
+
+## deploy-graph-set.mjs and undeploy-graph-set.mjs — hot deployment without the Playground
+
+Deploy a certified graph set to a running MiniGraph engine without a restart, and undeploy it by
+name (RFC-0017), for an engine whose authoring UI is off - the production path. Zero dependencies;
+Node.js 26 LTS (minimum 22). This folder holds the only copy, as it does for the broker.
+
+```bash
+node scripts/deploy-graph-set.mjs --engine https://gateway.example.com/engine --file settlement.pack \
+     --sha256 9f2c... --header "authorization: Bearer $DEPLOY_TOKEN"
+node scripts/undeploy-graph-set.mjs --engine https://gateway.example.com/engine --graph settlement
+node scripts/undeploy-graph-set.mjs --engine https://gateway.example.com/engine --list
+node scripts/deploy-graph-set.mjs --file settlement.pack --digest
+```
+
+| Flag | Meaning |
+|---|---|
+| `--engine <url>` | The engine's base URL, or the gateway's path in front of it; the entry's path is appended as given, so a gateway prefix such as `/engine` reaches the engine |
+| `--file <path>` | The graph set, `<set>.pack`, named after its main graph |
+| `--sha256 <hex>` | The digest the field's ledger holds, sent as `X-Graph-Set-SHA256`; the script checks the file against it before the upload, and the engine refuses other bytes |
+| `--header 'name: value'` | A transport header, repeatable - a gateway's token taken from the shell's environment, so it never sits in a command history as a literal |
+| `--digest` | Print the package's SHA-256 and exit: the ledger step, without an upload |
+| `--list` | Print the deployed sets the engine records and exit (either script) |
+| `--graph <id>` | The main graph's id to undeploy, which is the set's name |
+
+The answer prints as the engine gives it, one JSON document on stdout. Exit codes: `0` on success; `1`
+on a refusal, with the engine's status and reasons on stderr (`refused (409): graph id x is owned by ...`;
+a 503 names the engine's switches, `graph.hot.deploy` and `graph.hot.undeploy`); `2` on a usage error.
+No prompt: a script in a pipeline runs unattended. Authentication is the gateway's: the scripts carry
+whatever headers they are given and nothing else.

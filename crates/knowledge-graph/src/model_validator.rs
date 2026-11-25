@@ -77,7 +77,40 @@ pub fn validate(graph: &MiniGraph) -> Result<(), String> {
     validate_model_metadata_immutability(graph)?;
     validate_json_paths(graph)?;
     validate_schemas(graph)?;
-    validate_decimal_precision(graph)
+    validate_decimal_precision(graph)?;
+    validate_task_server(graph)
+}
+
+/// `server.url` and `server.header[]` (RFC-0017 D16, Java `GraphModelValidator.validateTaskServer`): only on a
+/// node whose skill consumes a task, a header needs the URL, the URL is absolute http(s) without a query or a
+/// fragment and resolvable in the active environment, and each header is `Name: value` with a token name.
+fn validate_task_server(graph: &MiniGraph) -> Result<(), String> {
+    use crate::task_server::{
+        check_headers, check_url, declared_on, header_of, url_of, HEADER, URL,
+    };
+    for node in graph.get_nodes() {
+        if !declared_on(&node) {
+            continue;
+        }
+        let alias = node.get_alias();
+        let skill = node.get_property(SKILL).map(|v| display(&v));
+        if !skill
+            .as_deref()
+            .is_some_and(|s| TASK_CONSUMING_SKILLS.contains(&s))
+        {
+            return Err(format!(
+                "{NODE_NAME}{alias} - '{URL}' and '{HEADER}' are only applicable to a node with skill {}",
+                TASK_CONSUMING_SKILLS.join(", ")
+            ));
+        }
+        let Some(url) = url_of(&node) else {
+            return Err(format!("{NODE_NAME}{alias} - '{HEADER}' needs '{URL}'"));
+        };
+        check_url(&url).map_err(|e| format!("{NODE_NAME}{alias} - {e}"))?;
+        check_headers(header_of(&node).as_ref())
+            .map_err(|e| format!("{NODE_NAME}{alias} - {e}"))?;
+    }
+    Ok(())
 }
 
 /// A graph.math node's 'precision' - the most decimal places its DECIMAL results may carry (ADR-0034) - is

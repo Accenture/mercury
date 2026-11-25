@@ -5915,3 +5915,83 @@ CHANGELOG Unreleased, `Documentation` item 3. Gates: `cargo fmt --all --check`, 
 --locked -- -D warnings`, `cargo test --workspace --locked` (152 suites, 783 passed, 0 failed, 9 ignored), `python3
 scripts/check-doc-claims.py` and `python3 scripts/check-llms-links.py`. `mkdocs build --strict` was not run (mkdocs is not
 on the build machine); the pull request's `docs` run is its gate.
+
+## Increment 214 — Hot deploy and undeploy of graph sets, and a task's provider on the node (2026-11-24)
+
+The twin of the Java engine's RFC-0017 (mercury-composable #673 the engine, #675 the REST surface and `server.url`,
+#676 the Playground's Deploy view and the two scripts, #677 the guides), the maintainer's sprint of the same day. A
+deployment was a restart (the manifest, the 4.12.19 rapid-prototyping lane included) and nothing undeployed; a certified
+graph set is now deployed to a running engine, registered on every instance on demand, and removed by name.
+
+- **`graphs.rs` rewritten.** The registry is one immutable `Snapshot` (an `Entry` per graph: the model, its location,
+  its set) behind an `RwLock<Arc<_>>`, replaced whole by `update`; `replace_graphs(remove_ids, models, location, set)`
+  removes and adds in one swap, so a run never sees half a set. A `Refresh` hook, installed by the hot-deployment
+  module when it is on, runs on every `get_graph` and `graph_exists` with the id and its current location, and the
+  lookup re-reads the snapshot after it. `graphs_of_set`, `graph_set`, `graph_location`, `add_deployed_location` and
+  `set_refresh` complete the surface; the manifests' primary location is untouched.
+- **`hot_deployment.rs`, the port of the Java `HotDeployment`.** The keys `graph.hot.deploy`, `graph.hot.undeploy`
+  (both default `false`), `location.graph.deploy` (default `file:/tmp/deploy`) and `graph.hot.deploy.throttle`;
+  `configure` from the application's properties (a folder that is not `file:/`, not writable, or the Playground's
+  temporary folder turns the feature off for the run with an ERROR), `configure_with` as the test seam, `reset`. Per
+  set the folder holds `<id>.pack`, one `<graph-id>.json` per graph and the engine-written record `<id>.deployed.yaml`
+  (set, version, sha256, deployed_at, graphs, files), read back through `ConfigReader`. `reconcile_all` at startup,
+  after the manifests: a hot folder that is a manifest's `unpack` folder, inside one or above one turns the feature off;
+  every recorded set is reconciled, a package without a record is noted with a WARN. The reconcile: no record →
+  unregister; record and package disagree on the digest → one re-read, then unregister with an ERROR; else the strict
+  read, the ownership check, the files staged in `.staging-*`, the gate on each graph, the move into place and one
+  swap. The hook: a hot-deployed id reads its set's record bytes and reconciles when they changed or are gone, an
+  unknown id checks whether a record of its name exists; a manifest's id costs nothing; the throttle bounds the reads
+  per set. `deploy(bytes, expected_sha256)`: the digest header, the strict read, the set named after its one main graph
+  (`graph_id`, when present, must agree), a configured manifest's id or another set's id refused with 409 and the
+  owner named, the same bytes again change nothing, the record written last; `undeploy(graph_id)`: 404 for a set the
+  folder lacks, the record deleted first and then the files it named, a name validated before it becomes a path;
+  `list`: every record reconciled, a status per set (`deployed`, or `not deployed - ` and the reason). The error type
+  is `AppError` with the HTTP status (400, 404, 409, 500, 503).
+- **One difference the port surfaced.** The state lock is a `std::sync::Mutex`, not reentrant like the Java
+  `ReentrantLock`, so no registry read that runs the refresh hook may be called while it is held: the ownership check
+  and the gate path use `graph_location`, `graph_set` and `graphs_of_set`, which do not run it, and the gate path was
+  checked for the two that do - none.
+- **`rest.rs`, `lib.rs`.** `deploy_graph_set` (`POST /api/graph-set/deploy`, the body as the unpack entry reads it, the
+  `X-Graph-Set-SHA256` header, the answer with the deployment and the advisory - the `task` routes the set names known
+  here, unknown or remote through `server.url`, the `graph.extension` targets outside the set known, unknown or another
+  set's private subgraph), `undeploy_graph_set` (`POST /api/graph-set/undeploy/{graph_id}`), `list_deployed_graph_sets`
+  (`GET /api/graph-set/deployed`); the OpenAPI entry answers 404 for a private subgraph. The three functions
+  `DeployGraphSet`, `UndeployGraphSet` and `ListDeployedGraphSets` carry `#[optional_service]` on their switch (the list
+  under either), the Java `@OptionalService` shape. The entries are in the test, the example's and the starter
+  template's `rest.yaml`; the keys in the example's and the template's `application.yml`, off.
+- **Private subgraphs (D15).** `extension.rs` puts `parent_graph` in the forward's dataset - a key the HTTP adapter
+  never writes - and `executor.rs::create_instance` admits a private subgraph only when the calling graph belongs to
+  the same set at the same location (`same_set`), answering 404 otherwise.
+- **`task_server.rs` (D16) and the task skills.** `TaskServer::of(node)` reads `server.url` and `server.header[]` in
+  the nested form the reader produces (`server: {url, header}`) and the flat form a draft holds, supplies `/api/event`
+  to a URL without a path, and calls `event_over_http_with_headers` with the endpoint and the headers; `skills.rs`
+  skips the reachability check when a provider is named, annotates the trace with the endpoint and calls the provider
+  once per `for_each` element under the node's concurrency window; `suspend.rs` gives `graph.suspend` and `graph.resume`
+  the same through `call_store`; `model_validator.rs::validate_task_server` refuses the property on a skill that consumes
+  no `task`, a header without a URL, a URL that does not resolve to an absolute `http`/`https` URL, and a header entry
+  that is not `name: value`.
+- **The bundle, the scripts, the guides.** `npm run release:rust` from the Java repository's webapp: the bundle
+  `index-Bq3Wgo4j` and `index-CsZppbON` with the packaging panel's Deploy view, `playground.html`, 45 help pages
+  mirrored (`help deploy.md` new). `templates/starter-graph/scripts/deploy-graph-set.mjs` and `undeploy-graph-set.mjs`
+  are the Java template's files, with their README section. The Java guides' text of #677 on this repository's pages:
+  the configuration reference's four keys and the `unpack` rule, the AI agent guide's *Hot deployment* section
+  (`#hot-deploy`) and the reworded restart bullet, the skills reference's provider paragraph, the command reference's
+  row, the first-graph tutorial's hot path, `X-Graph-Set-SHA256` in the reserved headers; the three claims
+  `hot-deploy-set-owns-its-ids`, `hot-deploy-one-swap-per-set` and `task-provider-on-the-node` pinned on this
+  repository's tests.
+- **Tests.** `tests/hot_deployment.rs`: the twins of the Java `HotDeploymentTest` (12 steps: deploy and serve, the same
+  bytes then a replacement as a unit, the naming rule, a bundled id and another set's id refused with the owner named,
+  a refused upload leaving no file, undeploy, the records restoring sets at startup with a stray package ignored,
+  another instance's deploy, replace and undeploy seen at the next lookup, a tampered package unregistered, the switches
+  governing each side, the hot and unpack folders refusing each other, one swap) and `HotDeployEndpointTest` (4 steps:
+  the main graph served and the subgraph hidden at the graph and OpenAPI entries, an in-set extension served and a
+  cross-set one refused with the advisory saying `private`, the refusals' statuses, list and undeploy), in one runtime
+  on a scratch hot folder per step. `graph_runtime.rs`: the fixtures `unit-test-task-10` (the provider wins over the
+  local function and the URL gets `/api/event`), `-11` (the headers travel once per `for_each` element; the stub peer
+  now echoes `authorization` and `x-hot-note`) and `-12` (the engine's own 404 as the node's error). `compiler.rs`: the
+  two refused fixtures, the count 84, the hot folder among the deployed locations.
+
+CHANGELOG Unreleased, `Added` item 4. Gates: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets
+--locked -- -D warnings`, `cargo test --workspace --locked` (153 suites, 787 passed, 0 failed, 9 ignored), `python3 scripts/check-doc-claims.py` (59
+claims) and `python3 scripts/check-llms-links.py`. `mkdocs build --strict` was not run (mkdocs is not on the build
+machine); the pull request's `docs` run is its gate.
