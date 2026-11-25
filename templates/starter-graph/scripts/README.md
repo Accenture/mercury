@@ -109,6 +109,8 @@ node scripts/deploy-graph-set.mjs --file settlement.pack --digest
 
 The answer prints as the engine gives it, one JSON document on stdout. Exit codes: `0` on success; `1`
 on a refusal, with the engine's status and reasons on stderr (`refused (409): graph id x is owned by ...`;
-a 503 names the engine's switches, `graph.hot.deploy` and `graph.hot.undeploy`); `2` on a usage error.
+a 404 `Resource not found` means the entry is not served - hot deployment is off on this engine, `graph.hot.deploy`
+and `graph.hot.undeploy`, or the engine is older than the entries, or the base URL is wrong - and a 503 that a switch
+is on but the engine refused its folder for this run); `2` on a usage error.
 No prompt: a script in a pipeline runs unattended. Authentication is the gateway's: the scripts carry
 whatever headers they are given and nothing else.

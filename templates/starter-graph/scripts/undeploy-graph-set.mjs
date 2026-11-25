@@ -77,7 +77,9 @@ async function report(response) {
     return 0;
   }
   const reason = typeof body.message === 'string' ? body.message : JSON.stringify(body);
-  const hint = response.status === 503 ? ' (hot undeploy is off on this engine - graph.hot.undeploy)' : '';
+  const hint = response.status === 503 ? ' (hot undeploy is off for this run - a switch is on but the engine refused its folder; see its log)'
+    : response.status === 404 && !reason.includes('set ') ? ' (the entry is not served - hot undeploy is off on this engine (graph.hot.undeploy),'
+      + ' an engine older than hot deployment, or a wrong base URL)' : '';
   console.error(`refused (${response.status}): ${reason}${hint}`);
   return 1;
 }

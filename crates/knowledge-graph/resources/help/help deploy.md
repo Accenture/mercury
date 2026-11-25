@@ -25,23 +25,28 @@ A hot-deployable set
 
 The Deploy view
 ---------------
-Open the packaging panel from the Tools menu and press "Deploy…", or drop a
-.pack and press "Deploy to this engine" from the inspect view.
+Open it from the Tools menu: "Graph set deployment". It is the packaging
+panel's third view, so "Deploy…" in that panel and "Deploy to this engine"
+in its inspect view (a dropped .pack) reach the same place.
 
 - "Pack and deploy" packs the assembled set on the engine and deploys the
   bytes in one step; a dropped .pack is deployed as it is.
 - The package's SHA-256 is computed in the browser and shown, so the digest
   can be written to the field's ledger from the same screen. An expected
   digest pasted from the ledger is sent as X-Graph-Set-SHA256, and the
-  engine refuses other bytes.
+  engine refuses other bytes. Send it: without the header the engine
+  accepts any well-formed package, and bytes altered inside a string value
+  still read as one.
 - The answer shows the set, its version, its graphs, what was replaced, and
   an advisory, never a refusal: the task routes the set names (known here,
   unknown, or remote through server.url) and the graph.extension targets
   outside the set (known, unknown, or another set's private subgraph).
 - "Deployed sets" lists the folder's records with a status per set;
   "Undeploy" asks before it removes one.
-- When the engine's switches are off, its entries answer 503 and the view
-  says so, naming graph.hot.deploy and graph.hot.undeploy.
+- When the engine's switches are off, its entries are not served (404) and
+  the view says so, naming graph.hot.deploy and graph.hot.undeploy. A 503
+  means a switch is on but the engine refused its folder at startup; its
+  log says why.
 
 Without the Playground
 ----------------------

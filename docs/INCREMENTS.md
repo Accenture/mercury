@@ -5995,3 +5995,39 @@ CHANGELOG Unreleased, `Added` item 4. Gates: `cargo fmt --all --check`, `cargo c
 --locked -- -D warnings`, `cargo test --workspace --locked` (153 suites, 787 passed, 0 failed, 9 ignored), `python3 scripts/check-doc-claims.py` (59
 claims) and `python3 scripts/check-llms-links.py`. `mkdocs build --strict` was not run (mkdocs is not on the build
 machine); the pull request's `docs` run is its gate.
+
+## Increment 215 — Hot deployment driven live with the Java engine on one folder; the guides corrected, the Tools menu entry mirrored (2026-11-25)
+
+The live drive of RFC-0017 (WP5 and WP6 of the maintainer's sprint), recorded in the Java repository as
+`docs/test-reports/hot-deploy-live-drive.md`: this engine's Playground example (the release build of `1b8590fd`, on
+8086 with `-Drest.server.port=8086 -Dlocation.graph.temp=file:/tmp/graph-rust` and both switches) and the Java engine
+on one hot folder `file:/tmp/deploy`. The set `hot-demo` - a renamed tutorial-10 whose `graph.extension` reaches the
+private subgraph `hot-demo-sub` (tutorial-3) - in five versions.
+
+- **What this engine did in the drive.** With the switches off its three entries answered 404 (`Skip optional
+  deploy.graph.set (condition: graph.hot.deploy=true)`); started with version 1 in the folder it registered the set from
+  the record (`Hot deployment folder file:/tmp/deploy - 1 set`) and served it on its own port with its own MDM mock; a
+  replace deployed on the Java engine was served here 180 ms later at the next lookup, with no log line; version 3.0 and
+  3.1 deployed here with the digest header, their advisory naming the Java-side provider `remote`; the Java engine's
+  `server.url` call to this engine's `/api/event` met 403 `demo.order.lookup is private` and then `async.http.request is
+  private` - the Event API serves public functions only and this example publishes none; version 3.2 on `time.now`
+  through the Python pack's agent tools succeeded here as on Java; an undeploy on the Java engine answered 404 here at
+  the next lookup with `Set hot-demo undeployed elsewhere - its record is gone`; a hot folder colliding with the temp
+  folder turned hot deployment off for the run and the entries answered 503.
+- **Corrections mirrored from the drive's findings** (the pages ported from Java in Increment 214): the configuration
+  reference's switch entries say 404 for off and 503 for a switch on with the folder refused, and name the two folder
+  collisions; the AI agent guide says to send the digest (altered bytes inside a well-formed package pass the strict
+  read) and that the provider's function must be public, and names the new menu entry; the skills reference's
+  `server.url` paragraph says the same about 403; `help deploy` and the two template scripts are the Java files byte for
+  byte (the scripts' hints name the switches on a 404 of the entry and the refused folder on a 503); the scripts' README.
+- **The bundle.** `npm run release:all` from the Java webapp: `index-Bm1JJ1Jt.js` replaces `index-Bq3Wgo4j.js`,
+  `template/playground.html` and the 45 help pages mirrored. The Tools menu gains `🚀 Graph set deployment`, which opens
+  the packaging panel straight in its Deploy view - the maintainer's ask on seeing the drive.
+- **Follow-ups declared in the record, not built:** an INFO line when the on-demand reconcile registers another
+  instance's deploy (the undeploy side logs); the list entry under off-for-this-run answers 200 with the default folder;
+  a stray `.json` draws no WARN; the deploy INFO line has no caller address.
+
+CHANGELOG Unreleased, `Documentation` item 4. Gates: `python3 scripts/check-doc-claims.py` (59 claims),
+`python3 scripts/check-llms-links.py` (39 references), `cargo test -p mercury-knowledge-graph --locked` (every suite
+green; no Rust source changed). `mkdocs build --strict` was not run (mkdocs is not on the build machine); the pull
+request's `docs` run is its gate.

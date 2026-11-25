@@ -865,7 +865,10 @@ accepted and stripped. Invalid values fall back to the default. Read by
 The hot deployment folder (RFC-0017 in the Java repository's register): where a graph set deployed to the *running*
 engine lives — per set, the package `<id>.pack`, one `<graph-id>.json` per graph, and the engine-written record
 `<id>.deployed.yaml` (set, version, SHA-256, time, graphs, files). It must be a `file:/` folder the application can
-write, outside the Playground's temp folder (`location.graph.temp`) and outside every manifest's `unpack` folder; mount
+write, outside the Playground's temp folder (`location.graph.temp`) and outside every manifest's `unpack` folder - a folder
+that meets the temp folder, or that the application cannot write, turns hot deployment off for the run with an ERROR and
+the entries answer 503, while one that meets a manifest's `unpack` folder refuses that manifest's sets at startup with an
+ERROR, since the hot folder is configured first; mount
 it as a persistent volume to survive a restart, since at startup the engine re-registers every set whose record the
 folder holds, from the bytes the record's digest vouches for, through the same gate as a bundled graph. The records are
 the allowlist: a package copied into the folder by hand is ignored with a WARN, so the deploy entry is the only door at
@@ -887,8 +890,11 @@ of it. Real time is the volume's: a network volume with attribute caching shows 
 Registers `POST /api/graph-set/deploy` — a certified graph set (`<set>.pack`, named after its one main graph) sent as
 `application/octet-stream`, an optional `X-Graph-Set-SHA256` header checked against the bytes, the set read strictly,
 every graph through the deployment gate, registered all or none in one swap — and `GET /api/graph-set/deployed`. Either
-switch on makes the engine read the hot folder at startup and on demand. Off, the entries answer 503 as every entry for
-an unregistered route does, and the engine behaves exactly as before. One artifact ships; the installation decides per
+switch on makes the engine read the hot folder at startup and on demand. Off, the function does not register, REST automation
+skips its entry at startup (`Skip optional deploy.graph.set (condition: graph.hot.deploy=true)` in the log) and the URL
+answers 404 as any unknown path does, and the engine behaves exactly as before; 503 naming the key is the answer when a
+switch is on but the engine turned hot deployment off for the run because its folder is refused
+(`location.graph.deploy`, below). One artifact ships; the installation decides per
 environment (`-Dgraph.hot.deploy=true`). The Playground's packaging panel has a Deploy view for dev mode, and the starter
 template's `scripts/deploy-graph-set.mjs` and `undeploy-graph-set.mjs` serve an engine without the Playground.
 
