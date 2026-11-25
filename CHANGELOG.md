@@ -216,6 +216,20 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    graph, and a transaction audit here is a task added to the flow or a node with a composable function added to the
    graph. No behaviour changes.
 
+4. **Hot deployment driven live with the Java engine on one folder, and the guides corrected from the drive (Increment
+   215; the twin of the Java repository's RFC-0017 WP5 record).** The Java repository's
+   `docs/test-reports/hot-deploy-live-drive.md` records this engine and the Java engine over one hot folder: a set
+   deployed on one served by the other at its next lookup, replaced three times, undeployed from either side, restored by
+   a restart, a task reaching a language-pack sidecar through `server.url`, the negative controls first. Three
+   corrections, mirrored here: a switch that is off leaves the function unregistered and REST automation skips its entry,
+   so the URL answers 404 (the 503 the guides promised is a switch on with the folder refused - the configuration
+   reference, the AI agent guide, `help deploy`, the scripts' README and the scripts' hints); bytes altered inside a
+   well-formed package pass the strict read, so the digest header is the check (the AI agent guide); the provider named
+   by `server.url` must publish the function, since the Event API serves public functions only and a private one answers
+   403 (the skills reference and the AI agent guide). The Playground bundle gains the Tools menu's **Graph set
+   deployment**, which opens the packaging panel straight in its Deploy view (the webapp is one source for both engines).
+   **Upgrade note:** none - documentation, the scripts' messages and a menu entry.
+
 ## Version 4.12.30, 11/5/2026
 
 The lock-step twin of Java 4.12.30, catching up from 4.12.27 with every common feature the Java engine shipped since. Java

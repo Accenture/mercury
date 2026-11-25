@@ -398,7 +398,9 @@ of its own, never by containment; a composable function, by contrast, is reused 
 | `POST /api/graph-set/undeploy/{graph-id}` | the set named by its main graph leaves the registry in one swap; its record is deleted first, then its files; a bundled graph is 404 — removing one is a rebuild |
 | `GET /api/graph-set/deployed` | the folder's records with a status per set |
 
-A re-upload of the same set name replaces the set all or none; the same bytes again change nothing. The folder holds,
+A re-upload of the same set name replaces the set all or none; the same bytes again change nothing. The strict read
+refuses a *malformed* package, not an altered one - bytes changed inside a string value still read as a well-formed set
+and pass the gate - so send the digest: `X-Graph-Set-SHA256` is the check that the bytes are the ledger's. The folder holds,
 per set, the package, one file per graph and the engine-written record `<id>.deployed.yaml`; the records are the
 allowlist, so a package copied into the folder by hand is ignored with a WARN and the deploy entry is the only door at
 run time, as the manifest is at startup. Every instance over the same folder converges **on demand**: a registry lookup
@@ -406,8 +408,8 @@ for a hot-deployed graph reads its set's record and reconciles the set when the 
 an unknown id checks whether a record of that name exists, and a restart re-registers every recorded set — no poll, no
 broadcast. Mount the folder as a persistent volume; real time is the volume's.
 
-**Two surfaces, both clients of the same entries.** In dev mode the Playground's packaging panel has a **Deploy** view
-(`help deploy`): pack and deploy the assembled set in one step or a dropped `.pack`, the package's SHA-256 computed in
+**Two surfaces, both clients of the same entries.** In dev mode the Playground's **Tools → Graph set deployment** opens
+the packaging panel's **Deploy** view (`help deploy`): pack and deploy the assembled set in one step or a dropped `.pack`, the package's SHA-256 computed in
 the browser so the digest can go to the ledger from the same screen, an expected digest sent as the header, the
 deployed sets listed with an undeploy behind a confirmation, and the two switches named when the engine has them off.
 For an engine without the Playground, the starter template's `scripts/deploy-graph-set.mjs` and
@@ -430,7 +432,10 @@ server.header[]=authorization: Bearer ${UTIL_TOKEN}
 the provider named on the node wins over a local function and over the Event-over-HTTP map; a URL without a path gets
 `/api/event`, and a URL with a path is used as written (an API gateway's own path reaches the target); `${...}` resolves
 when the graph is registered, once per instance from its own environment; the skill's reachability check is skipped and
-the provider's 404 is the node's error; `for_each` calls one element at a time; the gate refuses the property on another
+the provider's answer is the node's error - its 404 for a route it lacks, and 403 for a function it does not publish:
+**the Event API serves public functions only, so the provider's function must be public** (a language pack's extension
+publishes its functions; the engines' built-in functions and an application's `#[preload]` functions are private by
+default); `for_each` calls one element at a time; the gate refuses the property on another
 skill, and a URL that does not resolve to an absolute `http`/`https` URL — an unset variable leaves a path with no host.
 The posture this serves: **keep user-defined functions out of the engine**, in sidecars reached through `server.url` or
 the static map, so the engine's artifact stops changing when graphs do. The design rules, declared rather than enforced:

@@ -837,7 +837,9 @@ names the provider: `server.url=${TARGET_UTIL_SERVER}/api/event` is the provider
 over a local function and over the Event-over-HTTP map — explicit beats implicit; a URL without a path gets
 `/api/event`, and a URL with a path is used as written, which is how an API gateway's own path reaches the target. The
 request's own `header.*` entries still travel inside the envelope to the function. The reachability check is skipped
-(the provider decides, and its 404 is the node's error), `for_each` calls one element at a time under the same
+(the provider decides, and its answer is the node's error: a 404 for a route it lacks, a 403 for a function it does
+not publish - the Event API serves public functions only, so the provider's function must be public, as a language
+pack's extension functions are), `for_each` calls one element at a time under the same
 concurrency window, and the deadline travels as `X-TTL` as always. The same two properties are accepted on
 [`graph.suspend`](#suspend) and [`graph.resume`](#resume), whose `task` names the state-store function, so a language
 pack can host a state store. The gate refuses the property on any other skill, a header without a URL, a URL that does
