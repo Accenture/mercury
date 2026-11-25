@@ -8,5 +8,14 @@
   the guide text. One difference the port surfaced: the state lock is a plain `Mutex`, so no hook-running registry read
   under it. **Next:** the Java sprint's WP5 - the live drive with both engines on one folder,
   negative controls first - and WP7, the promotion to an ADR there, whose rulings this engine follows.
+  - **The live drive DONE 2026-11-25 (Increment 215, with the Java engine on one hot folder; the record is the Java
+    repository's `docs/test-reports/hot-deploy-live-drive.md`):** this engine registered a set the other engine deployed
+    at its next lookup, served three versions deployed here, answered 403 `is private` to a `server.url` call for a
+    function it does not publish (the engines publish none; a pack's extension functions are public and worked), 404
+    with the switches off and 503 with the folder refused. Three wording corrections mirrored from the findings (404 for
+    off, the digest header as the check on altered bytes, the provider's function public), the scripts and `help deploy`
+    byte for byte from Java, the bundle with the Tools menu's `Graph set deployment`. Follow-ups declared in the record:
+    an INFO line on the on-demand reconcile of another instance's deploy, the list entry under off-for-this-run, a
+    stray `.json` without a WARN, the deploy line's missing caller address. Next: the ADR in the Java repository.
   → serves: vision-mercury
   <!-- id: hot-deploy-graph-sets | created: 2026-11-24 | last_used: 2026-11-24 | uses: 1 | tier: working | origin: 2026-11-25-023528 -->
