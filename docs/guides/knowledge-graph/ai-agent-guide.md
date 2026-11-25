@@ -321,10 +321,11 @@ Two rules to read before relying on it:
   from classpath:/graph`, then `Compiled graph {name}` or `Rejected graph {name} - {reason}`. A
   manifest that cannot be loaded is skipped with a warning, so a typo in the external path never
   takes the bundled graphs down.
-- **A deployment is still a restart.** `CompileGraph` runs once at startup; there is no runtime
-  reload. Export before the restart, and follow the broker choreography in
+- **A deployment through a manifest is still a restart.** `CompileGraph` runs once at startup; there
+  is no runtime reload of a manifest. Export before the restart, and follow the broker choreography in
   [The AI companion broker](#hosting): the broker reconnects and reports a new session id;
-  `import graph from {name}` into it, then re-invite the humans.
+  `import graph from {name}` into it, then re-invite the humans. A certified *set* can instead be
+  deployed to the running engine, without a restart — [Hot deployment](#hot-deploy).
 
 The same two manifests are how to **iterate on a graph that is already deployed** without a rebuild:
 `import graph from {name}` (it falls back to the deployed copy), make the corrections, dry-run the
@@ -366,6 +367,76 @@ promotes.
 The rules of a set — the entry names, the root-name agreement, the manifest fields, the command line
 and the panel's inspect mode — are in the [canonical package format](../canonical-package-format.md#graph-sets);
 `sets`, `unpack` and the generated manifest in the [configuration reference](../configuration-reference.md).
+
+### Hot deployment — deploy without a restart {#hot-deploy}
+
+A graph set can be deployed to a **running** engine, and removed by name, with no restart and no rebuild (RFC-0017 in
+the Java repository's register; the twin of the Java engine's). It is the production step of the governance lifecycle —
+dry-run, certify, stage, approve, production — and it is off by default: an engine turns it on with two switches, and a
+field installation that has not adopted it sees no change.
+
+| Folder | Key | Who writes | Executable |
+|---|---|---|---|
+| Bundled models (`classpath:/graph`, listed in `graphs.yaml`) | the manifest's `location` | the build | yes, through the gate at startup |
+| Prototyping workspace (`/tmp/graph`, dev mode only) | `location.graph.temp` | `export graph as` | no |
+| Hot deployment folder (`/tmp/deploy`) | `location.graph.deploy` | the deploy and undeploy entries | yes, through the gate at deploy time |
+
+**The unit is a graph set, named after its main graph.** A hot-deployable set has exactly one main graph and zero or
+more subgraphs, and the set name *is* the main graph's id — so the pack file, the record, the undeploy path and the
+REST path are one string, and `graph_id` in the manifest, when present, must equal it. The main graph is served at
+`POST /api/graph/{graph-id}`; the subgraphs are **private**: reached from the set's own graphs through `graph.extension`,
+and 404 at the graph and OpenAPI endpoints and to another set's extension. A graph id is unique across the engine, so
+a configured manifest owns its ids and one hot-deployed set owns an id — a set that carries a bundled graph's id, or an
+id another hot-deployed set holds, is refused with 409 and the owner named. Reuse across sets is by reference to a set
+of its own, never by containment; a composable function, by contrast, is reused by every graph that names its route.
+
+**The entries** (behind `graph.hot.deploy` and `graph.hot.undeploy`; either on registers the list):
+
+| Entry | Does |
+|---|---|
+| `POST /api/graph-set/deploy` | the `.pack` as `application/octet-stream`; an optional `X-Graph-Set-SHA256` header is the digest the field's ledger holds, and the engine refuses other bytes; the set is read strictly, staged, gated and registered all or none — a set is registered, replaced or removed as a unit, in one swap; the answer carries the set, its version, its digest, its graphs, what it replaced, and an advisory (never a refusal): the `task` routes the set names — known here, unknown, or remote through `server.url` — and the `graph.extension` targets outside the set — known, unknown, or another set's private subgraph |
+| `POST /api/graph-set/undeploy/{graph-id}` | the set named by its main graph leaves the registry in one swap; its record is deleted first, then its files; a bundled graph is 404 — removing one is a rebuild |
+| `GET /api/graph-set/deployed` | the folder's records with a status per set |
+
+A re-upload of the same set name replaces the set all or none; the same bytes again change nothing. The folder holds,
+per set, the package, one file per graph and the engine-written record `<id>.deployed.yaml`; the records are the
+allowlist, so a package copied into the folder by hand is ignored with a WARN and the deploy entry is the only door at
+run time, as the manifest is at startup. Every instance over the same folder converges **on demand**: a registry lookup
+for a hot-deployed graph reads its set's record and reconciles the set when the record changed or is gone, a lookup for
+an unknown id checks whether a record of that name exists, and a restart re-registers every recorded set — no poll, no
+broadcast. Mount the folder as a persistent volume; real time is the volume's.
+
+**Two surfaces, both clients of the same entries.** In dev mode the Playground's packaging panel has a **Deploy** view
+(`help deploy`): pack and deploy the assembled set in one step or a dropped `.pack`, the package's SHA-256 computed in
+the browser so the digest can go to the ledger from the same screen, an expected digest sent as the header, the
+deployed sets listed with an undeploy behind a confirmation, and the two switches named when the engine has them off.
+For an engine without the Playground, the starter template's `scripts/deploy-graph-set.mjs` and
+`scripts/undeploy-graph-set.mjs` — zero dependencies, `--engine`, `--file`, `--sha256`, `--header` for a gateway's
+token, `--digest`, `--list`, `--graph`; the answer printed as the engine gives it; exit codes a pipeline can read.
+
+**A task's provider on the node.** With no user-defined function in the engine, a hot-deployed graph that needs more
+than `graph.math` and `graph.data.mapper` calls a custom composable function in a language-pack sidecar or container —
+and the engine's Event-over-HTTP map is loaded once at startup, so a function it has never heard of could not be
+reached without the restart this path removes. A node that consumes a `task` route (`graph.task`, `graph.suspend`,
+`graph.resume`) therefore names its provider:
+
+```
+skill=graph.task
+task=my.custom.function
+server.url=${TARGET_UTIL_SERVER}/api/event
+server.header[]=authorization: Bearer ${UTIL_TOKEN}
+```
+
+the provider named on the node wins over a local function and over the Event-over-HTTP map; a URL without a path gets
+`/api/event`, and a URL with a path is used as written (an API gateway's own path reaches the target); `${...}` resolves
+when the graph is registered, once per instance from its own environment; the skill's reachability check is skipped and
+the provider's 404 is the node's error; `for_each` calls one element at a time; the gate refuses the property on another
+skill, and a URL that does not resolve to an absolute `http`/`https` URL — an unset variable leaves a path with no host.
+The posture this serves: **keep user-defined functions out of the engine**, in sidecars reached through `server.url` or
+the static map, so the engine's artifact stops changing when graphs do. The design rules, declared rather than enforced:
+a **suspended** run resumes on the model current at resume time (a replaced set must keep its checkpoint aliases, an
+undeployed set answers 404); an **asynchronous** extension that started before an undeploy finishes on the copy it took,
+and a late `for_each` iteration can meet 404 and route to its handler.
 
 ### Declare the contract {#contract-schema}
 

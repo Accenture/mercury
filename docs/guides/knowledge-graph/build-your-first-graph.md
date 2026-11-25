@@ -224,9 +224,15 @@ cargo run -p minigraph-playground -- -Dgraph.model.automation='classpath:/graphs
 
 Since 4.12.19 the property takes a comma-separated list of manifests, each with its own `location`,
 so the bundled graphs stay deployed beside the prototype; when both list the same id the later
-manifest wins. Only listed ids are executable, and a deployment is still a restart — `CompileGraph`
-runs once at startup. The full recipe, with the log lines to verify and the session choreography for
+manifest wins. Only listed ids are executable, and a deployment through a manifest is still a restart —
+`CompileGraph` runs once at startup. The full recipe, with the log lines to verify and the session choreography for
 a hosted Playground, is in the [AI agent guide](ai-agent-guide.md#deploy-without-rebuild).
+
+**Hot deployment — no restart at all.** A certified graph set can also be deployed to the *running* engine: turn on
+`graph.hot.deploy`, pack the graph into a set named after it, and post it to `POST /api/graph-set/deploy` — from the
+Playground's Deploy view in dev mode, or with the starter template's `scripts/deploy-graph-set.mjs`. The set registers
+through the same gate, all or none, and `POST /api/graph-set/undeploy/{graph-id}` removes it by name. The rules and the
+entries are in the [AI agent guide](ai-agent-guide.md#hot-deploy) and the [configuration reference](../configuration-reference.md).
 
 **Packaged sets.** Graphs that belong together can travel as one file: the graph packager, or the
 Playground's **Graph set packaging** panel, packs them into `<set>.pack` — checked by the same gate as

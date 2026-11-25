@@ -154,3 +154,12 @@ graphs:
   - 'unit-test-progress-4'
   - 'unit-test-progress-err1'
   - 'unit-test-progress-err2'
+  # server.url on the task skills (RFC-0017 D16, Java #675): the provider named on the node wins over the local
+  # function and the URL without a path gets /api/event; the node's transport headers travel once per for_each
+  # element; a route the provider does not host is the node's error; the err graphs put server.url on a skill that
+  # consumes no task, and give a URL that does not resolve to an absolute http(s) URL - the gate must reject them
+  - 'unit-test-task-10'
+  - 'unit-test-task-11'
+  - 'unit-test-task-12'
+  - 'unit-test-task-server-err1'
+  - 'unit-test-task-server-err2'

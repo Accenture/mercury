@@ -219,6 +219,7 @@ read-only `my_correlation_id` header-copy key at delivery). See the
 | `x-ttl` | Time-to-live in **milliseconds** — the one representation of a request's time budget (`AsyncHttpRequest::set_timeout_seconds` writes it; default 30 seconds when absent on a client call). REST automation stamps the **endpoint timeout** under this key on the request dataset at ingress (a caller-sent value wins), so a flow's `input.header` view carries it on both engines |
 | `x-content-length` | Set by the async HTTP client on the **response** event when the origin response carried no `content-length` (chunked transfer) — the actual body length in bytes |
 | `x-stream-id` | Reserved but inert: it is on the client's strip list (headers that may interfere with the underlying HTTP client), and object streams are not yet ported |
+| `X-Graph-Set-SHA256` | On `POST /api/graph-set/deploy`: the digest the caller expects (the field's ledger); the engine refuses a body whose SHA-256 differs |
 
 When a call is traced, the platform stamps `X-Trace-Id` and `traceparent` on every outbound
 HTTP request from the current trace context — do not set them in application code. The

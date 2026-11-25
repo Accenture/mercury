@@ -78,9 +78,11 @@ unpack: 'file:/tmp/unpack'
   copy in compile order wins (a manifest's sets follow its loose graphs).
 - 'list graphs' shows a set's graphs with their set and version, and
   'import graph from {id}' finds the unpacked copy.
-- A deployment is still a restart: the sets are re-read at every start, and
-  the loader's generated manifest in the unpack folder records what it
-  deployed and which files it wrote.
+- A deployment through the manifest is a restart: the sets are re-read at
+  every start, and the loader's generated manifest in the unpack folder
+  records what it deployed and which files it wrote. To deploy a set to a
+  running engine without a restart, and undeploy it by name, see
+  'help deploy' (hot deployment, RFC-0017).
 
 See also 'help export', 'help import' and 'help tutorial 2', and the guides:
 the canonical package format and the configuration reference.

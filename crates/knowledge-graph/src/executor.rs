@@ -301,6 +301,18 @@ fn create_instance(
     flow_instance.set_end_flow_listeners(&[HOUSEKEEPER_ROUTE]);
     // a registry hit is a validated, non-empty model - the gate guarantees it
     let model = get_graph_model(graph_id)?;
+    // a private subgraph of a hot-deployed set runs only from a graph of its own set (RFC-0017 D15)
+    if crate::hot_deployment::is_private_subgraph(graph_id) {
+        let parent = {
+            let flow_dataset = flow_instance.dataset.lock().expect("flow dataset");
+            flow_dataset
+                .get_element(&format!("input.{}", crate::extension::PARENT_GRAPH))
+                .map(|v| display(&v))
+        };
+        if !same_set(parent.as_deref(), graph_id) {
+            return Err(AppError::new(404, format!("{graph_id} not found")));
+        }
+    }
     let instance = Arc::new(GraphInstance::new(graph_id));
     instance.set_flow_instance_id(flow_instance_id);
     instance.set_correlation_id(cid);
@@ -1036,6 +1048,19 @@ async fn walk_next(
         .await;
     }
     Ok(())
+}
+
+/// Whether the calling graph and the target belong to the same hot-deployed set.
+fn same_set(parent_graph: Option<&str>, graph_id: &str) -> bool {
+    let Some(parent) = parent_graph.map(str::trim).filter(|p| !p.is_empty()) else {
+        return false;
+    };
+    match (graphs::graph_set(parent), graphs::graph_set(graph_id)) {
+        (Some(a), Some(b)) => {
+            a.name == b.name && graphs::graph_location(parent) == graphs::graph_location(graph_id)
+        }
+        _ => false,
+    }
 }
 
 fn get_graph_model(graph_id: &str) -> Result<Value, AppError> {

@@ -12,6 +12,16 @@ rest.server.port: 8303
 # pass the gate are executable ("compiled or 404")
 graph.model.automation: 'classpath:/graphs.yaml'
 
+# Hot deploy and undeploy of graph sets (RFC-0017) - both switches OFF by default. Either switch on makes
+# the engine read the hot deployment folder at startup and on demand: graph.hot.deploy registers
+# POST /api/graph-set/deploy, graph.hot.undeploy registers POST /api/graph-set/undeploy/{graph-id};
+# GET /api/graph-set/deployed answers under either. The folder must be a file:/ folder the application can
+# write, outside location.graph.temp and every manifest's 'unpack' folder; mount it as a persistent volume.
+# scripts/deploy-graph-set.mjs and scripts/undeploy-graph-set.mjs drive the entries from a pipeline.
+graph.hot.deploy: false
+graph.hot.undeploy: false
+location.graph.deploy: file:/tmp/deploy
+
 # Dev mode - activates the MiniGraph Playground UI, the WebSocket session and the AI
 # companion endpoint, so you can co-author graph models with an AI agent or by hand.
 # Every one of those services is gated by #[optional_service("app.env=dev")]; the matching

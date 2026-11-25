@@ -95,10 +95,11 @@ fn manifest_listed_graphs_are_compiled() {
     // with a JSONPath outside RFC 9535, decimal-precision-bad with precision=two) are rejected
     // by the mandatory quality gate. Every graph a runtime test executes MUST
     // be listed here - deployed execution is compiled-or-404 (no lazy load)
+    // + the three server.url fixtures (task-10/11/12: the provider named on the node, RFC-0017 D16)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        81,
+        84,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );
@@ -167,6 +168,9 @@ fn invalid_manifest_graphs_are_not_compiled() {
         // section 8.4)
         "unit-test-progress-err1",
         "unit-test-progress-err2",
+        // server.url on graph.data.mapper, and an unresolved ${...} that leaves no host (RFC-0017 D16)
+        "unit-test-task-server-err1",
+        "unit-test-task-server-err2",
     ] {
         assert!(
             !graphs::graph_exists(id),
@@ -286,11 +290,13 @@ fn manifest_location_defaults_to_classpath_graph() {
     // primary location is the first manifest's
     assert_eq!("classpath:/graph", graphs::deployed_location());
     // graph.model.automation names two manifests (comma-separated): both locations are
-    // registered, in manifest order
+    // registered, in manifest order - and the hot deployment folder joins them last, read after
+    // the manifests (RFC-0017; the test configuration turns hot deployment on)
     assert_eq!(
         vec![
             "classpath:/graph".to_string(),
-            "classpath:/graph-extra".to_string()
+            "classpath:/graph-extra".to_string(),
+            "file:/tmp/hot-deploy-unit-test-rust".to_string()
         ],
         graphs::deployed_locations()
     );

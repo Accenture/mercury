@@ -1,0 +1,56 @@
+{
+  "nodes": [
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "end",
+      "properties": {}
+    },
+    {
+      "types": [
+        "Task"
+      ],
+      "alias": "provider-task",
+      "properties": {
+        "mapping": [
+          "text(x) -> output.body"
+        ],
+        "server.url": "http://127.0.0.1:1/api/event",
+        "skill": "graph.data.mapper"
+      }
+    },
+    {
+      "types": [
+        "UnitTest"
+      ],
+      "alias": "root",
+      "properties": {
+        "purpose": "server.url on a skill that consumes no task route is rejected by the gate",
+        "name": "unit-test-task-server-err1"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "provider-task",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ],
+      "target": "provider-task"
+    }
+  ]
+}

@@ -789,9 +789,13 @@ Read by `crates/knowledge-graph` (compiler).
 `<set>.pack` ([the canonical package](canonical-package-format.md#graph-sets)), read from the manifest's
 `location` — and must then name an `unpack` folder: a `file:/` location the application can write, where the
 loader writes every graph of a set as `<unpack>/<graph-id>.json` before the gate reads it. A `classpath:` value,
-the Playground's temp folder (`location.graph.temp`) or a folder inside it, and a folder another manifest already uses
-are refused: `sets` need a writable `unpack` folder of their own, and without one the manifest's sets are skipped with
-an ERROR while its loose graphs still compile.
+the Playground's temp folder (`location.graph.temp`) or a folder inside it, the hot deployment folder
+(`location.graph.deploy`, below) or a folder inside or above it, and a folder another manifest already uses are refused:
+`sets` need a writable `unpack` folder of their own, and without one the manifest's sets are skipped with an ERROR while
+its loose graphs still compile. A graph set deployed to the running engine (hot deployment, `graph.hot.deploy`) is not
+listed in any manifest: the hot folder's own records are its allowlist, and a configured manifest owns its ids and one
+hot-deployed set owns an id — a set that carries a bundled graph's id, or an id another hot-deployed set holds, is
+refused with 409 and the owner named.
 
 ```yaml
 graphs:
@@ -851,6 +855,64 @@ The Playground draft-graph scratch folder. Must be on the local file system
 (`classpath:` is rejected because of read/write requirements); a `file:` prefix is
 accepted and stripped. Invalid values fall back to the default. Read by
 `crates/knowledge-graph` (Playground commands).
+
+#### `location.graph.deploy`
+
+| Type | Default |
+|---|---|
+| string (`file:/` path) | `file:/tmp/deploy` |
+
+The hot deployment folder (RFC-0017 in the Java repository's register): where a graph set deployed to the *running*
+engine lives — per set, the package `<id>.pack`, one `<graph-id>.json` per graph, and the engine-written record
+`<id>.deployed.yaml` (set, version, SHA-256, time, graphs, files). It must be a `file:/` folder the application can
+write, outside the Playground's temp folder (`location.graph.temp`) and outside every manifest's `unpack` folder; mount
+it as a persistent volume to survive a restart, since at startup the engine re-registers every set whose record the
+folder holds, from the bytes the record's digest vouches for, through the same gate as a bundled graph. The records are
+the allowlist: a package copied into the folder by hand is ignored with a WARN, so the deploy entry is the only door at
+run time as the manifest is at startup. Read only when `graph.hot.deploy` or `graph.hot.undeploy` is on. On a
+developer's machine `/tmp` is cleared at reboot, so point the key at a folder under the home directory when a deployment
+should outlive one. Read by `crates/knowledge-graph` (`hot_deployment`).
+
+Every instance over the same folder converges on demand, with no poll: a registry lookup for a hot-deployed graph reads
+its set's record and reconciles the set when the record changed or is gone, and a lookup for an unknown id checks whether
+a record of that name exists — a set is registered, replaced or removed as a unit, in one swap, so a run never sees half
+of it. Real time is the volume's: a network volume with attribute caching shows a change after its cache window.
+
+#### `graph.hot.deploy`
+
+| Type | Default |
+|---|---|
+| boolean | `false` |
+
+Registers `POST /api/graph-set/deploy` — a certified graph set (`<set>.pack`, named after its one main graph) sent as
+`application/octet-stream`, an optional `X-Graph-Set-SHA256` header checked against the bytes, the set read strictly,
+every graph through the deployment gate, registered all or none in one swap — and `GET /api/graph-set/deployed`. Either
+switch on makes the engine read the hot folder at startup and on demand. Off, the entries answer 503 as every entry for
+an unregistered route does, and the engine behaves exactly as before. One artifact ships; the installation decides per
+environment (`-Dgraph.hot.deploy=true`). The Playground's packaging panel has a Deploy view for dev mode, and the starter
+template's `scripts/deploy-graph-set.mjs` and `undeploy-graph-set.mjs` serve an engine without the Playground.
+
+#### `graph.hot.undeploy`
+
+| Type | Default |
+|---|---|
+| boolean | `false` |
+
+Registers `POST /api/graph-set/undeploy/{graph-id}` — the set named by its main graph leaves the registry in one swap,
+its record is deleted first and then its files — and `GET /api/graph-set/deployed`. The two switches are two questions,
+may add and may remove: deploy off and undeploy on is a frozen release with an emergency exit. A bundled graph is never
+undeployed this way (404): removing one is a rebuild.
+
+#### `graph.hot.deploy.throttle`
+
+| Type | Default |
+|---|---|
+| integer (milliseconds) | `0` |
+
+The least time between two reads of one set's record on the lookup path. At the default the record is read at every
+lookup for a hot-deployed or unknown id (one small read; a manifest's graph pays nothing); on a volume where a metadata
+read is a network round trip and a hot-deployed graph is busy, a few hundred milliseconds bounds the cost, at the price
+of seeing another instance's change that much later.
 
 #### `graph.traversal.log`
 

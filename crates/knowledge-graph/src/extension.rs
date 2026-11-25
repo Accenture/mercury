@@ -55,6 +55,10 @@ pub const ROUTE: &str = "graph.extension";
 /// The node property that starts the target and returns at once (RFC-0011 section 8.1).
 pub const ASYNC: &str = "async";
 const FLOW_PROTOCOL: &str = "flow://";
+/// The dataset key naming the calling graph (Java `GraphLambdaFunction.PARENT_GRAPH`): the HTTP
+/// adapter never writes it, so a forward from `graph.extension` is the only way a run of a private
+/// subgraph starts (RFC-0017 D15).
+pub const PARENT_GRAPH: &str = "parent_graph";
 const GRAPH_EXECUTOR_FLOW: &str = "graph-executor";
 // an asynchronous run is waited on (to start the next element of a fan-out and to log its end)
 // for its own TTL plus this margin; the target answers 408 itself when its TTL expires
@@ -178,6 +182,7 @@ async fn call_extension(
     // a single delegation has no iteration index - its store key stays two-segment
     let forward = build_forward(
         &node_name,
+        &instance.graph_id,
         extension,
         parameters,
         Some(ttl),
@@ -262,6 +267,7 @@ async fn call_extension_with_fork_join(
             // suspend/resume record
             forwards.push(build_forward(
                 &node_name,
+                &instance.graph_id,
                 extension,
                 Value::Map(parameters),
                 Some(timeout),
@@ -454,6 +460,7 @@ async fn start_runs(
         // an asynchronous target reports to nobody: it never inherits this run's return path
         runs.push(build_forward(
             &node_name,
+            &instance.graph_id,
             extension,
             parameters,
             node_ttl,
@@ -717,6 +724,7 @@ fn get_business_cid(instance: &Arc<GraphInstance>) -> Option<String> {
 #[allow(clippy::too_many_arguments)]
 fn build_forward(
     node_name: &str,
+    parent_graph: &str,
     extension: &str,
     parameters: Value,
     ttl: Option<i64>,
@@ -759,6 +767,8 @@ fn build_forward(
             Value::from("path_parameter"),
             Value::Map(vec![(Value::from("graph_id"), Value::from(extension))]),
         ));
+        // the target may be a private subgraph of the calling set, which the executor admits by this key
+        dataset.push((Value::from(PARENT_GRAPH), Value::from(parent_graph)));
         GRAPH_EXECUTOR_FLOW.to_string()
     };
     let mut forward = EventEnvelope::new()

@@ -591,12 +591,27 @@ async fn start_stub_peer(port: u16) {
                         break pos + 4;
                     }
                 };
-                let head_text = String::from_utf8_lossy(&buf[..header_end]).to_lowercase();
+                let head = String::from_utf8_lossy(&buf[..header_end]).to_string();
+                let head_text = head.to_lowercase();
                 let content_length: usize = head_text
                     .lines()
                     .find_map(|line| line.strip_prefix("content-length:"))
                     .and_then(|v| v.trim().parse().ok())
                     .unwrap_or(0);
+                // the transport headers a graph.task node declares with server.header[] (RFC-0017 D16),
+                // echoed with their case kept so the test sees what the provider saw
+                let header_value = |name: &str| -> String {
+                    head.lines()
+                        .find_map(|line| {
+                            let (k, v) = line.split_once(':')?;
+                            k.trim()
+                                .eq_ignore_ascii_case(name)
+                                .then(|| v.trim().to_string())
+                        })
+                        .unwrap_or_default()
+                };
+                let authorization = header_value("authorization");
+                let note = header_value("x-hot-note");
                 while buf.len() < header_end + content_length {
                     match socket.read(&mut tmp).await {
                         Ok(0) | Err(_) => return,
@@ -610,6 +625,8 @@ async fn start_stub_peer(port: u16) {
                     ("language".into(), "stub".into()),
                     ("route".into(), request.to().unwrap_or("").into()),
                     ("echo".into(), request.body().clone()),
+                    ("authorization".into(), authorization.into()),
+                    ("note".into(), note.into()),
                 ]);
                 let payload = EventEnvelope::new()
                     .set_body(reply_body)
@@ -2332,6 +2349,65 @@ async fn graph_task_matches_java_semantics(platform: &Platform) {
     assert_eq!(200, reply.status());
     let mm = body_map(&reply);
     assert_eq!(Some(Value::from(0.25)), mm.get_element("x"));
+
+    // --- unit-test-task-10: the provider named on the node wins over the local function, and the URL
+    // without a path gets /api/event (RFC-0017 D16; Java `theProviderNamedOnTheNodeWinsAndGetsTheDefaultPath`)
+    let reply = run_graph(
+        &platform,
+        "unit-test-task-10",
+        serde_json::json!({"text": "remote"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "{:?}", reply.body());
+    let mm = body_map(&reply);
+    assert_eq!(Some(Value::from("stub")), mm.get_element("language"));
+    assert_eq!(Some(Value::from("v1.demo.task")), mm.get_element("route"));
+    assert_eq!(Some(Value::from("remote")), mm.get_element("echo.text"));
+
+    // --- unit-test-task-11: the node's transport headers travel once per for_each element
+    // (Java `theProvidersHeadersTravelOncePerForEachElement`)
+    let reply = run_graph(
+        &platform,
+        "unit-test-task-11",
+        serde_json::json!({"items": [1, 2, 3]}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(200, reply.status(), "{:?}", reply.body());
+    let Value::Array(results) = reply.body() else {
+        panic!("a list of results: {:?}", reply.body())
+    };
+    assert_eq!(3, results.len());
+    for item in results {
+        let mm = MultiLevelMap::from_value(item.clone());
+        assert_eq!(Some(Value::from("stub")), mm.get_element("language"));
+        assert_eq!(
+            Some(Value::from("polyglot.header.function")),
+            mm.get_element("route")
+        );
+        assert_eq!(
+            Some(Value::from("Bearer unit-token")),
+            mm.get_element("authorization")
+        );
+        assert_eq!(Some(Value::from("provider")), mm.get_element("note"));
+    }
+
+    // --- unit-test-task-12: a route the provider does not host is the node's error - the provider is this
+    // engine's own /api/event, which serves its local routes only (Java `aWrongRouteAtTheProviderIsTheNodesError`)
+    let reply = run_graph(
+        &platform,
+        "unit-test-task-12",
+        serde_json::json!({"hello": "world"}),
+        serde_json::json!({}),
+    )
+    .await;
+    assert_ne!(200, reply.status());
+    let text = event_script::conversions::to_json_string(reply.body());
+    assert!(
+        text.contains("no.such.function.hot"),
+        "unexpected error response: {text}"
+    );
 }
 
 /// The Java `GraphTaskTest.datePluginsComputeTheEndOfATermAndTheMonthsUsed` twin.

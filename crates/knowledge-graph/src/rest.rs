@@ -521,6 +521,216 @@ pub async fn post_companion_command_sync(
         ])))
 }
 
+/// Java `DeployGraphSet`: `POST /api/graph-set/deploy` (RFC-0017). The body is the package as
+/// `application/octet-stream`; an optional `X-Graph-Set-SHA256` header is the digest the caller
+/// expects. The answer is the deployment and an advisory, never a refusal: the task routes the
+/// set names (known here, unknown, or remote through `server.url`) and the `graph.extension`
+/// targets outside the set (known, unknown, or another set's private subgraph).
+pub async fn deploy_graph_set(event: EventEnvelope) -> Result<EventEnvelope, AppError> {
+    let (_, body, _) = request_view(&event);
+    let Value::Binary(bytes) = &body else {
+        return Err(invalid(
+            "The request body is the graph set (.pack) to deploy, sent as application/octet-stream",
+        ));
+    };
+    let expected = request_header(&event, "x-graph-set-sha256");
+    let deployment = crate::hot_deployment::deploy(bytes, expected.as_deref())?;
+    let platform = Platform::get_instance();
+    let mut answer = vec![
+        (Value::from("set"), Value::from(deployment.set.as_str())),
+        (
+            Value::from("version"),
+            Value::from(deployment.version.as_str()),
+        ),
+        (
+            Value::from("sha256"),
+            Value::from(deployment.sha256.as_str()),
+        ),
+        (Value::from("graphs"), string_list(&deployment.graphs)),
+        (
+            Value::from("deployed_at"),
+            Value::from(deployment.deployed_at.as_str()),
+        ),
+        (Value::from("changed"), Value::from(deployment.changed)),
+    ];
+    if let Some((version, sha256)) = &deployment.replaced {
+        answer.push((
+            Value::from("replaced"),
+            Value::Map(vec![
+                (Value::from("version"), Value::from(version.as_str())),
+                (Value::from("sha256"), Value::from(sha256.as_str())),
+            ]),
+        ));
+    }
+    answer.push((
+        Value::from("advisory"),
+        advisory(&platform, &deployment.graphs),
+    ));
+    Ok(EventEnvelope::new()
+        .set_header("Content-Type", "application/json")
+        .set_raw_body(Value::Map(answer)))
+}
+
+fn string_list(values: &[String]) -> Value {
+    Value::Array(values.iter().map(|v| Value::from(v.as_str())).collect())
+}
+
+fn row(pairs: Vec<(&str, String)>) -> Value {
+    Value::Map(
+        pairs
+            .into_iter()
+            .map(|(k, v)| (Value::from(k), Value::from(v)))
+            .collect(),
+    )
+}
+
+/// What the set reaches for, as this instance sees it today - a report, never a gate.
+fn advisory(platform: &Platform, graphs: &[String]) -> Value {
+    const TASK_SKILLS: [&str; 3] = ["graph.task", "graph.suspend", "graph.resume"];
+    let mut routes = Vec::new();
+    let mut extensions = Vec::new();
+    for graph_id in graphs {
+        let Some(model) = crate::graphs::get_graph(graph_id) else {
+            continue;
+        };
+        let Some(Value::Array(nodes)) = field_of(&model, "nodes") else {
+            continue;
+        };
+        for node in nodes {
+            let Some(properties) = field_of(node, "properties") else {
+                continue;
+            };
+            let skill = field_of(properties, "skill")
+                .map(display)
+                .unwrap_or_default();
+            if TASK_SKILLS.contains(&skill.as_str()) {
+                if let Some(route) = field_of(properties, "task").map(display) {
+                    let route = route.trim().to_string();
+                    if !route.is_empty() {
+                        let mut pairs = vec![("graph", graph_id.clone()), ("route", route.clone())];
+                        match crate::task_server::url_of_properties(properties) {
+                            Some(server) => {
+                                pairs.push(("status", "remote".to_string()));
+                                pairs.push(("server", display(&server)));
+                            }
+                            None => {
+                                let known = platform.has_route(&route)
+                                    || platform_core::automation::event_api::get_event_http_target(
+                                        &route,
+                                    )
+                                    .is_some();
+                                pairs.push((
+                                    "status",
+                                    if known { "known" } else { "unknown" }.to_string(),
+                                ));
+                            }
+                        }
+                        routes.push(row(pairs));
+                    }
+                }
+            }
+            if skill == "graph.extension" {
+                if let Some(target) = field_of(properties, "extension").map(display) {
+                    let target = target.trim().to_string();
+                    if !target.is_empty() && !graphs.contains(&target) {
+                        extensions.push(row(vec![
+                            ("graph", graph_id.clone()),
+                            ("target", target.clone()),
+                            ("status", extension_status(&target).to_string()),
+                        ]));
+                    }
+                }
+            }
+        }
+    }
+    Value::Map(vec![
+        (Value::from("routes"), Value::Array(routes)),
+        (Value::from("extensions"), Value::Array(extensions)),
+    ])
+}
+
+fn field_of<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
+    match value {
+        Value::Map(entries) => entries
+            .iter()
+            .find(|(k, _)| k.as_str() == Some(key))
+            .map(|(_, v)| v),
+        _ => None,
+    }
+}
+
+fn extension_status(target: &str) -> &'static str {
+    if let Some(flow_id) = target.strip_prefix("flow://") {
+        return if event_script::flows::get_flow(flow_id).is_some() {
+            "known"
+        } else {
+            "unknown"
+        };
+    }
+    if crate::graphs::graph_location(target).is_none() {
+        "unknown"
+    } else if crate::hot_deployment::is_private_subgraph(target) {
+        "private"
+    } else {
+        "known"
+    }
+}
+
+/// Java `UndeployGraphSet`: `POST /api/graph-set/undeploy/{graph_id}` (RFC-0017) - the set named
+/// by its main graph leaves the registry in one swap, its record deleted first and then its files.
+pub async fn undeploy_graph_set(event: EventEnvelope) -> Result<EventEnvelope, AppError> {
+    let (path_parameters, _, _) = request_view(&event);
+    let Some(graph_id) = path_parameters
+        .get("graph_id")
+        .filter(|id| !id.trim().is_empty())
+    else {
+        return Err(invalid("Missing path parameter: graph_id"));
+    };
+    let removed = crate::hot_deployment::undeploy(graph_id.trim())?;
+    Ok(EventEnvelope::new()
+        .set_header("Content-Type", "application/json")
+        .set_raw_body(Value::Map(vec![
+            (Value::from("set"), Value::from(removed.set.as_str())),
+            (
+                Value::from("version"),
+                Value::from(removed.version.as_str()),
+            ),
+            (Value::from("sha256"), Value::from(removed.sha256.as_str())),
+            (Value::from("graphs"), string_list(&removed.graphs)),
+            (Value::from("undeployed"), Value::from(true)),
+        ])))
+}
+
+/// Java `ListDeployedGraphSets`: `GET /api/graph-set/deployed` (RFC-0017) - the folder's records
+/// with a status per set, each reconciled first.
+pub async fn list_deployed_graph_sets() -> Result<EventEnvelope, AppError> {
+    let sets: Vec<Value> = crate::hot_deployment::list()
+        .into_iter()
+        .map(|status| {
+            Value::Map(vec![
+                (Value::from("set"), Value::from(status.set.as_str())),
+                (Value::from("version"), Value::from(status.version.as_str())),
+                (Value::from("sha256"), Value::from(status.sha256.as_str())),
+                (
+                    Value::from("deployed_at"),
+                    Value::from(status.deployed_at.as_str()),
+                ),
+                (Value::from("graphs"), string_list(&status.graphs)),
+                (Value::from("status"), Value::from(status.status.as_str())),
+            ])
+        })
+        .collect();
+    Ok(EventEnvelope::new()
+        .set_header("Content-Type", "application/json")
+        .set_raw_body(Value::Map(vec![
+            (
+                Value::from("location"),
+                Value::from(crate::hot_deployment::location().as_str()),
+            ),
+            (Value::from("sets"), Value::Array(sets)),
+        ])))
+}
+
 /// A request header of the REST request (`headers`), by case-insensitive name.
 fn request_header(event: &EventEnvelope, name: &str) -> Option<String> {
     let Value::Map(entries) = event.body() else {
@@ -766,7 +976,9 @@ fn mock_upload_ok(namespace: &str) -> EventEnvelope {
 pub async fn get_graph_openapi(event: EventEnvelope) -> Result<EventEnvelope, AppError> {
     let (path_parameters, _, _) = request_view(&event);
     let (id, model, version) = if let Some(graph_id) = path_parameters.get("graph_id") {
-        let Some(model) = crate::graphs::get_graph(graph_id) else {
+        let model = crate::graphs::get_graph(graph_id)
+            .filter(|_| !crate::hot_deployment::is_private_subgraph(graph_id));
+        let Some(model) = model else {
             return Err(AppError::new(
                 404,
                 format!("Graph model '{graph_id}' not found"),

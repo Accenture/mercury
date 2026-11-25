@@ -28,6 +28,11 @@
 //! the next start removes a graph that a new version of a set no longer holds. The loader never deletes a file it
 //! did not write.
 //!
+//! The pieces a set's deployment is made of - the digest of its bytes, the readable path of a
+//! file in a location, the gate over the unpacked files - are shared with
+//! [`crate::hot_deployment`], which deploys a set at run time (RFC-0017) through the same strict
+//! read, the same gate and the same all-or-none rule.
+//!
 //! Precedence follows the manifest list: a manifest's sets compile right after its loose graphs and before the
 //! next manifest, and a later graph owns a duplicate id. A duplicate that involves a set is logged as an error.
 
@@ -141,6 +146,14 @@ fn check_unpack(unpack: &str) -> Option<String> {
                 .to_string(),
         );
     }
+    if let Some(hot) = crate::hot_deployment::folder() {
+        if folder.starts_with(&hot) || hot.starts_with(&folder) {
+            return Some(
+                "'unpack' must not be the hot deployment folder (location.graph.deploy), inside it or above it"
+                    .to_string(),
+            );
+        }
+    }
     if !unpack_folders()
         .lock()
         .expect("unpack folders poisoned")
@@ -153,7 +166,16 @@ fn check_unpack(unpack: &str) -> Option<String> {
 
 /// A `file:` location as an absolute path, normalized without touching the file system (Java
 /// `Path.toAbsolutePath().normalize()`).
-fn folder_of(location: &str) -> PathBuf {
+/// Whether a folder is, is inside, or is above a manifest's 'unpack' folder of this start.
+pub(crate) fn meets_unpack_folder(folder: &Path) -> bool {
+    unpack_folders()
+        .lock()
+        .expect("unpack folders poisoned")
+        .iter()
+        .any(|unpack| folder.starts_with(unpack) || unpack.starts_with(folder))
+}
+
+pub(crate) fn folder_of(location: &str) -> PathBuf {
     let path = location.strip_prefix(FILE).unwrap_or(location);
     let absolute = std::path::absolute(path).unwrap_or_else(|_| PathBuf::from(path));
     let mut normalized = PathBuf::new();
@@ -317,10 +339,7 @@ fn load(location: &str, set_name: &str) -> Result<Loaded, NotDeployed> {
     match graph_set::read(&bytes) {
         Ok(contents) => Ok(Loaded {
             source,
-            sha256: Sha256::digest(&bytes)
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect(),
+            sha256: sha256_hex(&bytes),
             contents,
         }),
         Err(GraphSetError::Refused(reasons)) => Err(not_deployed(
@@ -336,7 +355,7 @@ fn load(location: &str, set_name: &str) -> Result<Loaded, NotDeployed> {
 
 /// The deployment gate, all or none: every graph is checked before any is registered. Returns the models that
 /// pass, read the way a deployed graph is read, and one failure per graph that does not.
-fn gate(unpack: &str, ids: &[String]) -> (Vec<(String, rmpv::Value)>, Vec<String>) {
+pub(crate) fn gate(unpack: &str, ids: &[String]) -> (Vec<(String, rmpv::Value)>, Vec<String>) {
     let mut models = Vec::new();
     let mut failures = Vec::new();
     for id in ids {
@@ -376,6 +395,14 @@ fn count(n: usize) -> String {
     format!("{n} {}", if n == 1 { "graph" } else { "graphs" })
 }
 
+/// The SHA-256 of a package's bytes as lower-case hex, the digest a record vouches for.
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
 fn read_package(source: &str) -> Result<Vec<u8>, String> {
     let not_found = || format!("{source} not found");
     if let Some(resource) = source.strip_prefix(CLASSPATH) {
@@ -390,7 +417,7 @@ fn read_package(source: &str) -> Result<Vec<u8>, String> {
 }
 
 /// Java `normalizedPath`: rejoin the folder on single slashes, keep the scheme prefix, append the file name.
-fn normalized_path(folder: &str, filename: &str) -> String {
+pub(crate) fn normalized_path(folder: &str, filename: &str) -> String {
     let parts: Vec<&str> = folder.split('/').filter(|p| !p.is_empty()).collect();
     format!("{}/{filename}", parts.join("/"))
 }
