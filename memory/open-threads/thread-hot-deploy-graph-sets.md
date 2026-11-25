@@ -17,5 +17,8 @@
     byte for byte from Java, the bundle with the Tools menu's `Graph set deployment`. Follow-ups declared in the record:
     an INFO line on the on-demand reconcile of another instance's deploy, the list entry under off-for-this-run, a
     stray `.json` without a WARN, the deploy line's missing caller address. Next: the ADR in the Java repository.
+  - **Raised as PR #425 (one commit, `c3c7f308`), OPENED 2026-11-25 on the maintainer's word, beside the Java
+    repository's #680. The maintainer ratified the 404 for a switch that is off: the `#[optional_service]` shape
+    stands.** Left: the merge.
   → serves: vision-mercury
   <!-- id: hot-deploy-graph-sets | created: 2026-11-24 | last_used: 2026-11-24 | uses: 1 | tier: working | origin: 2026-11-25-023528 -->
