@@ -152,6 +152,11 @@ the "error" and "status" parameters of the node are set (plus "stack" when the f
 stack trace). When the node has an "exception" property, the graph jumps to that error handler
 node. Otherwise, the error is returned as the graph output.
 
+With for_each, one failing element fails the node: the calls run in list order, "concurrency" at a
+time, the node takes the status and error of the first failing element in list order - a later
+success never replaces them - and no further batch starts. The result holds only the elements
+that succeeded, in list order, and the output mappings are skipped.
+
 When traversal jumps to the handler, the engine also stages a generic exception context that
 does not name the failing node:
 

@@ -90,6 +90,15 @@ output[]=result.detail -> model.account_details
   values are appended into a single array on this node's result set - after
   N iterations, result.detail above is an array of N - and the aggregated
   array preserves the source list's order regardless of concurrency.
+- One failing element fails the node. When a call fails (HTTP status >= 400)
+  or does not answer within the node's deadline (a 408), the batch it belongs
+  to runs to its end and no further batch starts. The node carries the status
+  and error of the FIRST failing element in list order, whatever the other
+  elements answered, and failure routing applies (see below). An element whose
+  failure should not fail the whole list is handled by design: run each
+  element in a sub-graph (graph.extension with for_each) whose own exception
+  handler answers with the element's outcome, and inspect the results after
+  the node.
 
 Failure routing (exception)
 ---------------------------
@@ -100,6 +109,13 @@ On a failed call (HTTP status >= 400):
 - the output[] mappings are SKIPPED
 - with exception={handler-node}, traversal JUMPS to the handler; without
   it, the run ABORTS and the error is returned to the caller.
+
+A fan-out fails as one node. With for_each, the status and error are those of
+the first failing element in list order, {node}.result holds only the elements
+that succeeded, and the output[] mappings are skipped as for any failure.
+Several dictionary[] items are called one after the other and the first that
+fails is the node's failure: no later item is called, and {node}.target names
+the item that failed.
 
 When traversal jumps to the handler, the engine also stages a generic exception context that
 does not name the failing node:

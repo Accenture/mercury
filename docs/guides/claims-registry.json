@@ -601,6 +601,46 @@
       "quote": "the provider named on the node wins over a local function and over the Event-over-HTTP map",
       "test": "crates/knowledge-graph::graph_runtime::graph_task_matches_java_semantics",
       "since": "4.12.31+"
+    },
+    {
+      "id": "fan-out-first-failure-decides",
+      "claim": "One failing element fails a synchronous for_each node (graph.api.fetcher, graph.task, graph.extension): the node carries the status and error of the first failing element in list order, whatever the other elements answered and whenever they ended, and an element that does not answer within the node's deadline is a 408.",
+      "pages": [
+        "docs/guides/knowledge-graph/command-reference.md"
+      ],
+      "quote": "The node carries the status and error of the **first failing element in list order**, whatever the other elements answered",
+      "test": "crates/knowledge-graph::graph_runtime::a_failing_element_fails_the_node_with_its_own_status",
+      "since": "4.12.31+"
+    },
+    {
+      "id": "fan-out-no-batch-after-failure",
+      "claim": "A for_each node runs its elements in list order, concurrency at a time; the batch that holds a failing element runs to its end and no further batch starts.",
+      "pages": [
+        "docs/guides/knowledge-graph/command-reference.md"
+      ],
+      "quote": "the batch it belongs to runs to its end and **no further batch starts**",
+      "test": "crates/knowledge-graph::graph_runtime::no_batch_starts_after_a_batch_with_a_failure",
+      "since": "4.12.31+"
+    },
+    {
+      "id": "fan-out-result-follows-source-list",
+      "claim": "The aggregated result of a for_each node follows the source list's order regardless of concurrency.",
+      "pages": [
+        "docs/guides/knowledge-graph/command-reference.md"
+      ],
+      "quote": "so the aggregated array preserves the source array's order regardless of `concurrency`",
+      "test": "crates/knowledge-graph::graph_runtime::the_result_follows_the_source_list",
+      "since": "4.12.31+"
+    },
+    {
+      "id": "fetcher-first-failing-dictionary-item",
+      "claim": "A fetcher with several dictionary items calls them one after the other and stops at the first that fails: that item's status and error are the node's, no later item is called, and the node's target names the item that failed.",
+      "pages": [
+        "docs/guides/knowledge-graph/command-reference.md"
+      ],
+      "quote": "A fetcher with several `dictionary[]` items calls them one after the other and stops at the first that fails",
+      "test": "crates/knowledge-graph::graph_runtime::the_first_failing_dictionary_item_fails_the_fetcher",
+      "since": "4.12.31+"
     }
   ]
 }

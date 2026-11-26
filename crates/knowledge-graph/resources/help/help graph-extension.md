@@ -132,7 +132,12 @@ Notes
   the full error-context contract are shown under 'help graph-api-fetcher'.
 - for_each[]={array-source} -> model.{var} invokes the target once per
   element of a runtime list, with bounded parallel fan-out (concurrency
-  1-30, default 3). The shared iteration rules are under
-  'help graph-api-fetcher'.
+  1-30, default 3), the results in list order. One failing element fails
+  the node: it carries the status and error of the first failing element
+  in list order - a later success never replaces them - and no further
+  batch starts; an element that does not answer within the deadline is a
+  408. An element whose failure should not fail the whole list handles it
+  in its own sub-graph and answers with its outcome. The shared iteration
+  rules are under 'help graph-api-fetcher'.
 - Use graph.extension for multi-step orchestration; use graph.task for a
   single composable-function call.

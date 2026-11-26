@@ -586,6 +586,14 @@ output[]=result.detail -> model.account_details
   array of N. **Order is deterministic**: batches execute in input-list order and responses join
   in request order, so the aggregated array preserves the source array's order regardless of
   `concurrency`.
+- **One failing element fails the node.** When a call fails (HTTP status ≥ 400) or does not
+  answer within the node's deadline (a `408`), the batch it belongs to runs to its end and **no
+  further batch starts**. The node carries the status and error of the **first failing element
+  in list order**, whatever the other elements answered, and
+  [failure routing](#failure-routing) applies. An element whose failure should not fail the
+  whole list is handled by design: run each element in a sub-graph (`graph.extension` with
+  `for_each`) whose own `exception=` handler answers with the element's outcome, and inspect
+  the results after the node.
 - Identical requests are still deduplicated into one HTTP call.
 
 ## Failure routing — `exception=` {#failure-routing}
@@ -598,6 +606,14 @@ output[]=result.detail -> model.account_details
 - the node's `output[]` mappings are **skipped**;
 - traversal **jumps to the named handler node** instead of aborting. Without `exception=`, the
   run **aborts** on failure.
+
+**A fan-out fails as one node.** With `for_each`, one failing element fails the node: its
+status and error are those of the **first failing element in list order** (an element that does
+not answer within the node's deadline is a `408`), the batch that holds it runs to its end, and
+**no further batch starts**. `{node}.result` then holds only the elements that succeeded, in
+list order, and the `output[]` mappings are skipped as for any failure. A fetcher with several
+`dictionary[]` items calls them one after the other and stops at the first that fails;
+`{node}.target` names that item.
 
 The jump also stages a **generic exception context** that no handler has to know the failing
 node to read:

@@ -170,6 +170,57 @@ pub(crate) async fn join_batch<F: std::future::Future>(futures: Vec<F>) -> Vec<F
     futures_util::future::join_all(futures).await
 }
 
+/// One element's response in a fan-out, as [`stage_fan_out_responses`] reads it.
+pub(crate) trait FanOutResponse {
+    fn status(&self) -> i32;
+    /// The response's headers as a map value, or `None` when it carries none.
+    fn headers_value(&self) -> Option<Value>;
+    fn body(&self) -> &Value;
+}
+
+/// Stage the responses of one batch of a fan-out on its node, in list order: every answer's
+/// headers, each successful element's body appended to the node's result, and the element's
+/// status (Java `GraphLambdaFunction.stageFanOutResponses`).
+///
+/// One failing element fails the node, and the first of them in list order decides how: from
+/// that element on the status is no longer written, so a later success never replaces it. The
+/// skill stages that element as the node's error and starts no further batch. The responses
+/// arrive in request order and an element that did not answer is a 408 here already
+/// ([`join_batch`]), where the Java engine matches each response to its request first.
+///
+/// Returns the position in the batch of the first failing element, or `None` when every
+/// element succeeded.
+pub(crate) fn stage_fan_out_responses<R: FanOutResponse>(
+    state: &mut MultiLevelMap,
+    node_name: &str,
+    responses: &[R],
+) -> Result<Option<usize>, AppError> {
+    let mut failed = None;
+    for (i, response) in responses.iter().enumerate() {
+        if failed.is_none() {
+            state
+                .set_element(
+                    &format!("{node_name}.{STATUS}"),
+                    Value::from(response.status()),
+                )
+                .map_err(invalid)?;
+        }
+        if let Some(headers) = response.headers_value() {
+            state
+                .set_element(&format!("{node_name}.{HEADER}[]"), headers)
+                .map_err(invalid)?;
+        }
+        if response.status() < 400 {
+            state
+                .set_element(&format!("{node_name}.{RESULT}[]"), response.body().clone())
+                .map_err(invalid)?;
+        } else if failed.is_none() {
+            failed = Some(i);
+        }
+    }
+    Ok(failed)
+}
+
 /// Reject a data-mapping write target inside the reserved model metadata —
 /// the runtime half of the immutability rule, shared by ALL FOUR
 /// model-writing paths (data-mapping RHS, fetcher input, fetcher/task

@@ -527,8 +527,9 @@ exception=<error-handler-node>           # optional
 result** (`{fetcher}.result.{key}`); wire the current element into each call with
 `input[]=model.<var> -> {dictionary-parameter}`. Each iteration's `result.{key}` values are
 **appended into one array** on this node's result set, and the order **deterministically follows
-the source list** (batches of `concurrency` run in order; responses join in request order). Full
-rules: [Iterative fetching](command-reference.md#for-each).
+the source list** (batches of `concurrency` run in order; responses join in request order). **One
+failing element fails the node**: it carries the first failing element's status and error, and no
+further batch starts. Full rules: [Iterative fetching](command-reference.md#for-each).
 
 Worked example (fetch a person's name and address):
 
@@ -567,7 +568,9 @@ node's alias), `error.code`, `error.message` and `error.stack` when available �
 island-anchored handler can serve every node's `exception=` route** without naming any failing
 node in its data mapping (`error` is a reserved alias; `inspect error` shows the context in a
 dry-run session). A shared handler is entered at most once per run unless RESET; deliberate
-re-entry loops use the bounded-retry idiom.
+re-entry loops use the bounded-retry idiom. Several `dictionary[]` items are called one after the
+other and the first that fails is the node's failure: no later item is called, and `{node}.target`
+names the item that failed.
 
 **Deadline:** each call is bounded by the propagated `model.ttl` (default 30 s); the optional node
 `ttl` (duration syntax `<digits>` + `s`/`m`/`h`/`d`, e.g. `8s`) overrides it for this node's calls
@@ -635,6 +638,13 @@ output[]=result.sales_performance -> output.body.sales_performance
   the same way an Event Script sub-flow does — so a sub-graph that suspends persists its record
   under the shared cid scoped by its own graph id, and re-invoking with the same cid resumes it
   ([the orchestrator pattern](workflow-suspension.md#orchestrator-pattern)).
+- On a handled failure, **`error.code` is the delegated call's response status** (the child's
+  4xx/5xx, or the RPC timeout status `408` when the child's deadline fires).
+- **With `for_each`, one failing element fails the node.** The node carries the status and error
+  of the first failing element in list order - a later success never replaces them - and no
+  further batch starts; an element that does not answer within the deadline is a `408`
+  ([failure routing](command-reference.md#failure-routing)). An element whose failure should not
+  fail the whole list handles it in its own sub-graph and answers with its outcome.
 
 ### Asynchronous — start the target and continue {#extension-async}
 
@@ -728,8 +738,9 @@ graph` for a dry-run) while the authored and exported model keeps the placeholde
 `model.*` or this node's own `{node}.*` — `input.*` is valid only on the input side; to echo a request value, stage it at
 a mapper node (`input.body.id -> model.id`) and map `model.id` out. Any other source fails the node
 with an error that names the entry. Optional `for_each[]` with `concurrency`
-(1–30, default 3) iterates with bounded fork-join; `exception=<node>` routes failures with the
-same generic `error.source`/`code`/`message`/`stack` context as
+(1–30, default 3) iterates with bounded fork-join, the results in list order; one failing element
+fails the node with its own status and error, and no further batch starts. `exception=<node>`
+routes failures with the same generic `error.source`/`code`/`message`/`stack` context as
 [`graph.api.fetcher`](#api-fetcher), so one handler serves them all
 ([failure routing](command-reference.md#failure-routing)).
 

@@ -96,10 +96,12 @@ fn manifest_listed_graphs_are_compiled() {
     // by the mandatory quality gate. Every graph a runtime test executes MUST
     // be listed here - deployed execution is compiled-or-404 (no lazy load)
     // + the three server.url fixtures (task-10/11/12: the provider named on the node, RFC-0017 D16)
+    // + the thirteen fan-out failure fixtures (foreach-sub and foreach-1 to -12: one failing element
+    // fails a for_each node, Java #682)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        84,
+        97,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );

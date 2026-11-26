@@ -1,0 +1,147 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "unit-test-foreach-2",
+        "purpose": "a graph.extension fan-out with an exception handler"
+      }
+    },
+    {
+      "alias": "fan-out",
+      "types": [
+        "Extension"
+      ],
+      "properties": {
+        "skill": "graph.extension",
+        "extension": "unit-test-foreach-sub",
+        "for_each": [
+          "input.body.items -> model.item"
+        ],
+        "input": [
+          "model.item -> item",
+          "input.body.fail_on -> fail_on",
+          "input.body.delay -> delay",
+          "input.body.fail_delay -> fail_delay",
+          "input.body.fail_status -> fail_status"
+        ],
+        "output": [
+          "result -> output.body.results"
+        ],
+        "exception": "failed"
+      }
+    },
+    {
+      "alias": "after",
+      "types": [
+        "Mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(continued) -> output.body.stage"
+        ],
+        "purpose": "the step after the fan-out: reached only when every element succeeded"
+      }
+    },
+    {
+      "alias": "island",
+      "types": [
+        "Island"
+      ],
+      "properties": {
+        "skill": "graph.island",
+        "purpose": "anchors the handler"
+      }
+    },
+    {
+      "alias": "failed",
+      "types": [
+        "Handler"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "error.source -> output.body.source",
+          "error.code -> output.body.code",
+          "error.message -> output.body.message",
+          "fan-out.result -> output.body.partial",
+          "text(handled) -> output.body.stage"
+        ],
+        "purpose": "the exception handler of the fan-out: it reports the error context and what the node holds"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "fan-out"
+    },
+    {
+      "source": "fan-out",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "after"
+    },
+    {
+      "source": "after",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    },
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "island"
+    },
+    {
+      "source": "island",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "failed"
+    },
+    {
+      "source": "failed",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

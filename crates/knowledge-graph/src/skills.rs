@@ -39,10 +39,10 @@ use crate::common::{
     get_model_array_size, get_next_model_param_set, get_next_node, get_next_tag_resolved, get_node,
     get_then_statement, handle_data_mapping_entry, invalid, name_offending_selectors,
     perform_fetcher_output_mapping, reset_nodes, selectors_in, split_blocks,
-    substitute_mapping_source, substitute_var_if_any, substitute_var_if_any_logical, COMPUTE_TAG,
-    CONDITION_TAG, DECIMAL_TAG, DELAY_TAG, ERROR, EXCEPTION, EXECUTE, HEADER, IF_TAG, IN,
-    MAPPING_TAG, MAP_TO, MODEL_NAMESPACE, NEXT, NODE, NODE_NAME, PRECISION, RESET_TAG, RESULT,
-    SINK, SKILL, STATUS, TARGET, TYPE,
+    stage_fan_out_responses, substitute_mapping_source, substitute_var_if_any,
+    substitute_var_if_any_logical, COMPUTE_TAG, CONDITION_TAG, DECIMAL_TAG, DELAY_TAG, ERROR,
+    EXCEPTION, EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO, MODEL_NAMESPACE, NEXT, NODE,
+    NODE_NAME, PRECISION, RESET_TAG, RESULT, SINK, SKILL, STATUS, TARGET, TYPE,
 };
 use crate::math::{DecimalEvaluator, ExpressionEngine};
 use crate::model::GraphInstance;
@@ -580,17 +580,31 @@ pub async fn task(
         with_relay.push(with_graph_context(request, &instance, &node).await);
     }
     let requests = with_relay;
-    for batch in requests.chunks(concurrency) {
+    // the elements run in list order, `concurrency` of them at a time
+    let total = requests.len();
+    let mut completed = true;
+    for (batch_index, batch) in requests.chunks(concurrency).enumerate() {
         let responses = run_batch(batch.to_vec(), ttl, server.as_ref()).await;
         let mut state = instance.state.lock().expect("graph state machine");
-        for response in &responses {
-            store_fork_join_response(&node_name, &node, &mut state, response)?;
+        if let Some(failed) = stage_fan_out_responses(&mut state, &node_name, &responses)? {
+            set_error(&node_name, &node, &mut state, &responses[failed])?;
+            // one failing element fails the node: no further batch starts and nothing is mapped onward
+            let element = batch_index * concurrency + failed;
+            let not_started = total - (batch_index * concurrency + batch.len());
+            log::warn!(
+                "Task {route} failed at for_each element {element} - \
+                 {not_started} of {total} elements not started"
+            );
+            completed = false;
+            break;
         }
     }
     let next = {
         let mut state = instance.state.lock().expect("graph state machine");
-        let output_mapping = get_entries(node.get_property("output"));
-        perform_fetcher_output_mapping(&node_name, &mut state, &output_mapping)?;
+        if completed {
+            let output_mapping = get_entries(node.get_property("output"));
+            perform_fetcher_output_mapping(&node_name, &mut state, &output_mapping)?;
+        }
         next_path(&node_name, &node, &state)
     };
     EventEnvelope::new().set_body(next)
@@ -651,6 +665,20 @@ struct TaskResponse {
 impl TaskResponse {
     fn has_error(&self) -> bool {
         self.status >= 400
+    }
+}
+
+impl crate::common::FanOutResponse for TaskResponse {
+    fn status(&self) -> i32 {
+        self.status
+    }
+
+    fn headers_value(&self) -> Option<Value> {
+        (!self.headers.is_empty()).then(|| headers_to_value(&self.headers))
+    }
+
+    fn body(&self) -> &Value {
+        &self.body
     }
 }
 
@@ -792,36 +820,6 @@ fn store_single_response(
     let output_mapping = get_entries(node.get_property("output"));
     perform_fetcher_output_mapping(node_name, state, &output_mapping)?;
     Ok(NEXT.to_string())
-}
-
-fn store_fork_join_response(
-    node_name: &str,
-    node: &Arc<SimpleNode>,
-    state: &mut MultiLevelMap,
-    response: &TaskResponse,
-) -> Result<(), AppError> {
-    state
-        .set_element(
-            &format!("{node_name}.{STATUS}"),
-            Value::from(response.status),
-        )
-        .map_err(invalid)?;
-    if !response.headers.is_empty() {
-        state
-            .set_element(
-                &format!("{node_name}.{HEADER}[]"),
-                headers_to_value(&response.headers),
-            )
-            .map_err(invalid)?;
-    }
-    if response.has_error() {
-        set_error(node_name, node, state, response)?;
-    } else {
-        state
-            .set_element(&format!("{node_name}.{RESULT}[]"), response.body.clone())
-            .map_err(invalid)?;
-    }
-    Ok(())
 }
 
 fn set_error(

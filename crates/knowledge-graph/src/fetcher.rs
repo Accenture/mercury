@@ -281,6 +281,9 @@ async fn execute_providers(
 ) -> Result<String, AppError> {
     let node_name = fetcher.get_alias().to_string();
     let parameter_mapping = get_entries(fetcher.get_property("input"));
+    // the dictionary items are fetched one after the other: the first that fails is the node's
+    // failure, so no later item is called and nothing is mapped onward
+    let mut completed = true;
     for dd in dictionary_nodes {
         let provider_name = match dd.get_property("provider") {
             Some(v) => display(&v),
@@ -370,6 +373,9 @@ async fn execute_providers(
                 .map_err(invalid)?;
             if response.status >= 400 {
                 store_error(&md, instance, &mut state, &node_name, &response)?;
+                // the item that failed maps nothing, and it stays the node's target
+                completed = false;
+                break;
             } else {
                 state
                     .set_element(&format!("{node_name}.response"), response.body.clone())
@@ -399,8 +405,10 @@ async fn execute_providers(
         }
     }
     let mut state = instance.state.lock().expect("graph state machine");
-    let output_mapping = get_entries(fetcher.get_property("output"));
-    perform_fetcher_output_mapping(&node_name, &mut state, &output_mapping)?;
+    if completed {
+        let output_mapping = get_entries(fetcher.get_property("output"));
+        perform_fetcher_output_mapping(&node_name, &mut state, &output_mapping)?;
+    }
     // clear the temporary dataset
     state.remove_element(&format!("{node_name}.dd"));
     state.remove_element(&format!("{node_name}.response"));
@@ -422,7 +430,10 @@ async fn execute_providers_with_fork_join(
         &fetcher.get_property("concurrency").unwrap_or(Value::Nil),
     ));
     let concurrency = if given < 0 { 3 } else { given }.clamp(1, 30) as usize;
-    for dd in dictionary_nodes {
+    // one failing element fails the node: no later dictionary item is fetched and nothing is
+    // mapped onward
+    let mut completed = true;
+    'items: for dd in dictionary_nodes {
         let provider_name = match dd.get_property("provider") {
             Some(v) => display(&v),
             None => {
@@ -501,24 +512,35 @@ async fn execute_providers_with_fork_join(
                 ),
             );
         }
-        for batch in requests.chunks(concurrency) {
+        // the elements run in list order, `concurrency` of them at a time
+        let total = requests.len();
+        for (batch_index, batch) in requests.chunks(concurrency).enumerate() {
             let responses = run_http_batch(batch.to_vec(), timeout).await;
             let mut state = instance.state.lock().expect("graph state machine");
-            for response in &responses {
+            // the first failing element in list order decides the node's status and error: once
+            // an element has failed neither is written again
+            let mut failed = None;
+            for (i, response) in responses.iter().enumerate() {
                 run_after_features(&md, response, &mut state, &node_name);
-                state
-                    .set_element(
-                        &format!("{node_name}.{STATUS}"),
-                        Value::from(response.status),
-                    )
-                    .map_err(invalid)?;
-                if response.status >= 400 {
-                    store_error(&md, instance, &mut state, &node_name, response)?;
-                } else {
+                if failed.is_none() {
                     state
-                        .set_element(&format!("{node_name}.response"), response.body.clone())
+                        .set_element(
+                            &format!("{node_name}.{STATUS}"),
+                            Value::from(response.status),
+                        )
                         .map_err(invalid)?;
                 }
+                if response.status >= 400 {
+                    // a failed element maps nothing
+                    if failed.is_none() {
+                        store_error(&md, instance, &mut state, &node_name, response)?;
+                        failed = Some(i);
+                    }
+                    continue;
+                }
+                state
+                    .set_element(&format!("{node_name}.response"), response.body.clone())
+                    .map_err(invalid)?;
                 let mapping = get_entries(dd.get_property("output"));
                 perform_dictionary_output_mapping(
                     &node_name,
@@ -528,11 +550,25 @@ async fn execute_providers_with_fork_join(
                     true,
                 )?;
             }
+            if let Some(failed) = failed {
+                // one failing element fails the node, so no further batch starts
+                let element = batch_index * concurrency + failed;
+                let not_started = total - (batch_index * concurrency + batch.len());
+                log::warn!(
+                    "Dictionary {} failed at for_each element {element} - \
+                     {not_started} of {total} elements not started",
+                    dd.get_alias()
+                );
+                completed = false;
+                break 'items;
+            }
         }
     }
     let mut state = instance.state.lock().expect("graph state machine");
-    let output_mapping = get_entries(fetcher.get_property("output"));
-    perform_fetcher_output_mapping(&node_name, &mut state, &output_mapping)?;
+    if completed {
+        let output_mapping = get_entries(fetcher.get_property("output"));
+        perform_fetcher_output_mapping(&node_name, &mut state, &output_mapping)?;
+    }
     // clear the temporary dataset
     state.remove_element(&format!("{node_name}.fetch"));
     state.remove_element(&format!("{node_name}.each"));

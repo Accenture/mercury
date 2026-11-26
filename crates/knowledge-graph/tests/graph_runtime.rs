@@ -282,6 +282,69 @@ impl ComposableFunction for DemoTaskFunction {
     }
 }
 
+/// The elements of a fan-out that started, per business correlation id.
+fn started_elements() -> &'static Mutex<HashMap<String, Vec<String>>> {
+    static STARTED: std::sync::OnceLock<Mutex<HashMap<String, Vec<String>>>> =
+        std::sync::OnceLock::new();
+    STARTED.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn started(cid: &str) -> Vec<String> {
+    let mut items = started_elements()
+        .lock()
+        .expect("started elements")
+        .get(cid)
+        .cloned()
+        .unwrap_or_default();
+    items.sort();
+    items
+}
+
+/// Java `IterationOutcome` (`v1.iteration.outcome`): one element's work in a `for_each`
+/// fan-out. It answers `{item}` for every element except the one named by `fail_on`, which
+/// fails with `fail_status` (500 when absent). An element takes `delay` milliseconds and the
+/// failing one `fail_delay`, so a test decides which of them ends first. The elements that
+/// started are kept per business correlation id, so a test can tell that an element never ran.
+#[preload(route = "v1.iteration.outcome", instances = 20)]
+struct IterationOutcome;
+
+#[async_trait]
+impl ComposableFunction for IterationOutcome {
+    async fn handle_event(
+        &self,
+        headers: HashMap<String, String>,
+        input: EventEnvelope,
+        _instance: usize,
+    ) -> Result<EventEnvelope, AppError> {
+        let body: serde_json::Value = input.body_as().unwrap_or(serde_json::Value::Null);
+        let item = body["item"].as_str().unwrap_or_default().to_string();
+        if let Some(cid) = headers.get("my_correlation_id") {
+            started_elements()
+                .lock()
+                .expect("started elements")
+                .entry(cid.clone())
+                .or_default()
+                .push(item.clone());
+        }
+        let failing = body["fail_on"].as_str() == Some(item.as_str());
+        let delay = body[if failing { "fail_delay" } else { "delay" }]
+            .as_u64()
+            .unwrap_or(0);
+        if delay > 0 {
+            tokio::time::sleep(Duration::from_millis(delay)).await;
+        }
+        if failing {
+            let status = body["fail_status"].as_i64().unwrap_or(0);
+            let status = if status < 400 { 500 } else { status as i32 };
+            return Err(AppError::new(
+                status,
+                format!("upstream failure for {item}"),
+            ));
+        }
+        EventEnvelope::new().set_body(serde_json::json!({"item": item}))
+    }
+}
+
 /// Java `DecisionTableFunction` (`v1.decision.table`): a generic decision-table
 /// lookup - the TABLE arrives in the request, nothing about it is compiled into
 /// the function. `table.keys` names the rules in priority order and each rule
@@ -666,6 +729,7 @@ async fn graph_runtime_end_to_end() {
     orchestrator_parent_drives_suspending_subgraph_path(&platform).await;
     for_each_iterations_suspend_under_their_own_records(&platform).await;
     generic_exception_context_serves_every_node(&platform).await;
+    one_failing_element_fails_a_fan_out(&platform).await;
     statement_commands_resolve_dynamic_variables(&platform).await;
     mapping_source_resolves_dynamic_variables_verbatim(&platform).await;
     json_path_source_takes_the_mercury_shape(&platform).await;
@@ -4145,6 +4209,351 @@ async fn generic_exception_context_serves_every_node(platform: &Platform) {
     assert_eq!(404, rejected.status(), "alias: {:?}", rejected.body());
     let text = event_script::conversions::display(rejected.body());
     assert!(text.contains("not found"), "unexpected: {text}");
+}
+
+const FAN_OUT_EXTENSION: &str = "unit-test-foreach-1";
+const FAN_OUT_EXTENSION_HANDLED: &str = "unit-test-foreach-2";
+const FAN_OUT_TASK: &str = "unit-test-foreach-3";
+const FAN_OUT_TASK_HANDLED: &str = "unit-test-foreach-4";
+const FAN_OUT_FETCHER: &str = "unit-test-foreach-5";
+const FAN_OUT_FETCHER_HANDLED: &str = "unit-test-foreach-6";
+
+fn text_of(mm: &MultiLevelMap, key: &str) -> String {
+    event_script::conversions::display(&mm.get_element(key).unwrap_or(Value::Nil))
+}
+
+fn items_of(items: &[&str]) -> Value {
+    Value::Array(
+        items
+            .iter()
+            .map(|item| Value::Map(vec![(Value::from("item"), Value::from(*item))]))
+            .collect(),
+    )
+}
+
+async fn run_fan_out(
+    platform: &Platform,
+    graph_id: &str,
+    body: serde_json::Value,
+) -> EventEnvelope {
+    let cid = uuid::Uuid::new_v4().simple().to_string();
+    run_graph_cid(platform, graph_id, &cid, body).await
+}
+
+/// One failing element fails a synchronous `for_each` fan-out (the twin of the Java
+/// `ForEachFailureTest`, mercury-composable #682), for the three skills that fan out
+/// (`graph.extension`, `graph.task`, `graph.api.fetcher`) and for a fetcher's dictionary
+/// items, which are called one after the other. The node carries the status and the error of
+/// the first failing element in list order, whatever the other elements answered and whenever
+/// they ended; an element that does not answer within the node's deadline is a 408; the output
+/// mappings are skipped; no batch starts after a batch with a failure; and the aggregated
+/// result follows the source list.
+async fn one_failing_element_fails_a_fan_out(platform: &Platform) {
+    a_failing_element_fails_the_node_with_its_own_status(platform).await;
+    the_order_the_elements_end_in_plays_no_part(platform).await;
+    the_handler_receives_the_failing_elements_status(platform).await;
+    no_batch_starts_after_a_batch_with_a_failure(platform).await;
+    an_element_that_does_not_answer_is_a_timeout(platform).await;
+    the_result_follows_the_source_list(platform).await;
+    a_failing_element_fails_a_fetcher_fan_out(platform).await;
+    the_first_failing_dictionary_item_fails_the_fetcher(platform).await;
+}
+
+async fn a_failing_element_fails_the_node_with_its_own_status(platform: &Platform) {
+    // one batch of three: the element in the middle fails, the other two succeed
+    for graph in [FAN_OUT_EXTENSION, FAN_OUT_TASK] {
+        let reply = run_fan_out(
+            platform,
+            graph,
+            serde_json::json!({"items": ["a", "b", "c"], "fail_on": "b"}),
+        )
+        .await;
+        assert_eq!(500, reply.status(), "{graph}: {:?}", reply.body());
+        let body = body_map(&reply);
+        assert_eq!(
+            "upstream failure for b",
+            text_of(&body, "message"),
+            "{graph}"
+        );
+        assert_eq!(
+            None,
+            body.get_element("results"),
+            "{graph}: the output mappings are skipped"
+        );
+        assert_eq!(
+            None,
+            body.get_element("stage"),
+            "{graph}: the run stops at the failed node"
+        );
+    }
+}
+
+async fn the_order_the_elements_end_in_plays_no_part(platform: &Platform) {
+    // the failing element is the slowest of its batch, then the fastest
+    for graph in [FAN_OUT_EXTENSION, FAN_OUT_TASK] {
+        for delays in [
+            serde_json::json!({"fail_delay": 200}),
+            serde_json::json!({"delay": 200}),
+        ] {
+            let mut request = serde_json::json!({
+                "items": ["a", "b", "c"], "fail_on": "b", "fail_status": 503,
+            });
+            for (key, value) in delays.as_object().expect("delays") {
+                request[key] = value.clone();
+            }
+            let reply = run_fan_out(platform, graph, request).await;
+            assert_eq!(503, reply.status(), "{graph} {delays}: {:?}", reply.body());
+        }
+    }
+}
+
+async fn the_handler_receives_the_failing_elements_status(platform: &Platform) {
+    for graph in [FAN_OUT_EXTENSION_HANDLED, FAN_OUT_TASK_HANDLED] {
+        let reply = run_fan_out(
+            platform,
+            graph,
+            serde_json::json!({"items": ["a", "b", "c"], "fail_on": "b"}),
+        )
+        .await;
+        assert_eq!(200, reply.status(), "{graph}: {:?}", reply.body());
+        let body = body_map(&reply);
+        assert_eq!(
+            Some(Value::from("handled")),
+            body.get_element("stage"),
+            "{graph}"
+        );
+        assert_eq!(
+            Some(Value::from("fan-out")),
+            body.get_element("source"),
+            "{graph}"
+        );
+        assert_eq!(
+            Some(Value::from(500)),
+            body.get_element("code"),
+            "{graph}: {:?}",
+            reply.body()
+        );
+        assert_eq!(
+            None,
+            body.get_element("results"),
+            "{graph}: the output mappings are skipped"
+        );
+        // the node holds what succeeded, in list order - the failed element contributes nothing
+        assert_eq!(
+            Some(items_of(&["a", "c"])),
+            body.get_element("partial"),
+            "{graph}"
+        );
+        let message = text_of(&body, "message");
+        assert!(
+            message.contains("upstream failure for b"),
+            "{graph}: {message}"
+        );
+    }
+}
+
+async fn no_batch_starts_after_a_batch_with_a_failure(platform: &Platform) {
+    // four elements, three at a time: the first fails, so the fourth never starts
+    let elements = serde_json::json!(["a", "b", "c", "d"]);
+    for graph in [FAN_OUT_EXTENSION, FAN_OUT_TASK] {
+        let cid = uuid::Uuid::new_v4().simple().to_string();
+        let reply = run_graph_cid(
+            platform,
+            graph,
+            &cid,
+            serde_json::json!({"items": elements, "fail_on": "a"}),
+        )
+        .await;
+        assert_eq!(500, reply.status(), "{graph}: {:?}", reply.body());
+        assert_eq!(
+            "upstream failure for a",
+            text_of(&body_map(&reply), "message"),
+            "{graph}"
+        );
+        assert_eq!(vec!["a", "b", "c"], started(&cid), "{graph}");
+    }
+    for graph in [FAN_OUT_EXTENSION_HANDLED, FAN_OUT_TASK_HANDLED] {
+        let reply = run_fan_out(
+            platform,
+            graph,
+            serde_json::json!({"items": elements, "fail_on": "a"}),
+        )
+        .await;
+        let body = body_map(&reply);
+        assert_eq!(Some(Value::from(500)), body.get_element("code"), "{graph}");
+        assert_eq!(
+            Some(items_of(&["b", "c"])),
+            body.get_element("partial"),
+            "{graph}"
+        );
+    }
+    // the last element fails alone in its batch: the three before it ran, and the node still fails
+    for graph in [FAN_OUT_EXTENSION, FAN_OUT_TASK] {
+        let cid = uuid::Uuid::new_v4().simple().to_string();
+        let reply = run_graph_cid(
+            platform,
+            graph,
+            &cid,
+            serde_json::json!({"items": elements, "fail_on": "d"}),
+        )
+        .await;
+        assert_eq!(500, reply.status(), "{graph}: {:?}", reply.body());
+        assert_eq!(vec!["a", "b", "c", "d"], started(&cid), "{graph}");
+    }
+}
+
+async fn an_element_that_does_not_answer_is_a_timeout(platform: &Platform) {
+    // the node waits 2 seconds; element b takes 4, a and c answer at once
+    let request = serde_json::json!({"items": ["a", "b", "c"], "fail_on": "b", "fail_delay": 4000});
+    for graph in ["unit-test-foreach-7", "unit-test-foreach-8"] {
+        let reply = run_fan_out(platform, graph, request.clone()).await;
+        assert_eq!(408, reply.status(), "{graph}: {:?}", reply.body());
+        // this engine's text for a call that did not answer is "Request timeout for 2000 ms"
+        let message = text_of(&body_map(&reply), "message");
+        assert!(
+            message.contains("timeout for 2000 ms"),
+            "{graph}: {message}"
+        );
+    }
+    let reply = run_fan_out(platform, "unit-test-foreach-9", request).await;
+    let caught = body_map(&reply);
+    assert_eq!(Some(Value::from("handled")), caught.get_element("stage"));
+    assert_eq!(
+        Some(Value::from(408)),
+        caught.get_element("code"),
+        "{:?}",
+        reply.body()
+    );
+    assert!(text_of(&caught, "message").contains("timeout for 2000 ms"));
+    assert_eq!(Some(items_of(&["a", "c"])), caught.get_element("partial"));
+}
+
+async fn the_result_follows_the_source_list(platform: &Platform) {
+    // nine elements in three batches, then the fetcher's five accounts in two
+    let elements = ["a", "b", "c", "d", "e", "f", "g", "h", "i"];
+    for graph in [FAN_OUT_EXTENSION, FAN_OUT_TASK] {
+        let reply = run_fan_out(platform, graph, serde_json::json!({"items": elements})).await;
+        assert_eq!(200, reply.status(), "{graph}: {:?}", reply.body());
+        let body = body_map(&reply);
+        assert_eq!(
+            Some(items_of(&elements)),
+            body.get_element("results"),
+            "{graph}"
+        );
+        assert_eq!(
+            Some(Value::from("continued")),
+            body.get_element("stage"),
+            "{graph}"
+        );
+    }
+    let accounts = ["a101", "b202", "c303", "d400", "e500"];
+    let reply = run_fan_out(
+        platform,
+        FAN_OUT_FETCHER,
+        serde_json::json!({"person_id": 100, "items": accounts}),
+    )
+    .await;
+    assert_eq!(accounts.to_vec(), str_list(&body_map(&reply), "results"));
+}
+
+async fn a_failing_element_fails_a_fetcher_fan_out(platform: &Platform) {
+    // account 'zzz' does not exist: the endpoint answers 400 for it
+    let middle = serde_json::json!({"person_id": 100, "items": ["a101", "zzz", "b202"]});
+    let first = serde_json::json!({"person_id": 100, "items": ["zzz", "a101", "b202", "c303"]});
+    for request in [&middle, &first] {
+        let reply = run_fan_out(platform, FAN_OUT_FETCHER, request.clone()).await;
+        assert_eq!(400, reply.status(), "{request}: {:?}", reply.body());
+        let body = body_map(&reply);
+        assert_eq!("Account zzz not found", text_of(&body, "message"));
+        assert_eq!(
+            Some(Value::from("account-details")),
+            body.get_element("target")
+        );
+        assert_eq!(
+            None,
+            body.get_element("results"),
+            "the output mappings are skipped"
+        );
+    }
+    for request in [&middle, &first] {
+        let reply = run_fan_out(platform, FAN_OUT_FETCHER_HANDLED, request.clone()).await;
+        let body = body_map(&reply);
+        assert_eq!(
+            Some(Value::from(400)),
+            body.get_element("code"),
+            "{:?}",
+            reply.body()
+        );
+        assert!(text_of(&body, "message").contains("Account zzz not found"));
+        assert_eq!(
+            None,
+            body.get_element("results"),
+            "the output mappings are skipped"
+        );
+        // in list order, the failed element maps nothing, and account c303 of the second batch never started
+        assert_eq!(
+            vec!["a101", "b202"],
+            str_list(&body, "partial.account_id"),
+            "{request}"
+        );
+    }
+}
+
+async fn the_first_failing_dictionary_item_fails_the_fetcher(platform: &Platform) {
+    // no for_each: two dictionary items served by two providers, called one after the other
+    let request = serde_json::json!({"person_id": 100, "account_id": "zzz"});
+    // the failing item is the first of the two, then the last
+    for graph in ["unit-test-foreach-10", "unit-test-foreach-12"] {
+        let reply = run_fan_out(platform, graph, request.clone()).await;
+        assert_eq!(400, reply.status(), "{graph}: {:?}", reply.body());
+        let body = body_map(&reply);
+        assert_eq!(
+            "Account zzz not found",
+            text_of(&body, "message"),
+            "{graph}"
+        );
+        assert_eq!(
+            Some(Value::from("account-details")),
+            body.get_element("target"),
+            "{graph}: the target is the item that failed"
+        );
+        assert_eq!(
+            None,
+            body.get_element("name"),
+            "{graph}: the output mappings are skipped"
+        );
+    }
+    let reply = run_fan_out(platform, "unit-test-foreach-11", request).await;
+    let caught = body_map(&reply);
+    assert_eq!(Some(Value::from("handled")), caught.get_element("stage"));
+    assert_eq!(
+        Some(Value::from(400)),
+        caught.get_element("code"),
+        "{:?}",
+        reply.body()
+    );
+    assert!(text_of(&caught, "message").contains("Account zzz not found"));
+    assert_eq!(
+        None,
+        caught.get_element("name"),
+        "the output mappings are skipped"
+    );
+    assert_eq!(
+        None,
+        caught.get_element("partial.person_name"),
+        "no item is called after the one that failed"
+    );
+    // nothing fails: both items answer and the mappings run
+    let reply = run_fan_out(
+        platform,
+        "unit-test-foreach-10",
+        serde_json::json!({"person_id": 100, "account_id": "a101"}),
+    )
+    .await;
+    let found = body_map(&reply);
+    assert_eq!(Some(Value::from("a101")), found.get_element("account_id"));
+    assert_eq!(Some(Value::from("Peter")), found.get_element("name"));
+    assert_eq!(Some(Value::from("continued")), found.get_element("stage"));
 }
 
 /// The dry-run twin of the generic exception context (Java
