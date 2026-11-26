@@ -188,6 +188,18 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    handler reads the element's status in `error.code`, and the elements of later batches are not called. A graph that
    needs the remaining elements to run after a failure lets each element handle its own: run it in a sub-graph whose
    `exception=` handler answers with the element's outcome, and inspect the results after the node.
+3. **Two differences from the Java engine rectified: an error body names its `target` once, and a call that does not
+   answer reads `Timeout for N ms` (Increment 217; both seen while porting Increment 216).** `get_error_map` put the
+   failing node's `target` first and then every entry of an error map, so when the error named its own `target` - the
+   body of a subgraph that failed, reached through `graph.extension` - the answer carried the key twice, where the Java
+   method fills a map and the error's entry replaces the node's. An entry of the error map now replaces one already
+   set: the key appears once and is the error's own, the function that failed. And `PostOffice::request` reported a
+   missing reply as `Request timeout for N ms`, where the Java engine's inboxes say `Timeout for N ms`, the text this
+   engine's HTTP client and REST edge already used; it now says the same, in `{node}.error` and so in a handler's
+   `error.message`. Two unit tests in `common.rs` pin the error map, and the fan-out cases assert the single `target`
+   and the Java test's own text. **Upgrade note:** code that matched the text `Request timeout for` matches `Timeout
+   for` now; a reader of an error body that took the first `target` of two reads the error's own, as a JSON parser
+   that keeps the last key always did.
 
 ### Security
 

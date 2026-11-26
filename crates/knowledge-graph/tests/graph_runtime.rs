@@ -4285,6 +4285,21 @@ async fn a_failing_element_fails_the_node_with_its_own_status(platform: &Platfor
             body.get_element("stage"),
             "{graph}: the run stops at the failed node"
         );
+        // the body names its target once: a subgraph's error keeps its own - the function
+        // that failed - where the node's would be the subgraph, and a task's is its route
+        let targets = match reply.body() {
+            Value::Map(pairs) => pairs
+                .iter()
+                .filter(|(key, _)| key.as_str() == Some("target"))
+                .count(),
+            _ => 0,
+        };
+        assert_eq!(1, targets, "{graph}: {:?}", reply.body());
+        assert_eq!(
+            Some(Value::from("v1.iteration.outcome")),
+            body.get_element("target"),
+            "{graph}"
+        );
     }
 }
 
@@ -4408,11 +4423,10 @@ async fn an_element_that_does_not_answer_is_a_timeout(platform: &Platform) {
     for graph in ["unit-test-foreach-7", "unit-test-foreach-8"] {
         let reply = run_fan_out(platform, graph, request.clone()).await;
         assert_eq!(408, reply.status(), "{graph}: {:?}", reply.body());
-        // this engine's text for a call that did not answer is "Request timeout for 2000 ms"
-        let message = text_of(&body_map(&reply), "message");
-        assert!(
-            message.contains("timeout for 2000 ms"),
-            "{graph}: {message}"
+        assert_eq!(
+            "Timeout for 2000 ms",
+            text_of(&body_map(&reply), "message"),
+            "{graph}"
         );
     }
     let reply = run_fan_out(platform, "unit-test-foreach-9", request).await;
@@ -4424,7 +4438,7 @@ async fn an_element_that_does_not_answer_is_a_timeout(platform: &Platform) {
         "{:?}",
         reply.body()
     );
-    assert!(text_of(&caught, "message").contains("timeout for 2000 ms"));
+    assert_eq!("Timeout for 2000 ms", text_of(&caught, "message"));
     assert_eq!(Some(items_of(&["a", "c"])), caught.get_element("partial"));
 }
 

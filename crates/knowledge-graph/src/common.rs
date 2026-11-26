@@ -1057,6 +1057,12 @@ pub fn resolve_error_context(state: &mut MultiLevelMap, node_name: &str) {
     }
 }
 
+/// The error body a failed run answers with: the failing node's `target`, then the error -
+/// an error map's entries, or `type` and `message` for any other error (Java `getErrorMap`).
+///
+/// The Java method fills a `HashMap`, so an entry of the error map replaces one already set.
+/// An error that names its own `target` - the body of a subgraph that failed - therefore
+/// keeps it, and the key appears once.
 pub fn get_error_map(error: Option<Value>, target: Option<Value>) -> Value {
     let mut result: Vec<(Value, Value)> = Vec::new();
     if let Some(Value::String(_)) = &target {
@@ -1065,7 +1071,10 @@ pub fn get_error_map(error: Option<Value>, target: Option<Value>) -> Value {
     match error {
         Some(Value::Map(entries)) => {
             for (k, v) in entries {
-                result.push((k, v));
+                match result.iter_mut().find(|(key, _)| *key == k) {
+                    Some(existing) => existing.1 = v,
+                    None => result.push((k, v)),
+                }
             }
         }
         other => {
@@ -1410,7 +1419,70 @@ pub fn map_http_input(
 
 #[cfg(test)]
 mod tests {
-    use super::{assert_mutable_model_target, RESERVED_MODEL_METADATA};
+    use rmpv::Value;
+
+    use super::{assert_mutable_model_target, get_error_map, RESERVED_MODEL_METADATA};
+
+    fn entries(map: &Value) -> Vec<(String, Value)> {
+        match map {
+            Value::Map(pairs) => pairs
+                .iter()
+                .map(|(k, v)| (k.as_str().unwrap_or_default().to_string(), v.clone()))
+                .collect(),
+            _ => panic!("an error map is a map: {map:?}"),
+        }
+    }
+
+    /// Java parity (`getErrorMap` fills a `HashMap`): an error map's entry replaces the
+    /// node's, so a subgraph's error keeps its own target and the key appears once.
+    #[test]
+    fn an_error_map_keeps_one_entry_for_each_key() {
+        let error = Value::Map(vec![
+            (Value::from("type"), Value::from("error")),
+            (Value::from("target"), Value::from("v1.inner.function")),
+            (Value::from("status"), Value::from(500)),
+        ]);
+        let body = entries(&get_error_map(
+            Some(error),
+            Some(Value::from("outer-subgraph")),
+        ));
+        let targets: Vec<&Value> = body
+            .iter()
+            .filter(|(key, _)| key == "target")
+            .map(|(_, value)| value)
+            .collect();
+        assert_eq!(vec![&Value::from("v1.inner.function")], targets);
+        assert_eq!(3, body.len(), "{body:?}");
+    }
+
+    #[test]
+    fn an_error_without_a_target_takes_the_nodes() {
+        let error = Value::Map(vec![(Value::from("message"), Value::from("not found"))]);
+        let body = entries(&get_error_map(
+            Some(error),
+            Some(Value::from("the-node-target")),
+        ));
+        assert_eq!(
+            vec![
+                ("target".to_string(), Value::from("the-node-target")),
+                ("message".to_string(), Value::from("not found")),
+            ],
+            body
+        );
+        // an error that is not a map is the message of a generic error body
+        let body = entries(&get_error_map(
+            Some(Value::from("it failed")),
+            Some(Value::from("the-node-target")),
+        ));
+        assert_eq!(
+            vec![
+                ("target".to_string(), Value::from("the-node-target")),
+                ("type".to_string(), Value::from("error")),
+                ("message".to_string(), Value::from("it failed")),
+            ],
+            body
+        );
+    }
 
     /// Java parity (GraphLambdaFunctionGuardTest): every reserved key is
     /// rejected as a write target, including composite forms, without false

@@ -6065,7 +6065,26 @@ fan-out fails as one node, and the first failing element in list order decides.
   list. Four claims pinned on this engine's cases. `npm run release:rust` from the Java webapp: `index-DZzhipVf.js`
   replaces `index-Bm1JJ1Jt.js`, `template/playground.html` and the three help pages mirrored, every file equal to the
   Java engine's.
-- **Seen and not changed.** `get_error_map` keeps the node's `target` beside an error map's own `target`, so the
-  body of a failing `graph.extension` carries the key twice where the Java engine's map keeps the error's; and this
-  engine's text for a call that did not answer is `Request timeout for N ms` where the Java engine's is `Timeout for N
-  ms`. Both predate this increment and are recorded for the maintainer.
+- **Seen while porting.** `get_error_map` kept the node's `target` beside an error map's own `target`, so the body
+  of a failing `graph.extension` carried the key twice where the Java engine's map keeps the error's; and this
+  engine's text for a call that did not answer was `Request timeout for N ms` where the Java engine's is `Timeout for
+  N ms`. Both predate this increment; the maintainer had them rectified the same day, as Increment 217.
+
+## Increment 217 — An error body names its `target` once, and a missing reply reads `Timeout for N ms`: two differences from the Java engine rectified (2026-11-26)
+
+Both were seen while porting Increment 216, and the maintainer asked for them to be rectified to match the Java
+reference implementation.
+
+- **The error map.** `common::get_error_map` builds the body a failed run answers with: the failing node's `target`,
+  then the error. It pushed every entry of an error map after the node's `target`, so an error that named its own -
+  the body of a subgraph that failed, which a parent reaches through `graph.extension` - gave the key twice. The Java
+  `getErrorMap` fills a `HashMap`, where the error's entry replaces the node's. An entry of the error map now replaces
+  one already set, so the key appears once and is the error's own: the function that failed, not the subgraph the
+  parent called. A reader of this engine's state read the first of the two; a JSON parser that keeps the last key read
+  the second, as on Java. Two unit tests in `common.rs`, and the first fan-out case counts the key.
+- **The timeout text.** `PostOffice::request` answered a call without a reply with `Request timeout for N ms`. The
+  Java engine's inboxes (`FutureInbox`, `AsyncInbox`) say `Timeout for N ms`, as this engine's HTTP client, REST edge
+  and sync-over-async coordinator already did. One line in `post_office.rs`; the text reaches a graph as
+  `{node}.error` and a handler as `error.message`. The fan-out cases now assert the Java test's own text, and the two
+  guide passages that quoted the old one (`function-execution.md`, `rest-automation.md`) quote the new. The
+  distributed-cache interop report keeps the text its runs recorded.

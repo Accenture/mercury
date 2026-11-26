@@ -388,7 +388,9 @@ impl PostOffice {
                 crate::inbox::close(&inbox_cid);
                 Err(AppError::new(
                     408,
-                    format!("Request timeout for {} ms", timeout.as_millis()),
+                    // the Java engine's words (`FutureInbox`, `AsyncInbox`): a handler that
+                    // reads the message meets one text on both engines
+                    format!("Timeout for {} ms", timeout.as_millis()),
                 ))
             }
         }

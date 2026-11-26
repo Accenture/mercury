@@ -79,7 +79,7 @@ let reply = po
 The platform opens a lightweight one-shot **inbox** for the reply (one correlation-map entry
 — no route registration), stamps the request's correlation id, and suspends the calling task
 until the reply lands. On expiry the call returns status **408**
-(`Request timeout for N ms`). A function that returns `Err(AppError)` produces a reply
+(`Timeout for N ms`). A function that returns `Err(AppError)` produces a reply
 envelope carrying that status and message, so failures arrive **in-band**: check
 `reply.has_error()` / `reply.status()` (any status ≥ 400 is an error). Every reply is also
 stamped with the target's execution time, readable as `reply.exec_time()` in milliseconds.
