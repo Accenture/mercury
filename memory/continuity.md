@@ -299,6 +299,32 @@ layers shipped; the two above have held through every re-verify.)*
   spaced.
   <!-- id: redis-timeout-one-deadline-rust | created: 2026-11-27 | last_used: 2026-11-27 | uses: 1 | tier: working | origin: 2026-11-27-003936 -->
 
+- **A value rendered into a `graph.math` expression is one value where it lands, never more expression (Increment
+  220, 2026-11-27; the twin of mercury-composable #683 and its fact `math-text-value-one-value`, from a field report;
+  PR #429, merge `bbbc6feb`, MERGED 2026-11-27).** A `{selector}` is rendered into a statement before it is parsed, and in a number expression - a
+  `DECIMAL`, or a `COMPUTE` or `IF` without a comparison or boolean operator - a text value was inserted as written,
+  so the evaluator parsed it as expression: an ISO date computed as a subtraction (`2025-07-15` gave `2003`), a later
+  date compared as the earlier one inside a `DECIMAL` ternary test, and a value carrying `>` turned a `COMPUTE` into a
+  boolean, each without an error. The rule, `math::expression_source` (the port of the Java `ExpressionSource`): in a
+  number expression a text value is the one number it spells, in any form the lexer reads as a number literal, and
+  any other text fails the statement with a 400 naming the selector and not the value; inside quotes the author
+  wrote, a value is that literal's text, escaped; next to a `.` a text value is a name or digits; `true`, `false`
+  and `null` as text keep their reading; a `COMPUTE`'s kind is decided by the statement as written. **How to apply:**
+  a statement that evaluates an expression renders it through `expression_source::render` with its `Kind`, never
+  through `substitute_var_if_any`, which stays for `RESET`, `DELAY`, jump targets and mapping sources; the two
+  refusals keep the Java engine's words; the fixtures `unit-test-text-value-*` are the Java files, copied and never
+  edited here; the cases live in `text_value_statements_match_java_semantics` and in the module's unit tests, the
+  Java tests' cases one for one.
+  **Extended the same day (Increment 221, the twin of mercury-composable #686, the maintainer's ruling; PR
+  #431, merge `a400233f`, MERGED 2026-11-27):** a `COMPUTE` whose text carried a comparison was a boolean statement whatever
+  else it held, so a number a ternary picked was read as its truth (`2 > 3 ? 100 : 50` stored `true`). Now a
+  statement that carries a ternary - `expression_source::has_ternary`, a question mark outside a string literal -
+  is a number statement in a `COMPUTE` as in a `DECIMAL`: the branch's value, text one number or inside quotes, a
+  boolean result refused by name. The fixtures `unit-test-compute-ternary*` are the Java files; the cases live in
+  `compute_ternary_matches_java_semantics`. The bundle was deployed from the Java branch of #686 and merged after
+  it; the chunk, the help page and the fixtures compare equal across the two repositories.
+  <!-- id: math-text-value-one-value-rust | created: 2026-11-27 | last_used: 2026-11-27 | uses: 1 | tier: working | origin: 2026-11-27-210952 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
