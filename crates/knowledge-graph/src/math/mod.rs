@@ -25,6 +25,7 @@
 mod context;
 mod decimal_evaluator;
 mod evaluator;
+pub mod expression_source;
 mod lexer;
 mod numeric_strings;
 mod parser;

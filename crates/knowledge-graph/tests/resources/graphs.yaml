@@ -22,6 +22,12 @@ graphs:
   - 'unit-test-1'
   - 'unit-test-decimal'
   - 'unit-test-decimal-loop'
+  # a text value in a graph.math expression is one value, never more expression
+  - 'unit-test-text-value-decimal'
+  - 'unit-test-text-value-compute'
+  - 'unit-test-text-value-condition'
+  - 'unit-test-text-value-ternary'
+  - 'unit-test-text-value-quoted'
   # the decimal places of a DECIMAL result: the application default and a node's precision (ADR-0034)
   - 'unit-test-decimal-precision'
   # deliberately invalid: precision=two on a graph.math node - CompileGraph must reject it and requests answer 404

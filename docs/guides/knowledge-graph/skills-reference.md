@@ -341,10 +341,18 @@ constant not listed here is rejected by name, never silently accepted.
 - **Literals** — numbers `42`, `3.14`, `.5`, `1e-5`; strings `'text'` or `"text"` (escapes `\'`,
   `\"`, `\\`, `\n`, `\t`); booleans `true`, `false`.
 - **Variables** — `{namespace.key}` substitutions **only**: `{input.body.qty}`, `{model.total}`,
-  `{book.price}`, `{check.result.eligible}`. They are resolved into the text before it is parsed: a
-  number or boolean as itself; a text value as a quoted string literal in a boolean context (`IF`,
-  `CONDITION`, or a `COMPUTE` carrying a comparison or boolean operator), so
-  `{model.state} == 'CA'` compares text. An unresolved selector fails by name **before** evaluation
+  `{book.price}`, `{check.result.eligible}`. They are resolved into the text before it is parsed, and
+  **a value is always one value, never more expression**. A number or a boolean is itself. A text value
+  is a quoted string literal in a boolean expression (`IF`, `CONDITION`, or a `COMPUTE` carrying a
+  comparison or boolean operator), so `{model.state} == 'CA'` compares text. In a number expression (a
+  `DECIMAL`, or a `COMPUTE` or `IF` without such an operator) a text value is the one number it spells
+  (`100.25`, `-5`, `1e3`), and any other text fails the statement naming the selector
+  (`Not a number: input.body.date in '…'`): a date such as `2025-07-15`, a code or an identifier is never
+  computed as arithmetic, and the error names the selector without the value. To read a value as text
+  there, write the selector inside quotes: `'{input.body.date}' >= '{model.cutoff}'` compares two dates as
+  text, and a quote inside the value stays inside the literal. Whether a `COMPUTE` yields a number or a
+  boolean is decided by the statement as written, never by a value. A text value next to a `.` must be a
+  name or digits. An unresolved selector fails by name **before** evaluation
   (`Unknown identifier: model.threshold (unresolved variable in …)`). There is no assignment and no
   user-defined variable.
 - **Operators**, tightest-binding first:
@@ -451,7 +459,9 @@ precision=2                                  # optional: decimal places of this 
   `acos`, `atan`, `random()` and the constants `PI` and `E` fail in a `DECIMAL` statement. Keep that step in
   a `COMPUTE`, or use a [`graph.task`](#task) function.
 - **A `DECIMAL` statement computes a number.** A comparison is allowed only inside a ternary test
-  (`{model.total} > 100 ? 100 : {model.total}`); a boolean result fails by name — use `CONDITION`.
+  (`{model.total} > 100 ? 100 : {model.total}`); a boolean result fails by name — use `CONDITION`. A text
+  value in it must spell one number ([the dialect](#math-dialect)), so a ternary test over dates or codes
+  writes them inside quotes: `'{input.body.date}' >= '{policy.start}' ? {input.body.amount} : 0`.
 - **Comparing decimals in `IF` and `CONDITION`** needs nothing special: a string that is a canonical number
   compares as a number, so `IF: {price.result.rounded} > 100` and `IF: {price.result.rounded} > '99.5'`
   both compare numbers (see [the dialect](#math-dialect)).

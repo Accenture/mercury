@@ -98,10 +98,12 @@ fn manifest_listed_graphs_are_compiled() {
     // + the three server.url fixtures (task-10/11/12: the provider named on the node, RFC-0017 D16)
     // + the thirteen fan-out failure fixtures (foreach-sub and foreach-1 to -12: one failing element
     // fails a for_each node, Java #682)
+    // + the five text-value fixtures (text-value-decimal, -compute, -condition, -ternary and -quoted:
+    // a text value in a graph.math expression is one value, never more expression, Java #683)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        97,
+        102,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );

@@ -6156,3 +6156,39 @@ consistency; the unit differs with the client library, and that difference is fi
   that is not established in time. The sync-over-async store's own 500, `Redis command timed out`. The Java
   engine's text. The distributed-cache guide names both engines' texts; the interop report keeps the texts its
   runs recorded.
+
+## Increment 220 — A text value in a `graph.math` number expression is one number, never more expression (2026-11-27)
+
+The twin of the Java engine's mercury-composable #683, which answered a field report: a `DECIMAL` statement that read
+a date given as ISO text computed it as arithmetic, with no error. This engine rendered a text value the same way,
+by reading (`skills.rs` `decimal` called `substitute_var_if_any_logical` with `logical` false, and `compute` chose it
+from the operators of the statement).
+
+- **The defect.** A `{selector}` is rendered into the statement before it is parsed. In a number expression - a
+  `DECIMAL`, or a `COMPUTE` or `IF` without a comparison or boolean operator - a text value was inserted as written,
+  so the evaluator parsed it as more expression: `2025-07-15` gave `2003`, `2*3` gave `6`, `max(1,2)` gave `2`, and
+  inside a `DECIMAL` ternary test a later date compared as the earlier one. `compute` also chose between a boolean
+  and a number from the rendered text, so a value carrying `>` made the statement a boolean.
+- **The change.** `crates/knowledge-graph/src/math/expression_source.rs`, the port of the Java `ExpressionSource`:
+  each value is checked where it lands. Inside a string literal the author wrote it is that literal's text, escaped;
+  next to a `.` a text value is a name or digits; elsewhere a number or a boolean is itself, a text value is a
+  string literal in a boolean expression, and in a number expression it is the one number it spells or the
+  statement fails naming the selector, without the value. `true`, `false` and `null` as text keep their reading.
+  `compute`, `decimal`, `condition` and the `IF` of `evaluate` render through it; `compute` decides its kind from
+  the statement as written. `render_inexact_numbers` is gone: a float's plain decimal text is the renderer's
+  `Kind::Decimal`. `substitute_var_if_any` stays for `RESET`, `DELAY`, jump targets and mapping sources.
+- **Parity.** The two refusals carry the Java engine's words. The number test is hand-written where Java uses a
+  regular expression: an optional sign, digits with an optional fraction or a fraction alone, an optional exponent,
+  at most 1000 characters after trimming. Segments are found as this engine has always found them, the first `}`
+  after a `{`.
+- **Tests.** Eleven unit tests in the module, the cases of the Java `ExpressionSourceTest` one for one.
+  `text_value_statements_match_java_semantics` in `graph_runtime.rs`, the cases of the Java
+  `TextValueStatementTest`, over its five fixtures `unit-test-text-value-*` copied byte for byte; `compiler.rs`
+  counts 102 graphs. Against the unchanged `skills.rs` the runtime test failed at its first refusal, a 200 where a
+  400 was due.
+- **Pages.** The skills reference's two passages are the Java page's; the command catalog's `inputs`; three claims
+  in the registry, pinned to the runtime test; the `graph-math` help page and the Playground bundle by
+  `npm run release:rust` from the Java repository's webapp (chunk `index-CHGht2_6`). CHANGELOG Unreleased Fixed 6
+  with its upgrade note.
+- **Not changed.** A mapping source still takes a value as written, by design (dynamic keys). The evaluators and
+  the shared decimal vectors.

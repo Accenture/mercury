@@ -78,6 +78,19 @@ properties/result into a COMPUTE or IF expression, e.g.
 hyphenated names - {unit-price} is the value of "unit-price", never parsed
 as a subtraction - so use communicative hyphenated names freely.
 
+A value is always ONE value, never more expression. A number or a boolean is
+itself. A text value is a quoted string in a boolean expression (IF,
+CONDITION, or a COMPUTE carrying a comparison or boolean operator), so
+{model.state} == 'CA' compares text. In a number expression (DECIMAL, or a
+COMPUTE or IF without such an operator) a text value is the one number it
+spells ("100.25", "-5", "1e3"); any other text - a date such as 2025-07-15, a
+code, an identifier - fails the statement naming the selector ("Not a number:
+input.body.date in '...'") and is never computed as arithmetic. To read a
+value as text there, write the selector inside quotes:
+'{input.body.date}' >= '{model.cutoff}' compares two dates as text. Whether a
+COMPUTE yields a number or a boolean is decided by the statement as written,
+never by a value.
+
 The dialect is a NARROW JavaScript-like subset evaluated by the engine's own
 parser, not a JavaScript runtime - a closed set. It accepts exactly the
 following; an operator, function or constant not listed here is rejected by
@@ -150,7 +163,9 @@ and max are exact. Rounding is always explicit: round(x, scale, mode) with mode
 HALF_UP, HALF_EVEN, HALF_DOWN, UP, DOWN, CEILING or FLOOR. What cannot be exact
 is refused by name: sqrt, log, log10, exp, trigonometry, random(), PI and E -
 keep that step in a COMPUTE or a graph.task function. A DECIMAL statement
-computes a number; a comparison may appear only inside a ternary test. A COMPUTE
+computes a number; a comparison may appear only inside a ternary test, and a
+ternary test over dates or codes writes them inside quotes:
+'{input.body.date}' >= '{policy.start}' ? {input.body.amount} : 0. A COMPUTE
 on a decimal string computes in binary floating point, so use DECIMAL for money.
 
 A zero of any scale is stored as "0" (round(0.004, 2, HALF_UP), 1.50 - 1.50 and
