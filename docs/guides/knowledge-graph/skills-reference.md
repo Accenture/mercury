@@ -289,7 +289,7 @@ seven types:
 
 | Statement | Purpose |
 |---|---|
-| `COMPUTE` | evaluate a math expression → the node's `result` (a number; an expression with a comparison or boolean operator yields a boolean) |
+| `COMPUTE` | evaluate a math expression → the node's `result` (a number; an expression with a comparison or boolean operator and no ternary yields a boolean) |
 | `DECIMAL` | the **high-precision `COMPUTE`**: evaluate a math expression with exact decimal arithmetic → the node's `result` as a canonical decimal string ([details](#math-decimal)) |
 | `CONDITION` | evaluate a **boolean** expression → the node's `result`, declared as a boolean whatever operators it carries (`CONDITION: ok -> {model.a} < {model.b}`, `CONDITION: same -> {model.flag}`) |
 | `IF` | boolean decision → jump to a node (`THEN`/`ELSE`) |
@@ -344,8 +344,9 @@ constant not listed here is rejected by name, never silently accepted.
   `{book.price}`, `{check.result.eligible}`. They are resolved into the text before it is parsed, and
   **a value is always one value, never more expression**. A number or a boolean is itself. A text value
   is a quoted string literal in a boolean expression (`IF`, `CONDITION`, or a `COMPUTE` carrying a
-  comparison or boolean operator), so `{model.state} == 'CA'` compares text. In a number expression (a
-  `DECIMAL`, or a `COMPUTE` or `IF` without such an operator) a text value is the one number it spells
+  comparison or boolean operator and no ternary), so `{model.state} == 'CA'` compares text. In a number expression
+  (a `DECIMAL`, a `COMPUTE` with a ternary, or a `COMPUTE` or `IF` without such an operator) a text value is the one
+  number it spells
   (`100.25`, `-5`, `1e3`), and any other text fails the statement naming the selector
   (`Not a number: input.body.date in '…'`): a date such as `2025-07-15`, a code or an identifier is never
   computed as arithmetic, and the error names the selector without the value. To read a value as text
@@ -372,7 +373,10 @@ constant not listed here is rejected by name, never silently accepted.
       `200 == 'abc'` fails (`Type mismatch for equality`).
     - `&&`, then `||` — short-circuit; a number or string operand is truthy the JavaScript way (`0`
       and `''` are false).
-    - `test ? a : b` — the ternary, lowest precedence; `( … )` groups.
+    - `test ? a : b` — the ternary, lowest precedence; `( … )` groups. A statement with a ternary computes its
+      branch's value: a `COMPUTE` that carries one computes a number, as a [`DECIMAL`](#math-decimal) does, whatever
+      comparison its test holds, so `COMPUTE: fee -> {model.a} > {model.b} ? 100 : 50` stores `100` or `50`. A
+      boolean result fails there by name; store a boolean with `CONDITION`.
 - **Functions** — one argument: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `sqrt`, `abs`,
   `floor`, `ceil`, `round`, `log` (natural), `log10`, `exp`; two: `pow(x, y)`; any number:
   `min(a, b, …)`, `max(a, b, …)`; none: `random()`. Every function is also reachable under `Math.`
@@ -395,7 +399,8 @@ value:
   request is untrusted; store a decision with `CONDITION`.
 - **`COMPUTE` yields a boolean when the expression carries a comparison or boolean operator**
   (`<`, `>`, `==`, `!`, `&&`, `||`) — it evaluates the question you wrote. Use `CONDITION` to say
-  so in the statement, and keep `COMPUTE` for amounts.
+  so in the statement, and keep `COMPUTE` for amounts. The exception is a ternary: with one the statement
+  computes its branch's value, a number, whatever comparison its test holds.
 - **A misspelled or unsupported function fails by name** (`Unknown function: mn`).
 - **Arithmetic is IEEE double.** An overflow to infinity, a division by zero and a NaN each fail
   naming the operator (`Arithmetic overflow in '*' (result Infinity)`, `Division by zero or

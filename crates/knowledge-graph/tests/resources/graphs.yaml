@@ -28,6 +28,10 @@ graphs:
   - 'unit-test-text-value-condition'
   - 'unit-test-text-value-ternary'
   - 'unit-test-text-value-quoted'
+  # a COMPUTE with a ternary computes its branch's value, as a DECIMAL does
+  - 'unit-test-compute-ternary'
+  - 'unit-test-compute-ternary-quoted'
+  - 'unit-test-compute-ternary-boolean'
   # the decimal places of a DECIMAL result: the application default and a node's precision (ADR-0034)
   - 'unit-test-decimal-precision'
   # deliberately invalid: precision=two on a graph.math node - CompileGraph must reject it and requests answer 404

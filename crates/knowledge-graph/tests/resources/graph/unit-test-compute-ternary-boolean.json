@@ -1,0 +1,57 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "a ternary in a COMPUTE statement of graph.math",
+        "name": "unit-test-compute-ternary-boolean"
+      }
+    },
+    {
+      "alias": "probe",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: d -> {input.body.x} >= {input.body.y} ? true : false",
+          "MAPPING: probe.result.d -> output.body.d"
+        ],
+        "purpose": "a COMPUTE with a ternary computes a number: a boolean result fails by name"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "probe",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "probe",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

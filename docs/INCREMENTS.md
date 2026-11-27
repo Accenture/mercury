@@ -6192,3 +6192,26 @@ from the operators of the statement).
   with its upgrade note.
 - **Not changed.** A mapping source still takes a value as written, by design (dynamic keys). The evaluators and
   the shared decimal vectors.
+
+## Increment 221 — A `COMPUTE` with a ternary computes its branch's value, as a `DECIMAL` does (2026-11-27)
+
+The twin of the Java engine's mercury-composable #686. The maintainer asked, for consistency, that `COMPUTE` handle
+the ternary operator as `DECIMAL` does, after a probe of the two evaluators showed what each stored.
+
+- **The behaviour before.** `compute` in `skills.rs` chose a boolean or a number from the operators in the
+  statement's text. A statement with a comparison was a boolean statement whatever else it held, so a number a
+  ternary picked was read as its truth: `2 > 3 ? 100 : 50` stored `true`, where `DECIMAL` stored `50`.
+- **The change.** `expression_source::has_ternary`: a question mark outside a string literal the author wrote.
+  `compute` is a boolean statement only when it carries a comparison or boolean operator and no ternary; with a
+  ternary it renders as a number expression and evaluates with `eval_number`, so the result is the branch's value,
+  a text value must spell one number or be written inside quotes, and a boolean result fails by name.
+  `decimal`, `condition` and the `IF` are unchanged.
+- **Tests.** `compute_ternary_matches_java_semantics` in `graph_runtime.rs`, the cases of the Java
+  `ComputeTernaryTest`, over its three fixtures `unit-test-compute-ternary*` copied byte for byte; `compiler.rs`
+  counts 105 graphs; a unit test of `has_ternary` with the Java test's cases. Against the unchanged `skills.rs` the
+  runtime test failed at its first assertion, `true` where `100.0` was due.
+- **Pages.** The skills reference's four passages, the command reference's `COMPUTE` entry, the command catalog,
+  the AI agent guide's checklist item and one claim, each the Java repository's text; the `graph-math` help page
+  and the Playground bundle by `npm run release:rust` from the Java repository's branch of #686. CHANGELOG
+  Unreleased Fixed 7 with its upgrade note.
+

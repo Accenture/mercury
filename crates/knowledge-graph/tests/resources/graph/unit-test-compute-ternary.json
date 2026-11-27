@@ -1,0 +1,61 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "a ternary in a COMPUTE statement of graph.math",
+        "name": "unit-test-compute-ternary"
+      }
+    },
+    {
+      "alias": "probe",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "COMPUTE: d -> {input.body.x} >= {input.body.y} ? 100 : 50",
+          "COMPUTE: e -> ({input.body.x} >= {input.body.y} ? 100 : 50) * 2",
+          "COMPUTE: f -> {input.body.x} >= {input.body.y}",
+          "MAPPING: probe.result.d -> output.body.d",
+          "MAPPING: probe.result.e -> output.body.e",
+          "MAPPING: probe.result.f -> output.body.f"
+        ],
+        "purpose": "a COMPUTE with a ternary stores its branch's value, as a DECIMAL does; a comparison without one stays a boolean"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "probe",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "probe",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

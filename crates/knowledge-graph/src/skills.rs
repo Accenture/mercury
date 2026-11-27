@@ -308,8 +308,9 @@ fn compute(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Result<
         )));
     }
     assert_variables_resolved(rhs, state)?;
+    // a statement with a ternary computes a number, the branch's value, as a DECIMAL does; without one
     // the statement as written decides whether it computes a boolean, never a value rendered into it
-    let logical = has_boolean_operator(rhs);
+    let logical = has_boolean_operator(rhs) && !expression_source::has_ternary(rhs);
     let kind = if logical { Kind::Boolean } else { Kind::Number };
     let text = render(rhs, kind, state)?;
     let result = if logical {

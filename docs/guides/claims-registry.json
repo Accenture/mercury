@@ -643,6 +643,16 @@
       "since": "4.12.31+"
     },
     {
+      "id": "compute-ternary-branch-value",
+      "claim": "A COMPUTE that carries a ternary computes its branch's value, a number, as a DECIMAL does, whatever comparison the ternary's test holds; a boolean result fails by name.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "A statement with a ternary computes its branch's value",
+      "test": "crates/knowledge-graph::graph_runtime::compute_ternary_matches_java_semantics",
+      "since": "4.12.31+"
+    },
+    {
       "id": "math-text-value-one-number",
       "claim": "In a number expression of graph.math a text value is the one number it spells, and any other text fails the statement naming the selector; it is never evaluated as part of the expression.",
       "pages": [

@@ -38,11 +38,11 @@ use super::DecimalEvaluator;
 /// How the statement reads its expression, which decides how a text value is rendered.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
-    /// A COMPUTE or an IF without a comparison or boolean operator.
+    /// A COMPUTE with a ternary, or a COMPUTE or an IF without a comparison or boolean operator.
     Number,
     /// A DECIMAL statement: a number expression where a float renders as its plain decimal text.
     Decimal,
-    /// A CONDITION, or a COMPUTE or an IF with a comparison or boolean operator.
+    /// A CONDITION, or a COMPUTE (without a ternary) or an IF with a comparison or boolean operator.
     Boolean,
 }
 
@@ -145,6 +145,28 @@ pub fn is_one_number(text: &str) -> bool {
         at += exponent;
     }
     at == bytes.len()
+}
+
+/// True when the expression carries a ternary: a question mark outside a string literal the author
+/// wrote. A ternary makes a statement compute its branch's value, so a COMPUTE that carries one
+/// computes a number, as a DECIMAL does, whatever comparison its test holds (Java `hasTernary`).
+pub fn has_ternary(expression: &str) -> bool {
+    let mut open: Option<char> = None;
+    let mut chars = expression.chars();
+    while let Some(c) = chars.next() {
+        match open {
+            None if c == '?' => return true,
+            None if c == '\'' || c == '"' => open = Some(c),
+            None => {}
+            // the escaped character belongs to the literal
+            Some(_) if c == '\\' => {
+                chars.next();
+            }
+            Some(q) if c == q => open = None,
+            Some(_) => {}
+        }
+    }
+    false
 }
 
 fn rendered(
@@ -421,6 +443,19 @@ mod tests {
             "Not a name: input.body.x in 'Math.{input.body.x}(2)' - a text value next to a '.' must be \
              a name or digits"
         );
+    }
+
+    #[test]
+    fn a_ternary_is_a_question_mark_outside_a_string_literal() {
+        assert!(has_ternary("{model.a} > {model.b} ? 100 : 50"));
+        assert!(has_ternary("({model.flag} ? 1 : 2) * 3"));
+        assert!(has_ternary("'{model.a}' >= 'what?' ? 1 : 0"));
+        assert!(!has_ternary("{model.a} > {model.b}"));
+        // a question mark the author wrote inside a literal is text, whichever quote and whatever it escapes
+        assert!(!has_ternary("{model.text} == 'what?'"));
+        assert!(!has_ternary("{model.text} == \"is it?\""));
+        assert!(!has_ternary("{model.text} == 'it\\'s what?'"));
+        assert!(has_ternary("{model.text} == 'a\\\\' ? 1 : 0"));
     }
 
     #[test]
