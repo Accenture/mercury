@@ -218,6 +218,25 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    where it failed; one that exceeds the configured time fails at that time, with the text above where it read
    `Redis request timed out - timed out`. An application that relied on the 500 ms answer sets `redis.timeout.ms`
    (or `soa.redis.timeout.ms`) to the time it wants.
+5. **A Redis command without an answer in time reads `Redis request timed out after N ms`, whichever timer reports
+   it (Increment 219).** N is the timeout the command ran under, in milliseconds: `redis.timeout.ms` for the cache and
+   the state store. The one failure had three wordings. `Redis request timed out - timed out` appended the `redis`
+   crate's own text, which says only `timed out`, when the crate's timer reported it; `Redis request timed out after
+   5000ms`, without a space, came from this engine's timer; and the raw failure of `RedisBackend::attempt` displayed
+   as `Redis command timed out after 5000 ms`. Since item 4 both timers run for the configured time and either may
+   answer, so the text must not depend on which did. `mercury-redis-connection` now builds it in one place,
+   `command_timeout`, and `mercury-minigraph-state-redis` writes the same words for its 500. It says `timed out
+   after`, as the Java engine's 408 does with Lettuce's `Command timed out after N second(s)`; the unit is each
+   client library's own, a difference the maintainer accepted. The crate's error does not carry its deadline, where
+   Lettuce's message does, so `classify_command_error` and `CommandError::classify` take the deadline as a second
+   argument. Pinned by `the_crates_own_timeout_is_classified_in_the_same_words` in `configured_timeout.rs` (a manager
+   used directly, so only the crate's timer runs), by the classification test in `backend.rs`, and by a fourteenth
+   step of the state store's contract test; each failed before the change on the old text. The distributed-cache
+   guide quotes the text and names the Java engine's beside it. **Upgrade note:** the text still begins `Redis
+   request timed out after`, and a space now separates the number from `ms` (`5000 ms`, where it read `5000ms`), so
+   an exact match needs the space; code that matched `Redis request timed out - ` matches `Redis request timed out
+   after` now. A caller of `classify_command_error` or `CommandError::classify` passes the deadline, for example
+   `backend.timeout()`. The statuses are unchanged: 408, and 500 from the state store.
 
 ### Security
 

@@ -177,7 +177,7 @@ fn iteration_envelope(cid: &str, index: Option<&str>, node: &str) -> Value {
 async fn redis_state_store_contract() {
     test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let (port, raw_store, journal) = common::start_resp_double("7.4.1").await;
-    // the store reaches the double through a relay that step 13 uses to hold replies back;
+    // the store reaches the double through a relay that steps 13 and 14 use to hold replies back;
     // until then the relay passes everything at once
     let proxy = common::BounceProxy::start(port).await;
     platform_core::resources::prepend_resource_root("tests/resources");
@@ -589,6 +589,25 @@ async fn redis_state_store_contract() {
     assert!(
         started.elapsed() >= Duration::from_millis(1800),
         "both replies were held back: {:?}",
+        started.elapsed()
+    );
+    proxy.delay_replies(Duration::ZERO);
+
+    // 14) a reply beyond the configured time fails in this store's own words, which name the
+    // timeout in milliseconds, whichever timer reports it: this store's, or the `redis`
+    // crate's, whose error says only that it timed out. Both run for the configured 5000 ms.
+    let cid = uuid::Uuid::new_v4().simple().to_string();
+    proxy.delay_replies(Duration::from_millis(7000));
+    let started = Instant::now();
+    let unanswered = request(&po, PERSIST_ROUTE, "put", sample_envelope(&cid, 30)).await;
+    assert_eq!(500, unanswered.status(), "{:?}", unanswered.body());
+    assert_eq!(
+        "Redis request timed out after 5000 ms",
+        body_text(&unanswered)
+    );
+    assert!(
+        started.elapsed() >= Duration::from_millis(5000),
+        "the configured timeout is the deadline: {:?}",
         started.elapsed()
     );
     proxy.delay_replies(Duration::ZERO);
