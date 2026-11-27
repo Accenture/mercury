@@ -256,6 +256,49 @@ layers shipped; the two above have held through every re-verify.)*
   `resources/` relative to its working directory, so run it from the example's folder.
   <!-- id: playground-agent-graphs-twin | created: 2026-11-18 | last_used: 2026-11-18 | uses: 1 | tier: archive-candidate | origin: 2026-11-18-105101 -->
 
+- **A synchronous fan-out fails as one node: the first failing element in list order decides (Increment 216,
+  2026-11-26; the twin of mercury-composable #682 and its fact `fan-out-first-failure-decides`, the maintainer's ruling
+  of the same day on a field report, accepted in full on the Java pull request; PR #426, merge `f8ac53f7`, MERGED
+  2026-11-27).** The three fan-out loops
+  (`graph.extension`, `graph.task`, `graph.api.fetcher`) wrote `{node}.status` from every response while `{node}.error`
+  stayed, so a success after the failing element left the node with status 200 and an error: HTTP 200 with the error as
+  the body, or a handler entered with `error.code` 200. This engine's `join_batch` keeps request order and turns a call
+  that did not answer into a 408, so the Java engine's other two faults - results out of order, a missing answer
+  dropped - did not exist here. The rule: the elements run in list order, `concurrency` at a time; an element that
+  fails, or does not answer within the node's deadline, fails the node with its own status and error; its batch runs
+  to the end and no further batch starts; the output mappings are skipped; `{node}.result` holds the elements that
+  succeeded, in list order; a fetcher maps nothing for a failed element and its `dictionary[]` items stop at the first
+  that fails, `{node}.target` naming it. Best effort is design: an element whose failure should not fail the list
+  handles it in its own subgraph and answers with its outcome. **How to apply:** a fan-out skill implements
+  `common::FanOutResponse` and stages each batch through `stage_fan_out_responses`, which writes the status until the
+  first failure and never after; the warnings keep the Java engine's text; the fixtures `unit-test-foreach-*` are the
+  Java files, copied and never edited here; the cases live in `one_failing_element_fails_a_fan_out`.
+  <!-- id: fan-out-first-failure-decides-rust | created: 2026-11-26 | last_used: 2026-11-26 | uses: 1 | tier: working | origin: 2026-11-26-233739 -->
+
+- **`redis.timeout.ms` is the one deadline of a Redis command: every connection is built with it as the `redis`
+  crate's response and connection timeout (Increment 218, 2026-11-27, the maintainer's "Yes, fix it" on a finding
+  from a red `rust` run on `main`).** `redis` 1.5.0 times a response out after 500 ms and a connection attempt
+  after one second unless told otherwise, and the foundation and the state store built their connections with those
+  defaults, so a reply slower than 500 ms failed whatever the setting said; the Java engine gives the setting to
+  Lettuce as the command timeout. **How to apply:** a new place that builds a Redis connection takes
+  `RedisConfig::connection_config` or `manager_config` (the state store sets the same two timeouts on its own
+  manager, the cluster client through its builder), never the crate's bare `get_connection_manager()` or
+  `get_multiplexed_async_connection()`; where this engine wraps a call in its own deadline, a timeout the crate
+  reports is returned as that deadline's failure, since two timers cover one command and either may answer; a
+  timeout stays no lifecycle signal. After a `redis` crate bump, read its default timeouts again. To test a
+  deadline, hold replies back with `BounceProxy::delay_replies`. Merged as #427 (merge `0b7d10e1`, 2026-11-27).
+  **One failure, one text (Increment 219, the maintainer's request and ruling of 2026-11-27; #428, merge `79aae2d7`):**
+  a command without an answer in time reads `Redis request timed out after N ms`, N being the timeout it ran under
+  in milliseconds, where the crate's timer had produced `Redis request timed out - timed out` and this engine's
+  `... after 5000ms`, without a space. He ruled `after`, for consistency with the Java engine's text (Lettuce's
+  `Command timed out after N second(s)`), and accepted the difference of unit as the client libraries' own.
+  `command_timeout` alone builds it; the crate's error says only `timed out` and carries no deadline, so
+  `classify_command_error` and `CommandError::classify` take it as an argument; the state store, which does not
+  depend on the foundation, writes the same words. A new place that reports this failure calls `command_timeout`
+  and never appends the crate's text; a timeout text of this engine names its deadline as `after N ms`, the unit
+  spaced.
+  <!-- id: redis-timeout-one-deadline-rust | created: 2026-11-27 | last_used: 2026-11-27 | uses: 1 | tier: working | origin: 2026-11-27-003936 -->
+
 ## Conventions
 
 > Established with the first code (increment 1, 2026-07-15); enforced from the first commit.
