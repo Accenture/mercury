@@ -1,0 +1,57 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "purpose": "a text value from the request, read by one graph.math statement",
+        "name": "unit-test-text-value-ternary"
+      }
+    },
+    {
+      "alias": "probe",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.math",
+        "statement": [
+          "DECIMAL: d -> {input.body.x} >= {input.body.y} ? 100 : 0",
+          "MAPPING: probe.result.d -> output.body.d"
+        ],
+        "purpose": "a ternary test in a DECIMAL statement compares numbers; text outside quotes fails by name"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "target": "probe",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    },
+    {
+      "source": "probe",
+      "target": "end",
+      "relations": [
+        {
+          "type": "test",
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

@@ -417,7 +417,7 @@
         "tag": "DECIMAL",
         "meaning": "the high-precision COMPUTE: exact decimal arithmetic; COMPUTE still computes in binary floating point",
         "result": "a canonical decimal string at {node}.result.{var}: plain notation, the computed scale kept, a zero of any scale written \"0\"",
-        "inputs": "whole numbers (Long, Integer) and strings that spell a number are exact; a Double or Float value is converted through its shortest decimal text at its minimal scale, which is only as exact as the computation that produced it - send money as strings, keep a COMPUTE result out of a DECIMAL statement, and assert f:validate(input.body.rate, text(rate; String; required)) when the caller must",
+        "inputs": "whole numbers (Long, Integer) and strings that spell a number are exact; a string that does not spell one number fails the statement naming the selector, and inside quotes ('{input.body.date}') it is text; a Double or Float value is converted through its shortest decimal text at its minimal scale, which is only as exact as the computation that produced it - send money as strings, keep a COMPUTE result out of a DECIMAL statement, and assert f:validate(input.body.rate, text(rate; String; required)) when the caller must",
         "operators": "+ - * / % ** unary + - ! and the comparison operators inside a ternary test; + always adds; / is the exact quotient when it terminates, otherwise 34 significant digits HALF_EVEN; ** and pow take a whole exponent, |n| <= 999",
         "functions": [
           "abs",

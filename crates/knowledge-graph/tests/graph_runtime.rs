@@ -718,6 +718,7 @@ async fn graph_runtime_end_to_end() {
     date_plugins_end_a_term_on_the_last_day_of_a_shorter_month(&platform).await;
     month_and_year_plugins_refuse_what_the_day_plugins_refuse(&platform).await;
     decimal_statement_matches_java_semantics(&platform).await;
+    text_value_statements_match_java_semantics(&platform).await;
     decimal_precision_matches_java_semantics(&platform).await;
     join_loop_retirement_and_health(&platform).await;
     api_fetcher_matches_java_semantics(&platform).await;
@@ -1672,6 +1673,120 @@ async fn decimal_precision_matches_java_semantics(platform: &Platform) {
     assert!(
         text.contains("not found"),
         "unexpected error response: {text}"
+    );
+}
+
+/// Java parity (`TextValueStatementTest`): a text value from a request, read by a graph.math statement end
+/// to end. In a number expression it is one number or the statement fails naming the selector, and it is
+/// never evaluated as part of the expression. Before the rule a date written as ISO text computed as a
+/// subtraction (2025-07-15 gave 2003) and a later date compared as the earlier one, both without an error.
+async fn text_value_statements_match_java_semantics(platform: &Platform) {
+    const DECIMAL_GRAPH: &str = "unit-test-text-value-decimal";
+    const COMPUTE_GRAPH: &str = "unit-test-text-value-compute";
+    const CONDITION_GRAPH: &str = "unit-test-text-value-condition";
+    const TERNARY_GRAPH: &str = "unit-test-text-value-ternary";
+    const QUOTED_GRAPH: &str = "unit-test-text-value-quoted";
+    const NOT_A_NUMBER: &str = "Not a number: input.body.x in '";
+    const LATER: &str = "2025-07-15";
+    const EARLIER: &str = "2025-01-01";
+    let run = |graph: &'static str, x: &'static str, y: &'static str| async move {
+        let body = serde_json::json!({"x": x, "y": y});
+        run_graph(platform, graph, body, serde_json::json!({})).await
+    };
+    let result = |reply: &EventEnvelope| {
+        assert_eq!(200, reply.status(), "{:?}", reply.body());
+        body_map(reply).get_element("d")
+    };
+    let refused = |reply: &EventEnvelope, expression: &str| {
+        assert_eq!(400, reply.status(), "{:?}", reply.body());
+        let message = body_map(reply)
+            .get_element("message")
+            .map(|m| event_script::conversions::display(&m))
+            .unwrap_or_default();
+        assert!(
+            message.starts_with(&format!("{NOT_A_NUMBER}{expression}")),
+            "{message}"
+        );
+        message
+    };
+
+    // text that is not a number fails a DECIMAL statement and a COMPUTE by name
+    for value in [
+        "2*3",
+        "10-1",
+        "(5)",
+        LATER,
+        "A4352",
+        "5 5",
+        "1,000",
+        "PI",
+        "max(1,2)",
+        "3 > 2 ? 1 : 0",
+    ] {
+        refused(
+            &run(DECIMAL_GRAPH, value, value).await,
+            "{input.body.x} * 2'",
+        );
+        refused(
+            &run(COMPUTE_GRAPH, value, value).await,
+            "{input.body.x} * 2'",
+        );
+    }
+    // the value stays out of the error
+    let message = refused(
+        &run(DECIMAL_GRAPH, LATER, LATER).await,
+        "{input.body.x} * 2'",
+    );
+    assert!(!message.contains(LATER), "{message}");
+
+    // text that spells one number computes as it always did
+    let decimal = |x: &'static str| async move { result(&run(DECIMAL_GRAPH, x, "").await) };
+    assert_eq!(Some(Value::from("200.50")), decimal("100.25").await);
+    assert_eq!(Some(Value::from("2000")), decimal("1e3").await);
+    assert_eq!(Some(Value::from("14")), decimal("007").await);
+    assert_eq!(Some(Value::from("-10")), decimal("-5").await);
+    let compute = |x: &'static str| async move { result(&run(COMPUTE_GRAPH, x, "").await) };
+    assert_eq!(Some(Value::from(200.5)), compute("100.25").await);
+    assert_eq!(Some(Value::from(2000.0)), compute("1e3").await);
+
+    // the statement as written computes a number, so a value carrying '>' cannot make it a boolean
+    assert_eq!(400, run(COMPUTE_GRAPH, "3 > 2", "").await.status());
+    assert_eq!(Some(Value::from(6.0)), compute("3").await);
+
+    // read as arithmetic, 2025-07-15 is 2003 and 2025-01-01 is 2023: the later date compared as the earlier
+    for (x, y) in [(LATER, EARLIER), (EARLIER, LATER), (LATER, LATER)] {
+        refused(&run(TERNARY_GRAPH, x, y).await, "");
+    }
+    // two numbers written as text compare as numbers
+    assert_eq!(
+        Some(Value::from("100")),
+        result(&run(TERNARY_GRAPH, "100.5", "99.5").await)
+    );
+    assert_eq!(
+        Some(Value::from("0")),
+        result(&run(TERNARY_GRAPH, "99.5", "100.5").await)
+    );
+
+    // inside quotes the author wrote, the dates compare as text
+    let quoted =
+        |x: &'static str, y: &'static str| async move { result(&run(QUOTED_GRAPH, x, y).await) };
+    assert_eq!(Some(Value::from("100")), quoted(LATER, EARLIER).await);
+    assert_eq!(Some(Value::from("0")), quoted(EARLIER, LATER).await);
+    assert_eq!(Some(Value::from("100")), quoted(LATER, LATER).await);
+    // a quote in the value stays inside the literal
+    assert_eq!(Some(Value::from("100")), quoted("z' >= 'a", EARLIER).await);
+
+    // a CONDITION compares the same values as text
+    for value in ["2*3", LATER, "A4352", "O'Brien", "a\\b"] {
+        assert_eq!(
+            Some(Value::from(true)),
+            result(&run(CONDITION_GRAPH, value, value).await),
+            "{value}"
+        );
+    }
+    assert_eq!(
+        Some(Value::from(false)),
+        result(&run(CONDITION_GRAPH, LATER, EARLIER).await)
     );
 }
 

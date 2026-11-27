@@ -641,6 +641,36 @@
       "quote": "A fetcher with several `dictionary[]` items calls them one after the other and stops at the first that fails",
       "test": "crates/knowledge-graph::graph_runtime::the_first_failing_dictionary_item_fails_the_fetcher",
       "since": "4.12.31+"
+    },
+    {
+      "id": "math-text-value-one-number",
+      "claim": "In a number expression of graph.math a text value is the one number it spells, and any other text fails the statement naming the selector; it is never evaluated as part of the expression.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "any other text fails the statement naming the selector",
+      "test": "crates/knowledge-graph::graph_runtime::text_value_statements_match_java_semantics",
+      "since": "4.12.31+"
+    },
+    {
+      "id": "math-text-value-inside-quotes",
+      "claim": "A selector inside quotes the author wrote is the text of that string literal, so two dates compare as text inside a DECIMAL ternary test.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "compares two dates as text, and a quote inside the value stays inside the literal",
+      "test": "crates/knowledge-graph::graph_runtime::text_value_statements_match_java_semantics",
+      "since": "4.12.31+"
+    },
+    {
+      "id": "math-compute-kind-by-statement",
+      "claim": "Whether a COMPUTE yields a number or a boolean is decided by the statement as written, never by a value rendered into it.",
+      "pages": [
+        "docs/guides/knowledge-graph/skills-reference.md"
+      ],
+      "quote": "is decided by the statement as written, never by a value",
+      "test": "crates/knowledge-graph::graph_runtime::text_value_statements_match_java_semantics",
+      "since": "4.12.31+"
     }
   ]
 }

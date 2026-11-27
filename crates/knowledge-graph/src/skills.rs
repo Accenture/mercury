@@ -38,12 +38,12 @@ use crate::common::{
     get_entries, get_first_word, get_for_each_mapping, get_graph_instance, get_if_statement,
     get_model_array_size, get_next_model_param_set, get_next_node, get_next_tag_resolved, get_node,
     get_then_statement, handle_data_mapping_entry, invalid, name_offending_selectors,
-    perform_fetcher_output_mapping, reset_nodes, selectors_in, split_blocks,
-    stage_fan_out_responses, substitute_mapping_source, substitute_var_if_any,
-    substitute_var_if_any_logical, COMPUTE_TAG, CONDITION_TAG, DECIMAL_TAG, DELAY_TAG, ERROR,
-    EXCEPTION, EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO, MODEL_NAMESPACE, NEXT, NODE,
-    NODE_NAME, PRECISION, RESET_TAG, RESULT, SINK, SKILL, STATUS, TARGET, TYPE,
+    perform_fetcher_output_mapping, reset_nodes, split_blocks, stage_fan_out_responses,
+    substitute_mapping_source, substitute_var_if_any, COMPUTE_TAG, CONDITION_TAG, DECIMAL_TAG,
+    DELAY_TAG, ERROR, EXCEPTION, EXECUTE, HEADER, IF_TAG, IN, MAPPING_TAG, MAP_TO, MODEL_NAMESPACE,
+    NEXT, NODE, NODE_NAME, PRECISION, RESET_TAG, RESULT, SINK, SKILL, STATUS, TARGET, TYPE,
 };
+use crate::math::expression_source::{self, Kind};
 use crate::math::{DecimalEvaluator, ExpressionEngine};
 use crate::model::GraphInstance;
 
@@ -308,8 +308,11 @@ fn compute(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Result<
         )));
     }
     assert_variables_resolved(rhs, state)?;
-    let text = substitute_var_if_any(rhs, state)?;
-    let result = if has_boolean_operator(&text) {
+    // the statement as written decides whether it computes a boolean, never a value rendered into it
+    let logical = has_boolean_operator(rhs);
+    let kind = if logical { Kind::Boolean } else { Kind::Number };
+    let text = render(rhs, kind, state)?;
+    let result = if logical {
         Value::from(
             engine()
                 .eval_boolean(&text)
@@ -332,9 +335,10 @@ fn compute(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Result<
 /// decimal string, which is what survives `graph.suspend`, `graph.resume` and every event hop. COMPUTE keeps its
 /// meaning, so a graph that never says DECIMAL is unchanged.
 ///
-/// The statement computes a number, so its variables always render in the arithmetic (unquoted) form. A float
+/// The statement computes a number, so a text value renders as the one number it spells and any other text
+/// fails by name ([`expression_source`]): a value from the data is never read as part of the expression. A float
 /// value is accepted through the shortest decimal text it prints as, at its minimal scale: once a value is text
-/// its type is gone, so the conversion happens here, before the values are rendered (`5.0E-4` renders
+/// its type is gone, so the conversion happens as the value is rendered (`5.0E-4` renders
 /// `0.0005`, not the `0.00050` its own text would parse as). That is exact over the text received and only as
 /// exact as the computation that produced the float - the guide declares it, so sending a number instead of a
 /// string is a conscious decision.
@@ -362,8 +366,7 @@ fn decimal(
         )));
     }
     assert_variables_resolved(rhs, state)?;
-    let rendered = render_inexact_numbers(rhs, state)?;
-    let text = substitute_var_if_any_logical(&rendered, state, false)?;
+    let text = render(rhs, Kind::Decimal, state)?;
     let result = DecimalEvaluator::evaluate_with_limit(&text, precision)
         .map_err(|e| name_offending_selectors(math_error(e), rhs, state))?;
     state
@@ -371,19 +374,10 @@ fn decimal(
         .map_err(invalid)
 }
 
-fn render_inexact_numbers(expression: &str, state: &MultiLevelMap) -> Result<String, AppError> {
-    let mut result = expression.to_string();
-    for key in selectors_in(expression) {
-        event_script::jsonpath_source::refuse_json_path_key(&key).map_err(invalid)?;
-        let plain = match get_lhs_or_constant(&key, state).map_err(invalid)? {
-            Some(Value::F64(d)) => DecimalEvaluator::plain_text(d),
-            Some(Value::F32(f)) => DecimalEvaluator::plain_text_f32(f),
-            _ => continue,
-        }
-        .map_err(|e| invalid(format!("{e}: {key} in '{expression}'")))?;
-        result = result.replace(&format!("{{{key}}}"), &plain);
-    }
-    Ok(result)
+/// Render an expression's `{selectors}`, each value checked where it lands (Java `GraphMath.render`).
+fn render(expression: &str, kind: Kind, state: &MultiLevelMap) -> Result<String, AppError> {
+    expression_source::render(expression, kind, &|key| get_lhs_or_constant(key, state))
+        .map_err(invalid)
 }
 
 /// CONDITION: var -> expression - the explicit boolean statement (Java `GraphMath.condition`).
@@ -405,7 +399,7 @@ fn condition(command: &str, node_name: &str, state: &mut MultiLevelMap) -> Resul
         )));
     }
     assert_variables_resolved(rhs, state)?;
-    let text = substitute_var_if_any_logical(rhs, state, true)?;
+    let text = render(rhs, Kind::Boolean, state)?;
     let result = engine()
         .eval_boolean(&text)
         .map_err(|e| name_offending_selectors(math_error(e), rhs, state))?;
@@ -448,7 +442,12 @@ fn evaluate(
         )));
     }
     assert_variables_resolved(&if_statement, state)?;
-    let text = substitute_var_if_any(&if_statement, state)?;
+    let kind = if has_boolean_operator(&if_statement) {
+        Kind::Boolean
+    } else {
+        Kind::Number
+    };
+    let text = render(&if_statement, kind, state)?;
     let branch = if engine()
         .eval_boolean(&text)
         .map_err(|e| name_offending_selectors(math_error(e), &if_statement, state))?
