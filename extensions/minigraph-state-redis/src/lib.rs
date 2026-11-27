@@ -234,7 +234,9 @@ fn unpack(bytes: &[u8]) -> Value {
 
 /// Bound a Redis round-trip by `redis.timeout.ms` and normalize failures to
 /// AppError, so a broken store surfaces as the suspend/resume skill's loud
-/// failure instead of an indefinite hang.
+/// failure instead of an indefinite hang. A round trip without an answer in
+/// time reads `Redis request timed out after N ms`, N being that timeout in
+/// milliseconds - the text of the shared Redis foundation.
 async fn with_deadline<T>(
     fut: impl std::future::Future<Output = Result<T, redis::RedisError>>,
 ) -> Result<T, AppError> {
@@ -242,7 +244,7 @@ async fn with_deadline<T>(
     let timed_out = || {
         AppError::new(
             500,
-            format!("Redis request timed out after {}ms", timeout.as_millis()),
+            format!("Redis request timed out after {} ms", timeout.as_millis()),
         )
     };
     match tokio::time::timeout(timeout, fut).await {

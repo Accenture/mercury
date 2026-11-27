@@ -22,10 +22,14 @@
 //! foundation set them from the configured value, on the managed connection and
 //! on the single one alike. Driven through the relay of the RESP double, which
 //! holds the server's replies back.
+//!
+//! The 408 reads `Redis request timed out after N ms`, N being the configured
+//! timeout in milliseconds, whichever timer reports it: this engine's own or the
+//! crate's, whose error says only `timed out`.
 
 use std::time::{Duration, Instant};
 
-use redis_connection::{RedisBackend, RedisConfig};
+use redis_connection::{classify_command_error, RedisBackend, RedisConfig};
 use redis_test_double::{start_resp_double, BounceProxy};
 
 /// Longer than the `redis` crate's own response timeout, shorter than the configured one.
@@ -77,7 +81,8 @@ async fn a_slow_reply_within_the_configured_timeout_is_answered() {
 }
 
 /// A reply beyond the configured timeout is a 408 when that time has passed - neither
-/// earlier, at the crate's default, nor in the crate's words.
+/// earlier, at the crate's default, nor in the crate's words: the text names the
+/// configured timeout in milliseconds.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_reply_beyond_the_configured_timeout_is_a_408_at_that_time() {
     let (config, proxy) = proxied(1200).await;
@@ -94,7 +99,7 @@ async fn a_reply_beyond_the_configured_timeout_is_a_408_at_that_time() {
         .expect_err("no reply within the configured timeout");
     let elapsed = started.elapsed();
     assert_eq!(408, error.status(), "{}", error.message());
-    assert_eq!("Redis request timed out after 1200ms", error.message());
+    assert_eq!("Redis request timed out after 1200 ms", error.message());
     assert!(
         elapsed >= Duration::from_millis(1200) && elapsed < Duration::from_millis(2500),
         "the configured timeout is the deadline: {elapsed:?}"
@@ -144,4 +149,42 @@ async fn the_manager_from_the_configuration_takes_the_configured_timeout() {
         .await
         .expect("the configured timeout bounds the reply on a manager used directly");
     assert_eq!(Some("v".to_string()), value);
+}
+
+/// A consumer that issues its own commands on the manager from the configuration gets
+/// the `redis` crate's error, which says only that it timed out. Classified with the
+/// deadline the command ran under, it is the same 408 in the same words as a command sent
+/// through the backend.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_crates_own_timeout_is_classified_in_the_same_words() {
+    let (config, proxy) = proxied(1200).await;
+    let mut manager = config.manager().await.expect("manager connects");
+    let _: () = redis::cmd("SETEX")
+        .arg("k")
+        .arg(60)
+        .arg("v")
+        .query_async(&mut manager)
+        .await
+        .expect("a write on the unhindered connection");
+
+    proxy.delay_replies(Duration::from_millis(3000));
+    let started = Instant::now();
+    let error = redis::cmd("GET")
+        .arg("k")
+        .query_async::<Option<String>>(&mut manager)
+        .await
+        .expect_err("no reply within the configured timeout");
+    // only the crate's timer runs here, and it runs for the configured time
+    assert!(error.is_timeout(), "the crate's own timeout: {error}");
+    assert!(
+        started.elapsed() >= Duration::from_millis(1200),
+        "the configured timeout is the crate's deadline: {:?}",
+        started.elapsed()
+    );
+    let classified = classify_command_error(&error, config.timeout());
+    assert_eq!(408, classified.status(), "{}", classified.message());
+    assert_eq!(
+        "Redis request timed out after 1200 ms",
+        classified.message()
+    );
 }

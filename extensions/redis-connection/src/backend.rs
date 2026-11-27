@@ -89,7 +89,10 @@
 //! then cover one command - this module's and the crate's - and either may
 //! answer first at the deadline: both are reported as the same timeout, `Redis
 //! request timed out after N ms` for a command and `connect timed out after N
-//! ms` for a connection.
+//! ms` for a connection, N being the configured timeout in milliseconds. The
+//! crate's own error says only `timed out` and does not carry its deadline, so
+//! the classification of a failed command is given it
+//! ([`classify_command_error`]).
 
 use std::fmt::Display;
 use std::future::Future;
@@ -195,13 +198,19 @@ impl From<ConnectError> for AppError {
 
 /// Classify a failed command the way the Java `RedisFailure.classify` does, so
 /// a caller — or a flow's / graph's exception handler, which passes the status
-/// through — sees the failure for what it is: a timeout is **408**, a refused,
-/// dropped or otherwise unreachable connection (and a cluster that cannot
-/// route) is **503** `Redis unavailable - …`, and anything the server answered
-/// (a wrong type, an unknown command, a rejected credential) stays **500**.
-pub fn classify_command_error(error: &redis::RedisError) -> AppError {
+/// through — sees the failure for what it is: a timeout is **408** `Redis
+/// request timed out after N ms`, a refused, dropped or otherwise unreachable
+/// connection (and a cluster that cannot route) is **503**
+/// `Redis unavailable - …`, and anything the server answered (a wrong type, an
+/// unknown command, a rejected credential) stays **500**.
+///
+/// `timeout` is the deadline the command ran under. Lettuce's timeout names
+/// its own (`Command timed out after N second(s)`); the `redis` crate's says
+/// only `timed out`, so the caller supplies it and the 408 is the one
+/// [`command_timeout`] builds (module docs: *One deadline*).
+pub fn classify_command_error(error: &redis::RedisError, timeout: Duration) -> AppError {
     if error.is_timeout() {
-        AppError::new(408, format!("Redis request timed out - {error}"))
+        command_timeout(timeout)
     } else if error.is_connection_refusal()
         || error.is_connection_dropped()
         || error.is_io_error()
@@ -214,12 +223,17 @@ pub fn classify_command_error(error: &redis::RedisError) -> AppError {
 }
 
 /// The per-command deadline expired without an answer: **408**, the same
-/// status the platform gives an RPC timeout.
+/// status the platform gives an RPC timeout, with the one text of this failure
+/// whichever timer reported it.
 pub fn command_timeout(timeout: Duration) -> AppError {
-    AppError::new(
-        408,
-        format!("Redis request timed out after {}ms", timeout.as_millis()),
-    )
+    AppError::new(408, timeout_text(timeout))
+}
+
+/// `Redis request timed out after N ms` - N is the deadline in milliseconds.
+/// The Java engine's 408 carries Lettuce's `Command timed out after N
+/// second(s)`: `timed out after` in both, each in its client library's unit.
+fn timeout_text(timeout: Duration) -> String {
+    format!("Redis request timed out after {} ms", timeout.as_millis())
 }
 
 /// Is this failure the connection going away (the manager's own reconnect
@@ -259,10 +273,13 @@ pub enum CommandError {
 impl CommandError {
     /// Java `RedisFailure.classify`: 408 for a timeout, 503 for an unreachable
     /// Redis, 500 for a server answer (see [`classify_command_error`]).
-    pub fn classify(self) -> AppError {
+    /// `timeout` is the deadline the command ran under, for a timeout the
+    /// `redis` crate reported itself; [`RedisBackend::attempt`] returns that as
+    /// [`CommandError::TimedOut`], which names its own.
+    pub fn classify(self, timeout: Duration) -> AppError {
         match self {
-            CommandError::TimedOut(timeout) => command_timeout(timeout),
-            CommandError::Redis(error) => classify_command_error(&error),
+            CommandError::TimedOut(deadline) => command_timeout(deadline),
+            CommandError::Redis(error) => classify_command_error(&error, timeout),
         }
     }
 }
@@ -270,13 +287,7 @@ impl CommandError {
 impl Display for CommandError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CommandError::TimedOut(timeout) => {
-                write!(
-                    f,
-                    "Redis command timed out after {} ms",
-                    timeout.as_millis()
-                )
-            }
+            CommandError::TimedOut(timeout) => write!(f, "{}", timeout_text(*timeout)),
             CommandError::Redis(error) => write!(f, "{error}"),
         }
     }
@@ -513,7 +524,7 @@ impl RedisBackend {
             async move { cmd.query_async::<T>(&mut connection).await }
         })
         .await
-        .map_err(CommandError::classify)
+        .map_err(|failure| failure.classify(self.timeout))
     }
 
     /// [`RedisBackend::query`] for a command that is safe to run twice: after a
@@ -525,7 +536,7 @@ impl RedisBackend {
             async move { cmd.query_async::<T>(&mut connection).await }
         })
         .await
-        .map_err(CommandError::classify)
+        .map_err(|failure| failure.classify(self.timeout))
     }
 
     /// Issue a pipeline (a plain batch, or an atomic `MULTI`/`EXEC` block when
@@ -538,7 +549,7 @@ impl RedisBackend {
             async move { pipe.query_async::<T>(&mut connection).await }
         })
         .await
-        .map_err(CommandError::classify)
+        .map_err(|failure| failure.classify(self.timeout))
     }
 
     /// [`RedisBackend::query_pipeline`] for a batch that is safe to run twice
@@ -552,7 +563,7 @@ impl RedisBackend {
             async move { pipe.query_async::<T>(&mut connection).await }
         })
         .await
-        .map_err(CommandError::classify)
+        .map_err(|failure| failure.classify(self.timeout))
     }
 
     /// The connection lifecycle shared by every clone of this backend.

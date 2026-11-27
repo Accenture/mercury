@@ -6123,3 +6123,36 @@ deadline.
   test reaches its double through the relay and gains a thirteenth step. All five failed before the change, at
   500 ms.
 - **Not changed.** The guides already call `redis.timeout.ms` the command timeout; the bounce test is as it was.
+
+## Increment 219 — A Redis command without an answer in time reads `Redis request timed out after N ms`, whichever timer reports it (2026-11-27)
+
+The maintainer's request once Increment 218 had merged: the text `Redis request timed out - timed out`, seen in the
+red run behind that increment, does not read right and should name the timeout in milliseconds. His ruling on the
+wording, with the Java engine's text beside it (Lettuce's `Command timed out after N second(s)`): `after N ms`, for
+consistency; the unit differs with the client library, and that difference is fine.
+
+- **Where the text came from.** `classify_command_error` appended the `redis` crate's error to this engine's
+  words, and the crate's timeout says only `timed out`. Increment 218 took that path out of `RedisBackend`'s own
+  commands, where `attempt` returns `CommandError::TimedOut` for the crate's timeout, but the function is public:
+  a consumer that issues its own commands on the manager and classifies the error still got the doubled text. The
+  same failure had two more wordings: `Redis request timed out after 5000ms`, without a space, from
+  `command_timeout` and from the state store, and `Redis command timed out after 5000 ms` from `CommandError`'s
+  `Display`.
+- **The change.** One text, built in one place in the foundation: `Redis request timed out after N ms`, N being the
+  timeout the command ran under, in milliseconds. `command_timeout` builds it, `CommandError`'s `Display` uses it,
+  and `classify_command_error` returns `command_timeout` for the crate's timeout, so the text is the same whichever
+  of the two timers answers. The crate's error does not carry its deadline, where Lettuce's message does, so
+  `classify_command_error` and `CommandError::classify` take it as a second argument, and `RedisBackend` passes its
+  own. The state store does not depend on the foundation and writes the same words for its 500.
+- **Tests.** `the_crates_own_timeout_is_classified_in_the_same_words` in `configured_timeout.rs`: a manager used
+  directly, so only the crate's timer runs; the error is the crate's `timed out` after the configured 1200 ms and
+  classifies as 408 `Redis request timed out after 1200 ms`, where it read `Redis request timed out - timed out`.
+  The deadline test of that file and the classification test in `backend.rs` assert the text, the latter for the
+  raw failure displayed and classified as well. The state store's contract test gains a fourteenth step: a reply
+  held back beyond the configured 5000 ms is 500 `Redis request timed out after 5000 ms`, whichever of the store's
+  two timers answers; the suite takes about five seconds longer for it. Each failed before the change on the old
+  text.
+- **Not changed.** The statuses: 408, and 500 from the state store. `connect timed out after N ms` for a connection
+  that is not established in time. The sync-over-async store's own 500, `Redis command timed out`. The Java
+  engine's text. The distributed-cache guide names both engines' texts; the interop report keeps the texts its
+  runs recorded.

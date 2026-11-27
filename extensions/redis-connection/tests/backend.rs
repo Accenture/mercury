@@ -196,17 +196,24 @@ async fn connect_once_builds_a_plain_connection() {
 /// unreachable Redis 503 `Redis unavailable`, a server answer 500 - and a
 /// connect failure on the caller's path (the cache runtime's lazy build) is
 /// 503 too, while a configuration that cannot build a client is a 500 defect.
+/// A timeout reads `Redis request timed out after N ms`, N being the deadline in
+/// milliseconds, whether this engine's timer or the `redis` crate's reported it.
 #[test]
 fn command_and_connect_failures_are_classified() {
     use platform_core::AppError;
-    use redis_connection::{classify_command_error, command_timeout, ConnectError};
+    use redis_connection::{classify_command_error, command_timeout, CommandError, ConnectError};
     let io = |kind: std::io::ErrorKind, text: &str| {
         redis::RedisError::from(std::io::Error::new(kind, text.to_string()))
     };
-    let refused = classify_command_error(&io(
-        std::io::ErrorKind::ConnectionRefused,
-        "Connection refused (os error 61)",
-    ));
+    // the deadline the command ran under: the crate's error does not carry it
+    let deadline = Duration::from_millis(5000);
+    let refused = classify_command_error(
+        &io(
+            std::io::ErrorKind::ConnectionRefused,
+            "Connection refused (os error 61)",
+        ),
+        deadline,
+    );
     assert_eq!(503, refused.status());
     assert!(
         refused.message().starts_with("Redis unavailable - "),
@@ -215,31 +222,52 @@ fn command_and_connect_failures_are_classified() {
     );
     assert_eq!(
         503,
-        classify_command_error(&io(std::io::ErrorKind::BrokenPipe, "broken pipe")).status()
+        classify_command_error(&io(std::io::ErrorKind::BrokenPipe, "broken pipe"), deadline)
+            .status()
     );
     assert_eq!(
         503,
-        classify_command_error(&redis::RedisError::from((
-            redis::ErrorKind::Io,
-            "socket closed"
-        )))
+        classify_command_error(
+            &redis::RedisError::from((redis::ErrorKind::Io, "socket closed")),
+            deadline
+        )
         .status()
     );
-    let timed_out = classify_command_error(&io(std::io::ErrorKind::TimedOut, "timed out"));
+    // the crate's own timeout says only "timed out": the 408 names the deadline instead
+    // of repeating it
+    let timed_out =
+        classify_command_error(&io(std::io::ErrorKind::TimedOut, "timed out"), deadline);
     assert_eq!(408, timed_out.status());
-    assert!(
-        timed_out.message().starts_with("Redis request timed out"),
-        "{}",
-        timed_out.message()
+    assert_eq!("Redis request timed out after 5000 ms", timed_out.message());
+    let expired = command_timeout(deadline);
+    assert_eq!(408, expired.status());
+    assert_eq!("Redis request timed out after 5000 ms", expired.message());
+    // the raw failure of `attempt` says the same, displayed or classified
+    assert_eq!(
+        "Redis request timed out after 5000 ms",
+        CommandError::TimedOut(deadline).to_string()
     );
-    let deadline = command_timeout(Duration::from_millis(5000));
-    assert_eq!(408, deadline.status());
-    assert_eq!("Redis request timed out after 5000ms", deadline.message());
+    assert_eq!(
+        "Redis request timed out after 5000 ms",
+        CommandError::TimedOut(deadline)
+            .classify(deadline)
+            .message()
+    );
+    let from_the_crate =
+        CommandError::Redis(io(std::io::ErrorKind::TimedOut, "timed out")).classify(deadline);
+    assert_eq!(408, from_the_crate.status());
+    assert_eq!(
+        "Redis request timed out after 5000 ms",
+        from_the_crate.message()
+    );
     // the server answered (or the client mis-parsed): not an outage, stays 500
-    let answered = classify_command_error(&redis::RedisError::from((
-        redis::ErrorKind::UnexpectedReturnType,
-        "Response was of incompatible type",
-    )));
+    let answered = classify_command_error(
+        &redis::RedisError::from((
+            redis::ErrorKind::UnexpectedReturnType,
+            "Response was of incompatible type",
+        )),
+        deadline,
+    );
     assert_eq!(500, answered.status());
     assert!(
         answered.message().starts_with("Redis error - "),

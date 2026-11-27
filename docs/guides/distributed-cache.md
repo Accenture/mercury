@@ -63,9 +63,10 @@ Notes for callers:
   PUT, GET, MGET, …`).
 - **Redis failures are classified**, so a caller — or the flow's / graph's exception handler, which passes
   the status through — sees the failure for what it is: a command timeout replies **408** (`Redis request
-  timed out after N ms`), a refused, dropped or unreachable connection replies **503** `Redis unavailable - …`
-  (the `redis.health` vocabulary), and anything the server answered (a wrong type, an unknown command) keeps
-  the default 500. The Java engine classifies the same way, so a mixed fleet fails alike.
+  timed out after N ms`, N being `redis.timeout.ms`), a refused, dropped or unreachable connection replies
+  **503** `Redis unavailable - …` (the `redis.health` vocabulary), and anything the server answered (a wrong
+  type, an unknown command) keeps the default 500. The Java engine classifies the same way, so a mixed fleet
+  fails alike; its 408 reads `Command timed out after N second(s)`, the text and the unit of its client library.
 
 ## Enabling and configuring {#config}
 
