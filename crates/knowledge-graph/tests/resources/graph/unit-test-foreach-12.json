@@ -1,0 +1,152 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "unit-test-foreach-12",
+        "purpose": "a fetcher with two dictionary items, the last fails, no handler (control)"
+      }
+    },
+    {
+      "alias": "fan-out",
+      "types": [
+        "Fetcher"
+      ],
+      "properties": {
+        "skill": "graph.api.fetcher",
+        "dictionary": [
+          "person-name",
+          "account-details"
+        ],
+        "input": [
+          "input.body.person_id -> person_id",
+          "input.body.account_id -> account_id"
+        ],
+        "output": [
+          "result.account_id -> output.body.account_id",
+          "result.person_name -> output.body.name"
+        ]
+      }
+    },
+    {
+      "alias": "after",
+      "types": [
+        "Mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(continued) -> output.body.stage"
+        ],
+        "purpose": "the step after the fan-out: reached only when every element succeeded"
+      }
+    },
+    {
+      "alias": "account-details",
+      "types": [
+        "Dictionary"
+      ],
+      "properties": {
+        "purpose": "Account details",
+        "provider": "account-details-provider",
+        "input": [
+          "person_id",
+          "account_id"
+        ],
+        "output": [
+          "response.account.details.id -> result.account_id"
+        ]
+      }
+    },
+    {
+      "alias": "account-details-provider",
+      "types": [
+        "Provider"
+      ],
+      "properties": {
+        "purpose": "Account Management Endpoint",
+        "url": "http://127.0.0.1:${rest.server.port}/api/account/details",
+        "method": "POST",
+        "input": [
+          "text(application/json) -> header.accept",
+          "text(application/json) -> header.content-type",
+          "person_id -> body.person_id",
+          "account_id -> body.account_id"
+        ]
+      }
+    },
+    {
+      "alias": "person-name",
+      "types": [
+        "Dictionary"
+      ],
+      "properties": {
+        "purpose": "name of a person",
+        "provider": "mdm-profile",
+        "input": [
+          "person_id"
+        ],
+        "output": [
+          "response.profile.name -> result.person_name"
+        ]
+      }
+    },
+    {
+      "alias": "mdm-profile",
+      "types": [
+        "Provider"
+      ],
+      "properties": {
+        "purpose": "profile management endpoint",
+        "url": "http://127.0.0.1:${rest.server.port}/api/mdm/profile/{id}",
+        "method": "GET",
+        "input": [
+          "text(application/json) -> header.accept",
+          "person_id -> path_parameter.id"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "fan-out"
+    },
+    {
+      "source": "fan-out",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "after"
+    },
+    {
+      "source": "after",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

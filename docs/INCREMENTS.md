@@ -6031,3 +6031,65 @@ CHANGELOG Unreleased, `Documentation` item 4. Gates: `python3 scripts/check-doc-
 `python3 scripts/check-llms-links.py` (39 references), `cargo test -p mercury-knowledge-graph --locked` (every suite
 green; no Rust source changed). `mkdocs build --strict` was not run (mkdocs is not on the build machine); the pull
 request's `docs` run is its gate.
+
+## Increment 216 — A failing element fails a `for_each` node with its own status; no batch starts after a failure (2026-11-26)
+
+The twin of the Java engine's mercury-composable #682, which followed a field report: a parent graph fans out over a
+list with a synchronous `for_each` `graph.extension`, one element's subgraph meets an upstream HTTP 500, and the parent
+sometimes carries on and fails later with an unrelated message. The maintainer ruled on the contract the same day: a
+fan-out fails as one node, and the first failing element in list order decides.
+
+- **What this engine did before.** The three fan-out loops (`extension.rs`, `skills.rs` for `graph.task`,
+  `fetcher.rs`) were written for parity with the Java ones and wrote `{node}.status` from every response while
+  `{node}.error` stayed. This engine's `join_batch` keeps a batch's responses in request order and turns a call that
+  did not answer into a 408 response, so two of the Java defects did not exist here: the result was already in list
+  order and a missing answer was already a status. The masking did: a success after the failing element in list order,
+  in its batch or a later one, left the node with status 200 and an error, so a run without `exception=` answered HTTP
+  200 with the error as its body and a handler read `error.code` 200. The `output[]` mappings ran on failure, a failed
+  element of a fetcher mapped the previous element's `response` again, every batch ran after a failure, and a fetcher's
+  `dictionary[]` items went on after one failed.
+- **The change.** `common.rs` gains `FanOutResponse` and `stage_fan_out_responses`, the port of the Java
+  `GraphLambdaFunction.stageFanOutResponses`: a batch is staged in list order and the status is written only until the
+  first failure. `extension.rs` and `skills.rs` use it, stage that element as the node's error, stop after its batch
+  and skip the output mappings; `skills.rs` loses `store_fork_join_response`. `fetcher.rs` does the same in its own
+  loop, maps nothing for a failed element and stops its dictionary items at the first that fails, with and without
+  `for_each`. The three warnings carry the Java engine's text (`Extension {} failed at for_each element {} - {} of {}
+  elements not started`, and `Task`, `Dictionary`).
+- **Tests.** `one_failing_element_fails_a_fan_out` in `tests/graph_runtime.rs`, eight cases called from the one
+  booted test, on the Java fixtures `unit-test-foreach-sub` and `unit-test-foreach-1` to `-12` copied byte for byte
+  and the function `v1.iteration.outcome`; the first case failed against the unchanged engine (HTTP 200 where 500 was
+  due). The compiled count in `tests/compiler.rs` is 97.
+- **The pages and the bundle.** The Java guide change applied with `git apply`: the command reference in full, the
+  skills reference but for the `graph.extension` bullet, whose Java neighbours this page does not carry; it and the
+  Java bullet before it (`error.code` is the delegated call's response status) are placed at the end of the section's
+  list. Four claims pinned on this engine's cases. `npm run release:rust` from the Java webapp: `index-DZzhipVf.js`
+  replaces `index-Bm1JJ1Jt.js`, `template/playground.html` and the three help pages mirrored, every file equal to the
+  Java engine's.
+- **Seen while porting.** `get_error_map` kept the node's `target` beside an error map's own `target`, so the body
+  of a failing `graph.extension` carried the key twice where the Java engine's map keeps the error's; and this
+  engine's text for a call that did not answer was `Request timeout for N ms` where the Java engine's is `Timeout for
+  N ms`. Both predate this increment; the maintainer had them rectified the same day, as Increment 217.
+
+## Increment 217 — An error body names its `target` once, and a missing reply reads `Timeout for N ms`: two differences from the Java engine rectified (2026-11-26)
+
+Both were seen while porting Increment 216, and the maintainer asked for them to be rectified to match the Java
+reference implementation.
+
+- **The error map.** `common::get_error_map` builds the body a failed run answers with: the failing node's `target`,
+  then the error. It pushed every entry of an error map after the node's `target`, so an error that named its own -
+  the body of a subgraph that failed, which a parent reaches through `graph.extension` - gave the key twice. The Java
+  `getErrorMap` fills a `HashMap`, where the error's entry replaces the node's. An entry of the error map now replaces
+  one already set, so the key appears once and is the error's own: the function that failed, not the subgraph the
+  parent called. A reader of this engine's state read the first of the two; a JSON parser that keeps the last key read
+  the second, as on Java. Two unit tests in `common.rs`, and the first fan-out case counts the key.
+- **The timeout text.** `PostOffice::request` answered a call without a reply with `Request timeout for N ms`. The
+  Java engine's inboxes (`FutureInbox`, `AsyncInbox`) say `Timeout for N ms`, as this engine's HTTP client, REST edge
+  and sync-over-async coordinator already did. One line in `post_office.rs`; the text reaches a graph as
+  `{node}.error` and a handler as `error.message`. The fan-out cases now assert the Java test's own text, and the two
+  guide passages that quoted the old one (`function-execution.md`, `rest-automation.md`) quote the new. The
+  distributed-cache interop report keeps the text its runs recorded.
+- **A test race closed, met in this increment's verification.** `edge_relay_spans_are_connected` in
+  `crates/platform-core/tests/event_over_http_stream.rs` was the one test of its file without the suite guard, so
+  the pool-drain test (`server_pool_exhaustion_answers_503`) could empty the reply lanes under it: one workspace run
+  answered 503 where 200 was due, and the binary alone passed five times of five. The test takes the guard now. No
+  engine code changed.

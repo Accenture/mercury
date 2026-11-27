@@ -400,7 +400,7 @@ Errors — a missing route, a rejected authentication, a function error, or a ti
 one JSON shape (Java parity):
 
 ```json
-{ "status": 408, "message": "Request timeout for 10000 ms", "type": "error" }
+{ "status": 408, "message": "Timeout for 10000 ms", "type": "error" }
 ```
 
 with the matching HTTP status: **404** for an unmatched URL, **401** from authentication,

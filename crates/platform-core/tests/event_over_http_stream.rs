@@ -508,6 +508,8 @@ async fn http_get(port: u16, path: &str, headers: &[(&str, &str)]) -> (u16, Stri
 #[tokio::test]
 async fn edge_relay_spans_are_connected() {
     test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
+    // the relay takes a reply lane, so the pool-drain test must not run beside it
+    let _guard = suite_guard().await;
     let (port, platform) = shared();
     let datasets = telemetry_capture(&platform);
     let trace_id = trace::new_trace_id();

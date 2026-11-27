@@ -1,0 +1,89 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "unit-test-foreach-1",
+        "purpose": "a graph.extension fan-out without an exception handler"
+      }
+    },
+    {
+      "alias": "fan-out",
+      "types": [
+        "Extension"
+      ],
+      "properties": {
+        "skill": "graph.extension",
+        "extension": "unit-test-foreach-sub",
+        "for_each": [
+          "input.body.items -> model.item"
+        ],
+        "input": [
+          "model.item -> item",
+          "input.body.fail_on -> fail_on",
+          "input.body.delay -> delay",
+          "input.body.fail_delay -> fail_delay",
+          "input.body.fail_status -> fail_status"
+        ],
+        "output": [
+          "result -> output.body.results"
+        ]
+      }
+    },
+    {
+      "alias": "after",
+      "types": [
+        "Mapper"
+      ],
+      "properties": {
+        "skill": "graph.data.mapper",
+        "mapping": [
+          "text(continued) -> output.body.stage"
+        ],
+        "purpose": "the step after the fan-out: reached only when every element succeeded"
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "fan-out"
+    },
+    {
+      "source": "fan-out",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "after"
+    },
+    {
+      "source": "after",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

@@ -45,8 +45,8 @@ use crate::common::return_path_for;
 use crate::common::{
     fill_fetcher_api_parameters, get_effective_ttl, get_entries, get_for_each_mapping,
     get_model_array_size, get_model_ttl, get_next_model_param_set, invalid, join_batch,
-    perform_fetcher_output_mapping, ERROR, EXCEPTION, HEADER, ITERATION_INDEX_HEADER, NEXT,
-    NODE_NAME, RESULT, SKILL, STATUS, TARGET,
+    perform_fetcher_output_mapping, stage_fan_out_responses, FanOutResponse, ERROR, EXCEPTION,
+    HEADER, ITERATION_INDEX_HEADER, NEXT, NODE_NAME, RESULT, SKILL, STATUS, TARGET,
 };
 use crate::model::GraphInstance;
 use crate::progress::X_RETURN_PATH;
@@ -281,40 +281,35 @@ async fn call_extension_with_fork_join(
             .map_err(invalid)?;
         forwards
     };
-    for batch in forwards.chunks(concurrency) {
+    // the elements run in list order, `concurrency` of them at a time
+    let total = forwards.len();
+    let mut completed = true;
+    for (batch_index, batch) in forwards.chunks(concurrency).enumerate() {
         log::info!(
             "Call extension {extension}, parallel={}, ttl={timeout}",
             batch.len()
         );
         let responses = run_flow_batch(batch.to_vec(), timeout).await;
         let mut state = instance.state.lock().expect("graph state machine");
-        for response in &responses {
-            state
-                .set_element(
-                    &format!("{node_name}.{STATUS}"),
-                    Value::from(response.status),
-                )
-                .map_err(invalid)?;
-            if !response.headers.is_empty() {
-                state
-                    .set_element(
-                        &format!("{node_name}.{HEADER}[]"),
-                        headers_value(&response.headers),
-                    )
-                    .map_err(invalid)?;
-            }
-            if response.status >= 400 {
-                set_error(&node_name, node, &mut state, response)?;
-            } else {
-                state
-                    .set_element(&format!("{node_name}.{RESULT}[]"), response.body.clone())
-                    .map_err(invalid)?;
-            }
+        if let Some(failed) = stage_fan_out_responses(&mut state, &node_name, &responses)? {
+            set_error(&node_name, node, &mut state, &responses[failed])?;
+            // one failing element fails the node, so no further batch starts
+            let element = batch_index * concurrency + failed;
+            let not_started = total - (batch_index * concurrency + batch.len());
+            log::warn!(
+                "Extension {extension} failed at for_each element {element} - \
+                 {not_started} of {total} elements not started"
+            );
+            completed = false;
+            break;
         }
     }
     let mut state = instance.state.lock().expect("graph state machine");
-    let output_mapping = get_entries(node.get_property("output"));
-    perform_fetcher_output_mapping(&node_name, &mut state, &output_mapping)?;
+    // a failed fan-out maps nothing onward: the node's status and error say why
+    if completed {
+        let output_mapping = get_entries(node.get_property("output"));
+        perform_fetcher_output_mapping(&node_name, &mut state, &output_mapping)?;
+    }
     // clear the temporary dataset
     state.remove_element(&format!("{node_name}.fetch"));
     state.remove_element(&format!("{node_name}.each"));
@@ -786,6 +781,20 @@ struct FlowResponse {
     status: i32,
     headers: HashMap<String, String>,
     body: Value,
+}
+
+impl FanOutResponse for FlowResponse {
+    fn status(&self) -> i32 {
+        self.status
+    }
+
+    fn headers_value(&self) -> Option<Value> {
+        (!self.headers.is_empty()).then(|| headers_value(&self.headers))
+    }
+
+    fn body(&self) -> &Value {
+        &self.body
+    }
 }
 
 async fn call_flow(po: &PostOffice, forward: EventEnvelope, ttl: i64) -> FlowResponse {

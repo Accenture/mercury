@@ -163,3 +163,18 @@ graphs:
   - 'unit-test-task-12'
   - 'unit-test-task-server-err1'
   - 'unit-test-task-server-err2'
+  # one failing element of a synchronous for_each fan-out fails the node: the three fork-join skills
+  # (graph.extension, graph.task, graph.api.fetcher), each without and with an exception handler
+  - 'unit-test-foreach-sub'
+  - 'unit-test-foreach-1'
+  - 'unit-test-foreach-2'
+  - 'unit-test-foreach-3'
+  - 'unit-test-foreach-4'
+  - 'unit-test-foreach-5'
+  - 'unit-test-foreach-6'
+  - 'unit-test-foreach-7'
+  - 'unit-test-foreach-8'
+  - 'unit-test-foreach-9'
+  - 'unit-test-foreach-10'
+  - 'unit-test-foreach-11'
+  - 'unit-test-foreach-12'

@@ -1,0 +1,63 @@
+{
+  "nodes": [
+    {
+      "alias": "root",
+      "types": [
+        "Root"
+      ],
+      "properties": {
+        "name": "unit-test-foreach-sub",
+        "purpose": "one element of a for_each fan-out: a single task that fails for a chosen element"
+      }
+    },
+    {
+      "alias": "work",
+      "types": [
+        "Task"
+      ],
+      "properties": {
+        "skill": "graph.task",
+        "task": "v1.iteration.outcome",
+        "input": [
+          "input.body.item -> item",
+          "input.body.fail_on -> fail_on",
+          "input.body.delay -> delay",
+          "input.body.fail_delay -> fail_delay",
+          "input.body.fail_status -> fail_status"
+        ],
+        "output": [
+          "result -> output.body"
+        ]
+      }
+    },
+    {
+      "alias": "end",
+      "types": [
+        "End"
+      ],
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "source": "root",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "work"
+    },
+    {
+      "source": "work",
+      "relations": [
+        {
+          "type": "flow",
+          "properties": {}
+        }
+      ],
+      "target": "end"
+    }
+  ]
+}

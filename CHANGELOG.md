@@ -167,6 +167,39 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    this engine's HTTP edge has no upload stream and no multipart upload. Pinned through the real HTTP edge by the flow
    fixture `input-cookie-session`. **Upgrade note:** a mapping of the whole `input.cookie` or `input.session` answered
    nothing before and answers a map now, an empty one when the request has none.
+2. **A failing element of a `for_each` fan-out fails the node with its own status: a later success no longer masks
+   it (Increment 216; the twin of the Java engine's mercury-composable #682, from a field report).** `graph.extension`,
+   `graph.task` and `graph.api.fetcher` wrote the node's status from every response of a batch while the node's error
+   stayed, so the status was the last element's. When a success followed the failing element in list order, a run
+   without `exception=` stopped at the node but answered HTTP 200 with the error as its body, and a handler was
+   entered with `error.code` 200. This engine already kept a batch's responses in request order and answered 408 for
+   an element that did not reply, so here the masking needed a success after the failure, where the Java engine's was
+   random. The node now carries the status and error of the first failing element in list order; the batch that holds
+   it runs to its end and no further batch starts; the `output[]` mappings are skipped on failure, as the pages say; and
+   a failed element of a fetcher maps nothing, where it mapped the previous element's response again. A fetcher with
+   several `dictionary[]` items, called one after the other, stops at the first that fails, with and without
+   `for_each`, and `{node}.target` names that item. A warning names the failing element and how many did not start,
+   in the Java engine's words. `stage_fan_out_responses` in `common.rs` holds the rule for the extension and the task;
+   the cases are `one_failing_element_fails_a_fan_out` in `graph_runtime.rs`, on the Java fixtures
+   `unit-test-foreach-*` copied byte for byte, and they failed before the change. The command reference, the skills
+   reference, the mirrored help pages and the bundle (`index-DZzhipVf.js`) state the rule, with four claims pinned.
+   **Upgrade note:** a graph whose `for_each` node meets a failing element may answer differently, because the failure
+   is now always reported: without a handler the run aborts with the element's status where it could answer 200, a
+   handler reads the element's status in `error.code`, and the elements of later batches are not called. A graph that
+   needs the remaining elements to run after a failure lets each element handle its own: run it in a sub-graph whose
+   `exception=` handler answers with the element's outcome, and inspect the results after the node.
+3. **Two differences from the Java engine rectified: an error body names its `target` once, and a call that does not
+   answer reads `Timeout for N ms` (Increment 217; both seen while porting Increment 216).** `get_error_map` put the
+   failing node's `target` first and then every entry of an error map, so when the error named its own `target` - the
+   body of a subgraph that failed, reached through `graph.extension` - the answer carried the key twice, where the Java
+   method fills a map and the error's entry replaces the node's. An entry of the error map now replaces one already
+   set: the key appears once and is the error's own, the function that failed. And `PostOffice::request` reported a
+   missing reply as `Request timeout for N ms`, where the Java engine's inboxes say `Timeout for N ms`, the text this
+   engine's HTTP client and REST edge already used; it now says the same, in `{node}.error` and so in a handler's
+   `error.message`. Two unit tests in `common.rs` pin the error map, and the fan-out cases assert the single `target`
+   and the Java test's own text. **Upgrade note:** code that matched the text `Request timeout for` matches `Timeout
+   for` now; a reader of an error body that took the first `target` of two reads the error's own, as a JSON parser
+   that keeps the last key always did.
 
 ### Security
 
