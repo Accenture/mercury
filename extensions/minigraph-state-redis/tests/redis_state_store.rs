@@ -177,9 +177,12 @@ fn iteration_envelope(cid: &str, index: Option<&str>, node: &str) -> Value {
 async fn redis_state_store_contract() {
     test_support::run_at_exit(platform_core::util::elastic_queue::shutdown_cleanup);
     let (port, raw_store, journal) = common::start_resp_double("7.4.1").await;
+    // the store reaches the double through a relay that step 13 uses to hold replies back;
+    // until then the relay passes everything at once
+    let proxy = common::BounceProxy::start(port).await;
     platform_core::resources::prepend_resource_root("tests/resources");
     overrides::set("redis.host", "127.0.0.1");
-    overrides::set("redis.port", &port.to_string());
+    overrides::set("redis.port", &proxy.port().to_string());
     AutoStart::main(vec![]).await.expect("lifecycle");
     let platform = Platform::get_instance();
     let po = PostOffice::new(&platform);
@@ -562,4 +565,31 @@ async fn redis_state_store_contract() {
             .contains_key(&indexed_key(GRAPH_ID, &cid, "1").into_bytes()),
         "the misses must not consume the neighbour's record"
     );
+
+    // 13) `redis.timeout.ms` (5000 here, the default) is the one deadline of a round trip, as
+    // the Java store gives it to Lettuce: a reply slower than the `redis` crate's own 500 ms
+    // response timeout and within the configured time is answered
+    let cid = uuid::Uuid::new_v4().simple().to_string();
+    proxy.delay_replies(Duration::from_millis(900));
+    let started = Instant::now();
+    let stored = request(&po, PERSIST_ROUTE, "put", sample_envelope(&cid, 30)).await;
+    assert_eq!(200, stored.status(), "slow persist: {:?}", stored.body());
+    let restored = request(&po, RETRIEVE_ROUTE, "get", get_body(GRAPH_ID, &cid)).await;
+    assert_eq!(
+        200,
+        restored.status(),
+        "slow retrieve: {:?}",
+        restored.body()
+    );
+    assert!(
+        !is_empty_map(restored.body()),
+        "the record came back through the slow link: {:?}",
+        restored.body()
+    );
+    assert!(
+        started.elapsed() >= Duration::from_millis(1800),
+        "both replies were held back: {:?}",
+        started.elapsed()
+    );
+    proxy.delay_replies(Duration::ZERO);
 }

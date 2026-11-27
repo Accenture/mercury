@@ -29,12 +29,18 @@
 //! `redis.password`, `redis.ssl`, `redis.database`, `redis.timeout.ms` — all
 //! resolvable through the usual `${ENV_VAR:default}` substitution, e.g.
 //! `redis.password=${REDIS_PASSWORD:}`.
+//!
+//! `redis.timeout.ms` is the one deadline of a round trip, as the Java store
+//! gives it to Lettuce (`RedisURI.withTimeout`). The `redis` crate has timeouts
+//! of its own - 500 ms for a response, one second for a connection attempt -
+//! so the manager is built with the configured value for both; left at the
+//! crate's defaults they answered first.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use platform_core::{AppConfigReader, AppError};
-use redis::aio::ConnectionManager;
+use redis::aio::{ConnectionManager, ConnectionManagerConfig};
 use redis::{ConnectionAddr, IntoConnectionInfo, RedisConnectionInfo};
 use tokio::sync::OnceCell;
 
@@ -141,9 +147,15 @@ async fn connect() -> Result<ConnectionManager, redis::RedisError> {
         .into_connection_info()?
         .set_redis_settings(redis_settings);
     let client = redis::Client::open(info)?;
+    // the configured timeout is the crate's own too, on this connection and on every one
+    // the manager rebuilds (module docs)
+    let settings = ConnectionManagerConfig::new()
+        .set_response_timeout(Some(request_timeout()))
+        .set_connection_timeout(Some(request_timeout()));
     // establishes the first connection now, so an unreachable Redis fails
     // loudly on the first suspend/resume instead of hanging silently
-    let manager = tokio::time::timeout(request_timeout(), client.get_connection_manager())
+    let connecting = client.get_connection_manager_with_config(settings);
+    let manager = tokio::time::timeout(request_timeout(), connecting)
         .await
         .map_err(|_| {
             redis::RedisError::from(std::io::Error::new(

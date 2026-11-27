@@ -200,6 +200,24 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    and the Java test's own text. **Upgrade note:** code that matched the text `Request timeout for` matches `Timeout
    for` now; a reader of an error body that took the first `target` of two reads the error's own, as a JSON parser
    that keeps the last key always did.
+4. **`redis.timeout.ms` is the one deadline of a Redis command: the `redis` crate's own 500 ms response timeout no
+   longer answers first (Increment 218).** `mercury-redis-connection` and `mercury-minigraph-state-redis` built
+   their connections with the `redis` crate's defaults, which time a response out after 500 ms and a connection
+   attempt after one second. A reply slower than 500 ms therefore failed with 408 `Redis request timed out - timed
+   out` (500 `Redis error - timed out` from the state store) although the configured timeout was 5000 ms, where the
+   Java engine gives the setting to Lettuce as the command timeout. Every connection is now built with the
+   configured value for both of the crate's timeouts - the managed connection, the single connection of the health
+   probe and of the cluster probe, the cluster client, the manager a consumer takes from `RedisConfig::manager`, and
+   the state store's own - through `RedisConfig::connection_config` and `manager_config`. Two timers then cover one
+   command, this engine's and the crate's, and either may answer at the deadline, so both report the one failure:
+   `Redis request timed out after N ms` (408; 500 from the state store, as before) and `connect timed out after N
+   ms`. Found from a red `rust` run on `main`, where a bounce test's `GET` once waited past 500 ms on a runner.
+   Pinned by `configured_timeout.rs` (four tests through a relay that holds replies back, `BounceProxy::delay_replies`
+   in the test double) and a thirteenth step of the state store's contract test; each failed before the change.
+   **Upgrade note:** a Redis command that takes longer than 500 ms and less than `redis.timeout.ms` now succeeds
+   where it failed; one that exceeds the configured time fails at that time, with the text above where it read
+   `Redis request timed out - timed out`. An application that relied on the 500 ms answer sets `redis.timeout.ms`
+   (or `soa.redis.timeout.ms`) to the time it wants.
 
 ### Security
 
