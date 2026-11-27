@@ -6093,3 +6093,33 @@ reference implementation.
   the pool-drain test (`server_pool_exhaustion_answers_503`) could empty the reply lanes under it: one workspace run
   answered 503 where 200 was due, and the binary alone passed five times of five. The test takes the guard now. No
   engine code changed.
+
+## Increment 218 — `redis.timeout.ms` is the one deadline of a Redis command: the `redis` crate's own timeouts are set from it (2026-11-27)
+
+Found from a red `rust` run on `main` (the merge of #426): `redis-connection`'s
+`idempotent_command_heals_across_a_bounce_with_one_retry` failed with 408 `Redis request timed out - timed out` about
+504 ms after its binary started. #426 does not touch that crate, the pull request's run on the same tree had passed,
+and the test did not fail in 1160 local runs under load. The text is the `redis` crate's, not this engine's own
+deadline.
+
+- **The cause.** `redis` 1.5.0 times a response out after 500 ms and a connection attempt after one second unless
+  told otherwise, and neither `mercury-redis-connection` nor `mercury-minigraph-state-redis` told it: both built
+  their connections with `get_connection_manager()` and `get_multiplexed_async_connection()`. So a reply slower
+  than 500 ms failed whatever `redis.timeout.ms` said (5000 by default). A probe through a relay that holds replies
+  back, the configured timeout at 5000 ms: a 300 ms delay answered after 303 ms, and 700 ms and 2000 ms delays failed
+  after 502 and 501 ms. The Java engine gives the setting to Lettuce as the command timeout
+  (`RedisURI.withTimeout`), in the foundation and in the state store alike. On the runner the test's `GET` once
+  waited past 500 ms; why it did is not established.
+- **The change.** `RedisConfig::connection_config` and `manager_config` carry the configured timeout as the
+  crate's response and connection timeout, and every connection is built with one of them: `connect_standalone`,
+  `connect_once`, the cluster probe, `RedisConfig::manager`; the cluster client takes both through its builder; the
+  state store sets them on its own manager. Two timers now cover one command, so a timeout the crate reports is
+  the same failure as this engine's own deadline: `attempt` returns `CommandError::TimedOut`, the connect wrapper
+  `ConnectError::TimedOut`, the state store its `Redis request timed out after N ms`. A timeout is still no
+  lifecycle signal. Pub/Sub connections are built without the crate's response timeout and are unchanged.
+- **Tests.** The test double's `BounceProxy` gains `delay_replies`. `redis-connection/tests/configured_timeout.rs`:
+  a slow reply within the configured timeout is answered (the managed connection, the single one, and a manager
+  used directly), and a reply beyond it is a 408 at that time in this engine's words. The state store's contract
+  test reaches its double through the relay and gains a thirteenth step. All five failed before the change, at
+  500 ms.
+- **Not changed.** The guides already call `redis.timeout.ms` the command timeout; the bounce test is as it was.

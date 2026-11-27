@@ -54,6 +54,15 @@
 //! published by a start-up vault bootstrap has not landed while functions are
 //! being constructed (the Java preload-before-bootstrap lesson).
 //!
+//! **`timeout.ms` is the one deadline.** The Java `RedisConfig` gives it to
+//! Lettuce as the command timeout (`RedisURI.withTimeout`). The `redis` crate
+//! has timeouts of its own - 500 ms for a response and one second for a
+//! connection attempt - so every connection is built with
+//! [`RedisConfig::connection_config`] or [`RedisConfig::manager_config`], which
+//! set both from the configured value; left at the crate's defaults they
+//! answered first, and a reply slower than 500 ms failed whatever `timeout.ms`
+//! said.
+//!
 //! **Cluster selection (two keys).** `<prefix>cluster.detect=auto` (the
 //! default) probes the seed at start-up and picks cluster or standalone from
 //! what the server reports; otherwise the boolean `<prefix>cluster.mode`
@@ -64,8 +73,10 @@
 use std::time::Duration;
 
 use platform_core::{AppConfigReader, AppError};
-use redis::aio::ConnectionManager;
-use redis::{ConnectionAddr, ConnectionInfo, IntoConnectionInfo, RedisConnectionInfo};
+use redis::aio::{ConnectionManager, ConnectionManagerConfig};
+use redis::{
+    AsyncConnectionConfig, ConnectionAddr, ConnectionInfo, IntoConnectionInfo, RedisConnectionInfo,
+};
 
 /// sync-over-async's key namespace (`soa.redis.*`).
 pub const SOA_PREFIX: &str = "soa.redis.";
@@ -243,6 +254,23 @@ impl RedisConfig {
         Duration::from_millis(self.timeout_ms.max(1))
     }
 
+    /// The `redis` crate's own timeouts for a single connection built from this
+    /// configuration: [`RedisConfig::timeout`] bounds a reply and a connection
+    /// attempt alike, in place of the crate's defaults (module docs).
+    pub fn connection_config(&self) -> AsyncConnectionConfig {
+        AsyncConnectionConfig::new()
+            .set_response_timeout(Some(self.timeout()))
+            .set_connection_timeout(Some(self.timeout()))
+    }
+
+    /// [`RedisConfig::connection_config`] for the auto-reconnecting manager: the
+    /// same two timeouts on its first connection and on every one it rebuilds.
+    pub fn manager_config(&self) -> ConnectionManagerConfig {
+        ConnectionManagerConfig::new()
+            .set_response_timeout(Some(self.timeout()))
+            .set_connection_timeout(Some(self.timeout()))
+    }
+
     pub fn heartbeat_ms(&self) -> u64 {
         self.heartbeat_ms
     }
@@ -319,7 +347,8 @@ impl RedisConfig {
     /// reconnects internally after an outage; Pub/Sub cannot ride it.
     pub async fn manager(&self) -> Result<ConnectionManager, AppError> {
         let client = self.client()?;
-        tokio::time::timeout(self.timeout(), client.get_connection_manager())
+        let connecting = client.get_connection_manager_with_config(self.manager_config());
+        tokio::time::timeout(self.timeout(), connecting)
             .await
             .map_err(|_| AppError::new(500, "Redis connection timed out"))?
             .map_err(|e| AppError::new(500, format!("Redis unavailable - {e}")))

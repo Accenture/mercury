@@ -239,12 +239,17 @@ async fn with_deadline<T>(
     fut: impl std::future::Future<Output = Result<T, redis::RedisError>>,
 ) -> Result<T, AppError> {
     let timeout = connection::request_timeout();
-    match tokio::time::timeout(timeout, fut).await {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(e)) => Err(AppError::new(500, format!("Redis error - {e}"))),
-        Err(_) => Err(AppError::new(
+    let timed_out = || {
+        AppError::new(
             500,
             format!("Redis request timed out after {}ms", timeout.as_millis()),
-        )),
+        )
+    };
+    match tokio::time::timeout(timeout, fut).await {
+        Ok(Ok(value)) => Ok(value),
+        // the crate's own response timeout is the same deadline: one failure, one text
+        Ok(Err(e)) if e.is_timeout() => Err(timed_out()),
+        Ok(Err(e)) => Err(AppError::new(500, format!("Redis error - {e}"))),
+        Err(_) => Err(timed_out()),
     }
 }

@@ -671,12 +671,15 @@ fn message_frame(channel: &[u8], payload: &[u8]) -> Vec<u8> {
 /// dropped, the port back at once) or a **full outage** (reconnects refused).
 /// Shared by the crates that prove their bounce-recovery behaviour: the Redis
 /// foundation's lifecycle-aware retry and the sync-over-async store's
-/// idempotent-only retry both drive their client through it.
+/// idempotent-only retry both drive their client through it. It can also hold
+/// back the server's replies ([`BounceProxy::delay_replies`]) - the wire shape
+/// of a slow server or a slow network, for the tests of a command's deadline.
 pub struct BounceProxy {
     port: u16,
     links: Arc<Mutex<Vec<JoinHandle<()>>>>,
     stop_accepting: watch::Sender<bool>,
     acceptor: Mutex<Option<JoinHandle<()>>>,
+    reply_delay_ms: Arc<AtomicU64>,
 }
 
 impl BounceProxy {
@@ -688,6 +691,8 @@ impl BounceProxy {
         let links: Arc<Mutex<Vec<JoinHandle<()>>>> = Arc::new(Mutex::new(Vec::new()));
         let (stop_accepting, mut stopped) = watch::channel(false);
         let live = links.clone();
+        let reply_delay_ms = Arc::new(AtomicU64::new(0));
+        let reply_delay = reply_delay_ms.clone();
         let acceptor = tokio::spawn(async move {
             loop {
                 tokio::select! {
@@ -698,7 +703,7 @@ impl BounceProxy {
                         else {
                             continue;
                         };
-                        let link = tokio::spawn(relay(inbound, outbound));
+                        let link = tokio::spawn(relay(inbound, outbound, reply_delay.clone()));
                         live.lock().expect("links").push(link);
                     }
                 }
@@ -709,12 +714,21 @@ impl BounceProxy {
             links,
             stop_accepting,
             acceptor: Mutex::new(Some(acceptor)),
+            reply_delay_ms,
         }
     }
 
     /// The port a client connects to.
     pub fn port(&self) -> u16 {
         self.port
+    }
+
+    /// Hold back every reply on its way from the server to the client by `delay`, on the
+    /// live links and on later ones; a zero delay restores the immediate relay. Requests
+    /// still travel at once, so the server has answered long before the client hears it.
+    pub fn delay_replies(&self, delay: Duration) {
+        self.reply_delay_ms
+            .store(delay.as_millis() as u64, Ordering::Relaxed);
     }
 
     /// Sever every live link — a server bounce (back immediately). Returns only
@@ -745,7 +759,7 @@ impl BounceProxy {
     }
 }
 
-async fn relay(inbound: TcpStream, outbound: TcpStream) {
+async fn relay(inbound: TcpStream, outbound: TcpStream, reply_delay_ms: Arc<AtomicU64>) {
     let (mut client_read, mut client_write) = inbound.into_split();
     let (mut server_read, mut server_write) = outbound.into_split();
     let up = async {
@@ -767,6 +781,10 @@ async fn relay(inbound: TcpStream, outbound: TcpStream) {
             match server_read.read(&mut buf).await {
                 Ok(0) | Err(_) => return,
                 Ok(n) => {
+                    let delay = reply_delay_ms.load(Ordering::Relaxed);
+                    if delay > 0 {
+                        tokio::time::sleep(Duration::from_millis(delay)).await;
+                    }
                     if client_write.write_all(&buf[..n]).await.is_err() {
                         return;
                     }

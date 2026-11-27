@@ -79,6 +79,17 @@
 //!   proven, and replaying an ambiguous `RPUSH` risks a duplicate — the
 //!   heartbeat is what heals those ahead of the next call. A timeout is never a
 //!   lifecycle signal (408, no retry), nor is anything the server answered.
+//!
+//! # One deadline
+//!
+//! [`RedisConfig::timeout`] bounds a command, as the Java engine's Lettuce
+//! command timeout does. The `redis` crate times a response out on its own
+//! (500 ms by default), so each connection is built with the configured value
+//! as the crate's timeout too ([`RedisConfig::connection_config`]). Two timers
+//! then cover one command - this module's and the crate's - and either may
+//! answer first at the deadline: both are reported as the same timeout, `Redis
+//! request timed out after N ms` for a command and `connect timed out after N
+//! ms` for a connection.
 
 use std::fmt::Display;
 use std::future::Future;
@@ -387,7 +398,11 @@ impl RedisBackend {
     /// store's two-key `DEL`), where the cluster parity is a separate item.
     pub async fn connect_standalone(config: &RedisConfig) -> Result<Self, ConnectError> {
         let client = Self::client(config)?;
-        let manager = with_timeout(config.timeout(), client.get_connection_manager()).await?;
+        let manager = with_timeout(
+            config.timeout(),
+            client.get_connection_manager_with_config(config.manager_config()),
+        )
+        .await?;
         let backend = Self::new(RedisConnection::Managed(manager), false, config);
         if let Some(interval) = config.heartbeat() {
             backend.start_heartbeat(interval);
@@ -406,8 +421,13 @@ impl RedisBackend {
             RedisConnection::Cluster(Self::cluster_connection(config).await?)
         } else {
             let client = Self::client(config)?;
+            let settings = config.connection_config();
             RedisConnection::Multiplexed(
-                with_timeout(config.timeout(), client.get_multiplexed_async_connection()).await?,
+                with_timeout(
+                    config.timeout(),
+                    client.get_multiplexed_async_connection_with_config(&settings),
+                )
+                .await?,
             )
         };
         Ok(Self::new(connection, cluster, config))
@@ -423,7 +443,7 @@ impl RedisBackend {
         let probe = async {
             let client = config.client()?;
             let mut connection = client
-                .get_multiplexed_async_connection()
+                .get_multiplexed_async_connection_with_config(&config.connection_config())
                 .await
                 .map_err(|e| AppError::new(500, e.to_string()))?;
             let info: String = redis::cmd("INFO")
@@ -561,6 +581,10 @@ impl RedisBackend {
             }
             // a timeout is not a lifecycle signal: no retry, no health change
             Err(_) => return Err(CommandError::TimedOut(self.timeout)),
+            // the crate's response timeout is the same deadline (module docs: *One deadline*)
+            Ok(Err(error)) if error.is_timeout() => {
+                return Err(CommandError::TimedOut(self.timeout))
+            }
             Ok(Err(error)) => error,
         };
         if !is_connection_loss(&error) {
@@ -583,6 +607,7 @@ impl RedisBackend {
                 self.lifecycle.mark_alive();
                 Ok(value)
             }
+            Ok(Err(error)) if error.is_timeout() => Err(CommandError::TimedOut(self.timeout)),
             Ok(Err(error)) => Err(CommandError::Redis(error)),
             Err(_) => Err(CommandError::TimedOut(self.timeout)),
         }
@@ -661,7 +686,12 @@ impl RedisBackend {
         let seeds = config
             .seed_infos()
             .map_err(|e| ConnectError::Unbuildable(e.message().to_string()))?;
-        let client = ClusterClient::new(seeds).map_err(ConnectError::Redis)?;
+        // the cluster client keeps its own timeouts for every node it reaches
+        let client = ClusterClient::builder(seeds)
+            .connection_timeout(config.timeout())
+            .response_timeout(config.timeout())
+            .build()
+            .map_err(ConnectError::Redis)?;
         with_timeout(config.timeout(), client.get_async_connection()).await
     }
 }
@@ -672,6 +702,8 @@ async fn with_timeout<T>(
 ) -> Result<T, ConnectError> {
     match tokio::time::timeout(timeout, future).await {
         Ok(Ok(value)) => Ok(value),
+        // the crate's own timeout is the same deadline (module docs: *One deadline*)
+        Ok(Err(error)) if error.is_timeout() => Err(ConnectError::TimedOut(timeout)),
         Ok(Err(error)) => Err(ConnectError::Redis(error)),
         Err(_) => Err(ConnectError::TimedOut(timeout)),
     }
