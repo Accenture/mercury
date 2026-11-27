@@ -6088,3 +6088,8 @@ reference implementation.
   `{node}.error` and a handler as `error.message`. The fan-out cases now assert the Java test's own text, and the two
   guide passages that quoted the old one (`function-execution.md`, `rest-automation.md`) quote the new. The
   distributed-cache interop report keeps the text its runs recorded.
+- **A test race closed, met in this increment's verification.** `edge_relay_spans_are_connected` in
+  `crates/platform-core/tests/event_over_http_stream.rs` was the one test of its file without the suite guard, so
+  the pool-drain test (`server_pool_exhaustion_answers_503`) could empty the reply lanes under it: one workspace run
+  answered 503 where 200 was due, and the binary alone passed five times of five. The test takes the guard now. No
+  engine code changed.
