@@ -671,6 +671,16 @@
       "quote": "is decided by the statement as written, never by a value",
       "test": "crates/knowledge-graph::graph_runtime::text_value_statements_match_java_semantics",
       "since": "4.12.31+"
+    },
+    {
+      "id": "math-text-in-quotes-on-the-agent-checklist",
+      "claim": "The AI agent guide's checklist tells an author to write a selector inside quotes to compare a text value inside a number expression; quoted, two canonical numbers still compare as numbers and a zero-padded code compares as text.",
+      "pages": [
+        "docs/guides/knowledge-graph/ai-agent-guide.md"
+      ],
+      "quote": "write its selector inside quotes",
+      "test": "crates/knowledge-graph::graph_runtime::text_value_statements_match_java_semantics",
+      "since": "4.12.31+"
     }
   ]
 }

@@ -1775,6 +1775,10 @@ async fn text_value_statements_match_java_semantics(platform: &Platform) {
     assert_eq!(Some(Value::from("100")), quoted(LATER, LATER).await);
     // a quote in the value stays inside the literal
     assert_eq!(Some(Value::from("100")), quoted("z' >= 'a", EARLIER).await);
+    // quotes make a string, not a text comparison: two canonical numbers still compare as numbers
+    // (as text '100.5' sorts before '99.5'), and a zero-padded code compares as text
+    assert_eq!(Some(Value::from("100")), quoted("100.5", "99.5").await);
+    assert_eq!(Some(Value::from("0")), quoted("007", "7").await);
 
     // a CONDITION compares the same values as text
     for value in ["2*3", LATER, "A4352", "O'Brien", "a\\b"] {
