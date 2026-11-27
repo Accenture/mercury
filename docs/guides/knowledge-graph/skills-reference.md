@@ -372,7 +372,10 @@ constant not listed here is rejected by name, never silently accepted.
       `200 == 'abc'` fails (`Type mismatch for equality`).
     - `&&`, then `||` — short-circuit; a number or string operand is truthy the JavaScript way (`0`
       and `''` are false).
-    - `test ? a : b` — the ternary, lowest precedence; `( … )` groups.
+    - `test ? a : b` — the ternary, lowest precedence; `( … )` groups. A `COMPUTE` that carries a comparison or
+      boolean operator is a boolean statement, so a ternary whose test compares (`{a} > {b} ? 100 : 50`) stores
+      `true` or `false` there, never the branch's value: write it as a [`DECIMAL`](#math-decimal), or take the
+      test from a `CONDITION` (`{node.result.big} ? 100 : 50`).
 - **Functions** — one argument: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `sqrt`, `abs`,
   `floor`, `ceil`, `round`, `log` (natural), `log10`, `exp`; two: `pow(x, y)`; any number:
   `min(a, b, …)`, `max(a, b, …)`; none: `random()`. Every function is also reachable under `Math.`

@@ -213,11 +213,16 @@ engines):
 > - [ ] **Text in a number expression is a number, or it is in quotes.** In a `DECIMAL`, or a `COMPUTE` or `IF`
 >       without a comparison, a text value must spell one number: a date, a code or an identifier there fails the
 >       statement naming the selector (`Not a number: …`), where it used to be computed as arithmetic. To compare
->       such a value inside a number expression, write its selector inside quotes -
+>       such a value inside a `DECIMAL`, write its selector inside quotes in the ternary test -
 >       `'{input.body.date}' >= '{model.cutoff}' ? {input.body.amount} : 0` - or compare it in a `CONDITION`, which
 >       quotes text for you ([the dialect](skills-reference.md#math-dialect)). Quotes make a string, not a text
 >       comparison: two strings that are both canonical numbers still compare as numbers (`'100.5' >= '99.5'` is
 >       true), while a zero-padded code such as `'007'` compares as text.
+> - [ ] **A ternary with a comparison goes in a `DECIMAL`, never a `COMPUTE`.** A `COMPUTE` that carries a comparison
+>       or boolean operator is a boolean statement, so `COMPUTE: fee -> {model.a} > {model.b} ? 100 : 50` stores
+>       `true`, not `100` or `50`, and raises no error. `DECIMAL: fee -> {model.a} > {model.b} ? 100 : 50` stores the
+>       branch's value; so does a `COMPUTE` whose test is a boolean computed before it, as in
+>       `CONDITION: big -> {model.a} > {model.b}` then `COMPUTE: fee -> {node.result.big} ? 100 : 50`.
 > - [ ] A `$` source is an **RFC 9535** JSONPath query, used only as a data mapping's source: no Jayway forms
 >       (`in`, `=~`, `.length()`), and no JSONPath inside a `{reference}`
 >       ([JSON Path](../event-script/syntax.md#json-path)).

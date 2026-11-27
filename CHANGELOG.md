@@ -333,8 +333,11 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    text value must spell one number, and a date, a code or an identifier is compared by writing its selector inside
    quotes or in a `CONDITION`. It also says what quotes do: they make a string, so two strings that are both
    canonical numbers still compare as numbers, while a zero-padded code compares as text. Pinned in the claims
-   registry to `text_value_statements_match_java_semantics`, which gains the two cases. **Upgrade note:** none -
-   documentation and a test.
+   registry to `text_value_statements_match_java_semantics`, which gains the two cases. A second item, and a
+   sentence beside the ternary in the skills reference, say where a ternary belongs: a `COMPUTE` that carries a
+   comparison is a boolean statement, so `{a} > {b} ? 100 : 50` stores `true` there and not the branch's value; a
+   `DECIMAL` stores the value, and so does a `COMPUTE` whose test is a boolean from a `CONDITION`. **Upgrade
+   note:** none - documentation and a test.
 
 ## Version 4.12.30, 11/5/2026
 
