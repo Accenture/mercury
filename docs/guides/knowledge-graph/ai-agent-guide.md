@@ -200,6 +200,10 @@ engines):
 >       `{table-node}.{model.key}`. Never hard-code it as a ladder of
 >       IF-THEN-ELSE in `graph.math` or inside a composable function: the table is more readable, and
 >       the product owner certifies it on the graph ([static decision table](skills-reference.md#task)).
+> - [ ] **A ternary computes its branch's value, in a `COMPUTE` as in a `DECIMAL`.**
+>       `COMPUTE: fee -> {model.a} > {model.b} ? 100 : 50` stores `100` or `50`. A statement with a ternary is a
+>       number statement: its comparison belongs in the ternary's test, a text value there must spell one number or
+>       be written inside quotes, and a boolean result fails by name - store a boolean with `CONDITION`.
 > - [ ] **Date arithmetic is a plugin, not code.** A due date or a day count on dates written as `YYYY-MM-DD` is
 >       `f:addDays({date}, {days})` (a negative number of days goes back) or `f:daysBetween({from}, {to})` (whole days,
 >       the earlier date excluded and the later one included, in either order) in a `graph.data.mapper`

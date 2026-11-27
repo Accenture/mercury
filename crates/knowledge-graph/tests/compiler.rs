@@ -100,10 +100,12 @@ fn manifest_listed_graphs_are_compiled() {
     // fails a for_each node, Java #682)
     // + the five text-value fixtures (text-value-decimal, -compute, -condition, -ternary and -quoted:
     // a text value in a graph.math expression is one value, never more expression, Java #683)
+    // + the three compute-ternary fixtures (compute-ternary, -quoted and -boolean: a COMPUTE with a
+    // ternary computes its branch's value, as a DECIMAL does, Java #686)
     let mut all = graphs::get_all_graphs();
     all.sort();
     assert_eq!(
-        102,
+        105,
         all.len(),
         "expected all valid manifest graphs to compile: {all:?}"
     );

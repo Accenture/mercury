@@ -719,6 +719,7 @@ async fn graph_runtime_end_to_end() {
     month_and_year_plugins_refuse_what_the_day_plugins_refuse(&platform).await;
     decimal_statement_matches_java_semantics(&platform).await;
     text_value_statements_match_java_semantics(&platform).await;
+    compute_ternary_matches_java_semantics(&platform).await;
     decimal_precision_matches_java_semantics(&platform).await;
     join_loop_retirement_and_health(&platform).await;
     api_fetcher_matches_java_semantics(&platform).await;
@@ -1673,6 +1674,70 @@ async fn decimal_precision_matches_java_semantics(platform: &Platform) {
     assert!(
         text.contains("not found"),
         "unexpected error response: {text}"
+    );
+}
+
+/// Java parity (`ComputeTernaryTest`): a ternary in a COMPUTE statement, end to end. The statement computes
+/// a number, the branch's value, as a DECIMAL does. Before the rule a COMPUTE that carried a comparison was a
+/// boolean statement whatever else it held, so `2 > 3 ? 100 : 50` stored `true`, the truth of 50, without an
+/// error.
+async fn compute_ternary_matches_java_semantics(platform: &Platform) {
+    const TERNARY_GRAPH: &str = "unit-test-compute-ternary";
+    const QUOTED_GRAPH: &str = "unit-test-compute-ternary-quoted";
+    const BOOLEAN_GRAPH: &str = "unit-test-compute-ternary-boolean";
+    const LARGER: &str = "100.5";
+    const SMALLER: &str = "99.5";
+    const LATER: &str = "2025-07-15";
+    const EARLIER: &str = "2025-01-01";
+    let run = |graph: &'static str, x: &'static str, y: &'static str| async move {
+        let body = serde_json::json!({"x": x, "y": y});
+        run_graph(platform, graph, body, serde_json::json!({})).await
+    };
+    let message = |reply: &EventEnvelope| {
+        assert_eq!(400, reply.status(), "{:?}", reply.body());
+        body_map(reply)
+            .get_element("message")
+            .map(|m| event_script::conversions::display(&m))
+            .unwrap_or_default()
+    };
+
+    // a ternary stores its branch's value, and a ternary inside arithmetic is a number too
+    let taken = run(TERNARY_GRAPH, LARGER, SMALLER).await;
+    assert_eq!(200, taken.status(), "{:?}", taken.body());
+    let taken = body_map(&taken);
+    assert_eq!(Some(Value::from(100.0)), taken.get_element("d"));
+    assert_eq!(Some(Value::from(200.0)), taken.get_element("e"));
+    // the other branch's value, where the truth of 50 used to be stored
+    let other = body_map(&run(TERNARY_GRAPH, SMALLER, LARGER).await);
+    assert_eq!(Some(Value::from(50.0)), other.get_element("d"));
+    assert_eq!(Some(Value::from(100.0)), other.get_element("e"));
+    // a comparison without a ternary is still a boolean
+    assert_eq!(Some(Value::from(true)), taken.get_element("f"));
+    assert_eq!(Some(Value::from(false)), other.get_element("f"));
+
+    // text that is not a number fails by name, as in a DECIMAL
+    let refused = message(&run(TERNARY_GRAPH, LATER, EARLIER).await);
+    assert!(
+        refused.starts_with(
+            "Not a number: input.body.x in '{input.body.x} >= {input.body.y} ? 100 : 50'"
+        ),
+        "{refused}"
+    );
+
+    // inside quotes the author wrote, the test compares text
+    let quoted = |x: &'static str, y: &'static str| async move {
+        let reply = run(QUOTED_GRAPH, x, y).await;
+        assert_eq!(200, reply.status(), "{:?}", reply.body());
+        body_map(&reply).get_element("d")
+    };
+    assert_eq!(Some(Value::from(100.0)), quoted(LATER, EARLIER).await);
+    assert_eq!(Some(Value::from(50.0)), quoted(EARLIER, LATER).await);
+
+    // a boolean result fails by name
+    let boolean = message(&run(BOOLEAN_GRAPH, LARGER, SMALLER).await);
+    assert!(
+        boolean.starts_with("Boolean result where a number was expected"),
+        "{boolean}"
     );
 }
 

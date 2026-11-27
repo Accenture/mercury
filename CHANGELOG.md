@@ -265,6 +265,26 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    `1/3`. Send a number, or text that spells one; compare text inside quotes or in a `CONDITION`; and assert a
    caller's types with `f:validate`. Text that spells a number computes as before.
 
+7. **A `COMPUTE` with a ternary computes its branch's value, as a `DECIMAL` does (Increment 221; the twin of the Java
+   engine's mercury-composable #686, the maintainer's ruling of 2026-11-27).** A `COMPUTE` whose text carried a
+   comparison or boolean operator was a boolean statement whatever else it held, and a number it computed was read
+   as its truth: `COMPUTE: fee -> {a} > {b} ? 100 : 50` stored `true` for either branch, without an error, while the
+   same expression in a `DECIMAL` stored `100` or `50`. Now a statement that carries a ternary - a question mark
+   outside a string literal - is a number statement in a `COMPUTE` as it is in a `DECIMAL`: it stores the branch's
+   value; the comparison belongs in the ternary's test; a text value must spell one number or be written inside
+   quotes (Fixed 6); and a boolean result fails by name (`Boolean result where a number was expected`), a boolean
+   being stored with `CONDITION`. A `COMPUTE` with a comparison and no ternary stays a boolean statement. The test
+   is `expression_source::has_ternary`. Covered by `compute_ternary_matches_java_semantics` in `graph_runtime.rs`
+   over the Java engine's three fixtures `unit-test-compute-ternary*`, copied byte for byte, which failed against
+   the unchanged statement code, and by a unit test of the ternary test; one sentence of the skills reference is
+   pinned in the claims registry; the skills reference, the command reference, the command catalog, the AI agent
+   guide's checklist and the `graph-math` help page state the rule, and the Playground bundle is the Java engine's
+   (`npm run release:rust`). **Upgrade note - READ:** a graph that read the result of a `COMPUTE` with a comparison
+   inside a ternary as a boolean now reads a number. An `IF` over that result alone takes the same branch as before
+   for a zero and a non-zero value; a response carries the number where it carried `true` or `false`; a comparison
+   of the result with `true` fails by name. A ternary whose branches are booleans moves to a `CONDITION`. A text
+   value in such a ternary's test that is not a number is written inside quotes.
+
 ### Security
 
 1. **libz-sys 1.1.33 (Increment 206).** The `audit` gate failed on 2026-11-18 on RUSTSEC-2026-0544 (CVE-2026-85091), published

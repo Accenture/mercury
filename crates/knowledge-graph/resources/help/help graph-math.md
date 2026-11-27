@@ -54,7 +54,7 @@ Statements
   included) and stored as a boolean in THIS node's result namespace; an IF
   may test it directly (IF: {this-node}.result.{var}). A COMPUTE stores a
   boolean only when its expression happens to carry a comparison or boolean
-  operator - CONDITION says so in the statement.
+  operator and no ternary - CONDITION says so in the statement.
 - IF - a boolean decision that can redirect traversal (see below).
 - MAPPING: {source} -> {target} - data mapping, identical to the data mapper
   (see 'help graph-data-mapper'). Do NOT wrap source/target in curly braces.
@@ -80,9 +80,10 @@ as a subtraction - so use communicative hyphenated names freely.
 
 A value is always ONE value, never more expression. A number or a boolean is
 itself. A text value is a quoted string in a boolean expression (IF,
-CONDITION, or a COMPUTE carrying a comparison or boolean operator), so
-{model.state} == 'CA' compares text. In a number expression (DECIMAL, or a
-COMPUTE or IF without such an operator) a text value is the one number it
+CONDITION, or a COMPUTE carrying a comparison or boolean operator and no
+ternary), so {model.state} == 'CA' compares text. In a number expression
+(DECIMAL, a COMPUTE with a ternary, or a COMPUTE or IF without such an
+operator) a text value is the one number it
 spells ("100.25", "-5", "1e3"); any other text - a date such as 2025-07-15, a
 code, an identifier - fails the statement naming the selector ("Not a number:
 input.body.date in '...'") and is never computed as arithmetic. To read a
@@ -117,6 +118,12 @@ Precedence, tightest first: ** > unary > * / % > + - > relational > equality > &
 
 Numbers and booleans - each rule is enforced by a named failure, never a
 silent value:
+- A ternary computes its branch's value, in a COMPUTE as in a DECIMAL:
+  COMPUTE: fee -> {model.a} > {model.b} ? 100 : 50 stores 100.0 or 50.0. A
+  statement with a ternary is a number statement, whatever comparison its
+  test holds: a text value must spell one number or be written inside quotes,
+  and a boolean result fails by name ("Boolean result where a number was
+  expected") - store a boolean with CONDITION.
 - A boolean is not a number. A boolean where arithmetic, a < or > comparison
   or a function argument needs a number fails naming the selector, e.g.
   "Boolean operand: model.flag (true) in '{model.flag} + 1' - a boolean is
