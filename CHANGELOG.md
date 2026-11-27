@@ -327,6 +327,15 @@ Each change merged to `main` after v4.12.30 is listed here; it moves under its r
    deployment**, which opens the packaging panel straight in its Deploy view (the webapp is one source for both engines).
    **Upgrade note:** none - documentation, the scripts' messages and a menu entry.
 
+5. **The AI agent guide's checklist carries the rule for text in a number expression, in step with the Java engine's
+   guide.** The skills reference and the `graph-math` help page state it since Increment 220; the checklist, the page
+   an AI author reads first, did not. Its new item: in a `DECIMAL`, or a `COMPUTE` or `IF` without a comparison, a
+   text value must spell one number, and a date, a code or an identifier is compared by writing its selector inside
+   quotes or in a `CONDITION`. It also says what quotes do: they make a string, so two strings that are both
+   canonical numbers still compare as numbers, while a zero-padded code compares as text. Pinned in the claims
+   registry to `text_value_statements_match_java_semantics`, which gains the two cases. **Upgrade note:** none -
+   documentation and a test.
+
 ## Version 4.12.30, 11/5/2026
 
 The lock-step twin of Java 4.12.30, catching up from 4.12.27 with every common feature the Java engine shipped since. Java

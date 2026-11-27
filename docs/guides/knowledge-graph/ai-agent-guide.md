@@ -210,6 +210,14 @@ engines):
 >       and so on months to its start date, never one month to the previous date. Never compute any of these in
 >       `graph.math`, in a composable function or through epoch milliseconds (`f:parseDate` with `ms`), which brings
 >       time zones back in; the request carries its dates as `YYYY-MM-DD` text, with no time and no time zone.
+> - [ ] **Text in a number expression is a number, or it is in quotes.** In a `DECIMAL`, or a `COMPUTE` or `IF`
+>       without a comparison, a text value must spell one number: a date, a code or an identifier there fails the
+>       statement naming the selector (`Not a number: …`), where it used to be computed as arithmetic. To compare
+>       such a value inside a number expression, write its selector inside quotes -
+>       `'{input.body.date}' >= '{model.cutoff}' ? {input.body.amount} : 0` - or compare it in a `CONDITION`, which
+>       quotes text for you ([the dialect](skills-reference.md#math-dialect)). Quotes make a string, not a text
+>       comparison: two strings that are both canonical numbers still compare as numbers (`'100.5' >= '99.5'` is
+>       true), while a zero-padded code such as `'007'` compares as text.
 > - [ ] A `$` source is an **RFC 9535** JSONPath query, used only as a data mapping's source: no Jayway forms
 >       (`in`, `=~`, `.length()`), and no JSONPath inside a `{reference}`
 >       ([JSON Path](../event-script/syntax.md#json-path)).
