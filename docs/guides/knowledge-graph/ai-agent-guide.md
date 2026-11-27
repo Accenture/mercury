@@ -218,11 +218,6 @@ engines):
 >       quotes text for you ([the dialect](skills-reference.md#math-dialect)). Quotes make a string, not a text
 >       comparison: two strings that are both canonical numbers still compare as numbers (`'100.5' >= '99.5'` is
 >       true), while a zero-padded code such as `'007'` compares as text.
-> - [ ] **A ternary with a comparison goes in a `DECIMAL`, never a `COMPUTE`.** A `COMPUTE` that carries a comparison
->       or boolean operator is a boolean statement, so `COMPUTE: fee -> {model.a} > {model.b} ? 100 : 50` stores
->       `true`, not `100` or `50`, and raises no error. `DECIMAL: fee -> {model.a} > {model.b} ? 100 : 50` stores the
->       branch's value; so does a `COMPUTE` whose test is a boolean computed before it, as in
->       `CONDITION: big -> {model.a} > {model.b}` then `COMPUTE: fee -> {node.result.big} ? 100 : 50`.
 > - [ ] A `$` source is an **RFC 9535** JSONPath query, used only as a data mapping's source: no Jayway forms
 >       (`in`, `=~`, `.length()`), and no JSONPath inside a `{reference}`
 >       ([JSON Path](../event-script/syntax.md#json-path)).
